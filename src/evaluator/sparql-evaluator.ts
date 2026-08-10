@@ -13,6 +13,7 @@ import type {
   SparqlSelectResults,
 } from "@/sparql-engine-interface.ts";
 import { BgpEvaluator } from "@/evaluator/bgp-evaluator.ts";
+import { DataFactory } from "n3";
 
 /**
  * SparqlEvaluator processes parsed SPARQL AST queries against an RDFJS store.
@@ -100,27 +101,39 @@ export class SparqlEvaluator {
       return { quads };
     }
 
-    for (const _binding of bindings) {
+    for (const binding of bindings) {
       for (const t of query.template) {
-        const _s = this.bgpEvaluator.sparqlValueToRdfTerm(
-          this.bgpEvaluator.rdfTermToSparqlValue(
-            this.bgpEvaluator.sparqlTermToRdfTerm(t.subject),
-          ),
-        );
-        const _p = this.bgpEvaluator.sparqlValueToRdfTerm(
-          this.bgpEvaluator.rdfTermToSparqlValue(
-            this.bgpEvaluator.sparqlTermToRdfTerm(t.predicate),
-          ),
-        );
-        const _o = this.bgpEvaluator.sparqlValueToRdfTerm(
-          this.bgpEvaluator.rdfTermToSparqlValue(
-            this.bgpEvaluator.sparqlTermToRdfTerm(t.object),
-          ),
-        );
-        // Note: quad production will be refined in Phase 2
+        const s = this.resolveConstructTerm(t.subject, binding);
+        const p = this.resolveConstructTerm(t.predicate, binding);
+        const o = this.resolveConstructTerm(t.object, binding);
+
+        if (s && p && o) {
+          quads.push(
+            DataFactory.quad(
+              s as rdfjs.Quad_Subject,
+              p as rdfjs.Quad_Predicate,
+              o as rdfjs.Quad_Object,
+              DataFactory.defaultGraph(),
+            ),
+          );
+        }
       }
     }
 
     return { quads };
+  }
+
+  private resolveConstructTerm(
+    term: Parameters<BgpEvaluator["sparqlTermToRdfTerm"]>[0],
+    binding: SparqlBinding,
+  ): rdfjs.Term | null {
+    if (term.termType === "Variable") {
+      const bound = binding[term.value];
+      if (bound) {
+        return this.bgpEvaluator.sparqlValueToRdfTerm(bound);
+      }
+      return null;
+    }
+    return this.bgpEvaluator.sparqlTermToRdfTerm(term);
   }
 }
