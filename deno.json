@@ -1,0 +1,32 @@
+{
+  "name": "@wazoo/sparql-engine",
+  "version": "0.1.0",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/mod.ts"
+  },
+  "imports": {
+    "@/": "./src/",
+    "@rdfjs/types": "npm:@rdfjs/types@^2.0.1",
+    "@std/assert": "jsr:@std/assert@^1.0.19",
+    "n3": "npm:n3@^1.23.1",
+    "sparqljs": "npm:sparqljs@^3.7.1"
+  },
+  "tasks": {
+    "fmt": "deno fmt",
+    "fmt:check": "deno fmt --check",
+    "lint": "deno lint",
+    "check": "deno check",
+    "test": "deno test --allow-all",
+    "publish:dry": "deno publish --dry-run --allow-dirty",
+    "ci": {
+      "description": "Formats, lints, checks, and tests the code",
+      "dependencies": [
+        "fmt:check",
+        "lint",
+        "check",
+        "test"
+      ]
+    }
+  }
+}
