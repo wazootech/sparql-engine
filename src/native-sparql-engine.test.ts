@@ -66,3 +66,30 @@ Deno.test("NativeSparqlEngine - ASK query evaluation", async () => {
     assertEquals(falseResult.data.boolean, false);
   }
 });
+
+Deno.test("NativeSparqlEngine - CONSTRUCT query evaluation", async () => {
+  const store = new Store();
+  store.addQuad(
+    quad(
+      namedNode("http://example.org/alice"),
+      namedNode("http://xmlns.com/foaf/0.1/name"),
+      literal("Alice"),
+    ),
+  );
+
+  const engine = new NativeSparqlEngine({ store });
+  const result = await engine.execute({
+    query:
+      "CONSTRUCT { ?person <http://schema.org/name> ?name } WHERE { ?person <http://xmlns.com/foaf/0.1/name> ?name }",
+  });
+
+  assertEquals(result.kind, "construct");
+  if (result.kind === "construct") {
+    assertEquals(result.data.quads.length, 1);
+    assertEquals(
+      result.data.quads[0].predicate.value,
+      "http://schema.org/name",
+    );
+    assertEquals(result.data.quads[0].object.value, "Alice");
+  }
+});
