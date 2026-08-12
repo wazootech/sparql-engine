@@ -243,16 +243,16 @@ Deno.test("NativeSparqlEngine - unsupported FILTER expression is rejected", asyn
     ),
   );
   const engine = new NativeSparqlEngine({ store });
-  // ISIRI is not part of the ported surface yet, so it must still raise a
+  // UNSUPPORTED_FUNC is not part of the ported surface, so it must still raise a
   // clear error rather than silently passing.
   await assertRejects(
     () =>
       engine.execute({
         query:
-          "SELECT ?person WHERE { ?person <http://xmlns.com/foaf/0.1/name> ?name FILTER(ISIRI(?name)) }",
+          "SELECT ?person WHERE { ?person <http://xmlns.com/foaf/0.1/name> ?name FILTER(<http://example.org/unsupported>(?name)) }",
       }),
     Error,
-    "Unsupported SPARQL expression operator: isiri",
+    "Unsupported SPARQL expression",
   );
 });
 
@@ -1037,11 +1037,21 @@ Deno.test("NativeSparqlEngine - unsupported update operation is rejected", async
     ),
   );
   const engine = new NativeSparqlEngine({ store });
-
   await assertRejects(
-    () => engine.execute({ query: "CLEAR ALL" }),
+    () =>
+      (engine as unknown as {
+        updateEvaluator: { executeUpdate: (u: unknown) => Promise<void> };
+      }).updateEvaluator.executeUpdate({
+        type: "update",
+        prefixes: {},
+        updates: [
+          {
+            type: "unsupported_op",
+          } as unknown as import("sparqljs").UpdateOperation,
+        ],
+      }),
     Error,
-    "Unsupported SPARQL update operation: clear",
+    "Unsupported SPARQL update operation: unsupported_op",
   );
 });
 

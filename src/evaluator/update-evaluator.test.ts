@@ -4,7 +4,7 @@ import { DataFactory, Store } from "n3";
 import { NativeSparqlEngine } from "@/native-sparql-engine.ts";
 import type { NativeSparqlTransaction } from "@/native-sparql-engine.ts";
 
-const { namedNode, quad } = DataFactory;
+const { namedNode, literal, quad } = DataFactory;
 
 const exampleP = namedNode("http://example.org/p");
 const exampleQ = namedNode("http://example.org/q");
@@ -106,20 +106,41 @@ Deno.test("UpdateEvaluator - nothing touches the store until commit", async () =
 Deno.test("UpdateEvaluator - rollback discards buffered changes when an operation fails", async () => {
   const store = new Store();
   const transaction = new RecordingTransaction(store);
-  const engine = new NativeSparqlEngine({
-    store,
-    createTransaction: () => transaction,
-  });
+  const evaluator = new (await import("./update-evaluator.ts")).UpdateEvaluator(
+    {
+      store,
+      createTransaction: () => transaction,
+    },
+  );
 
   await assertRejects(
     () =>
-      engine.execute({
-        query:
-          'INSERT DATA { <http://example.org/a> <http://example.org/p> "v" } ; ' +
-          "CLEAR ALL",
+      evaluator.executeUpdate({
+        type: "update",
+        prefixes: {},
+        updates: [
+          {
+            updateType: "insert",
+            insert: [
+              {
+                type: "bgp",
+                triples: [
+                  {
+                    subject: namedNode("http://example.org/a"),
+                    predicate: namedNode("http://example.org/p"),
+                    object: literal("v"),
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            type: "unsupported_op",
+          } as unknown as import("sparqljs").UpdateOperation,
+        ],
       }),
     Error,
-    "Unsupported SPARQL update operation: clear",
+    "Unsupported SPARQL update operation: unsupported_op",
   );
 
   assertEquals(transaction.added.length, 1);
