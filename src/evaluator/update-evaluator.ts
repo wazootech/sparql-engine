@@ -19,7 +19,7 @@ import {
   probeQuadIndex,
   simplePredicate,
 } from "@/quad-store.ts";
-import { sparqlTermToRdfTerm, termKey } from "@/term/mod.ts";
+import { sameRdfTerm, sparqlTermToRdfTerm, termKey } from "@/term/mod.ts";
 import { DataFactory } from "n3";
 
 const { blankNode, quad, defaultGraph } = DataFactory;
@@ -216,21 +216,26 @@ export class UpdateEvaluator {
         return;
       }
       case "copy": {
+        // Snapshot the source before clearing the destination so COPYing a
+        // graph to itself is a no-op rather than an emptying.
+        const sourceQuads = await this.fetchGraphQuads(op.source as GraphRef);
         await this.applyClear(op.destination as GraphRef, remove);
-        await this.applyAdd(
-          op.source as GraphRef,
-          op.destination as GraphRef,
-          add,
-        );
+        this.addQuads(sourceQuads, op.destination as GraphRef, add);
         return;
       }
       case "move": {
+        // MOVEing a graph to itself is a no-op (SPARQL 1.1 Update §3.3.3).
+        if (
+          this.sameGraphRef(
+            op.source as GraphRef,
+            op.destination as GraphRef,
+          )
+        ) {
+          return;
+        }
+        const sourceQuads = await this.fetchGraphQuads(op.source as GraphRef);
         await this.applyClear(op.destination as GraphRef, remove);
-        await this.applyAdd(
-          op.source as GraphRef,
-          op.destination as GraphRef,
-          add,
-        );
+        this.addQuads(sourceQuads, op.destination as GraphRef, add);
         await this.applyClear(op.source as GraphRef, remove);
         return;
       }
@@ -313,7 +318,19 @@ export class UpdateEvaluator {
     },
     add: (item: rdfjs.Quad) => unknown,
   ): Promise<void> {
-    const sourceQuads = await this.fetchGraphQuads(sourceRef);
+    this.addQuads(await this.fetchGraphQuads(sourceRef), destRef, add);
+  }
+
+  private addQuads(
+    sourceQuads: rdfjs.Quad[],
+    destRef: {
+      default?: boolean;
+      named?: boolean;
+      all?: boolean;
+      name?: SparqlTerm;
+    },
+    add: (item: rdfjs.Quad) => unknown,
+  ): void {
     const destGraphTerm = (!destRef || destRef.default)
       ? defaultGraph()
       : destRef.name
@@ -322,6 +339,19 @@ export class UpdateEvaluator {
     for (const q of sourceQuads) {
       add(quad(q.subject, q.predicate, q.object, destGraphTerm));
     }
+  }
+
+  private sameGraphRef(a: GraphRef, b: GraphRef): boolean {
+    if (a.default && b.default) {
+      return true;
+    }
+    if (a.name && b.name) {
+      return sameRdfTerm(
+        sparqlTermToRdfTerm(a.name),
+        sparqlTermToRdfTerm(b.name),
+      );
+    }
+    return false;
   }
 
   /**
