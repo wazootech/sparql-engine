@@ -1,40 +1,17 @@
 import type * as rdfjs from "@rdfjs/types";
 import { termKey } from "./identity.ts";
-
-const XSD = "http://www.w3.org/2001/XMLSchema#";
-const XSD_STRING = `${XSD}string`;
-const NUMERIC_DATATYPES = new Set([
-  `${XSD}integer`,
-  `${XSD}decimal`,
-  `${XSD}float`,
-  `${XSD}double`,
-]);
+import {
+  compareNumericValues,
+  NUMERIC_DATATYPES,
+  numericValue,
+  XSD_STRING,
+} from "./numeric.ts";
 
 /**
  * compareStrings orders two strings by codepoint comparison.
  */
 function compareStrings(a: string, b: string): number {
   return a < b ? -1 : a > b ? 1 : 0;
-}
-
-/**
- * compareNumeric orders two lexical forms of the given numeric datatype by
- * numeric value. xsd:integer compares with BigInt (exact for arbitrary
- * precision); decimal/float/double fall back to Number.
- */
-function compareNumeric(a: string, b: string, datatype: string): number {
-  if (datatype === `${XSD}integer`) {
-    try {
-      const ai = BigInt(a);
-      const bi = BigInt(b);
-      return ai < bi ? -1 : ai > bi ? 1 : 0;
-    } catch {
-      // Malformed integer lexical form; fall through to Number.
-    }
-  }
-  const an = Number(a);
-  const bn = Number(b);
-  return an < bn ? -1 : an > bn ? 1 : 0;
 }
 
 /**
@@ -60,9 +37,13 @@ function compareLiterals(a: rdfjs.Literal, b: rdfjs.Literal): number {
     return compareStrings(da, db);
   }
   if (NUMERIC_DATATYPES.has(da)) {
-    const numeric = compareNumeric(a.value, b.value, da);
-    if (numeric !== 0) {
-      return numeric;
+    const an = numericValue(a);
+    const bn = numericValue(b);
+    if (an !== null && bn !== null) {
+      const numeric = compareNumericValues(an, bn);
+      if (numeric !== 0) {
+        return numeric;
+      }
     }
   }
   return compareStrings(a.value, b.value);

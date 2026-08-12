@@ -5,7 +5,6 @@ import type {
   SelectQuery,
   SparqlQuery,
   Term as SparqlTerm,
-  Triple,
 } from "sparqljs";
 import type {
   SparqlAskResults,
@@ -16,6 +15,7 @@ import type {
 } from "@/sparql-engine-interface.ts";
 import { BgpEvaluator } from "@/evaluator/bgp-evaluator.ts";
 import type { TermBinding } from "@/evaluator/bgp-evaluator.ts";
+import { simplePredicate } from "@/quad-store.ts";
 import { ExpressionEvaluator } from "@/evaluator/expression-evaluator.ts";
 import {
   compareRdfTerms,
@@ -140,7 +140,7 @@ export class SparqlEvaluator {
       for (const t of query.template) {
         const s = this.resolveConstructTerm(t.subject, binding);
         const p = this.resolveConstructTerm(
-          this.resolveTemplatePredicate(t.predicate),
+          simplePredicate(t.predicate),
           binding,
         );
         const o = this.resolveConstructTerm(t.object, binding);
@@ -159,15 +159,6 @@ export class SparqlEvaluator {
     }
 
     return { quads };
-  }
-
-  private resolveTemplatePredicate(predicate: Triple["predicate"]): SparqlTerm {
-    if ("termType" in predicate) {
-      return predicate;
-    }
-    throw new Error(
-      `Unsupported property path predicate in CONSTRUCT template`,
-    );
   }
 
   /**

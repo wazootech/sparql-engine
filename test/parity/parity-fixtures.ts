@@ -1,11 +1,12 @@
 import type * as rdfjs from "@rdfjs/types";
 import { DataFactory, Store } from "n3";
+import { XSD_INTEGER } from "@/term/mod.ts";
 
 const { blankNode, literal, namedNode, quad } = DataFactory;
 
 const exampleResource = (id: string) => namedNode(`http://example.org/${id}`);
 const foaf = (id: string) => namedNode(`http://xmlns.com/foaf/0.1/${id}`);
-const xsdInteger = namedNode("http://www.w3.org/2001/XMLSchema#integer");
+const xsdInteger = namedNode(XSD_INTEGER);
 
 /**
  * basicKnowledgeGraphQuads is the shared RDF fixture used to seed both engines.

@@ -1,22 +1,24 @@
 import { assertEquals } from "@std/assert";
 import type * as rdfjs from "@rdfjs/types";
 import { DataFactory } from "n3";
-import type { SparqlValue } from "@/sparql-engine-interface.ts";
 import {
   canonicalizeRdfTerm,
   canonicalizeSparqlValue,
+  compareNumericValues,
+  formatNumber,
+  numericValue,
   rdfTermToSparqlValue,
   sameRdfTerm,
-  sameSparqlValue,
-  sparqlValueKey,
-  sparqlValueToRdfTerm,
   termKey,
+  XSD_DECIMAL,
+  XSD_DOUBLE,
+  XSD_INTEGER,
 } from "@/term/mod.ts";
 
 const { namedNode, blankNode, literal, quad } = DataFactory;
 
 const ex = (suffix: string) => namedNode(`http://example.org/${suffix}`);
-const xsdInteger = namedNode("http://www.w3.org/2001/XMLSchema#integer");
+const xsdInteger = namedNode(XSD_INTEGER);
 
 Deno.test("termKey agrees with sameRdfTerm on term identity", () => {
   const terms: rdfjs.Term[] = [
@@ -44,68 +46,6 @@ Deno.test("termKey agrees with sameRdfTerm on term identity", () => {
         `termKey/sameRdfTerm disagreement at ${i}/${j}`,
       );
     }
-  }
-});
-
-Deno.test("sparqlValueKey agrees with sameSparqlValue on value identity", () => {
-  const values: SparqlValue[] = [
-    { type: "uri", value: "http://example.org/a" },
-    { type: "uri", value: "http://example.org/a" },
-    { type: "bnode", value: "x" },
-    { type: "literal", value: "plain" },
-    { type: "literal", value: "plain" },
-    { type: "literal", value: "hello", "xml:lang": "en" },
-    { type: "literal", value: "hello", "xml:lang": "fr" },
-    {
-      type: "literal",
-      value: "42",
-      datatype: "http://www.w3.org/2001/XMLSchema#integer",
-    },
-    { type: "literal", value: "42" },
-    {
-      type: "triple",
-      value: {
-        subject: { type: "uri", value: "http://example.org/s" },
-        predicate: { type: "uri", value: "http://example.org/p" },
-        object: { type: "literal", value: "o" },
-      },
-    },
-    {
-      type: "triple",
-      value: {
-        subject: { type: "uri", value: "http://example.org/s" },
-        predicate: { type: "uri", value: "http://example.org/p" },
-        object: { type: "literal", value: "o" },
-      },
-    },
-  ];
-  for (let i = 0; i < values.length; i++) {
-    for (let j = 0; j < values.length; j++) {
-      assertEquals(
-        sparqlValueKey(values[i]) === sparqlValueKey(values[j]),
-        sameSparqlValue(values[i], values[j]),
-        `sparqlValueKey/sameSparqlValue disagreement at ${i}/${j}`,
-      );
-    }
-  }
-});
-
-Deno.test("rdfTermToSparqlValue / sparqlValueToRdfTerm round-trips", () => {
-  const terms: rdfjs.Term[] = [
-    ex("a"),
-    blankNode("x"),
-    literal("plain"),
-    literal("hello", "en"),
-    literal("42", xsdInteger),
-    quad(ex("s"), ex("p"), literal("o")),
-  ];
-  for (const term of terms) {
-    const converted = sparqlValueToRdfTerm(rdfTermToSparqlValue(term));
-    assertEquals(
-      sameRdfTerm(term, converted),
-      true,
-      `round-trip lost identity for ${term.termType}`,
-    );
   }
 });
 
@@ -148,4 +88,31 @@ Deno.test("canonicalize projects xsd:string and RDF-star terms structurally", ()
     value: "http://example.org/s",
   });
   assertEquals(nested.object?.termType, "Quad");
+});
+
+Deno.test("numericValue parses integers with BigInt and other numerics with Number", () => {
+  assertEquals(numericValue(literal("42", xsdInteger)), 42n);
+  assertEquals(
+    numericValue(literal("9007199254740993", xsdInteger)),
+    9007199254740993n,
+  );
+  assertEquals(numericValue(literal("3.5", namedNode(XSD_DECIMAL))), 3.5);
+  assertEquals(numericValue(literal("plain")), null);
+  assertEquals(numericValue(literal("not-a-number", xsdInteger)), null);
+  assertEquals(numericValue(literal("hello", "en")), null);
+});
+
+Deno.test("compareNumericValues orders BigInts exactly and Numbers numerically", () => {
+  assertEquals(compareNumericValues(2n, 10n), -1);
+  assertEquals(compareNumericValues(10n, 2n), 1);
+  assertEquals(compareNumericValues(5n, 5n), 0);
+  assertEquals(compareNumericValues(2, 10), -1);
+  assertEquals(compareNumericValues(10, 2), 1);
+  assertEquals(compareNumericValues(2n, 10), -1);
+});
+
+Deno.test("formatNumber keeps the decimal point for xsd:decimal", () => {
+  assertEquals(formatNumber(3, XSD_DECIMAL), "3.0");
+  assertEquals(formatNumber(3.5, XSD_DECIMAL), "3.5");
+  assertEquals(formatNumber(1e21, XSD_DOUBLE), "1e+21");
 });

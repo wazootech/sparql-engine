@@ -6,21 +6,22 @@ import type {
 } from "sparqljs";
 import { DataFactory } from "n3";
 import type { TermBinding } from "@/evaluator/bgp-evaluator.ts";
-import { sameRdfTerm, sparqlTermToRdfTerm } from "@/term/mod.ts";
+import {
+  compareNumericValues,
+  formatNumber,
+  NUMERIC_DATATYPES,
+  numericValue,
+  sameRdfTerm,
+  sparqlTermToRdfTerm,
+  XSD_BOOLEAN,
+  XSD_DECIMAL,
+  XSD_DOUBLE,
+  XSD_FLOAT,
+  XSD_INTEGER,
+  XSD_STRING,
+} from "@/term/mod.ts";
 
 const { literal, namedNode } = DataFactory;
-
-const XSD = "http://www.w3.org/2001/XMLSchema#";
-const XSD_STRING = `${XSD}string`;
-const XSD_BOOLEAN = `${XSD}boolean`;
-const XSD_INTEGER = `${XSD}integer`;
-const XSD_DECIMAL = `${XSD}decimal`;
-const NUMERIC_DATATYPES = new Set([
-  `${XSD}integer`,
-  `${XSD}decimal`,
-  `${XSD}float`,
-  `${XSD}double`,
-]);
 
 /**
  * Ebv is the effective boolean value of a term: true, false, or "error"
@@ -229,7 +230,7 @@ export class ExpressionEvaluator {
     const an = numericValue(a);
     const bn = numericValue(b);
     if (an !== null && bn !== null) {
-      return compareNumbers(an, bn);
+      return compareNumericValues(an, bn);
     }
     if (this.isStringTyped(a) && this.isStringTyped(b)) {
       return a.value < b.value ? -1 : a.value > b.value ? 1 : 0;
@@ -289,10 +290,10 @@ export class ExpressionEvaluator {
       return undefined;
     }
     let datatype = XSD_DECIMAL;
-    if (da === `${XSD}double` || db === `${XSD}double`) {
-      datatype = `${XSD}double`;
-    } else if (da === `${XSD}float` || db === `${XSD}float`) {
-      datatype = `${XSD}float`;
+    if (da === XSD_DOUBLE || db === XSD_DOUBLE) {
+      datatype = XSD_DOUBLE;
+    } else if (da === XSD_FLOAT || db === XSD_FLOAT) {
+      datatype = XSD_FLOAT;
     }
     return literal(formatNumber(result, datatype), namedNode(datatype));
   }
@@ -394,53 +395,4 @@ export class ExpressionEvaluator {
  */
 function booleanLiteral(value: boolean): rdfjs.Literal {
   return literal(value ? "true" : "false", namedNode(XSD_BOOLEAN));
-}
-
-/**
- * numericValue extracts the numeric value of a literal, null when it is not
- * numeric or its lexical form is malformed. xsd:integer parses with BigInt
- * for exact arbitrary-precision arithmetic; other numeric datatypes use
- * Number.
- */
-function numericValue(term: rdfjs.Literal): number | bigint | null {
-  const datatype = term.datatype?.value;
-  if (datatype === undefined || !NUMERIC_DATATYPES.has(datatype)) {
-    return null;
-  }
-  if (datatype === XSD_INTEGER) {
-    try {
-      return BigInt(term.value);
-    } catch {
-      return null;
-    }
-  }
-  const numeric = Number(term.value);
-  return Number.isNaN(numeric) ? null : numeric;
-}
-
-/**
- * compareNumbers orders two numeric values.
- */
-function compareNumbers(a: number | bigint, b: number | bigint): number {
-  if (typeof a === "bigint" && typeof b === "bigint") {
-    return a < b ? -1 : a > b ? 1 : 0;
-  }
-  const an = Number(a);
-  const bn = Number(b);
-  return an < bn ? -1 : an > bn ? 1 : 0;
-}
-
-/**
- * formatNumber renders a numeric value with a canonical-ish lexical form for
- * its datatype (decimals keep a decimal point).
- */
-function formatNumber(value: number, datatype: string): string {
-  const text = String(value);
-  if (
-    datatype === `${XSD}decimal` && !text.includes(".") &&
-    !text.includes("e") && !text.includes("E")
-  ) {
-    return `${text}.0`;
-  }
-  return text;
 }

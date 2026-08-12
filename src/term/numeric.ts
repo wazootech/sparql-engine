@@ -1,0 +1,89 @@
+import type * as rdfjs from "@rdfjs/types";
+
+/**
+ * XSD is the XML Schema datatype namespace IRI.
+ */
+export const XSD = "http://www.w3.org/2001/XMLSchema#";
+
+/** XSD_STRING is the xsd:string datatype IRI. */
+export const XSD_STRING = `${XSD}string`;
+
+/** XSD_BOOLEAN is the xsd:boolean datatype IRI. */
+export const XSD_BOOLEAN = `${XSD}boolean`;
+
+/** XSD_INTEGER is the xsd:integer datatype IRI. */
+export const XSD_INTEGER = `${XSD}integer`;
+
+/** XSD_DECIMAL is the xsd:decimal datatype IRI. */
+export const XSD_DECIMAL = `${XSD}decimal`;
+
+/** XSD_FLOAT is the xsd:float datatype IRI. */
+export const XSD_FLOAT = `${XSD}float`;
+
+/** XSD_DOUBLE is the xsd:double datatype IRI. */
+export const XSD_DOUBLE = `${XSD}double`;
+
+/**
+ * NUMERIC_DATATYPES is the set of XSD datatypes with numeric value semantics
+ * per SPARQL 1.1: comparisons and arithmetic operate on their values rather
+ * than their lexical forms.
+ */
+export const NUMERIC_DATATYPES: ReadonlySet<string> = new Set([
+  XSD_INTEGER,
+  XSD_DECIMAL,
+  XSD_FLOAT,
+  XSD_DOUBLE,
+]);
+
+/**
+ * numericValue extracts the numeric value of a literal, or null when it is
+ * not numeric or its lexical form is malformed. xsd:integer parses with
+ * BigInt for exact arbitrary-precision arithmetic; other numeric datatypes
+ * use Number.
+ */
+export function numericValue(term: rdfjs.Literal): number | bigint | null {
+  const datatype = term.datatype?.value;
+  if (datatype === undefined || !NUMERIC_DATATYPES.has(datatype)) {
+    return null;
+  }
+  if (datatype === XSD_INTEGER) {
+    try {
+      return BigInt(term.value);
+    } catch {
+      return null;
+    }
+  }
+  const numeric = Number(term.value);
+  return Number.isNaN(numeric) ? null : numeric;
+}
+
+/**
+ * compareNumericValues orders two numeric values, comparing BigInt pairs
+ * exactly and everything else as Numbers.
+ */
+export function compareNumericValues(
+  a: number | bigint,
+  b: number | bigint,
+): number {
+  if (typeof a === "bigint" && typeof b === "bigint") {
+    return a < b ? -1 : a > b ? 1 : 0;
+  }
+  const an = Number(a);
+  const bn = Number(b);
+  return an < bn ? -1 : an > bn ? 1 : 0;
+}
+
+/**
+ * formatNumber renders a numeric value with a canonical-ish lexical form for
+ * its datatype (decimals keep a decimal point).
+ */
+export function formatNumber(value: number, datatype: string): string {
+  const text = String(value);
+  if (
+    datatype === XSD_DECIMAL && !text.includes(".") &&
+    !text.includes("e") && !text.includes("E")
+  ) {
+    return `${text}.0`;
+  }
+  return text;
+}

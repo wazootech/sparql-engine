@@ -1,7 +1,6 @@
 import type * as rdfjs from "@rdfjs/types";
 import type { SparqlValue } from "@/sparql-engine-interface.ts";
-
-const XSD_STRING = "http://www.w3.org/2001/XMLSchema#string";
+import { XSD_STRING } from "./numeric.ts";
 
 /**
  * CanonicalTerm is a serialization-stable projection of an RDF term that is

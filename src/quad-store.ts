@@ -1,0 +1,127 @@
+import type * as rdfjs from "@rdfjs/types";
+import type { Term as SparqlTerm } from "sparqljs";
+import { sameRdfTerm, termKey } from "@/term/mod.ts";
+
+/**
+ * QuadIndex maps each of the three quad positions to the candidate quads
+ * carrying that term, enabling O(1) bucket probes per solution. It backs
+ * both the BGP hash join and the batched DELETE scans, so both paths probe
+ * with identical semantics.
+ */
+export type QuadIndex = {
+  bySubject: Map<string, rdfjs.Quad[]>;
+  byPredicate: Map<string, rdfjs.Quad[]>;
+  byObject: Map<string, rdfjs.Quad[]>;
+};
+
+/**
+ * buildQuadIndex indexes candidate quads by each of their three positions,
+ * keyed by termKey, for O(1) bucket probes per solution.
+ */
+export function buildQuadIndex(quads: rdfjs.Quad[]): QuadIndex {
+  const bySubject = new Map<string, rdfjs.Quad[]>();
+  const byPredicate = new Map<string, rdfjs.Quad[]>();
+  const byObject = new Map<string, rdfjs.Quad[]>();
+  for (const item of quads) {
+    indexQuad(bySubject, termKey(item.subject), item);
+    indexQuad(byPredicate, termKey(item.predicate), item);
+    indexQuad(byObject, termKey(item.object), item);
+  }
+  return { bySubject, byPredicate, byObject };
+}
+
+/**
+ * indexQuad appends a quad to the bucket for the given key.
+ */
+function indexQuad(
+  index: Map<string, rdfjs.Quad[]>,
+  key: string,
+  item: rdfjs.Quad,
+): void {
+  const bucket = index.get(key);
+  if (bucket) {
+    bucket.push(item);
+  } else {
+    index.set(key, [item]);
+  }
+}
+
+/**
+ * probeQuadIndex narrows candidate quads to those matching the resolved
+ * positions (null = unconstrained). It starts from the smallest bucket for a
+ * constrained position and filters the rest positionally with sameRdfTerm,
+ * so the result contains exactly the quads matching every constrained
+ * position. When nothing is constrained, all candidates are returned.
+ */
+export function probeQuadIndex(
+  index: QuadIndex,
+  candidates: rdfjs.Quad[],
+  subject: rdfjs.Term | null,
+  predicate: rdfjs.Term | null,
+  object: rdfjs.Term | null,
+): rdfjs.Quad[] {
+  const options: rdfjs.Quad[][] = [];
+  if (subject !== null) {
+    options.push(index.bySubject.get(termKey(subject)) ?? []);
+  }
+  if (predicate !== null) {
+    options.push(index.byPredicate.get(termKey(predicate)) ?? []);
+  }
+  if (object !== null) {
+    options.push(index.byObject.get(termKey(object)) ?? []);
+  }
+  if (options.length === 0) {
+    return candidates;
+  }
+  options.sort((a, b) => a.length - b.length);
+  const bucket = options[0];
+  return bucket.filter((item) =>
+    (subject === null || sameRdfTerm(item.subject, subject)) &&
+    (predicate === null || sameRdfTerm(item.predicate, predicate)) &&
+    (object === null || sameRdfTerm(item.object, object))
+  );
+}
+
+/**
+ * matchQuads collects all quads matching the given pattern from an RDF/JS
+ * store, resolving the store's match stream into an array.
+ */
+export function matchQuads(
+  store: rdfjs.Store,
+  s: rdfjs.Term | null,
+  p: rdfjs.Term | null,
+  o: rdfjs.Term | null,
+  g: rdfjs.Term | null = null,
+): Promise<rdfjs.Quad[]> {
+  return new Promise<rdfjs.Quad[]>((resolve, reject) => {
+    const quads: rdfjs.Quad[] = [];
+    const stream = store.match(s, p, o, g);
+    stream.on("data", (q: rdfjs.Quad) => quads.push(q));
+    stream.on("end", () => resolve(quads));
+    stream.on("error", reject);
+  });
+}
+
+/**
+ * isSimplePredicate narrows a predicate to a simple (term) predicate,
+ * excluding property-path predicates.
+ */
+function isSimplePredicate(predicate: unknown): predicate is SparqlTerm {
+  return (
+    typeof predicate === "object" && predicate !== null &&
+    "termType" in predicate
+  );
+}
+
+/**
+ * simplePredicate returns the predicate of a triple pattern or template,
+ * rejecting property-path predicates that the engine does not support.
+ */
+export function simplePredicate(predicate: unknown): SparqlTerm {
+  if (!isSimplePredicate(predicate)) {
+    throw new Error(
+      "Unsupported property path predicate: only simple predicates are supported",
+    );
+  }
+  return predicate;
+}

@@ -10,7 +10,13 @@ import type {
 import type { NativeSparqlTransaction } from "@/native-sparql-engine.ts";
 import { BgpEvaluator } from "@/evaluator/bgp-evaluator.ts";
 import type { TermBinding } from "@/evaluator/bgp-evaluator.ts";
-import { sameRdfTerm, sparqlTermToRdfTerm, termKey } from "@/term/mod.ts";
+import {
+  buildQuadIndex,
+  matchQuads,
+  probeQuadIndex,
+  simplePredicate,
+} from "@/quad-store.ts";
+import { sparqlTermToRdfTerm, termKey } from "@/term/mod.ts";
 import { DataFactory } from "n3";
 
 const { blankNode, quad, defaultGraph } = DataFactory;
@@ -46,16 +52,6 @@ export interface UpdateEvaluatorOptions {
    */
   reorderPatterns?: boolean;
 }
-
-/**
- * DeleteIndex maps each position of the scanned candidate quads to the quads
- * carrying that term, enabling O(1) bucket probes per solution.
- */
-type DeleteIndex = {
-  bySubject: Map<string, rdfjs.Quad[]>;
-  byPredicate: Map<string, rdfjs.Quad[]>;
-  byObject: Map<string, rdfjs.Quad[]>;
-};
 
 /**
  * ResolvedTemplateTerm is the result of resolving one template position
@@ -265,8 +261,14 @@ export class UpdateEvaluator {
       : defaultGraph();
     for (const triple of pattern.triples) {
       const scan = this.deleteScanPositions(triple);
-      const candidates = await this.matchStore(scan.s, scan.p, scan.o, graph);
-      const index = this.buildDeleteIndex(candidates);
+      const candidates = await matchQuads(
+        this.options.store,
+        scan.s,
+        scan.p,
+        scan.o,
+        graph,
+      );
+      const index = buildQuadIndex(candidates);
       // Quads are removed at most once across all solutions: a second
       // removeQuad for the same quad is a store no-op that still costs an
       // index scan, and buffering duplicate deletes wastes transaction space.
@@ -274,7 +276,7 @@ export class UpdateEvaluator {
       for (const binding of bindings) {
         const subject = this.resolveDeleteTerm(triple.subject, binding);
         const predicate = this.resolveDeleteTerm(
-          this.resolveTemplatePredicate(triple.predicate),
+          simplePredicate(triple.predicate),
           binding,
         );
         const object = this.resolveDeleteTerm(triple.object, binding);
@@ -284,7 +286,7 @@ export class UpdateEvaluator {
         ) {
           continue;
         }
-        const matches = this.probeDeleteQuads(
+        const matches = probeQuadIndex(
           index,
           candidates,
           subject.kind === "wildcard" ? null : subject.term,
@@ -322,75 +324,9 @@ export class UpdateEvaluator {
     };
     return {
       s: position(triple.subject),
-      p: position(this.resolveTemplatePredicate(triple.predicate)),
+      p: position(simplePredicate(triple.predicate)),
       o: position(triple.object),
     };
-  }
-
-  /**
-   * buildDeleteIndex indexes scanned quads by each of their three positions
-   * for O(1) bucket probes per solution.
-   */
-  private buildDeleteIndex(quads: rdfjs.Quad[]): DeleteIndex {
-    const bySubject = new Map<string, rdfjs.Quad[]>();
-    const byPredicate = new Map<string, rdfjs.Quad[]>();
-    const byObject = new Map<string, rdfjs.Quad[]>();
-    for (const item of quads) {
-      this.indexDeleteQuad(bySubject, termKey(item.subject), item);
-      this.indexDeleteQuad(byPredicate, termKey(item.predicate), item);
-      this.indexDeleteQuad(byObject, termKey(item.object), item);
-    }
-    return { bySubject, byPredicate, byObject };
-  }
-
-  /**
-   * indexDeleteQuad appends a quad to the bucket for the given key.
-   */
-  private indexDeleteQuad(
-    index: Map<string, rdfjs.Quad[]>,
-    key: string,
-    item: rdfjs.Quad,
-  ): void {
-    const bucket = index.get(key);
-    if (bucket) {
-      bucket.push(item);
-    } else {
-      index.set(key, [item]);
-    }
-  }
-
-  /**
-   * probeDeleteQuads narrows scanned candidates to the quads matching the
-   * resolved positions of one solution. It starts from the smallest bucket
-   * for a constrained position and filters the rest positionally.
-   */
-  private probeDeleteQuads(
-    index: DeleteIndex,
-    candidates: rdfjs.Quad[],
-    subject: rdfjs.Term | null,
-    predicate: rdfjs.Term | null,
-    object: rdfjs.Term | null,
-  ): rdfjs.Quad[] {
-    const options: rdfjs.Quad[][] = [];
-    if (subject !== null) {
-      options.push(index.bySubject.get(termKey(subject)) ?? []);
-    }
-    if (predicate !== null) {
-      options.push(index.byPredicate.get(termKey(predicate)) ?? []);
-    }
-    if (object !== null) {
-      options.push(index.byObject.get(termKey(object)) ?? []);
-    }
-    if (options.length === 0) {
-      return candidates;
-    }
-    options.sort((a, b) => a.length - b.length);
-    const bucket = options[0];
-    return bucket.filter((item) =>
-      (subject === null || sameRdfTerm(item.subject, subject)) &&
-      (predicate === null || sameRdfTerm(item.predicate, predicate)) &&
-      (object === null || sameRdfTerm(item.object, object))
-    );
   }
 
   /**
@@ -410,7 +346,7 @@ export class UpdateEvaluator {
     for (const triple of pattern.triples) {
       const subject = this.resolveInsertTerm(triple.subject, binding, bnodeMap);
       const predicate = this.resolveInsertTerm(
-        this.resolveTemplatePredicate(triple.predicate),
+        simplePredicate(triple.predicate),
         binding,
         bnodeMap,
       );
@@ -522,7 +458,7 @@ export class UpdateEvaluator {
     return quad(
       this.convertTerm(triple.subject, bnodeMap) as rdfjs.Quad_Subject,
       this.convertTerm(
-        this.resolveTemplatePredicate(triple.predicate),
+        simplePredicate(triple.predicate),
         bnodeMap,
       ) as rdfjs.Quad_Predicate,
       this.convertTerm(triple.object, bnodeMap) as rdfjs.Quad_Object,
@@ -554,34 +490,5 @@ export class UpdateEvaluator {
     // Constants resolve through the shared term conversion; only the blank
     // node handling is update-specific (fresh labels per execution).
     return sparqlTermToRdfTerm(term);
-  }
-
-  /**
-   * matchStore collects all quads matching the given pattern from the store.
-   */
-  private matchStore(
-    s: rdfjs.Term | null,
-    p: rdfjs.Term | null,
-    o: rdfjs.Term | null,
-    g: rdfjs.Term | null,
-  ): Promise<rdfjs.Quad[]> {
-    return new Promise<rdfjs.Quad[]>((resolve, reject) => {
-      const quads: rdfjs.Quad[] = [];
-      const stream = this.options.store.match(s, p, o, g);
-      stream.on("data", (q: rdfjs.Quad) => quads.push(q));
-      stream.on("end", () => resolve(quads));
-      stream.on("error", reject);
-    });
-  }
-
-  private resolveTemplatePredicate(
-    predicate: Triple["predicate"],
-  ): SparqlTerm {
-    if ("termType" in predicate) {
-      return predicate;
-    }
-    throw new Error(
-      `Unsupported property path predicate in update template`,
-    );
   }
 }

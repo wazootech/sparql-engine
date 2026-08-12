@@ -15,7 +15,11 @@ import {
   getComunicaEngine,
   runComunicaRawSelectBindings,
 } from "../test/parity/parity-harness.ts";
-import { canonicalizeRdfTerm, canonicalizeSparqlValue } from "@/term/mod.ts";
+import {
+  canonicalizeRdfTerm,
+  canonicalizeSparqlValue,
+  XSD_INTEGER,
+} from "@/term/mod.ts";
 import type { CanonicalTerm } from "@/term/mod.ts";
 
 const { blankNode, literal, namedNode, quad } = DataFactory;
@@ -25,7 +29,7 @@ const foafName = namedNode("http://xmlns.com/foaf/0.1/name");
 const foafKnows = namedNode("http://xmlns.com/foaf/0.1/knows");
 const foafAge = namedNode("http://xmlns.com/foaf/0.1/age");
 const examplePet = namedNode("http://example.org/pet");
-const xsdInteger = namedNode("http://www.w3.org/2001/XMLSchema#integer");
+const xsdInteger = namedNode(XSD_INTEGER);
 const examplePerson = (index: number) =>
   namedNode(`http://example.org/person${index}`);
 

@@ -1,5 +1,4 @@
 import type * as rdfjs from "@rdfjs/types";
-import type { SparqlValue } from "@/sparql-engine-interface.ts";
 
 /**
  * termKey renders a deterministic key for an RDF/JS term, normalizing its
@@ -66,56 +65,5 @@ export function sameRdfTerm(a: rdfjs.Term, b: rdfjs.Term): boolean {
       throw new Error(
         `Unsupported RDF term type: ${(a as rdfjs.Term).termType}`,
       );
-  }
-}
-
-/**
- * sparqlValueKey renders a deterministic key for a SparqlValue, mirroring
- * termKey's literal normalization so two values produce the same key exactly
- * when sameSparqlValue says they are equal.
- */
-export function sparqlValueKey(value: SparqlValue): string {
-  switch (value.type) {
-    case "uri":
-      return `uri:${value.value}`;
-    case "bnode":
-      return `bnode:${value.value}`;
-    case "literal":
-      return (
-        `literal:${value.value}|${value["xml:lang"] ?? ""}|` +
-        `${value.datatype ?? ""}`
-      );
-    case "triple":
-      return (
-        `quad:${sparqlValueKey(value.value.subject)}|${
-          sparqlValueKey(value.value.predicate)
-        }|` +
-        sparqlValueKey(value.value.object)
-      );
-  }
-}
-
-/**
- * sameSparqlValue compares two SparqlValues structurally: by type, value,
- * and — for literals — language and datatype, with triple values compared
- * recursively. Two values are equal exactly when their sparqlValueKey
- * strings match.
- */
-export function sameSparqlValue(a: SparqlValue, b: SparqlValue): boolean {
-  switch (a.type) {
-    case "uri":
-      return b.type === "uri" && a.value === b.value;
-    case "bnode":
-      return b.type === "bnode" && a.value === b.value;
-    case "literal":
-      return b.type === "literal" &&
-        a.value === b.value &&
-        (a["xml:lang"] ?? "") === (b["xml:lang"] ?? "") &&
-        (a.datatype ?? "") === (b.datatype ?? "");
-    case "triple":
-      return b.type === "triple" &&
-        sameSparqlValue(a.value.subject, b.value.subject) &&
-        sameSparqlValue(a.value.predicate, b.value.predicate) &&
-        sameSparqlValue(a.value.object, b.value.object);
   }
 }
