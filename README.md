@@ -37,8 +37,8 @@ The differential test suite in `test/parity/` proves behavioral equivalence with
 `@comunica/query-sparql-rdfjs-lite`, the engine this project ports 1:1. Every
 case seeds both engines with identical RDF/JS stores, runs the same query
 through each, and deep-compares the observable results: SELECT bindings
-(projected variables and values, with ORDER BY emission order compared
-exactly), ASK booleans, and CONSTRUCT quads.
+(projected variables and values, with ORDER BY emission order compared exactly),
+ASK booleans, and CONSTRUCT quads.
 
 Blank nodes are compared by identity, not by label. Comunica skolemizes blank
 nodes from query sources into prefixed labels (`bc_<sourceId>_<label>`); the

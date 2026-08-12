@@ -10,7 +10,7 @@ import type {
 import type { NativeSparqlTransaction } from "@/native-sparql-engine.ts";
 import { BgpEvaluator } from "@/evaluator/bgp-evaluator.ts";
 import type { TermBinding } from "@/evaluator/bgp-evaluator.ts";
-import { sparqlTermToRdfTerm } from "@/term/mod.ts";
+import { sameRdfTerm, sparqlTermToRdfTerm, termKey } from "@/term/mod.ts";
 import { DataFactory } from "n3";
 
 const { blankNode, quad, defaultGraph } = DataFactory;
@@ -46,6 +46,16 @@ export interface UpdateEvaluatorOptions {
    */
   reorderPatterns?: boolean;
 }
+
+/**
+ * DeleteIndex maps each position of the scanned candidate quads to the quads
+ * carrying that term, enabling O(1) bucket probes per solution.
+ */
+type DeleteIndex = {
+  bySubject: Map<string, rdfjs.Quad[]>;
+  byPredicate: Map<string, rdfjs.Quad[]>;
+  byObject: Map<string, rdfjs.Quad[]>;
+};
 
 /**
  * ResolvedTemplateTerm is the result of resolving one template position
@@ -200,10 +210,8 @@ export class UpdateEvaluator {
     }
     const bindings = await this.bgpEvaluator.evaluateBgp(operation.where);
 
-    for (const binding of bindings) {
-      for (const pattern of operation.delete) {
-        await this.deleteMatches(pattern, binding, remove);
-      }
+    for (const pattern of operation.delete) {
+      await this.deleteMatches(pattern, bindings, remove);
     }
     for (const binding of bindings) {
       const bnodeMap = new Map<string, rdfjs.BlankNode>();
@@ -231,49 +239,158 @@ export class UpdateEvaluator {
   ): Promise<void> {
     const wherePatterns = operation.delete as unknown as Pattern[];
     const bindings = await this.bgpEvaluator.evaluateBgp(wherePatterns);
-    for (const binding of bindings) {
-      for (const pattern of operation.delete) {
-        await this.deleteMatches(pattern, binding, remove);
+    for (const pattern of operation.delete) {
+      await this.deleteMatches(pattern, bindings, remove);
+    }
+  }
+
+  /**
+   * deleteMatches removes every quad matching the instantiated delete
+   * templates across all solutions. The template's constants and wildcard
+   * blank nodes are fixed for every solution, so each triple is scanned from
+   * the store exactly once; the resulting candidates are indexed positionally
+   * and probed in memory per solution. Unbound variables skip the triple;
+   * blank nodes act as wildcards.
+   */
+  private async deleteMatches(
+    pattern: Quads,
+    bindings: TermBinding[],
+    remove: (item: rdfjs.Quad) => unknown,
+  ): Promise<void> {
+    if (bindings.length === 0) {
+      return;
+    }
+    const graph = pattern.type === "graph"
+      ? this.convertTerm(pattern.name, null)
+      : defaultGraph();
+    for (const triple of pattern.triples) {
+      const scan = this.deleteScanPositions(triple);
+      const candidates = await this.matchStore(scan.s, scan.p, scan.o, graph);
+      const index = this.buildDeleteIndex(candidates);
+      // Quads are removed at most once across all solutions: a second
+      // removeQuad for the same quad is a store no-op that still costs an
+      // index scan, and buffering duplicate deletes wastes transaction space.
+      const removed = new Set<string>();
+      for (const binding of bindings) {
+        const subject = this.resolveDeleteTerm(triple.subject, binding);
+        const predicate = this.resolveDeleteTerm(
+          this.resolveTemplatePredicate(triple.predicate),
+          binding,
+        );
+        const object = this.resolveDeleteTerm(triple.object, binding);
+        if (
+          subject.kind === "skip" || predicate.kind === "skip" ||
+          object.kind === "skip"
+        ) {
+          continue;
+        }
+        const matches = this.probeDeleteQuads(
+          index,
+          candidates,
+          subject.kind === "wildcard" ? null : subject.term,
+          predicate.kind === "wildcard" ? null : predicate.term,
+          object.kind === "wildcard" ? null : object.term,
+        );
+        for (const item of matches) {
+          const key = termKey(item);
+          if (removed.has(key)) {
+            continue;
+          }
+          removed.add(key);
+          remove(item);
+        }
       }
     }
   }
 
   /**
-   * deleteMatches removes every quad matching the instantiated template
-   * pattern for one solution. Unbound variables skip the triple; blank nodes
-   * act as wildcards.
+   * deleteScanPositions resolves the store scan for a delete template triple:
+   * constants scan for their term, wildcard blank nodes and variables are
+   * left open. The scan is identical for every solution, so it runs once per
+   * triple instead of once per solution per triple.
    */
-  private async deleteMatches(
-    pattern: Quads,
-    binding: TermBinding,
-    remove: (item: rdfjs.Quad) => unknown,
-  ): Promise<void> {
-    const graph = pattern.type === "graph"
-      ? this.convertTerm(pattern.name, null)
-      : defaultGraph();
-    for (const triple of pattern.triples) {
-      const subject = this.resolveDeleteTerm(triple.subject, binding);
-      const predicate = this.resolveDeleteTerm(
-        this.resolveTemplatePredicate(triple.predicate),
-        binding,
-      );
-      const object = this.resolveDeleteTerm(triple.object, binding);
-      if (
-        subject.kind === "skip" || predicate.kind === "skip" ||
-        object.kind === "skip"
-      ) {
-        continue;
+  private deleteScanPositions(triple: Triple): {
+    s: rdfjs.Term | null;
+    p: rdfjs.Term | null;
+    o: rdfjs.Term | null;
+  } {
+    const position = (term: SparqlTerm): rdfjs.Term | null => {
+      if (term.termType === "Variable" || term.termType === "BlankNode") {
+        return null;
       }
-      const matches = await this.matchStore(
-        subject.kind === "wildcard" ? null : subject.term,
-        predicate.kind === "wildcard" ? null : predicate.term,
-        object.kind === "wildcard" ? null : object.term,
-        graph,
-      );
-      for (const item of matches) {
-        remove(item);
-      }
+      return this.convertTerm(term, null);
+    };
+    return {
+      s: position(triple.subject),
+      p: position(this.resolveTemplatePredicate(triple.predicate)),
+      o: position(triple.object),
+    };
+  }
+
+  /**
+   * buildDeleteIndex indexes scanned quads by each of their three positions
+   * for O(1) bucket probes per solution.
+   */
+  private buildDeleteIndex(quads: rdfjs.Quad[]): DeleteIndex {
+    const bySubject = new Map<string, rdfjs.Quad[]>();
+    const byPredicate = new Map<string, rdfjs.Quad[]>();
+    const byObject = new Map<string, rdfjs.Quad[]>();
+    for (const item of quads) {
+      this.indexDeleteQuad(bySubject, termKey(item.subject), item);
+      this.indexDeleteQuad(byPredicate, termKey(item.predicate), item);
+      this.indexDeleteQuad(byObject, termKey(item.object), item);
     }
+    return { bySubject, byPredicate, byObject };
+  }
+
+  /**
+   * indexDeleteQuad appends a quad to the bucket for the given key.
+   */
+  private indexDeleteQuad(
+    index: Map<string, rdfjs.Quad[]>,
+    key: string,
+    item: rdfjs.Quad,
+  ): void {
+    const bucket = index.get(key);
+    if (bucket) {
+      bucket.push(item);
+    } else {
+      index.set(key, [item]);
+    }
+  }
+
+  /**
+   * probeDeleteQuads narrows scanned candidates to the quads matching the
+   * resolved positions of one solution. It starts from the smallest bucket
+   * for a constrained position and filters the rest positionally.
+   */
+  private probeDeleteQuads(
+    index: DeleteIndex,
+    candidates: rdfjs.Quad[],
+    subject: rdfjs.Term | null,
+    predicate: rdfjs.Term | null,
+    object: rdfjs.Term | null,
+  ): rdfjs.Quad[] {
+    const options: rdfjs.Quad[][] = [];
+    if (subject !== null) {
+      options.push(index.bySubject.get(termKey(subject)) ?? []);
+    }
+    if (predicate !== null) {
+      options.push(index.byPredicate.get(termKey(predicate)) ?? []);
+    }
+    if (object !== null) {
+      options.push(index.byObject.get(termKey(object)) ?? []);
+    }
+    if (options.length === 0) {
+      return candidates;
+    }
+    options.sort((a, b) => a.length - b.length);
+    const bucket = options[0];
+    return bucket.filter((item) =>
+      (subject === null || sameRdfTerm(item.subject, subject)) &&
+      (predicate === null || sameRdfTerm(item.predicate, predicate)) &&
+      (object === null || sameRdfTerm(item.object, object))
+    );
   }
 
   /**
