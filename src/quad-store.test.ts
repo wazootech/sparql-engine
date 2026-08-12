@@ -32,7 +32,10 @@ Deno.test("buildQuadIndex indexes every quad under all three positions", () => {
   assertEquals(index.bySubject.get("uri:http://example.org/ethan")!.length, 3);
   assertEquals(index.byPredicate.get("uri:http://example.org/name")!.length, 2);
   assertEquals(index.byObject.get("uri:http://example.org/gregory")!.length, 1);
-  assertEquals(index.bySubject.get("uri:http://example.org/gregory")!.length, 2);
+  assertEquals(
+    index.bySubject.get("uri:http://example.org/gregory")!.length,
+    2,
+  );
 });
 
 Deno.test("probeQuadIndex returns candidates when nothing is constrained", () => {
