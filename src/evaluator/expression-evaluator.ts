@@ -82,6 +82,11 @@ export interface ExpressionEvaluationContext {
   evaluateNotExists?: (pattern: Pattern, solution: TermBinding) => boolean;
 }
 
+/**
+ * ExpressionEvaluator evaluates SPARQL 1.1 expression trees (operators,
+ * functions, and constants) against a single solution binding, returning a
+ * value term or a typed error term for runtime failures.
+ */
 export class ExpressionEvaluator {
   /**
    * bnodeCounter mints fresh labels for zero-argument BNODE() calls, so two

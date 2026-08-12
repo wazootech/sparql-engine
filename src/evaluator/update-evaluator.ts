@@ -107,39 +107,39 @@ export class UpdateEvaluator {
    */
   public async executeUpdate(ast: UpdateQuery): Promise<void> {
     const transaction = this.options.createTransaction?.();
-    if (transaction) {
-      try {
-        for (const operation of ast.updates) {
-          await this.applyOperation(
-            operation,
-            (item) => transaction.add(item),
-            (item) => transaction.delete(item),
-          );
-        }
-        await transaction.commit();
-      } catch (error) {
-        transaction.rollback();
-        throw error;
+    if (!transaction) {
+      const writeStore = this.options.store as QuadWriteStore;
+      if (
+        typeof writeStore.addQuad !== "function" ||
+        typeof writeStore.removeQuad !== "function"
+      ) {
+        throw new Error(
+          "This store does not support SPARQL updates: pass a store with " +
+            "addQuad/removeQuad or provide createTransaction",
+        );
+      }
+      for (const operation of ast.updates) {
+        await this.applyOperation(
+          operation,
+          (item) => writeStore.addQuad(item),
+          (item) => writeStore.removeQuad(item),
+        );
       }
       return;
     }
 
-    const writeStore = this.options.store as QuadWriteStore;
-    if (
-      typeof writeStore.addQuad !== "function" ||
-      typeof writeStore.removeQuad !== "function"
-    ) {
-      throw new Error(
-        "This store does not support SPARQL updates: pass a store with " +
-          "addQuad/removeQuad or provide createTransaction",
-      );
-    }
-    for (const operation of ast.updates) {
-      await this.applyOperation(
-        operation,
-        (item) => writeStore.addQuad(item),
-        (item) => writeStore.removeQuad(item),
-      );
+    try {
+      for (const operation of ast.updates) {
+        await this.applyOperation(
+          operation,
+          (item) => transaction.add(item),
+          (item) => transaction.delete(item),
+        );
+      }
+      await transaction.commit();
+    } catch (error) {
+      transaction.rollback();
+      throw error;
     }
   }
 

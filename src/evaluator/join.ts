@@ -301,13 +301,10 @@ export function isPropertyPath(
 }
 
 /**
- * scanPathEntry resolves a property-path triple pattern and pre-computes the
- * pairs (subject, object) the path connects. When one endpoint is a constant
- * the path is evaluated from that end (forward from a constant subject,
- * backward from a constant object); when both are variables the full pair
- * set is computed from every graph node. Pair sets are deduplicated, matching
- * SPARQL's path semantics (each pair appears once regardless of how many
- * routes connect it).
+ * isMultisetPath reports whether a property-path element can connect the same
+ * (subject, object) pair through more than one route. Terms are always
+ * multiset; the composition operators ^, /, and | inherit multiset semantics
+ * from their parts, while the remaining operators yield a set of pairs.
  */
 function isMultisetPath(path: PathElement): boolean {
   if ("termType" in path) {
@@ -321,6 +318,15 @@ function isMultisetPath(path: PathElement): boolean {
   return false;
 }
 
+/**
+ * scanPathEntry resolves a property-path triple pattern and pre-computes the
+ * pairs (subject, object) the path connects. When one endpoint is a constant
+ * the path is evaluated from that end (forward from a constant subject,
+ * backward from a constant object); when both are variables the full pair
+ * set is computed from every graph node. Pair sets are deduplicated unless the
+ * path is multiset, matching SPARQL's path semantics (each pair appears once
+ * regardless of how many routes connect it unless the operator is multiset).
+ */
 export async function scanPathEntry(
   store: rdfjs.Source<rdfjs.Quad>,
   path: PropertyPath,

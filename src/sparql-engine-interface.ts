@@ -69,7 +69,8 @@ export interface SparqlConstructResults {
 }
 
 /**
- * A specific value bound to a variable within a SPARQL result binding.
+ * SparqlValue is a specific value bound to a variable within a SPARQL result
+ * binding.
  */
 export type SparqlValue =
   | { type: "uri"; value: string }

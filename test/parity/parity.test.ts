@@ -1115,7 +1115,7 @@ for (const testCase of allCases) {
 }
 
 Deno.test(
-  "parity - known difference: Comunica prefixes blank node labels, native does not",
+  "parity - known difference: Comunica prefixes blank node labels, Wazoo does not",
   async () => {
     const petQuery =
       `SELECT ?pet WHERE { ${exampleAlice} <http://example.org/pet> ?pet }`;
@@ -1128,25 +1128,25 @@ Deno.test(
       comunicaStore,
     );
 
-    const nativeStore = createQuadStore(basicKnowledgeGraphQuads);
-    const nativeEngine = new WazooSparqlEngine({ store: nativeStore });
-    const nativeResult = await nativeEngine.execute({ query: petQuery });
-    assertEquals(nativeResult.kind, "select");
-    if (nativeResult.kind !== "select") {
+    const wazooStore = createQuadStore(basicKnowledgeGraphQuads);
+    const wazooEngine = new WazooSparqlEngine({ store: wazooStore });
+    const wazooResult = await wazooEngine.execute({ query: petQuery });
+    assertEquals(wazooResult.kind, "select");
+    if (wazooResult.kind !== "select") {
       return;
     }
 
     // Comunica skolemizes blank nodes from query sources into a per-source
-    // prefixed label ("bc_<sourceId>_<label>"); the native engine deliberately
+    // prefixed label ("bc_<sourceId>_<label>"); the Wazoo engine deliberately
     // returns the store's own label instead.
     assertMatch(comunicaBindings[0].pet.value, /^bc_\d+_pet-ethan$/);
-    assertEquals(nativeResult.data.results.bindings[0].pet.value, "pet-ethan");
+    assertEquals(wazooResult.data.results.bindings[0].pet.value, "pet-ethan");
 
     // After stripping the cosmetic prefix, both normalize to the same term.
     assertEquals(
       JSON.stringify(canonicalizeComunicaTerm(comunicaBindings[0].pet)),
       JSON.stringify(
-        canonicalizeSparqlValue(nativeResult.data.results.bindings[0].pet),
+        canonicalizeSparqlValue(wazooResult.data.results.bindings[0].pet),
       ),
     );
   },
