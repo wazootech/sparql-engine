@@ -74,16 +74,30 @@ export function compareNumericValues(
 }
 
 /**
- * formatNumber renders a numeric value with a canonical-ish lexical form for
- * its datatype (decimals keep a decimal point).
+ * formatNumber renders a numeric value's Number string form. No datatype
+ * padding is applied: like Comunica, decimal results use plain JS string
+ * forms (6/3 -> "2", not "2.0"). Double and float results keep the Number
+ * string form; canonicalDouble (used by the XSD constructors and the
+ * aggregates) produces the canonical XPath exponent form instead.
  */
-export function formatNumber(value: number, datatype: string): string {
-  const text = String(value);
-  if (
-    datatype === XSD_DECIMAL && !text.includes(".") &&
-    !text.includes("e") && !text.includes("E")
-  ) {
-    return `${text}.0`;
+export function formatNumber(value: number, _datatype: string): string {
+  return String(value);
+}
+
+/**
+ * canonicalDouble renders a number in the canonical XPath double lexical
+ * form: a mantissa with at least one decimal digit and an exponent with no
+ * leading plus ("3.0E0", "1.5E0", "1.0E21", "INF", "-INF").
+ */
+export function canonicalDouble(n: number): string {
+  if (n === 0) {
+    return "0.0E0";
   }
-  return text;
+  if (!Number.isFinite(n)) {
+    return n > 0 ? "INF" : "-INF";
+  }
+  const [mantissa, exponent] = n.toExponential().split("e");
+  const mantissaFixed = mantissa.includes(".") ? mantissa : `${mantissa}.0`;
+  const exponentText = exponent.startsWith("+") ? exponent.slice(1) : exponent;
+  return `${mantissaFixed}E${exponentText}`;
 }

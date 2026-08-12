@@ -2,6 +2,7 @@ import { assertEquals } from "@std/assert";
 import type * as rdfjs from "@rdfjs/types";
 import { DataFactory } from "n3";
 import {
+  canonicalDouble,
   canonicalizeRdfTerm,
   canonicalizeSparqlValue,
   compareNumericValues,
@@ -111,8 +112,11 @@ Deno.test("compareNumericValues orders BigInts exactly and Numbers numerically",
   assertEquals(compareNumericValues(2n, 10), -1);
 });
 
-Deno.test("formatNumber keeps the decimal point for xsd:decimal", () => {
-  assertEquals(formatNumber(3, XSD_DECIMAL), "3.0");
+Deno.test("formatNumber keeps Comunica's plain decimal forms", () => {
+  assertEquals(formatNumber(3, XSD_DECIMAL), "3");
   assertEquals(formatNumber(3.5, XSD_DECIMAL), "3.5");
   assertEquals(formatNumber(1e21, XSD_DOUBLE), "1e+21");
+  assertEquals(canonicalDouble(3), "3.0E0");
+  assertEquals(canonicalDouble(1.5), "1.5E0");
+  assertEquals(canonicalDouble(0), "0.0E0");
 });

@@ -1,8 +1,10 @@
 import type * as rdfjs from "@rdfjs/types";
 import type {
+  AggregateExpression,
   AskQuery,
   ConstructQuery,
   Expression,
+  Pattern,
   SelectQuery,
   SparqlQuery,
   Term as SparqlTerm,
@@ -14,6 +16,7 @@ import type {
   SparqlResponse,
   SparqlSelectResults,
 } from "@/sparql-engine-interface.ts";
+import { aggregateValue, groupSolutions } from "@/evaluator/aggregate.ts";
 import { BgpEvaluator } from "@/evaluator/bgp-evaluator.ts";
 import type { TermBinding } from "@/evaluator/bgp-evaluator.ts";
 import { simplePredicate } from "@/quad-store.ts";
@@ -38,6 +41,16 @@ export interface SparqlEvaluatorOptions {
 }
 
 /**
+ * SelectSolution is one SELECT output row: the binding to project plus,
+ * when the query has GROUP BY, the group's raw solutions that aggregates
+ * resolve over (null when ungrouped).
+ */
+type SelectSolution = {
+  binding: TermBinding;
+  group: TermBinding[] | null;
+};
+
+/**
  * SparqlEvaluator processes parsed SPARQL AST queries against an RDFJS store.
  */
 export class SparqlEvaluator {
@@ -47,7 +60,7 @@ export class SparqlEvaluator {
   private readonly expressionEvaluator = new ExpressionEvaluator();
 
   public constructor(
-    store: rdfjs.Store,
+    store: rdfjs.Source<rdfjs.Quad>,
     options: SparqlEvaluatorOptions = {},
   ) {
     this.bgpEvaluator = new BgpEvaluator(store, {
@@ -101,38 +114,62 @@ export class SparqlEvaluator {
       }
     }
 
+    // GROUP BY partitions the raw solutions; each partition becomes one
+    // solution carrying its group's raw solutions so aggregate expressions
+    // in projection, HAVING, and ORDER BY resolve over the group. When
+    // aggregates appear without GROUP BY, the whole solution set is the one
+    // implicit group (SPARQL 1.1 §18.2.4.2).
+    const grouping = query.group ?? [];
+    const hasGrouping = grouping.length > 0;
+    const hasAggregates =
+      [...projections.values()].some((expression) =>
+        expressionContainsAggregate(expression)
+      ) ||
+      (query.order ?? []).some((clause) =>
+        expressionContainsAggregate(clause.expression)
+      ) ||
+      (query.having ?? []).some(expressionContainsAggregate);
+    let solutions: SelectSolution[];
+    if (hasGrouping || hasAggregates) {
+      const groups = hasGrouping
+        ? groupSolutions(
+          rawBindings,
+          grouping,
+          (expression, binding) =>
+            this.expressionEvaluator.evaluate(expression, binding),
+        )
+        : [{ key: {}, solutions: rawBindings }];
+      const grouped: SelectSolution[] = groups.map((group) => ({
+        binding: group.key,
+        group: group.solutions,
+      }));
+      solutions = query.having !== undefined && query.having.length > 0
+        ? grouped.filter((solution) =>
+          query.having!.every((expression) =>
+            this.havingPasses(expression, solution)
+          )
+        )
+        : grouped;
+    } else {
+      solutions = rawBindings.map((binding) => ({
+        binding,
+        group: null,
+      }));
+    }
+
     const ordered = query.order?.length
-      ? this.orderBindings(rawBindings, query.order)
-      : rawBindings;
+      ? this.orderBindings(solutions, query.order)
+      : solutions;
 
     // Bindings travel internally as RDF/JS terms; this projection is the
     // single point where they become the SparqlValue wire format. Projection
-    // expressions ((expr AS ?v)) are evaluated here; an error leaves the
+    // expressions ((expr AS ?v)) are evaluated here — with aggregate
+    // resolution when the solution carries a group — and an error leaves the
     // variable unbound, matching SPARQL 1.1 semantics. The wildcard projects
     // every variable the solution binds.
-    const projected: SparqlBinding[] = ordered.map((binding) => {
-      const result: SparqlBinding = {};
-      if (wildcard) {
-        for (const varName of Object.keys(binding)) {
-          result[varName] = rdfTermToSparqlValue(binding[varName]);
-        }
-        return result;
-      }
-      for (const varName of vars) {
-        const bound = binding[varName];
-        if (bound) {
-          result[varName] = rdfTermToSparqlValue(bound);
-        }
-        const projection = projections.get(varName);
-        if (projection !== undefined && !(varName in result)) {
-          const value = this.expressionEvaluator.evaluate(projection, binding);
-          if (value !== undefined) {
-            result[varName] = rdfTermToSparqlValue(value);
-          }
-        }
-      }
-      return result;
-    });
+    const projected: SparqlBinding[] = ordered.map((solution) =>
+      this.projectSolution(solution, wildcard, vars, projections)
+    );
 
     // Solution modifiers apply after projection, per SPARQL 1.1 §18.2.5:
     // DISTINCT removes duplicate projected solutions, then LIMIT/OFFSET
@@ -158,6 +195,90 @@ export class SparqlEvaluator {
       },
       results: { bindings: filteredBindings },
     };
+  }
+
+  /**
+   * havingPasses applies one HAVING expression to a grouped solution: the
+   * expression is evaluated with aggregate resolution over the group and
+   * its EBV must be true (false and errors both drop the group).
+   */
+  private havingPasses(
+    expression: Expression,
+    solution: SelectSolution,
+  ): boolean {
+    if (solution.group === null) {
+      return false;
+    }
+    return this.expressionEvaluator.filterPassesWithAggregates(
+      expression,
+      solution.binding,
+      this.aggregateResolver(solution),
+    );
+  }
+
+  /**
+   * aggregateResolver returns the aggregate resolver for a grouped solution:
+   * each aggregate expression evaluates over the group's raw solutions.
+   */
+  private aggregateResolver(
+    solution: SelectSolution,
+  ): (aggregate: AggregateExpression) => rdfjs.Term | undefined {
+    const group = solution.group;
+    if (group === null) {
+      return () => undefined;
+    }
+    return (aggregate) =>
+      aggregateValue(
+        aggregate,
+        group,
+        (expression, binding) =>
+          this.expressionEvaluator.evaluate(expression, binding),
+      );
+  }
+
+  /**
+   * projectSolution renders one solution (raw or grouped) to the wire
+   * format. Projected variables resolve from the solution's binding (group
+   * key variables are bound by grouping); projection expressions evaluate
+   * with the solution's aggregate resolver when it is grouped.
+   */
+  private projectSolution(
+    solution: SelectSolution,
+    wildcard: boolean,
+    vars: string[],
+    projections: Map<string, Expression>,
+  ): SparqlBinding {
+    const binding = solution.binding;
+    const result: SparqlBinding = {};
+    if (wildcard) {
+      for (const varName of Object.keys(binding)) {
+        result[varName] = rdfTermToSparqlValue(binding[varName]);
+      }
+      return result;
+    }
+    const resolver = solution.group === null
+      ? undefined
+      : this.aggregateResolver(solution);
+    for (const varName of vars) {
+      const bound = binding[varName];
+      if (bound) {
+        result[varName] = rdfTermToSparqlValue(bound);
+      }
+      const projection = projections.get(varName);
+      if (projection !== undefined && !(varName in result)) {
+        const value = resolver === undefined
+          ? this.expressionEvaluator.evaluate(projection, binding)
+          : this.expressionEvaluator.evaluateWithAggregates(
+            projection,
+            binding,
+            resolver,
+          );
+        if (value !== undefined) {
+          result[varName] = rdfTermToSparqlValue(value);
+        }
+      }
+    }
+    return result;
   }
 
   private async evaluateAsk(query: AskQuery): Promise<SparqlAskResults> {
@@ -213,15 +334,28 @@ export class SparqlEvaluator {
    * error.
    */
   private orderBindings(
-    bindings: TermBinding[],
+    solutions: SelectSolution[],
     order: NonNullable<SelectQuery["order"]>,
-  ): TermBinding[] {
+  ): SelectSolution[] {
     const comparators = order.map((clause) => ({
       descending: clause.descending === true,
-      resolve: (binding: TermBinding): rdfjs.Term | undefined =>
-        this.expressionEvaluator.evaluate(clause.expression, binding),
+      resolve: (solution: SelectSolution): rdfjs.Term | undefined => {
+        const resolver = solution.group === null
+          ? undefined
+          : this.aggregateResolver(solution);
+        return resolver === undefined
+          ? this.expressionEvaluator.evaluate(
+            clause.expression,
+            solution.binding,
+          )
+          : this.expressionEvaluator.evaluateWithAggregates(
+            clause.expression,
+            solution.binding,
+            resolver,
+          );
+      },
     }));
-    return [...bindings].sort((a, b) => {
+    return [...solutions].sort((a, b) => {
       for (const comparator of comparators) {
         const result = compareRdfTerms(
           comparator.resolve(a),
@@ -271,4 +405,29 @@ function deduplicateBindings(bindings: SparqlBinding[]): SparqlBinding[] {
     }
   }
   return result;
+}
+
+/**
+ * expressionContainsAggregate reports whether an expression tree contains an
+ * aggregate node (COUNT, SUM, ...) anywhere inside it.
+ */
+function expressionContainsAggregate(
+  expression: Expression | Pattern,
+): boolean {
+  if ("termType" in expression) {
+    return false;
+  }
+  if (!("type" in expression)) {
+    return false;
+  }
+  if (expression.type === "aggregate") {
+    return true;
+  }
+  if (expression.type === "operation") {
+    return expression.args.some(expressionContainsAggregate);
+  }
+  if (expression.type === "functionCall") {
+    return expression.args.some(expressionContainsAggregate);
+  }
+  return false;
 }

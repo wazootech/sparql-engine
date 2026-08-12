@@ -5,6 +5,7 @@ export {
   canonicalizeSparqlValue,
 } from "@/term/canonical.ts";
 export {
+  canonicalDouble,
   compareNumericValues,
   formatNumber,
   NUMERIC_DATATYPES,
