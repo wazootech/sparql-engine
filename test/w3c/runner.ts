@@ -96,6 +96,124 @@ function multisetEqual(a: string[], b: string[]): boolean {
 }
 
 /**
+ * isomorphicMultiset compares two multisets of records (each record an
+ * ordered list of canonical terms) up to blank-node renaming. Blank-node
+ * labels are engine-local and unobservable across queries, so two results
+ * agree exactly when a consistent relabeling makes them equal.
+ */
+function isomorphicMultiset(
+  a: CanonicalTerm[][],
+  b: CanonicalTerm[][],
+): boolean {
+  if (a.length !== b.length) {
+    return false;
+  }
+  return multisetEqual(canonicalizeBnodes(a), canonicalizeBnodes(b));
+}
+
+/**
+ * canonicalizeBnodes relabels the blank nodes of a record multiset with
+ * canonical `_:0, _:1, ...` labels derived from structure by iterative
+ * partition refinement (Weisfeiler-Lehman style), so structurally identical
+ * results carrying different engine-local labels canonicalize identically.
+ */
+function canonicalizeBnodes(records: CanonicalTerm[][]): string[] {
+  const labels = new Set<string>();
+  const visit = (term: CanonicalTerm): void => {
+    if (term.termType === "BlankNode") {
+      labels.add(term.value);
+    } else if (term.termType === "Quad") {
+      if (term.subject) visit(term.subject);
+      if (term.predicate) visit(term.predicate);
+      if (term.object) visit(term.object);
+    }
+  };
+  for (const record of records) {
+    for (const term of record) {
+      visit(term);
+    }
+  }
+
+  const renderValue = (
+    term: CanonicalTerm,
+    map: Map<string, string>,
+  ): unknown => {
+    if (term.termType === "BlankNode") {
+      return { termType: "BlankNode", value: map.get(term.value) ?? "_" };
+    }
+    if (term.termType === "Quad") {
+      return {
+        termType: "Quad",
+        value: "",
+        subject: term.subject ? renderValue(term.subject, map) : undefined,
+        predicate: term.predicate
+          ? renderValue(term.predicate, map)
+          : undefined,
+        object: term.object ? renderValue(term.object, map) : undefined,
+      };
+    }
+    return term;
+  };
+  const render = (term: CanonicalTerm, map: Map<string, string>): string =>
+    JSON.stringify(renderValue(term, map));
+
+  const refersTo = (term: CanonicalTerm, label: string): boolean => {
+    if (term.termType === "BlankNode") {
+      return term.value === label;
+    }
+    if (term.termType === "Quad") {
+      return (term.subject !== undefined && refersTo(term.subject, label)) ||
+        (term.predicate !== undefined && refersTo(term.predicate, label)) ||
+        (term.object !== undefined && refersTo(term.object, label));
+    }
+    return false;
+  };
+
+  let current = new Map<string, string>();
+  for (const label of labels) {
+    current.set(label, "s0");
+  }
+  for (let round = 0; round <= labels.size + 1; round++) {
+    const signature = new Map<string, string>();
+    for (const label of labels) {
+      const contexts: string[] = [];
+      for (const record of records) {
+        for (let slot = 0; slot < record.length; slot++) {
+          if (refersTo(record[slot], label)) {
+            const others = record
+              .filter((_, index) => index !== slot)
+              .map((term) => render(term, current));
+            contexts.push(JSON.stringify([slot, ...others]));
+          }
+        }
+      }
+      contexts.sort();
+      signature.set(label, JSON.stringify(contexts));
+    }
+    const distinct = [...new Set(signature.values())].sort();
+    const idOf = new Map(distinct.map((text, index) => [text, `s${index}`]));
+    current = new Map(
+      [...labels].map((label) => [label, idOf.get(signature.get(label)!)!]),
+    );
+  }
+
+  const ordered = [...labels].sort((a, b) => {
+    const aId = current.get(a)!;
+    const bId = current.get(b)!;
+    if (aId !== bId) {
+      return aId < bId ? -1 : 1;
+    }
+    return a < b ? -1 : 1;
+  });
+  const canonical = new Map<string, string>();
+  ordered.forEach((label, index) => canonical.set(label, `_:${index}`));
+
+  return records.map((record) =>
+    record.map((term) => render(term, canonical)).join("\u0000")
+  );
+}
+
+/**
  * W3cRunner executes the W3C evaluation-core tests differentially.
  */
 export class W3cRunner {
@@ -307,10 +425,17 @@ export class W3cRunner {
           };
         }
         const native = this.nativeSelectStrings(nativeResult);
-        return multisetEqual(comunica, native) ? { status: "pass" } : {
-          status: "gap",
-          detail: this.firstDiff(native, comunica, "SELECT bindings"),
-        };
+        const nativeRecords = this.nativeSelectRecords(nativeResult);
+        const comunicaRecords = await this.runComunicaSelectRecords(
+          query,
+          store,
+        );
+        return isomorphicMultiset(nativeRecords, comunicaRecords)
+          ? { status: "pass" }
+          : {
+            status: "gap",
+            detail: this.firstDiff(native, comunica, "SELECT bindings"),
+          };
       }
       case "ask": {
         let comunica: boolean;
@@ -332,11 +457,16 @@ export class W3cRunner {
       }
       case "construct": {
         let comunicaSet: string[];
+        let comunicaRecords: CanonicalTerm[][];
         try {
           const stream = await this.comunicaEngine.queryQuads(query, options);
-          comunicaSet = (await stream.toArray())
+          const comunicaQuads = await stream.toArray();
+          comunicaSet = comunicaQuads
             .map((item) => canonicalQuadString(item, canonicalizeComunicaTerm))
             .sort();
+          comunicaRecords = comunicaQuads.map((item) =>
+            this.quadRecords(item, canonicalizeComunicaTerm)
+          );
         } catch (error) {
           return {
             status: "gap",
@@ -348,10 +478,15 @@ export class W3cRunner {
         const nativeSet = nativeResult.data.quads
           .map((item) => canonicalQuadString(item, canonicalizeRdfTerm))
           .sort();
-        return multisetEqual(comunicaSet, nativeSet) ? { status: "pass" } : {
-          status: "gap",
-          detail: this.firstDiff(nativeSet, comunicaSet, "CONSTRUCT quads"),
-        };
+        const nativeRecords = nativeResult.data.quads.map((item) =>
+          this.quadRecords(item, canonicalizeRdfTerm)
+        );
+        return isomorphicMultiset(nativeRecords, comunicaRecords)
+          ? { status: "pass" }
+          : {
+            status: "gap",
+            detail: this.firstDiff(nativeSet, comunicaSet, "CONSTRUCT quads"),
+          };
       }
       default:
         return {
@@ -374,6 +509,19 @@ export class W3cRunner {
     });
   }
 
+  private nativeSelectRecords(nativeResult: SparqlResponse): CanonicalTerm[][] {
+    if (nativeResult.kind !== "select") {
+      return [];
+    }
+    return nativeResult.data.results.bindings.map((binding) => {
+      const record: Record<string, CanonicalTerm> = {};
+      for (const name of Object.keys(binding)) {
+        record[name] = canonicalizeSparqlValue(binding[name]);
+      }
+      return Object.keys(record).sort().map((name) => record[name]);
+    });
+  }
+
   private async runComunicaSelect(
     query: string,
     store: N3Store,
@@ -390,6 +538,32 @@ export class W3cRunner {
       }
       return bindingRecord(canonical);
     });
+  }
+
+  private async runComunicaSelectRecords(
+    query: string,
+    store: N3Store,
+  ): Promise<CanonicalTerm[][]> {
+    const raw = await runComunicaRawSelectBindings(
+      this.comunicaEngine,
+      query,
+      store,
+    );
+    return raw.map((record) => {
+      const canonical: Record<string, CanonicalTerm> = {};
+      for (const name of Object.keys(record)) {
+        canonical[name] = canonicalizeComunicaTerm(record[name]);
+      }
+      return Object.keys(canonical).sort().map((name) => canonical[name]);
+    });
+  }
+
+  private quadRecords(
+    item: rdfjs.Quad,
+    canonicalize: (term: rdfjs.Term) => CanonicalTerm,
+  ): CanonicalTerm[] {
+    return [item.subject, item.predicate, item.object, item.graph]
+      .map((term) => canonicalize(term));
   }
 
   private firstDiff(a: string[], b: string[], label: string): string {
@@ -449,15 +623,24 @@ export class W3cRunner {
 
     const nativeSet = this.storeQuadStrings(nativeStore).sort();
     const comunicaSet = this.storeQuadStrings(comunicaStore).sort();
-    return multisetEqual(nativeSet, comunicaSet) ? { status: "pass" } : {
-      status: "gap",
-      detail: this.firstDiff(nativeSet, comunicaSet, "final store contents"),
-    };
+    const nativeRecords = this.storeQuadRecords(nativeStore);
+    const comunicaRecords = this.storeQuadRecords(comunicaStore);
+    return isomorphicMultiset(nativeRecords, comunicaRecords)
+      ? { status: "pass" }
+      : {
+        status: "gap",
+        detail: this.firstDiff(nativeSet, comunicaSet, "final store contents"),
+      };
   }
 
   private storeQuadStrings(store: N3Store): string[] {
     const quads: rdfjs.Quad[] = store.getQuads(null, null, null, null);
     return quads.map((item) => canonicalQuadString(item, canonicalizeRdfTerm));
+  }
+
+  private storeQuadRecords(store: N3Store): CanonicalTerm[][] {
+    const quads: rdfjs.Quad[] = store.getQuads(null, null, null, null);
+    return quads.map((item) => this.quadRecords(item, canonicalizeRdfTerm));
   }
 
   /**
