@@ -104,6 +104,7 @@ function canonicalComunicaQuadString(item: rdfjs.Quad): string {
 function extractSelectVars(query: string): string[] | null {
   const ast = new SparqlJsParser({
     prefixes: { xsd: "http://www.w3.org/2001/XMLSchema#" },
+    sparqlStar: true,
   }).parse(query);
   if (ast.type !== "query" || ast.queryType !== "SELECT") {
     return null;

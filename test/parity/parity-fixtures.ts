@@ -83,6 +83,38 @@ export const namedGraphQuads: rdfjs.Quad[] = [
 ];
 
 /**
+ * fromDatasetQuads is the shared fixture for FROM / FROM NAMED parity cases:
+ * one default-graph quad plus quads in three named graphs (g1, g2, g3).
+ */
+export const fromDatasetQuads: rdfjs.Quad[] = [
+  quad(exampleResource("a"), exampleResource("p"), literal("d")),
+  quad(
+    exampleResource("a"),
+    exampleResource("p"),
+    literal("1"),
+    namedNode("http://example.org/g1"),
+  ),
+  quad(
+    exampleResource("b"),
+    exampleResource("p"),
+    literal("2"),
+    namedNode("http://example.org/g1"),
+  ),
+  quad(
+    exampleResource("c"),
+    exampleResource("p"),
+    literal("3"),
+    namedNode("http://example.org/g2"),
+  ),
+  quad(
+    exampleResource("d"),
+    exampleResource("p"),
+    literal("4"),
+    namedNode("http://example.org/g3"),
+  ),
+];
+
+/**
  * createQuadStore builds a fresh N3 Store seeded with the given quads.
  */
 export function createQuadStore(quads: rdfjs.Quad[]): Store {

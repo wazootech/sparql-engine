@@ -12,18 +12,15 @@ export {
   numericValue,
   XSD,
   XSD_BOOLEAN,
+  XSD_DATETIME,
+  XSD_DAYTIME_DURATION,
   XSD_DECIMAL,
   XSD_DOUBLE,
   XSD_FLOAT,
-  XSD_DATETIME,
-  XSD_DAYTIME_DURATION,
   XSD_INTEGER,
   XSD_STRING,
 } from "@/term/numeric.ts";
-export {
-  parseDateTime,
-  timezoneDurationLexical,
-} from "@/term/datetime.ts";
+export { parseDateTime, timezoneDurationLexical } from "@/term/datetime.ts";
 export type { DateTimeParts } from "@/term/datetime.ts";
 export {
   md5Hex,

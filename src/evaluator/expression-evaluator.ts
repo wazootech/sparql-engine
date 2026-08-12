@@ -378,7 +378,11 @@ export class ExpressionEvaluator {
           aggregates,
         );
       case "seconds":
-        return this.seconds(operation.args[0] as Expression, binding, aggregates);
+        return this.seconds(
+          operation.args[0] as Expression,
+          binding,
+          aggregates,
+        );
       case "timezone":
         return this.timezone(
           operation.args[0] as Expression,
@@ -391,8 +395,7 @@ export class ExpressionEvaluator {
       case "sha384":
       case "sha512":
         return this.hash(
-          operation.operator as "md5" | "sha1" | "sha256" | "sha384" |
-            "sha512",
+          operation.operator as "md5" | "sha1" | "sha256" | "sha384" | "sha512",
           operation.args[0] as Expression,
           binding,
           aggregates,
@@ -421,7 +424,11 @@ export class ExpressionEvaluator {
           aggregates,
         );
       case "istriple":
-        return this.isTriple(operation.args[0] as Expression, binding, aggregates);
+        return this.isTriple(
+          operation.args[0] as Expression,
+          binding,
+          aggregates,
+        );
       default:
         throw new Error(
           `Unsupported SPARQL expression operator: ${operation.operator}`,
@@ -1425,7 +1432,10 @@ export class ExpressionEvaluator {
     if (parts === null) {
       return undefined;
     }
-    return literal(formatNumber(parts.seconds, XSD_DECIMAL), namedNode(XSD_DECIMAL));
+    return literal(
+      formatNumber(parts.seconds, XSD_DECIMAL),
+      namedNode(XSD_DECIMAL),
+    );
   }
 
   /**
@@ -1502,7 +1512,9 @@ export class ExpressionEvaluator {
     const subject = this.evaluateWith(args[0], binding, aggregates);
     const predicate = this.evaluateWith(args[1], binding, aggregates);
     const object = this.evaluateWith(args[2], binding, aggregates);
-    if (subject === undefined || predicate === undefined || object === undefined) {
+    if (
+      subject === undefined || predicate === undefined || object === undefined
+    ) {
       return undefined;
     }
     return quad(
@@ -1546,7 +1558,6 @@ export class ExpressionEvaluator {
     return booleanLiteral(value.termType === "Quad");
   }
 }
-
 
 /**
  * booleanLiteral builds an xsd:boolean literal.

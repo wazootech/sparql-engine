@@ -249,7 +249,7 @@ Deno.test("NativeSparqlEngine - unsupported FILTER expression is rejected", asyn
     () =>
       engine.execute({
         query:
-          'SELECT ?person WHERE { ?person <http://xmlns.com/foaf/0.1/name> ?name FILTER(ISIRI(?name)) }',
+          "SELECT ?person WHERE { ?person <http://xmlns.com/foaf/0.1/name> ?name FILTER(ISIRI(?name)) }",
       }),
     Error,
     "Unsupported SPARQL expression operator: isiri",
@@ -1924,4 +1924,561 @@ Deno.test("NativeSparqlEngine - property path joins with an incoming binding", a
     "http://example.org/b->http://example.org/c",
     "http://example.org/d->http://example.org/c",
   ]);
+});
+
+const XSD = "http://www.w3.org/2001/XMLSchema#";
+
+/**
+ * bindValue runs a SELECT query against the engine and returns the first
+ * binding's value for the given variable as the wire format.
+ */
+async function bindValue(
+  engine: NativeSparqlEngine,
+  query: string,
+  variable: string,
+): Promise<
+  { type: string; value: string; datatype?: string; lang?: string } | null
+> {
+  const result = await engine.execute({ query });
+  if (result.kind !== "select") {
+    throw new Error(`expected select, got ${result.kind}`);
+  }
+  const binding = result.data.results.bindings[0];
+  const value = binding[variable];
+  if (value === undefined) {
+    return null;
+  }
+  const out: { type: string; value: string; datatype?: string; lang?: string } =
+    {
+      type: value.type,
+      value: typeof value.value === "string"
+        ? value.value
+        : JSON.stringify(value.value),
+    };
+  if (value.type === "literal") {
+    if (value.datatype !== undefined) {
+      out.datatype = value.datatype;
+    }
+    if (value["xml:lang"] !== undefined) {
+      out.lang = value["xml:lang"];
+    }
+  }
+  return out;
+}
+
+function emptyEngine(): NativeSparqlEngine {
+  return new NativeSparqlEngine({ store: new Store() });
+}
+
+Deno.test("NativeSparqlEngine - REGEX, CONTAINS, STRSTARTS, STRENDS", async () => {
+  const engine = emptyEngine();
+  const regex = await bindValue(
+    engine,
+    `SELECT ?v WHERE { BIND(REGEX("abc", "^a", "i") AS ?v) }`,
+    "v",
+  );
+  assertEquals(regex, {
+    type: "literal",
+    value: "true",
+    datatype: `${XSD}boolean`,
+  });
+  const noMatch = await bindValue(
+    engine,
+    `SELECT ?v WHERE { BIND(REGEX("abc", "^z") AS ?v) }`,
+    "v",
+  );
+  assertEquals(noMatch, {
+    type: "literal",
+    value: "false",
+    datatype: `${XSD}boolean`,
+  });
+  // A malformed pattern is an evaluation error (unbound), not a throw.
+  const badPattern = await bindValue(
+    engine,
+    `SELECT ?v WHERE { BIND(REGEX("abc", "(") AS ?v) }`,
+    "v",
+  );
+  assertEquals(badPattern, null);
+  const combined = await bindValue(
+    engine,
+    `SELECT ?v WHERE { BIND(CONTAINS("abc", "b") AS ?v) }`,
+    "v",
+  );
+  assertEquals(combined, {
+    type: "literal",
+    value: "true",
+    datatype: `${XSD}boolean`,
+  });
+});
+
+Deno.test("NativeSparqlEngine - REPLACE with groups, flags, and language", async () => {
+  const engine = emptyEngine();
+  const grouped = await bindValue(
+    engine,
+    `SELECT ?v WHERE { BIND(REPLACE("abab", "a(b)", "[$1]") AS ?v) }`,
+    "v",
+  );
+  assertEquals(grouped, { type: "literal", value: "[b][b]" });
+  const flagged = await bindValue(
+    engine,
+    `SELECT ?v WHERE { BIND(REPLACE("Abc", "b", "X", "i") AS ?v) }`,
+    "v",
+  );
+  assertEquals(flagged, { type: "literal", value: "AXc" });
+  const lang = await bindValue(
+    engine,
+    `SELECT ?v WHERE { BIND(REPLACE("abc"@en, "b", "X") AS ?v) }`,
+    "v",
+  );
+  assertEquals(lang, { type: "literal", value: "aXc", lang: "en" });
+  const nonString = await bindValue(
+    engine,
+    `SELECT ?v WHERE { BIND(REPLACE(5, "5", "X") AS ?v) }`,
+    "v",
+  );
+  assertEquals(nonString, null);
+});
+
+Deno.test("NativeSparqlEngine - STRBEFORE/STRAFTER preserve language and empty when absent", async () => {
+  const engine = emptyEngine();
+  const before = await bindValue(
+    engine,
+    `SELECT ?v WHERE { BIND(STRBEFORE("abc"@en, "b") AS ?v) }`,
+    "v",
+  );
+  assertEquals(before, { type: "literal", value: "a", lang: "en" });
+  const after = await bindValue(
+    engine,
+    `SELECT ?v WHERE { BIND(STRAFTER("abc", "z") AS ?v) }`,
+    "v",
+  );
+  assertEquals(after, { type: "literal", value: "" });
+});
+
+Deno.test("NativeSparqlEngine - LANG and LANGMATCHES", async () => {
+  const engine = emptyEngine();
+  const lang = await bindValue(
+    engine,
+    `SELECT ?v WHERE { BIND(LANG("abc"@en) AS ?v) }`,
+    "v",
+  );
+  assertEquals(lang, { type: "literal", value: "en" });
+  const plain = await bindValue(
+    engine,
+    `SELECT ?v WHERE { BIND(LANG("abc") AS ?v) }`,
+    "v",
+  );
+  assertEquals(plain, { type: "literal", value: "" });
+  const iri = await bindValue(
+    engine,
+    `SELECT ?v WHERE { BIND(LANG(<http://x>) AS ?v) }`,
+    "v",
+  );
+  assertEquals(iri, null);
+  const wildcard = await bindValue(
+    engine,
+    `SELECT ?v WHERE { BIND(LANGMATCHES("", "*") AS ?v) }`,
+    "v",
+  );
+  assertEquals(wildcard, {
+    type: "literal",
+    value: "true",
+    datatype: `${XSD}boolean`,
+  });
+});
+
+Deno.test("NativeSparqlEngine - COALESCE, IF, IN, NOT IN, SAMETERM", async () => {
+  const engine = emptyEngine();
+  const coalesce = await bindValue(
+    engine,
+    `SELECT ?v WHERE { BIND(COALESCE(?missing, 1/0, "x") AS ?v) }`,
+    "v",
+  );
+  assertEquals(coalesce, { type: "literal", value: "x" });
+  const ifFalse = await bindValue(
+    engine,
+    `SELECT ?v WHERE { BIND(IF(false, 1, 2) AS ?v) }`,
+    "v",
+  );
+  assertEquals(ifFalse, {
+    type: "literal",
+    value: "2",
+    datatype: `${XSD}integer`,
+  });
+  const inErr = await bindValue(
+    engine,
+    `SELECT ?v WHERE { BIND(1 IN (2, ?missing) AS ?v) }`,
+    "v",
+  );
+  assertEquals(inErr, null);
+  const inErrHit = await bindValue(
+    engine,
+    `SELECT ?v WHERE { BIND(1 IN (1, ?missing) AS ?v) }`,
+    "v",
+  );
+  assertEquals(inErrHit, {
+    type: "literal",
+    value: "true",
+    datatype: `${XSD}boolean`,
+  });
+  const notin = await bindValue(
+    engine,
+    `SELECT ?v WHERE { BIND(1 NOT IN () AS ?v) }`,
+    "v",
+  );
+  assertEquals(notin, {
+    type: "literal",
+    value: "true",
+    datatype: `${XSD}boolean`,
+  });
+  const same = await bindValue(
+    engine,
+    `SELECT ?v WHERE { BIND(SAMETERM(1, "1") AS ?v) }`,
+    "v",
+  );
+  assertEquals(same, {
+    type: "literal",
+    value: "false",
+    datatype: `${XSD}boolean`,
+  });
+});
+
+Deno.test("NativeSparqlEngine - BNODE mints fresh and labeled blank nodes", async () => {
+  const engine = emptyEngine();
+  const fresh = await bindValue(
+    engine,
+    `SELECT ?a ?b WHERE { BIND(BNODE() AS ?a) BIND(BNODE() AS ?b) }`,
+    "a",
+  );
+  const freshB = await bindValue(
+    engine,
+    `SELECT ?a ?b WHERE { BIND(BNODE() AS ?a) BIND(BNODE() AS ?b) }`,
+    "b",
+  );
+  assertEquals(fresh?.type, "bnode");
+  assertEquals(freshB?.type, "bnode");
+  // Zero-argument BNODE mints a fresh node per call.
+  if (fresh !== null && freshB !== null) {
+    if (fresh.value === freshB.value) {
+      throw new Error("BNODE() must mint a fresh node per call");
+    }
+  }
+  // BNODE("x") with the same label yields the same node within a query.
+  const labeled = await bindValue(
+    engine,
+    `SELECT ?a ?b WHERE { BIND(BNODE("x") AS ?a) BIND(BNODE("x") AS ?b) }`,
+    "a",
+  );
+  const labeledB = await bindValue(
+    engine,
+    `SELECT ?a ?b WHERE { BIND(BNODE("x") AS ?a) BIND(BNODE("x") AS ?b) }`,
+    "b",
+  );
+  assertEquals(labeled?.type, "bnode");
+  assertEquals(labeled?.value, labeledB?.value);
+});
+
+Deno.test("NativeSparqlEngine - ABS, CEIL, FLOOR, ROUND preserve the datatype", async () => {
+  const engine = emptyEngine();
+  const absInt = await bindValue(
+    engine,
+    `SELECT ?v WHERE { BIND(ABS(-2) AS ?v) }`,
+    "v",
+  );
+  assertEquals(absInt, {
+    type: "literal",
+    value: "2",
+    datatype: `${XSD}integer`,
+  });
+  const absDec = await bindValue(
+    engine,
+    `SELECT ?v WHERE { BIND(ABS(-2.5) AS ?v) }`,
+    "v",
+  );
+  assertEquals(absDec, {
+    type: "literal",
+    value: "2.5",
+    datatype: `${XSD}decimal`,
+  });
+  const ceil = await bindValue(
+    engine,
+    `SELECT ?v WHERE { BIND(CEIL(2.5) AS ?v) }`,
+    "v",
+  );
+  assertEquals(ceil, {
+    type: "literal",
+    value: "3",
+    datatype: `${XSD}decimal`,
+  });
+  const roundNeg = await bindValue(
+    engine,
+    `SELECT ?v WHERE { BIND(ROUND(-2.5) AS ?v) }`,
+    "v",
+  );
+  assertEquals(roundNeg, {
+    type: "literal",
+    value: "-2",
+    datatype: `${XSD}decimal`,
+  });
+  const roundDouble = await bindValue(
+    engine,
+    `SELECT ?v WHERE { BIND(ROUND(2.5e0) AS ?v) }`,
+    "v",
+  );
+  assertEquals(roundDouble, {
+    type: "literal",
+    value: "3.0E0",
+    datatype: `${XSD}double`,
+  });
+});
+
+Deno.test("NativeSparqlEngine - date functions over xsd:dateTime", async () => {
+  const engine = emptyEngine();
+  const dt = `"2011-01-10T14:45:13.815-05:00"^^<${XSD}dateTime>`;
+  const year = await bindValue(
+    engine,
+    `SELECT ?v WHERE { BIND(YEAR(${dt}) AS ?v) }`,
+    "v",
+  );
+  assertEquals(year, {
+    type: "literal",
+    value: "2011",
+    datatype: `${XSD}integer`,
+  });
+  const seconds = await bindValue(
+    engine,
+    `SELECT ?v WHERE { BIND(SECONDS(${dt}) AS ?v) }`,
+    "v",
+  );
+  assertEquals(seconds, {
+    type: "literal",
+    value: "13.815",
+    datatype: `${XSD}decimal`,
+  });
+  const tz = await bindValue(
+    engine,
+    `SELECT ?v WHERE { BIND(TIMEZONE(${dt}) AS ?v) }`,
+    "v",
+  );
+  assertEquals(tz, {
+    type: "literal",
+    value: "-PT5H",
+    datatype: `${XSD}dayTimeDuration`,
+  });
+  // A literal without a timezone is an error (unbound).
+  const none = await bindValue(
+    engine,
+    `SELECT ?v WHERE { BIND(TIMEZONE("2011-01-10T14:45:13"^^<${XSD}dateTime>) AS ?v) }`,
+    "v",
+  );
+  assertEquals(none, null);
+  // A plain string is not an xsd:dateTime.
+  const plain = await bindValue(
+    engine,
+    `SELECT ?v WHERE { BIND(YEAR("2011-01-10T14:45:13") AS ?v) }`,
+    "v",
+  );
+  assertEquals(plain, null);
+});
+
+Deno.test("NativeSparqlEngine - MD5 and SHA digests", async () => {
+  const engine = emptyEngine();
+  const checks: Array<[string, string]> = [
+    ["MD5", "900150983cd24fb0d6963f7d28e17f72"],
+    ["SHA1", "a9993e364706816aba3e25717850c26c9cd0d89d"],
+    [
+      "SHA256",
+      "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+    ],
+    [
+      "SHA384",
+      "cb00753f45a35e8bb5a03d699ac65007272c32ab0eded1631a8b605a43ff5bed8086072ba1e7cc2358baeca134c825a7",
+    ],
+    [
+      "SHA512",
+      "ddaf35a193617abacc417349ae20413112e6fa4e89a97ea20a9eeee64b55d39a2192992a274fc1a836ba3c23a3feebbd454d4423643ce80e2a9ac94fa54ca49f",
+    ],
+  ];
+  for (const [fn, digest] of checks) {
+    const value = await bindValue(
+      engine,
+      `SELECT ?v WHERE { BIND(${fn}("abc") AS ?v) }`,
+      "v",
+    );
+    assertEquals(value, { type: "literal", value: digest });
+  }
+});
+
+Deno.test("NativeSparqlEngine - RDF-star expression functions", async () => {
+  const engine = emptyEngine();
+  const triple = await bindValue(
+    engine,
+    `SELECT ?t WHERE { BIND(TRIPLE(<http://s>, <http://p>, "o") AS ?t) }`,
+    "t",
+  );
+  assertEquals(triple?.type, "triple");
+  const subject = await bindValue(
+    engine,
+    `SELECT ?v WHERE { BIND(SUBJECT(TRIPLE(<http://s>, <http://p>, "o")) AS ?v) }`,
+    "v",
+  );
+  assertEquals(subject, { type: "uri", value: "http://s" });
+  const object = await bindValue(
+    engine,
+    `SELECT ?v WHERE { BIND(OBJECT(TRIPLE(<http://s>, <http://p>, "o")) AS ?v) }`,
+    "v",
+  );
+  assertEquals(object, { type: "literal", value: "o" });
+  const isTriple = await bindValue(
+    engine,
+    `SELECT ?v WHERE { BIND(isTRIPLE(TRIPLE(<http://s>, <http://p>, "o")) AS ?v) }`,
+    "v",
+  );
+  assertEquals(isTriple, {
+    type: "literal",
+    value: "true",
+    datatype: `${XSD}boolean`,
+  });
+  const notTriple = await bindValue(
+    engine,
+    `SELECT ?v WHERE { BIND(isTRIPLE("x") AS ?v) }`,
+    "v",
+  );
+  assertEquals(notTriple, {
+    type: "literal",
+    value: "false",
+    datatype: `${XSD}boolean`,
+  });
+  const err = await bindValue(
+    engine,
+    `SELECT ?v WHERE { BIND(SUBJECT("x") AS ?v) }`,
+    "v",
+  );
+  assertEquals(err, null);
+});
+
+Deno.test("NativeSparqlEngine - RAND, STRUUID, UUID, NOW have the right shape", async () => {
+  const engine = emptyEngine();
+  const rand = await bindValue(
+    engine,
+    `SELECT ?v WHERE { BIND(RAND() AS ?v) }`,
+    "v",
+  );
+  assertEquals(rand?.type, "literal");
+  assertEquals(rand?.datatype, `${XSD}double`);
+  if (rand !== null) {
+    const value = Number(rand.value);
+    if (!(value >= 0 && value < 1)) {
+      throw new Error(`RAND out of range: ${value}`);
+    }
+  }
+  const struuid = await bindValue(
+    engine,
+    `SELECT ?v WHERE { BIND(STRUUID() AS ?v) }`,
+    "v",
+  );
+  assertEquals(struuid?.type, "literal");
+  if (struuid !== null) {
+    if (
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(
+        struuid.value,
+      )
+    ) {
+      throw new Error(`STRUUID not a UUID: ${struuid.value}`);
+    }
+  }
+  const uuid = await bindValue(
+    engine,
+    `SELECT ?v WHERE { BIND(UUID() AS ?v) }`,
+    "v",
+  );
+  assertEquals(uuid?.type, "uri");
+  if (uuid !== null && !uuid.value.startsWith("urn:uuid:")) {
+    throw new Error(`UUID not urn:uuid: ${uuid.value}`);
+  }
+  const now = await bindValue(
+    engine,
+    `SELECT ?v WHERE { BIND(NOW() AS ?v) }`,
+    "v",
+  );
+  assertEquals(now?.type, "literal");
+  assertEquals(now?.datatype, `${XSD}dateTime`);
+});
+
+Deno.test("NativeSparqlEngine - FROM scopes the default graph", async () => {
+  const store = new Store();
+  const ex = (s: string) => namedNode(`http://example.org/${s}`);
+  store.addQuad(quad(ex("a"), ex("p"), literal("d")));
+  store.addQuad(quad(ex("a"), ex("p"), literal("1"), ex("g1")));
+  store.addQuad(quad(ex("b"), ex("p"), literal("2"), ex("g1")));
+  store.addQuad(quad(ex("c"), ex("p"), literal("3"), ex("g2")));
+  const engine = new NativeSparqlEngine({ store });
+
+  const fromG1 = await engine.execute({
+    query: `SELECT ?s ?o FROM <http://example.org/g1> ` +
+      `WHERE { ?s <http://example.org/p> ?o } ORDER BY ?s`,
+  });
+  assertEquals(fromG1.kind, "select");
+  if (fromG1.kind === "select") {
+    assertEquals(fromG1.data.results.bindings.length, 2);
+    // The store's default-graph quad is invisible under FROM.
+    const objects = fromG1.data.results.bindings.map((b) => b.o.value);
+    assertEquals(objects, ["1", "2"]);
+  }
+
+  const merged = await engine.execute({
+    query:
+      `SELECT ?s ?o FROM <http://example.org/g1> FROM <http://example.org/g2> ` +
+      `WHERE { ?s <http://example.org/p> ?o } ORDER BY ?s`,
+  });
+  assertEquals(merged.kind, "select");
+  if (merged.kind === "select") {
+    assertEquals(merged.data.results.bindings.length, 3);
+  }
+
+  const missing = await engine.execute({
+    query: `SELECT ?s ?o FROM <http://example.org/none> ` +
+      `WHERE { ?s <http://example.org/p> ?o }`,
+  });
+  assertEquals(missing.kind, "select");
+  if (missing.kind === "select") {
+    assertEquals(missing.data.results.bindings.length, 0);
+  }
+
+  const ask = await engine.execute({
+    query:
+      `ASK FROM <http://example.org/g1> WHERE { ?s <http://example.org/p> ?o }`,
+  });
+  assertEquals(ask.kind, "ask");
+  if (ask.kind === "ask") {
+    assertEquals(ask.data.boolean, true);
+  }
+});
+
+Deno.test("NativeSparqlEngine - FROM NAMED restricts GRAPH enumeration", async () => {
+  const store = new Store();
+  const ex = (s: string) => namedNode(`http://example.org/${s}`);
+  store.addQuad(quad(ex("a"), ex("p"), literal("1"), ex("g1")));
+  store.addQuad(quad(ex("c"), ex("p"), literal("3"), ex("g2")));
+  const engine = new NativeSparqlEngine({ store });
+
+  const graphs = await engine.execute({
+    query: `SELECT ?g FROM NAMED <http://example.org/g1> ` +
+      `WHERE { GRAPH ?g { ?s ?p ?o } }`,
+  });
+  assertEquals(graphs.kind, "select");
+  if (graphs.kind === "select") {
+    const names = graphs.data.results.bindings.map((b) => b.g.value);
+    assertEquals(names, ["http://example.org/g1"]);
+  }
+
+  // FROM without FROM NAMED leaves no named graphs.
+  const none = await engine.execute({
+    query: `SELECT ?g FROM <http://example.org/g1> ` +
+      `WHERE { GRAPH ?g { ?s ?p ?o } }`,
+  });
+  assertEquals(none.kind, "select");
+  if (none.kind === "select") {
+    assertEquals(none.data.results.bindings.length, 0);
+  }
 });

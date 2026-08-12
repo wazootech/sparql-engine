@@ -168,7 +168,6 @@ export async function namedGraphs(
   return [...graphs.values()];
 }
 
-
 /**
  * buildDatasetStore materializes the SPARQL 1.1 active dataset for a query
  * with FROM / FROM NAMED clauses: the default graph is the merge of the
