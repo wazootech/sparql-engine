@@ -1,11 +1,11 @@
 import { Parser as SparqlJsParser } from "sparqljs";
-import type { SparqlQuery } from "sparqljs";
+import type { SparqlParser as SparqlJsParserType, SparqlQuery } from "sparqljs";
 
 /**
  * SparqlParser handles parsing raw SPARQL 1.1 strings into structured AST objects.
  */
 export class SparqlParser {
-  private readonly parser: SparqlJsParser;
+  private readonly parser: SparqlJsParserType;
 
   public constructor() {
     this.parser = new SparqlJsParser();

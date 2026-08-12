@@ -4,6 +4,8 @@ import type {
   ConstructQuery,
   SelectQuery,
   SparqlQuery,
+  Term as SparqlTerm,
+  Triple,
 } from "sparqljs";
 import type {
   SparqlAskResults,
@@ -104,7 +106,10 @@ export class SparqlEvaluator {
     for (const binding of bindings) {
       for (const t of query.template) {
         const s = this.resolveConstructTerm(t.subject, binding);
-        const p = this.resolveConstructTerm(t.predicate, binding);
+        const p = this.resolveConstructTerm(
+          this.resolveTemplatePredicate(t.predicate),
+          binding,
+        );
         const o = this.resolveConstructTerm(t.object, binding);
 
         if (s && p && o) {
@@ -121,6 +126,15 @@ export class SparqlEvaluator {
     }
 
     return { quads };
+  }
+
+  private resolveTemplatePredicate(predicate: Triple["predicate"]): SparqlTerm {
+    if ("termType" in predicate) {
+      return predicate;
+    }
+    throw new Error(
+      `Unsupported property path predicate in CONSTRUCT template`,
+    );
   }
 
   private resolveConstructTerm(

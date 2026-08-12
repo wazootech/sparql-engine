@@ -31,6 +31,36 @@ if (result.kind === "select") {
 }
 ```
 
+## Parity testing
+
+The differential test suite in `test/parity/` proves behavioral equivalence with
+`@comunica/query-sparql-rdfjs-lite`, the engine this project ports 1:1. Every
+case seeds both engines with identical RDF/JS stores, runs the same query
+through each, and deep-compares the observable results: SELECT bindings
+(projected variables and values), ASK booleans, and CONSTRUCT quads.
+
+Blank nodes are compared by identity, not by label. Comunica skolemizes blank
+nodes from query sources into prefixed labels (`bc_<sourceId>_<label>`); the
+native engine returns the store's own labels. SPARQL 1.1 result semantics treat
+blank node labels as scoped and opaque, so the native engine deliberately does
+not replicate the prefix — the harness strips it from Comunica's output before
+comparing (see `test/parity/parity-harness.ts`). A test in
+`test/parity/parity.test.ts` locks in this known difference against real
+Comunica output, so the normalization stays verified rather than assumed.
+
+## Benchmarking
+
+`bench/engine_bench.ts` compares query execution against both
+`@comunica/query-sparql-rdfjs-lite` and the Oxigraph WASM engine (`oxigraph`)
+over an identical generated graph. Before timing, every run asserts that all
+three engines return identical results for each query, so the numbers always
+compare equivalent work. Timings use Deno's built-in bench runner with the
+native engine as the per-group baseline:
+
+```bash
+deno task bench
+```
+
 ## Development
 
 ```bash
