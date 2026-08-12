@@ -1,0 +1,7 @@
+# Normalize line endings to LF everywhere.
+#
+# The Deno toolchain (deno fmt / lint / check) emits and expects LF, and CI
+# runs on Linux, so CRLF in the working tree only produces spurious diffs and
+# fmt --check failures on Windows checkouts. Text files are always stored and
+# checked out as LF; binary files are auto-detected and left untouched.
+* text=auto eol=lf
