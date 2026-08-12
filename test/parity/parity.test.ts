@@ -10,12 +10,14 @@ import {
   runComunicaRawSelectBindings,
 } from "./parity-harness.ts";
 import {
+  aggregateQuads,
   basicKnowledgeGraphQuads,
   createQuadStore,
+  namedGraphQuads,
   pathGraphQuads,
 } from "./parity-fixtures.ts";
 
-const { namedNode, quad } = DataFactory;
+const { literal, namedNode, quad } = DataFactory;
 
 const foafName = "<http://xmlns.com/foaf/0.1/name>";
 const foafKnows = "<http://xmlns.com/foaf/0.1/knows>";
@@ -535,12 +537,147 @@ const pathCases: ParityTestCase[] = [
   },
 ];
 
+/**
+ * aggregateCases covers GROUP BY, HAVING, and the eight aggregates
+ * (COUNT/SUM/AVG/MIN/MAX/SAMPLE/GROUP_CONCAT) — each differential against
+ * Comunica. Cases with ORDER BY are order-sensitive; GROUP_CONCAT and
+ * SAMPLE are only asserted where the group has a deterministic order
+ * (single solution or an explicit VALUES sequence).
+ */
+const aggregateCases: ParityTestCase[] = [
+  {
+    name: "aggregate - GROUP BY counts with SUM and AVG",
+    kind: "select",
+    query: `SELECT ?s (COUNT(?o) AS ?c) (SUM(?o) AS ?su) (AVG(?o) AS ?a) ` +
+      `WHERE { ?s ${pPred} ?o } GROUP BY ?s ORDER BY ?s`,
+    quads: aggregateQuads,
+    orderSensitive: true,
+  },
+  {
+    name: "aggregate - no GROUP BY aggregates the whole result",
+    kind: "select",
+    query: `SELECT (COUNT(*) AS ?c) (MIN(?o) AS ?mn) (MAX(?o) AS ?mx) ` +
+      `WHERE { ?s ${pPred} ?o }`,
+    quads: aggregateQuads,
+  },
+  {
+    name: "aggregate - COUNT(DISTINCT) and SUM(DISTINCT)",
+    kind: "select",
+    query: `SELECT (COUNT(DISTINCT ?o) AS ?c) (SUM(DISTINCT ?o) AS ?su) ` +
+      `WHERE { ?s ${pPred} ?o }`,
+    quads: aggregateQuads,
+  },
+  {
+    name: "aggregate - HAVING filters groups by aggregate",
+    kind: "select",
+    query: `SELECT ?s (COUNT(?o) AS ?c) WHERE { ?s ${pPred} ?o } ` +
+      `GROUP BY ?s HAVING (COUNT(?o) > 2) ORDER BY ?s`,
+    quads: aggregateQuads,
+    orderSensitive: true,
+  },
+  {
+    name: "aggregate - ORDER BY an aggregate expression",
+    kind: "select",
+    query: `SELECT ?s (COUNT(?o) AS ?c) WHERE { ?s ${pPred} ?o } ` +
+      `GROUP BY ?s ORDER BY DESC(COUNT(?o)) ?s`,
+    quads: aggregateQuads,
+    orderSensitive: true,
+  },
+  {
+    name: "aggregate - SUM and AVG numeric promotion",
+    kind: "select",
+    query: `SELECT (SUM(?o) AS ?su) (AVG(?o) AS ?a) ` +
+      `WHERE { VALUES ?o { 1 2 3 } }`,
+    quads: [],
+  },
+  {
+    name: "aggregate - SUM and AVG of doubles canonicalize",
+    kind: "select",
+    query: `SELECT (SUM(?o) AS ?su) (AVG(?o) AS ?a) ` +
+      `WHERE { VALUES ?o { 1.0e0 2.0e0 } }`,
+    quads: [],
+  },
+  {
+    name: "aggregate - SUM promotes integer plus decimal",
+    kind: "select",
+    query: `SELECT (SUM(?o) AS ?su) WHERE { VALUES ?o { 1 1.5 } }`,
+    quads: [],
+  },
+  {
+    name: "aggregate - empty result keeps COUNT/SUM/AVG at zero and GC empty",
+    kind: "select",
+    query: `SELECT (COUNT(?o) AS ?c) (SUM(?o) AS ?su) (AVG(?o) AS ?a) ` +
+      `(GROUP_CONCAT(?o) AS ?gc) WHERE { ?s <http://example.org/none> ?o }`,
+    quads: aggregateQuads,
+  },
+  {
+    name: "aggregate - non-numeric SUM and AVG are unbound",
+    kind: "select",
+    query: `SELECT (SUM(?o) AS ?su) (AVG(?o) AS ?a) WHERE { ?s ${pPred} ?o }`,
+    quads: aggregateQuads,
+  },
+  {
+    name: "aggregate - GROUP_CONCAT separator over a VALUES sequence",
+    kind: "select",
+    query: `SELECT (GROUP_CONCAT(?o; SEPARATOR = "--") AS ?gc) ` +
+      `WHERE { VALUES ?o { 1 2 3 } }`,
+    quads: [],
+  },
+  {
+    name: "aggregate - SAMPLE returns the single solution value",
+    kind: "select",
+    query: `SELECT (SAMPLE(?o) AS ?sp) WHERE { ${path("a")} ${pPred} ?o }`,
+    quads: [
+      quad(
+        namedNode("http://example.org/a"),
+        namedNode("http://example.org/p"),
+        literal("7"),
+      ),
+    ],
+  },
+];
+
+const graphCases: ParityTestCase[] = [
+  {
+    name: "GRAPH - scopes patterns to a named graph",
+    kind: "select",
+    query: `SELECT ?s ?o WHERE { GRAPH <http://example.org/g1> { ` +
+      `?s ${pPred} ?o } } ORDER BY ?o`,
+    quads: namedGraphQuads,
+    orderSensitive: true,
+  },
+  {
+    name: "GRAPH - ?g enumerates named graphs and binds the variable",
+    kind: "select",
+    query: `SELECT ?g ?s WHERE { GRAPH ?g { ?s ${pPred} ?o } } ORDER BY ?g ?s`,
+    quads: namedGraphQuads,
+    orderSensitive: true,
+  },
+  {
+    name: "GRAPH - missing graph returns nothing",
+    kind: "select",
+    query: `SELECT ?s ?o WHERE { GRAPH <http://example.org/zz> { ` +
+      `?s ${pPred} ?o } }`,
+    quads: namedGraphQuads,
+  },
+  {
+    name: "GRAPH - joins with a preceding pattern",
+    kind: "select",
+    query: `SELECT ?s ?o WHERE { ?s ${pPred} ?o1 . ` +
+      `GRAPH <http://example.org/g1> { ?s ${pPred} ?o } } ORDER BY ?s`,
+    quads: namedGraphQuads,
+    orderSensitive: true,
+  },
+];
+
 const allCases: ParityTestCase[] = [
   ...selectCases,
   ...askCases,
   ...constructCases,
   ...wildcardCases,
   ...pathCases,
+  ...aggregateCases,
+  ...graphCases,
 ];
 
 for (const testCase of allCases) {

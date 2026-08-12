@@ -748,18 +748,103 @@ Deno.test("NativeSparqlEngine - UNION in a sequence joins with preceding pattern
   }
 });
 
-Deno.test("NativeSparqlEngine - unsupported GRAPH pattern is rejected", async () => {
+Deno.test("NativeSparqlEngine - GRAPH scopes patterns to a named graph", async () => {
   const store = new Store();
+  const name = (s: string, o: string, graph?: string) =>
+    store.addQuad(
+      quad(
+        namedNode(`http://example.org/${s}`),
+        namedNode("http://xmlns.com/foaf/0.1/name"),
+        literal(o),
+        graph === undefined
+          ? undefined
+          : namedNode(`http://example.org/${graph}`),
+      ),
+    );
+  name("alice", "Default");
+  name("alice", "G1", "g1");
+  name("bob", "G1", "g1");
+  name("alice", "G2", "g2");
   const engine = new NativeSparqlEngine({ store });
-  await assertRejects(
-    () =>
-      engine.execute({
-        query:
-          "SELECT ?s WHERE { GRAPH <http://example.org/g> { ?s <http://xmlns.com/foaf/0.1/name> ?n } }",
-      }),
-    Error,
-    "Unsupported graph pattern type: graph",
+
+  const scoped = await engine.execute({
+    query: "SELECT ?s ?n WHERE { GRAPH <http://example.org/g1> { " +
+      "?s <http://xmlns.com/foaf/0.1/name> ?n } } ORDER BY ?n",
+  });
+  assertEquals(scoped.kind, "select");
+  if (scoped.kind === "select") {
+    // Only g1's quads match; the default graph and g2 are excluded.
+    assertEquals(
+      scoped.data.results.bindings.map((b) => b.n.value),
+      ["G1", "G1"],
+    );
+  }
+});
+
+Deno.test("NativeSparqlEngine - GRAPH ?g enumerates named graphs and binds the variable", async () => {
+  const store = new Store();
+  const name = (s: string, o: string, graph?: string) =>
+    store.addQuad(
+      quad(
+        namedNode(`http://example.org/${s}`),
+        namedNode("http://xmlns.com/foaf/0.1/name"),
+        literal(o),
+        graph === undefined
+          ? undefined
+          : namedNode(`http://example.org/${graph}`),
+      ),
+    );
+  name("alice", "Default");
+  name("alice", "G1", "g1");
+  name("bob", "G1", "g1");
+  name("alice", "G2", "g2");
+  const engine = new NativeSparqlEngine({ store });
+
+  const result = await engine.execute({
+    query: "SELECT ?g ?s WHERE { GRAPH ?g { " +
+      "?s <http://xmlns.com/foaf/0.1/name> ?n } } ORDER BY ?g ?s",
+  });
+  assertEquals(result.kind, "select");
+  if (result.kind === "select") {
+    const rows = result.data.results.bindings.map((b) =>
+      `${b.g.value}:${b.s.value}`
+    );
+    // The default graph is not a named graph, so it never appears.
+    assertEquals(rows, [
+      "http://example.org/g1:http://example.org/alice",
+      "http://example.org/g1:http://example.org/bob",
+      "http://example.org/g2:http://example.org/alice",
+    ]);
+  }
+});
+
+Deno.test("NativeSparqlEngine - GRAPH joins with a preceding pattern", async () => {
+  const store = new Store();
+  store.addQuad(
+    quad(
+      namedNode("http://example.org/a"),
+      namedNode("http://example.org/p"),
+      namedNode("http://example.org/b"),
+    ),
   );
+  store.addQuad(
+    quad(
+      namedNode("http://example.org/a"),
+      namedNode("http://example.org/p"),
+      literal("2"),
+      namedNode("http://example.org/g1"),
+    ),
+  );
+  const engine = new NativeSparqlEngine({ store });
+  const result = await engine.execute({
+    query: "SELECT ?s ?o WHERE { ?s <http://example.org/p> ?o1 . " +
+      "GRAPH <http://example.org/g1> { ?s <http://example.org/p> ?o } }",
+  });
+  assertEquals(result.kind, "select");
+  if (result.kind === "select") {
+    assertEquals(result.data.results.bindings.length, 1);
+    assertEquals(result.data.results.bindings[0].o.value, "2");
+  }
 });
 
 Deno.test("NativeSparqlEngine - ASK query evaluation", async () => {
@@ -1325,6 +1410,174 @@ Deno.test("NativeSparqlEngine - unknown function call raises a clear error", asy
       }),
     Error,
     "Unsupported SPARQL expression: functionCall",
+  );
+});
+
+function aggregateEngine(): NativeSparqlEngine {
+  const store = new Store();
+  const num = (s: string, v: string) =>
+    store.addQuad(
+      quad(
+        namedNode(`http://example.org/${s}`),
+        namedNode("http://example.org/p"),
+        literal(v, namedNode("http://www.w3.org/2001/XMLSchema#integer")),
+      ),
+    );
+  num("a", "1");
+  num("a", "2");
+  num("a", "3");
+  num("b", "2");
+  num("b", "4");
+  return new NativeSparqlEngine({ store });
+}
+
+async function aggregateRows(engine: NativeSparqlEngine, query: string) {
+  const result = await engine.execute({ query });
+  assertEquals(result.kind, "select");
+  if (result.kind !== "select") {
+    return [];
+  }
+  return result.data.results.bindings.map((b) => {
+    const rec: Record<string, string> = {};
+    for (const key of Object.keys(b)) {
+      const value = b[key];
+      rec[key] = value.type === "literal"
+        ? `${value.value}^^${value.datatype ?? "string"}`
+        : (value as { value: string }).value;
+    }
+    return JSON.stringify(rec);
+  });
+}
+
+Deno.test("NativeSparqlEngine - GROUP BY partitions and COUNT/SUM/AVG aggregate per group", async () => {
+  const engine = aggregateEngine();
+  assertEquals(
+    await aggregateRows(
+      engine,
+      "SELECT ?s (COUNT(?o) AS ?c) (SUM(?o) AS ?su) (AVG(?o) AS ?a) " +
+        "WHERE { ?s <http://example.org/p> ?o } GROUP BY ?s ORDER BY ?s",
+    ),
+    [
+      '{"s":"http://example.org/a","c":"3^^http://www.w3.org/2001/XMLSchema#integer","su":"6^^http://www.w3.org/2001/XMLSchema#integer","a":"2^^http://www.w3.org/2001/XMLSchema#decimal"}',
+      '{"s":"http://example.org/b","c":"2^^http://www.w3.org/2001/XMLSchema#integer","su":"6^^http://www.w3.org/2001/XMLSchema#integer","a":"3^^http://www.w3.org/2001/XMLSchema#decimal"}',
+    ],
+  );
+});
+
+Deno.test("NativeSparqlEngine - aggregates without GROUP BY treat the whole result as one group", async () => {
+  const engine = aggregateEngine();
+  assertEquals(
+    await aggregateRows(
+      engine,
+      "SELECT (COUNT(*) AS ?c) (MIN(?o) AS ?mn) (MAX(?o) AS ?mx) " +
+        "WHERE { ?s <http://example.org/p> ?o }",
+    ),
+    [
+      '{"c":"5^^http://www.w3.org/2001/XMLSchema#integer","mn":"1^^http://www.w3.org/2001/XMLSchema#integer","mx":"4^^http://www.w3.org/2001/XMLSchema#integer"}',
+    ],
+  );
+});
+
+Deno.test("NativeSparqlEngine - COUNT(DISTINCT) and SUM(DISTINCT) deduplicate", async () => {
+  const engine = aggregateEngine();
+  assertEquals(
+    await aggregateRows(
+      engine,
+      "SELECT (COUNT(DISTINCT ?o) AS ?c) (SUM(DISTINCT ?o) AS ?su) " +
+        "WHERE { ?s <http://example.org/p> ?o }",
+    ),
+    [
+      '{"c":"4^^http://www.w3.org/2001/XMLSchema#integer","su":"10^^http://www.w3.org/2001/XMLSchema#integer"}',
+    ],
+  );
+});
+
+Deno.test("NativeSparqlEngine - HAVING filters groups by aggregate value", async () => {
+  const engine = aggregateEngine();
+  assertEquals(
+    await aggregateRows(
+      engine,
+      "SELECT ?s (COUNT(?o) AS ?c) WHERE { ?s <http://example.org/p> ?o } " +
+        "GROUP BY ?s HAVING (COUNT(?o) > 2) ORDER BY ?s",
+    ),
+    [
+      '{"s":"http://example.org/a","c":"3^^http://www.w3.org/2001/XMLSchema#integer"}',
+    ],
+  );
+});
+
+Deno.test("NativeSparqlEngine - empty aggregate set: COUNT/SUM/AVG zero, MIN/MAX/SAMPLE unbound, GC empty", async () => {
+  const engine = aggregateEngine();
+  assertEquals(
+    await aggregateRows(
+      engine,
+      "SELECT (COUNT(?o) AS ?c) (SUM(?o) AS ?su) (AVG(?o) AS ?a) " +
+        "(MIN(?o) AS ?mn) (SAMPLE(?o) AS ?sp) (GROUP_CONCAT(?o) AS ?gc) " +
+        "WHERE { ?s <http://example.org/none> ?o }",
+    ),
+    [
+      '{"c":"0^^http://www.w3.org/2001/XMLSchema#integer","su":"0^^http://www.w3.org/2001/XMLSchema#integer","a":"0^^http://www.w3.org/2001/XMLSchema#integer","gc":"^^string"}',
+    ],
+  );
+});
+
+Deno.test("NativeSparqlEngine - non-numeric SUM and AVG are unbound", async () => {
+  const store = new Store();
+  store.addQuad(
+    quad(
+      namedNode("http://example.org/a"),
+      namedNode("http://example.org/p"),
+      literal("x"),
+    ),
+  );
+  const engine = new NativeSparqlEngine({ store });
+  assertEquals(
+    await aggregateRows(
+      engine,
+      "SELECT (SUM(?o) AS ?su) (AVG(?o) AS ?a) " +
+        "WHERE { ?s <http://example.org/p> ?o }",
+    ),
+    ["{}"],
+  );
+});
+
+Deno.test("NativeSparqlEngine - GROUP_CONCAT joins values with the separator", async () => {
+  const engine = aggregateEngine();
+  assertEquals(
+    await aggregateRows(
+      engine,
+      'SELECT (GROUP_CONCAT(?o; SEPARATOR = "--") AS ?gc) ' +
+        "WHERE { VALUES ?o { 1 2 3 } }",
+    ),
+    [
+      '{"gc":"1--2--3^^string"}',
+    ],
+  );
+});
+
+Deno.test("NativeSparqlEngine - AVG of doubles produces canonical double forms", async () => {
+  const engine = aggregateEngine();
+  assertEquals(
+    await aggregateRows(
+      engine,
+      "SELECT (AVG(?o) AS ?a) WHERE { VALUES ?o { 1.0e0 2.0e0 } }",
+    ),
+    ['{"a":"1.5E0^^http://www.w3.org/2001/XMLSchema#double"}'],
+  );
+});
+
+Deno.test("NativeSparqlEngine - ORDER BY an aggregate expression orders the groups", async () => {
+  const engine = aggregateEngine();
+  assertEquals(
+    await aggregateRows(
+      engine,
+      "SELECT ?s (COUNT(?o) AS ?c) WHERE { ?s <http://example.org/p> ?o } " +
+        "GROUP BY ?s ORDER BY DESC(COUNT(?o)) ?s",
+    ),
+    [
+      '{"s":"http://example.org/a","c":"3^^http://www.w3.org/2001/XMLSchema#integer"}',
+      '{"s":"http://example.org/b","c":"2^^http://www.w3.org/2001/XMLSchema#integer"}',
+    ],
   );
 });
 

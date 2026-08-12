@@ -44,6 +44,45 @@ export const pathGraphQuads: rdfjs.Quad[] = [
 ];
 
 /**
+ * aggregateQuads is the shared fixture for GROUP BY/aggregate parity cases:
+ * typed integers spread over subjects a/b, plus a non-numeric value on c.
+ */
+export const aggregateQuads: rdfjs.Quad[] = [
+  quad(exampleResource("a"), exampleResource("p"), literal("1", xsdInteger)),
+  quad(exampleResource("a"), exampleResource("p"), literal("2", xsdInteger)),
+  quad(exampleResource("a"), exampleResource("p"), literal("3", xsdInteger)),
+  quad(exampleResource("b"), exampleResource("p"), literal("2", xsdInteger)),
+  quad(exampleResource("b"), exampleResource("p"), literal("4", xsdInteger)),
+  quad(exampleResource("c"), exampleResource("p"), literal("x")),
+];
+
+/**
+ * namedGraphQuads is the shared fixture for GRAPH parity cases: one default
+ * graph quad plus quads in two named graphs (g1, g2).
+ */
+export const namedGraphQuads: rdfjs.Quad[] = [
+  quad(exampleResource("a"), exampleResource("p"), literal("1")),
+  quad(
+    exampleResource("a"),
+    exampleResource("p"),
+    literal("2"),
+    namedNode("http://example.org/g1"),
+  ),
+  quad(
+    exampleResource("b"),
+    exampleResource("p"),
+    literal("3"),
+    namedNode("http://example.org/g1"),
+  ),
+  quad(
+    exampleResource("a"),
+    exampleResource("p"),
+    literal("4"),
+    namedNode("http://example.org/g2"),
+  ),
+];
+
+/**
  * createQuadStore builds a fresh N3 Store seeded with the given quads.
  */
 export function createQuadStore(quads: rdfjs.Quad[]): Store {
