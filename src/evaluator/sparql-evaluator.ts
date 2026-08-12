@@ -172,6 +172,7 @@ export class SparqlEvaluator {
     const existsContext: ExpressionEvaluationContext = {
       evaluateExists: (pattern, solution) =>
         evaluator.evaluateExists(pattern, solution),
+      baseIri: query.base,
     };
 
     const grouping = query.group ?? [];

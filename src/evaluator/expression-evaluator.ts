@@ -80,6 +80,21 @@ export interface ExpressionEvaluationContext {
    * negating it when absent.
    */
   evaluateNotExists?: (pattern: Pattern, solution: TermBinding) => boolean;
+
+  /**
+   * baseIri is the resolved query base (from the BASE directive), used to
+   * resolve relative IRI strings in IRI()/URI().
+   */
+  baseIri?: string;
+
+  /**
+   * bnodeMap is the per-solution blank-node cache for BNODE(str): the same
+   * string maps to the same blank node within a single solution mapping,
+   * while a fresh map per solution keeps nodes distinct across solutions
+   * (SPARQL 1.1 §17.4.1.5). Absent outside solution-scoped evaluation,
+   * where BNODE(str) falls back to a deterministic label.
+   */
+  bnodeMap?: Map<string, rdfjs.BlankNode>;
 }
 
 /**
@@ -477,7 +492,7 @@ export class ExpressionEvaluator {
           if (/[\s<>"{}`\\^]/.test(val.value)) {
             return undefined;
           }
-          return namedNode(val.value);
+          return namedNode(this.resolveIri(val.value, context?.baseIri));
         }
         return undefined;
       }
@@ -781,6 +796,27 @@ export class ExpressionEvaluator {
     return literalTerm.language !== undefined && literalTerm.language !== "";
   }
 
+  private isSimpleLiteral(literalTerm: rdfjs.Literal): boolean {
+    return !this.isLangTagged(literalTerm) &&
+      (literalTerm.datatype === undefined ||
+        literalTerm.datatype.value === XSD_STRING);
+  }
+
+  /**
+   * resolveIri resolves a relative IRI string against the query base IRI
+   * (RFC 3986); an absent base returns the string unchanged.
+   */
+  private resolveIri(value: string, baseIri: string | undefined): string {
+    if (!baseIri) {
+      return value;
+    }
+    try {
+      return new URL(value, baseIri).href;
+    } catch {
+      return value;
+    }
+  }
+
   /**
    * stringCase implements UCASE and LCASE: language-tagged inputs keep
    * their language, everything else becomes an xsd:string literal, and any
@@ -820,6 +856,7 @@ export class ExpressionEvaluator {
     context?: ExpressionEvaluationContext,
   ): rdfjs.Literal | undefined {
     let result = "";
+    let commonLang: string | null | undefined;
     for (const expression of expressions) {
       const value = this.evaluateWith(expression, binding, aggregates, context);
       if (
@@ -829,8 +866,17 @@ export class ExpressionEvaluator {
         return undefined;
       }
       result += value.value;
+      if (commonLang !== null) {
+        if (!this.isLangTagged(value)) {
+          commonLang = null;
+        } else if (commonLang === undefined) {
+          commonLang = value.language;
+        } else if (commonLang !== value.language) {
+          commonLang = null;
+        }
+      }
     }
-    return literal(result, namedNode(XSD_STRING));
+    return this.stringResult(result, commonLang ?? undefined);
   }
 
   /**
@@ -910,7 +956,10 @@ export class ExpressionEvaluator {
     if (value === undefined || datatype === undefined) {
       return undefined;
     }
-    if (value.termType !== "Literal" || datatype.termType !== "NamedNode") {
+    if (
+      value.termType !== "Literal" || datatype.termType !== "NamedNode" ||
+      !this.isSimpleLiteral(value)
+    ) {
       return undefined;
     }
     return literal(value.value, namedNode(datatype.value));
@@ -1048,7 +1097,7 @@ export class ExpressionEvaluator {
     const datatype = term.datatype?.value;
     if (datatype === XSD_BOOLEAN) {
       return literal(
-        term.value === "true" ? "1" : "0",
+        term.value === "true" || term.value === "1" ? "1" : "0",
         namedNode(XSD_INTEGER),
       );
     }
@@ -1057,10 +1106,12 @@ export class ExpressionEvaluator {
       if (typeof numeric === "bigint") {
         return literal(numeric.toString(), namedNode(XSD_INTEGER));
       }
-      if (Number.isInteger(numeric)) {
-        return literal(String(numeric), namedNode(XSD_INTEGER));
-      }
-      return undefined;
+      // XPath casting truncates non-integer numerics toward zero:
+      // xsd:integer(1.25) -> 1, xsd:integer(-2.5) -> -2.
+      return literal(
+        String(Number.isInteger(numeric) ? numeric : Math.trunc(numeric)),
+        namedNode(XSD_INTEGER),
+      );
     }
     if (this.isStringTyped(term) && /^-?\d+$/.test(term.value)) {
       return literal(term.value, namedNode(XSD_INTEGER));
@@ -1078,6 +1129,12 @@ export class ExpressionEvaluator {
     if (term === undefined || term.termType !== "Literal") {
       return undefined;
     }
+    if (term.datatype?.value === XSD_BOOLEAN) {
+      return literal(
+        term.value === "true" || term.value === "1" ? "1" : "0",
+        namedNode(XSD_DECIMAL),
+      );
+    }
     const numeric = numericValue(term);
     if (numeric !== null) {
       return literal(
@@ -1085,7 +1142,7 @@ export class ExpressionEvaluator {
         namedNode(XSD_DECIMAL),
       );
     }
-    if (this.isStringTyped(term) && /^-?\d+(\.\d+)?$/.test(term.value)) {
+    if (this.isStringTyped(term) && /^[+-]?\d+(\.\d+)?$/.test(term.value)) {
       return literal(
         formatNumber(Number(term.value), XSD_DECIMAL),
         namedNode(XSD_DECIMAL),
@@ -1135,6 +1192,12 @@ export class ExpressionEvaluator {
     if (term === undefined || term.termType !== "Literal") {
       return undefined;
     }
+    if (term.datatype?.value === XSD_BOOLEAN) {
+      return literal(
+        term.value === "true" || term.value === "1" ? "1" : "0",
+        namedNode(XSD_FLOAT),
+      );
+    }
     const numeric = numericValue(term);
     let n: number;
     if (numeric !== null) {
@@ -1160,13 +1223,30 @@ export class ExpressionEvaluator {
     if (term === undefined) {
       return undefined;
     }
-    if (
-      term.termType === "Literal" || term.termType === "NamedNode" ||
-      term.termType === "BlankNode"
-    ) {
+    if (term.termType === "NamedNode" || term.termType === "BlankNode") {
       return literal(term.value, namedNode(XSD_STRING));
     }
-    return undefined;
+    if (term.termType !== "Literal") {
+      return undefined;
+    }
+    const datatype = term.datatype?.value;
+    if (datatype === XSD_BOOLEAN) {
+      return literal(
+        term.value === "true" || term.value === "1" ? "true" : "false",
+        namedNode(XSD_STRING),
+      );
+    }
+    if (datatype !== undefined && NUMERIC_DATATYPES.has(datatype)) {
+      const numeric = numericValue(term);
+      if (numeric === null) {
+        return undefined;
+      }
+      return literal(
+        formatNumber(Number(numeric), datatype),
+        namedNode(XSD_STRING),
+      );
+    }
+    return literal(term.value, namedNode(XSD_STRING));
   }
 
   /**
@@ -1181,7 +1261,10 @@ export class ExpressionEvaluator {
       return undefined;
     }
     if (term.datatype?.value === XSD_BOOLEAN) {
-      return literal(term.value, namedNode(XSD_BOOLEAN));
+      return literal(
+        term.value === "true" || term.value === "1" ? "true" : "false",
+        namedNode(XSD_BOOLEAN),
+      );
     }
     const numeric = numericValue(term);
     if (numeric !== null) {
@@ -1341,6 +1424,14 @@ export class ExpressionEvaluator {
     if (value === undefined || needle === undefined) {
       return undefined;
     }
+    // A language-tagged needle must carry the first argument's tag, or the
+    // call is a type error (SPARQL 1.1 §17.4.3.10/11).
+    if (
+      this.isLangTagged(needle) &&
+      (!this.isLangTagged(value) || value.language !== needle.language)
+    ) {
+      return undefined;
+    }
     const index = value.value.indexOf(needle.value);
     let result: string;
     if (index === -1) {
@@ -1350,9 +1441,13 @@ export class ExpressionEvaluator {
     } else {
       result = value.value.slice(index + needle.value.length);
     }
+    // The first argument's language tag survives only when the needle is
+    // found; a missing needle yields the bare empty string.
     return this.stringResult(
       result,
-      this.isLangTagged(value) ? value.language : undefined,
+      index === -1
+        ? undefined
+        : (this.isLangTagged(value) ? value.language : undefined),
     );
   }
 
