@@ -29,6 +29,21 @@ export const basicKnowledgeGraphQuads: rdfjs.Quad[] = [
 ];
 
 /**
+ * pathGraphQuads is the shared fixture for property-path parity cases: two
+ * routes a→b→c and a→d→c over p, a p-then-q chain c→w, a disconnected q
+ * edge z→w, and an isolated p edge x→y.
+ */
+export const pathGraphQuads: rdfjs.Quad[] = [
+  quad(exampleResource("a"), exampleResource("p"), exampleResource("b")),
+  quad(exampleResource("b"), exampleResource("p"), exampleResource("c")),
+  quad(exampleResource("a"), exampleResource("p"), exampleResource("d")),
+  quad(exampleResource("d"), exampleResource("p"), exampleResource("c")),
+  quad(exampleResource("c"), exampleResource("q"), exampleResource("w")),
+  quad(exampleResource("z"), exampleResource("q"), exampleResource("w")),
+  quad(exampleResource("x"), exampleResource("p"), exampleResource("y")),
+];
+
+/**
  * createQuadStore builds a fresh N3 Store seeded with the given quads.
  */
 export function createQuadStore(quads: rdfjs.Quad[]): Store {

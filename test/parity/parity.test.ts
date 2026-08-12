@@ -12,6 +12,7 @@ import {
 import {
   basicKnowledgeGraphQuads,
   createQuadStore,
+  pathGraphQuads,
 } from "./parity-fixtures.ts";
 
 const { namedNode, quad } = DataFactory;
@@ -418,10 +419,128 @@ const constructCases: ParityTestCase[] = [
   },
 ];
 
+const path = (id: string) => `<http://example.org/${id}>`;
+const pPred = path("p");
+const qPred = path("q");
+
+/**
+ * wildcardCases covers SELECT * projection and the solution modifiers
+ * (DISTINCT, LIMIT, OFFSET), plus VALUES, BIND, and every property path
+ * form — each differential against Comunica.
+ */
+const wildcardCases: ParityTestCase[] = [
+  {
+    name: "SELECT * - wildcard projects every bound variable",
+    kind: "select",
+    query: `SELECT * WHERE { ${exampleAlice} ${foafKnows} ?friend }`,
+    quads: basicKnowledgeGraphQuads,
+  },
+  {
+    name: "SELECT - VALUES block with duplicates and UNDEF",
+    kind: "select",
+    query: `SELECT ?s ?n WHERE { VALUES (?s ?n) ` +
+      `{ (${exampleAlice} 1) (${exampleAlice} 1) (UNDEF 2) } }`,
+    quads: basicKnowledgeGraphQuads,
+  },
+  {
+    name: "SELECT - VALUES block constrains a preceding BGP",
+    kind: "select",
+    query: `SELECT ?s ?n WHERE { ?s ${foafName} ?name . ` +
+      `VALUES (?s ?n) { (${exampleAlice} 1) (${exampleCarol} 2) } }`,
+    quads: basicKnowledgeGraphQuads,
+  },
+  {
+    name: "SELECT - BIND extends a solution",
+    kind: "select",
+    query: `SELECT ?s ?u WHERE { ?s ${foafName} ?name . BIND(?name AS ?u) }`,
+    quads: basicKnowledgeGraphQuads,
+  },
+  {
+    name: "SELECT - BIND error leaves the variable unbound",
+    kind: "select",
+    query: `SELECT ?s ?u WHERE { ?s ${foafName} ?name . BIND(STR(?z) AS ?u) }`,
+    quads: basicKnowledgeGraphQuads,
+  },
+  {
+    name: "SELECT - DISTINCT removes duplicate projected solutions",
+    kind: "select",
+    query: `SELECT DISTINCT ?o WHERE { ?s ${pPred} ?o } ORDER BY ?o`,
+    quads: pathGraphQuads,
+    orderSensitive: true,
+  },
+  {
+    name: "SELECT - LIMIT and OFFSET slice ordered results",
+    kind: "select",
+    query: `SELECT ?o WHERE { ?s ${pPred} ?o } ORDER BY ?o LIMIT 2 OFFSET 1`,
+    quads: pathGraphQuads,
+    orderSensitive: true,
+  },
+];
+
+const pathCases: ParityTestCase[] = [
+  {
+    name: "path - inverse ^ reverses an edge",
+    kind: "select",
+    query: `SELECT ?x ?y WHERE { ?x ^${pPred} ?y }`,
+    quads: pathGraphQuads,
+  },
+  {
+    name: "path - sequence / composes two predicates",
+    kind: "select",
+    query: `SELECT ?x ?y WHERE { ?x ${pPred}/${qPred} ?y }`,
+    quads: pathGraphQuads,
+  },
+  {
+    name: "path - alternative | unions with deduplication",
+    kind: "select",
+    query: `SELECT ?x ?y WHERE { ?x ${pPred}|${qPred} ?y }`,
+    quads: pathGraphQuads,
+  },
+  {
+    name: "path - zero-or-one ? is reflexive",
+    kind: "select",
+    query: `SELECT ?y WHERE { ${path("a")} ${pPred}? ?y }`,
+    quads: pathGraphQuads,
+  },
+  {
+    name: "path - one-or-more + is transitive closure",
+    kind: "select",
+    query: `SELECT ?y WHERE { ${path("a")} ${pPred}+ ?y }`,
+    quads: pathGraphQuads,
+  },
+  {
+    name: "path - zero-or-more * is reflexive-transitive over all nodes",
+    kind: "select",
+    query: `SELECT ?x ?y WHERE { ?x ${pPred}* ?y }`,
+    quads: pathGraphQuads,
+  },
+  {
+    name: "path - negated property set !",
+    kind: "select",
+    query: `SELECT ?x ?y WHERE { ?x !${pPred} ?y }`,
+    quads: pathGraphQuads,
+  },
+  {
+    name: "path - nested inverse of a sequence",
+    kind: "select",
+    query: `SELECT ?x ?y WHERE { ?x ^(${pPred}/${qPred}) ?y }`,
+    quads: pathGraphQuads,
+  },
+  {
+    name: "path - joins with a preceding pattern",
+    kind: "select",
+    query: `SELECT ?x ?y WHERE { ${path("a")} ${pPred} ?z . ` +
+      `?x ${pPred}+ ?y . FILTER(?x = ?z) }`,
+    quads: pathGraphQuads,
+  },
+];
+
 const allCases: ParityTestCase[] = [
   ...selectCases,
   ...askCases,
   ...constructCases,
+  ...wildcardCases,
+  ...pathCases,
 ];
 
 for (const testCase of allCases) {

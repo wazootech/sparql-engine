@@ -1327,3 +1327,346 @@ Deno.test("NativeSparqlEngine - unknown function call raises a clear error", asy
     "Unsupported SPARQL expression: functionCall",
   );
 });
+
+Deno.test("NativeSparqlEngine - SELECT * wildcard projects all bound variables", async () => {
+  const store = new Store();
+  store.addQuad(
+    quad(
+      namedNode("http://example.org/alice"),
+      namedNode("http://xmlns.com/foaf/0.1/name"),
+      literal("Alice"),
+    ),
+  );
+  store.addQuad(
+    quad(
+      namedNode("http://example.org/alice"),
+      namedNode("http://xmlns.com/foaf/0.1/age"),
+      literal("28", namedNode("http://www.w3.org/2001/XMLSchema#integer")),
+    ),
+  );
+  const engine = new NativeSparqlEngine({ store });
+  const result = await engine.execute({
+    query: "SELECT * WHERE { <http://example.org/alice> ?p ?o }",
+  });
+  assertEquals(result.kind, "select");
+  if (result.kind === "select") {
+    assertEquals(
+      result.data.head.vars.sort(),
+      ["o", "p"],
+    );
+    assertEquals(result.data.results.bindings.length, 2);
+    assertEquals(
+      result.data.results.bindings.map((b) => b.p.value).sort(),
+      [
+        "http://xmlns.com/foaf/0.1/age",
+        "http://xmlns.com/foaf/0.1/name",
+      ],
+    );
+    for (const binding of result.data.results.bindings) {
+      assertEquals(Object.keys(binding).sort(), ["o", "p"]);
+    }
+  }
+});
+
+Deno.test("NativeSparqlEngine - VALUES block joins as a multiset with UNDEF rows", async () => {
+  const store = new Store();
+  const engine = new NativeSparqlEngine({ store });
+  const result = await engine.execute({
+    query: "SELECT ?s ?n WHERE { VALUES (?s ?n) " +
+      "{ (<http://example.org/a> 1) (<http://example.org/a> 1) (UNDEF 2) } }",
+  });
+  assertEquals(result.kind, "select");
+  if (result.kind === "select") {
+    assertEquals(result.data.results.bindings.length, 3);
+    // Duplicate rows survive; the UNDEF row leaves ?s unbound.
+    assertEquals(
+      result.data.results.bindings[2],
+      {
+        n: {
+          type: "literal",
+          value: "2",
+          datatype: "http://www.w3.org/2001/XMLSchema#integer",
+        },
+      },
+    );
+  }
+});
+
+Deno.test("NativeSparqlEngine - VALUES block constrains a preceding BGP join", async () => {
+  const store = new Store();
+  store.addQuad(
+    quad(
+      namedNode("http://example.org/a"),
+      namedNode("http://example.org/p"),
+      namedNode("http://example.org/b"),
+    ),
+  );
+  store.addQuad(
+    quad(
+      namedNode("http://example.org/c"),
+      namedNode("http://example.org/p"),
+      namedNode("http://example.org/d"),
+    ),
+  );
+  const engine = new NativeSparqlEngine({ store });
+  const result = await engine.execute({
+    query: "SELECT ?s ?n WHERE { ?s <http://example.org/p> ?o . " +
+      "VALUES (?s ?n) { (<http://example.org/a> 1) (<http://example.org/c> 2) } }",
+  });
+  assertEquals(result.kind, "select");
+  if (result.kind === "select") {
+    const rows = result.data.results.bindings.map((b) => b.n.value).sort();
+    assertEquals(rows, ["1", "2"]);
+  }
+});
+
+Deno.test("NativeSparqlEngine - BIND extends solutions and keeps error solutions unbound", async () => {
+  const store = new Store();
+  store.addQuad(
+    quad(
+      namedNode("http://example.org/a"),
+      namedNode("http://example.org/p"),
+      namedNode("http://example.org/b"),
+    ),
+  );
+  const engine = new NativeSparqlEngine({ store });
+  const result = await engine.execute({
+    query:
+      "SELECT ?x ?u WHERE { ?x <http://example.org/p> ?y . BIND(STR(?z) AS ?u) }",
+  });
+  assertEquals(result.kind, "select");
+  if (result.kind === "select") {
+    // The expression errors on unbound ?z; the solution survives unextended.
+    assertEquals(result.data.results.bindings.length, 1);
+    assertEquals(result.data.results.bindings[0], {
+      x: { type: "uri", value: "http://example.org/a" },
+    });
+  }
+});
+
+Deno.test("NativeSparqlEngine - DISTINCT removes duplicate projected solutions", async () => {
+  const store = new Store();
+  for (const o of ["b", "c"]) {
+    store.addQuad(
+      quad(
+        namedNode("http://example.org/a"),
+        namedNode("http://example.org/p"),
+        namedNode(`http://example.org/${o}`),
+      ),
+    );
+  }
+  store.addQuad(
+    quad(
+      namedNode("http://example.org/b"),
+      namedNode("http://example.org/p"),
+      namedNode("http://example.org/c"),
+    ),
+  );
+  const engine = new NativeSparqlEngine({ store });
+  const result = await engine.execute({
+    query: "SELECT DISTINCT ?o WHERE { ?s <http://example.org/p> ?o }",
+  });
+  assertEquals(result.kind, "select");
+  if (result.kind === "select") {
+    // ?o binds c twice (a->c and b->c); DISTINCT collapses it.
+    assertEquals(result.data.results.bindings.length, 2);
+  }
+});
+
+Deno.test("NativeSparqlEngine - LIMIT and OFFSET slice ordered results", async () => {
+  const store = new Store();
+  for (const o of ["d", "b", "c", "a"]) {
+    store.addQuad(
+      quad(
+        namedNode("http://example.org/s"),
+        namedNode("http://example.org/p"),
+        namedNode(`http://example.org/${o}`),
+      ),
+    );
+  }
+  const engine = new NativeSparqlEngine({ store });
+  const result = await engine.execute({
+    query: "SELECT ?o WHERE { ?s <http://example.org/p> ?o } " +
+      "ORDER BY ?o LIMIT 2 OFFSET 1",
+  });
+  assertEquals(result.kind, "select");
+  if (result.kind === "select") {
+    assertEquals(
+      result.data.results.bindings.map((b) => b.o.value),
+      ["http://example.org/b", "http://example.org/c"],
+    );
+  }
+});
+
+function pathEngine(): NativeSparqlEngine {
+  const store = new Store();
+  const edge = (s: string, p: string, o: string) =>
+    store.addQuad(
+      quad(
+        namedNode(`http://example.org/${s}`),
+        namedNode(`http://example.org/${p}`),
+        namedNode(`http://example.org/${o}`),
+      ),
+    );
+  // a -> b -> c, a -> d -> c (two routes), plus unrelated edges.
+  edge("a", "p", "b");
+  edge("b", "p", "c");
+  edge("a", "p", "d");
+  edge("d", "p", "c");
+  edge("c", "q", "w");
+  edge("z", "q", "w");
+  edge("x", "p", "y");
+  return new NativeSparqlEngine({ store });
+}
+
+async function pathBindings(engine: NativeSparqlEngine, query: string) {
+  const result = await engine.execute({ query });
+  assertEquals(result.kind, "select");
+  if (result.kind !== "select") {
+    return [];
+  }
+  return result.data.results.bindings.map((b) =>
+    `${b.x ? b.x.value : "?"}->${b.y ? b.y.value : "?"}`
+  ).sort();
+}
+
+Deno.test("NativeSparqlEngine - property path + traverses a sequence", async () => {
+  const engine = pathEngine();
+  assertEquals(
+    await pathBindings(
+      engine,
+      "SELECT ?x ?y WHERE { ?x <http://example.org/p>/<http://example.org/q> ?y }",
+    ),
+    [
+      "http://example.org/b->http://example.org/w",
+      "http://example.org/d->http://example.org/w",
+    ],
+  );
+});
+
+Deno.test("NativeSparqlEngine - property path ^ reverses an edge", async () => {
+  const engine = pathEngine();
+  assertEquals(
+    await pathBindings(
+      engine,
+      "SELECT ?x ?y WHERE { ?x ^<http://example.org/p> ?y }",
+    ),
+    [
+      "http://example.org/b->http://example.org/a",
+      "http://example.org/c->http://example.org/b",
+      "http://example.org/c->http://example.org/d",
+      "http://example.org/d->http://example.org/a",
+      "http://example.org/y->http://example.org/x",
+    ],
+  );
+});
+
+Deno.test("NativeSparqlEngine - property path | alternates with deduplication", async () => {
+  const engine = pathEngine();
+  assertEquals(
+    await pathBindings(
+      engine,
+      "SELECT ?x ?y WHERE { ?x <http://example.org/p>|<http://example.org/q> ?y }",
+    ),
+    [
+      "http://example.org/a->http://example.org/b",
+      "http://example.org/a->http://example.org/d",
+      "http://example.org/b->http://example.org/c",
+      "http://example.org/c->http://example.org/w",
+      "http://example.org/d->http://example.org/c",
+      "http://example.org/x->http://example.org/y",
+      "http://example.org/z->http://example.org/w",
+    ],
+  );
+});
+
+Deno.test("NativeSparqlEngine - property path ? is zero-or-one with reflexivity", async () => {
+  const engine = pathEngine();
+  const bindings = await pathBindings(
+    engine,
+    "SELECT ?x ?y WHERE { <http://example.org/a> <http://example.org/p>? ?y }",
+  );
+  // a itself plus a's p-targets b and d (the constant subject is not
+  // projected, so the binding only carries ?y).
+  assertEquals(bindings, [
+    "?->http://example.org/a",
+    "?->http://example.org/b",
+    "?->http://example.org/d",
+  ]);
+});
+
+Deno.test("NativeSparqlEngine - property path + is one-or-more transitive closure", async () => {
+  const engine = pathEngine();
+  const bindings = await pathBindings(
+    engine,
+    "SELECT ?x ?y WHERE { <http://example.org/a> <http://example.org/p>+ ?y }",
+  );
+  assertEquals(bindings, [
+    "?->http://example.org/b",
+    "?->http://example.org/c",
+    "?->http://example.org/d",
+  ]);
+});
+
+Deno.test("NativeSparqlEngine - property path * is reflexive-transitive closure over all nodes", async () => {
+  const engine = pathEngine();
+  const bindings = await pathBindings(
+    engine,
+    "SELECT ?x ?y WHERE { ?x <http://example.org/p>* ?y }",
+  );
+  // Reflexive pairs cover every graph node (including w, z, x, y, v-free).
+  const reflexive = bindings.filter((b) => {
+    const [x, y] = b.split("->");
+    return x === y;
+  });
+  assertEquals(reflexive.length, 8); // a, b, c, d, w, x, y, z
+  // Multi-hop reachability deduplicates the two routes a->c.
+  const reachable = bindings.filter((b) =>
+    b === "http://example.org/a->http://example.org/c"
+  );
+  assertEquals(reachable.length, 1);
+});
+
+Deno.test("NativeSparqlEngine - property path ! negates a property set", async () => {
+  const engine = pathEngine();
+  assertEquals(
+    await pathBindings(
+      engine,
+      "SELECT ?x ?y WHERE { ?x !<http://example.org/p> ?y }",
+    ),
+    [
+      "http://example.org/c->http://example.org/w",
+      "http://example.org/z->http://example.org/w",
+    ],
+  );
+});
+
+Deno.test("NativeSparqlEngine - nested inverse sequence path", async () => {
+  const engine = pathEngine();
+  // ^(p/q) connects x to y when y --p--> m --q--> x. In the fixture the only
+  // p-then-q chains are b -p-> c -q-> w and d -p-> c -q-> w, so the pairs
+  // are (w, b) and (w, d).
+  const bindings = await pathBindings(
+    engine,
+    "SELECT ?x ?y WHERE { ?x ^(<http://example.org/p>/<http://example.org/q>) ?y }",
+  );
+  assertEquals(bindings, [
+    "http://example.org/w->http://example.org/b",
+    "http://example.org/w->http://example.org/d",
+  ]);
+});
+
+Deno.test("NativeSparqlEngine - property path joins with an incoming binding", async () => {
+  const engine = pathEngine();
+  // The first pattern binds ?z to a's p-targets {b, d}; the path result's
+  // ?x is then constrained to match ?z, giving b -p+-> c and d -p+-> c.
+  const bindings = await pathBindings(
+    engine,
+    "SELECT ?x ?y WHERE { <http://example.org/a> <http://example.org/p> ?z . " +
+      "?x <http://example.org/p>+ ?y . FILTER(?x = ?z) }",
+  );
+  assertEquals(bindings, [
+    "http://example.org/b->http://example.org/c",
+    "http://example.org/d->http://example.org/c",
+  ]);
+});
