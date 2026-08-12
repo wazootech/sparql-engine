@@ -44,6 +44,18 @@ export const pathGraphQuads: rdfjs.Quad[] = [
 ];
 
 /**
+ * cycleGraphQuads is the fixture for closure-path parity cases: a two-node
+ * cycle over p (a→b, b→a) plus a self-loop (c→c). A one-or-more path from a
+ * node must include that node itself when the graph cycles back to it
+ * (SPARQL 1.1 §9.1) — a case the acyclic path fixture cannot catch.
+ */
+export const cycleGraphQuads: rdfjs.Quad[] = [
+  quad(exampleResource("a"), exampleResource("p"), exampleResource("b")),
+  quad(exampleResource("b"), exampleResource("p"), exampleResource("a")),
+  quad(exampleResource("c"), exampleResource("p"), exampleResource("c")),
+];
+
+/**
  * aggregateQuads is the shared fixture for GROUP BY/aggregate parity cases:
  * typed integers spread over subjects a/b, plus a non-numeric value on c.
  */

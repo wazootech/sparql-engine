@@ -523,10 +523,15 @@ async function pathSteps(
       return results;
     }
     case "+": {
-      // One-or-more: transitive closure of the inner path, no reflexivity.
+      // One-or-more: transitive closure of the inner path. The start term is
+      // not reflexive for +, but in a cycle it IS reachable from itself via
+      // one or more steps, so when the walk returns to it it is emitted once
+      // (and never re-queued, keeping the traversal finite).
       const results: rdfjs.Term[] = [];
-      const visited = new Set<string>([termKey(term)]);
+      const visited = new Set<string>();
       const queue: rdfjs.Term[] = [term];
+      const startKey = termKey(term);
+      let startEmitted = false;
       while (queue.length > 0) {
         const current = queue.shift()!;
         for (
@@ -538,6 +543,13 @@ async function pathSteps(
           )
         ) {
           const key = termKey(target);
+          if (key === startKey) {
+            if (!startEmitted) {
+              startEmitted = true;
+              results.push(target);
+            }
+            continue;
+          }
           if (!visited.has(key)) {
             visited.add(key);
             results.push(target);
