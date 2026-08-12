@@ -1,8 +1,19 @@
 import type * as rdfjs from "@rdfjs/types";
 import type { Expression, Pattern, Triple } from "sparqljs";
 import { DataFactory } from "n3";
-import { ExpressionEvaluator } from "@/evaluator/expression-evaluator.ts";
-import { GraphScopedStore, namedGraphs } from "@/quad-store.ts";
+import {
+  type ExpressionEvaluationContext,
+  ExpressionEvaluator,
+} from "@/evaluator/expression-evaluator.ts";
+import {
+  buildQuadIndex,
+  GraphScopedStore,
+  matchQuads,
+  namedGraphs,
+  probeQuadIndex,
+  type QuadIndex,
+  simplePredicate,
+} from "@/quad-store.ts";
 
 const { defaultGraph } = DataFactory;
 import {
@@ -16,7 +27,7 @@ import {
   scanPathEntry,
 } from "@/evaluator/join.ts";
 import type { ScanEntry, TermBinding } from "@/evaluator/join.ts";
-import { sparqlTermToRdfTerm, termKey } from "@/term/mod.ts";
+import { sameRdfTerm, sparqlTermToRdfTerm, termKey } from "@/term/mod.ts";
 
 export type { TermBinding } from "@/evaluator/join.ts";
 
@@ -52,6 +63,14 @@ export interface BgpEvaluatorOptions {
 export class BgpEvaluator {
   private readonly reorderPatterns: boolean;
 
+  /**
+   * existsQuads and existsIndex are the drained, indexed snapshot of the
+   * evaluator's store that the synchronous EXISTS hooks probe. They are
+   * rebuilt per query by prepareExistsIndex when any pattern uses EXISTS.
+   */
+  private existsQuads: rdfjs.Quad[] | null = null;
+  private existsIndex: QuadIndex | null = null;
+
   /** expressionEvaluator evaluates FILTER expressions against solutions. */
   private readonly expressionEvaluator = new ExpressionEvaluator();
 
@@ -67,11 +86,257 @@ export class BgpEvaluator {
    * binding, producing all solution bindings (as RDF/JS terms).
    */
   public async evaluateBgp(patterns: Pattern[]): Promise<TermBinding[]> {
+    // EXISTS support: when any pattern in the tree uses EXISTS/NOT EXISTS,
+    // the store's quads are drained once into a synchronous index that the
+    // injected hooks probe (the decided sync-hook contract). Rebuilt per
+    // query, so updates between queries never see a stale snapshot.
+    this.existsIndex = null;
+    this.existsQuads = null;
+    if (patternListContainsExists(patterns)) {
+      await this.prepareExistsIndex();
+    }
     // The top-level evaluation runs against the default graph (matching
     // Comunica, whose plain patterns never see named-graph quads); GRAPH
     // patterns scope further inside.
     const defaultScope = new GraphScopedStore(this.store, defaultGraph());
     return await this.evaluateGroup(patterns, [{}], defaultScope);
+  }
+
+  /**
+   * prepareExistsIndex drains the evaluator's store into the synchronous
+   * QuadIndex used by the EXISTS hooks. The SparqlEvaluator calls it for
+   * projection / ORDER BY / HAVING expressions when they contain EXISTS even
+   * though the WHERE clause does not.
+   */
+  public async prepareExistsIndex(): Promise<void> {
+    if (this.existsIndex !== null) {
+      return;
+    }
+    const quads = await matchQuads(this.store, null, null, null);
+    this.existsQuads = quads;
+    this.existsIndex = buildQuadIndex(quads);
+  }
+
+  /**
+   * evaluateExists implements the injected pattern-evaluation hook: a group
+   * pattern evaluated against one incoming solution, returning whether any
+   * solution matches. Correlated (the solution's bindings are visible
+   * inside), and only the boolean survives — inner bindings are discarded.
+   * The graph parameter scopes the evaluation (the default graph at the top
+   * level, the enclosing GRAPH's term inside one).
+   */
+  public evaluateExists(
+    pattern: Pattern,
+    solution: TermBinding,
+    graph?: rdfjs.Term,
+  ): boolean {
+    if (this.existsIndex === null || this.existsQuads === null) {
+      throw new Error(
+        "EXISTS requires a prepared pattern index: call prepareExistsIndex() first",
+      );
+    }
+    const scopeGraph = graph ?? defaultGraph();
+    const candidates = this.existsQuads.filter((item) =>
+      sameRdfTerm(item.graph, scopeGraph)
+    );
+    const patterns = pattern.type === "group" ? pattern.patterns : [pattern];
+    return this.evaluateExistsGroup(
+      patterns,
+      [solution],
+      candidates,
+      scopeGraph,
+    ).length > 0;
+  }
+
+  /**
+   * evaluateExistsGroup threads solutions through a pattern list with the
+   * synchronous exists evaluator, mirroring evaluateGroup for the pattern
+   * forms the W3C EXISTS surface exercises (BGP, FILTER, GRAPH, BIND,
+   * VALUES, nested EXISTS). OPTIONAL / MINUS / UNION / subqueries and
+   * property paths inside EXISTS raise a clear error rather than silently
+   * returning a wrong answer.
+   */
+  private evaluateExistsGroup(
+    patterns: Pattern[],
+    bindings: TermBinding[],
+    candidates: rdfjs.Quad[],
+    graph: rdfjs.Term,
+  ): TermBinding[] {
+    let result = bindings;
+    for (const pattern of patterns) {
+      result = this.evaluateExistsPattern(pattern, result, candidates, graph);
+    }
+    return result;
+  }
+
+  private evaluateExistsPattern(
+    pattern: Pattern,
+    bindings: TermBinding[],
+    candidates: rdfjs.Quad[],
+    graph: rdfjs.Term,
+  ): TermBinding[] {
+    const context: ExpressionEvaluationContext = {
+      evaluateExists: (subPattern, solution) =>
+        this.evaluateExists(subPattern, solution, graph),
+    };
+    switch (pattern.type) {
+      case "bgp": {
+        let result = bindings;
+        for (const triple of pattern.triples) {
+          if (isPropertyPath(triple.predicate)) {
+            throw new Error(
+              "Property paths inside EXISTS are not supported",
+            );
+          }
+          const predicate = simplePredicate(triple.predicate);
+          const entry: ScanEntry = {
+            subject: triple.subject,
+            predicate,
+            object: triple.object,
+            // probeQuadIndex checks only s/p/o, so the graph scope is
+            // enforced afterwards over the probed candidates.
+            candidates: probeQuadIndex(
+              this.existsIndex!,
+              candidates,
+              triple.subject.termType === "Variable"
+                ? null
+                : sparqlTermToRdfTerm(triple.subject),
+              predicate.termType === "Variable"
+                ? null
+                : sparqlTermToRdfTerm(predicate),
+              triple.object.termType === "Variable"
+                ? null
+                : sparqlTermToRdfTerm(triple.object),
+            ).filter((item) => sameRdfTerm(item.graph, graph)),
+          };
+          result = joinTriplePattern(result, entry);
+        }
+        return result;
+      }
+      case "filter":
+        return bindings.filter((binding) =>
+          this.expressionEvaluator.filterPasses(
+            pattern.expression,
+            binding,
+            context,
+          )
+        );
+      case "graph": {
+        const name = pattern.name;
+        if (name.termType === "NamedNode") {
+          const graphTerm = sparqlTermToRdfTerm(name);
+          const scopedCandidates = this.existsQuads!.filter((item) =>
+            sameRdfTerm(item.graph, graphTerm)
+          );
+          return this.evaluateExistsGroup(
+            pattern.patterns,
+            bindings,
+            scopedCandidates,
+            graphTerm,
+          );
+        }
+        if (name.termType === "Variable") {
+          // GRAPH ?g with ?g already bound from outside restricts the scope
+          // to that graph (Join semantics); otherwise every named graph is
+          // enumerated and ?g bound per match.
+          const result: TermBinding[] = [];
+          for (const binding of bindings) {
+            const boundGraph = binding[name.value];
+            if (boundGraph !== undefined) {
+              const scopedCandidates = this.existsQuads!.filter((item) =>
+                sameRdfTerm(item.graph, boundGraph)
+              );
+              result.push(
+                ...this.evaluateExistsGroup(
+                  pattern.patterns,
+                  [binding],
+                  scopedCandidates,
+                  boundGraph,
+                ),
+              );
+            } else {
+              for (const graphTerm of namedGraphTerms(this.existsQuads!)) {
+                const scopedCandidates = this.existsQuads!.filter((item) =>
+                  sameRdfTerm(item.graph, graphTerm)
+                );
+                const inner = this.evaluateExistsGroup(
+                  pattern.patterns,
+                  [binding],
+                  scopedCandidates,
+                  graphTerm,
+                );
+                for (const innerBinding of inner) {
+                  innerBinding[name.value] = graphTerm;
+                  result.push(innerBinding);
+                }
+              }
+            }
+          }
+          return result;
+        }
+        throw new Error(
+          "Unsupported GRAPH name term type inside EXISTS: " +
+            (name as { termType: string }).termType,
+        );
+      }
+      case "bind":
+        return bindings.map((binding) => {
+          const value = this.expressionEvaluator.evaluate(
+            pattern.expression,
+            binding,
+            context,
+          );
+          if (
+            value === undefined ||
+            binding[pattern.variable.value] !== undefined
+          ) {
+            return binding;
+          }
+          return { ...binding, [pattern.variable.value]: value };
+        });
+      case "values": {
+        const rows: TermBinding[] = pattern.values.map((row) => {
+          const binding: TermBinding = {};
+          for (const rowName of Object.keys(row)) {
+            const term = row[rowName];
+            if (term !== undefined) {
+              binding[rowName.slice(1)] = sparqlTermToRdfTerm(term);
+            }
+          }
+          return binding;
+        });
+        return innerJoin(bindings, rows);
+      }
+      case "optional":
+      case "minus":
+      case "union":
+      case "query":
+        throw new Error(
+          `Graph pattern ${pattern.type} inside EXISTS is not supported yet`,
+        );
+      default:
+        throw new Error(
+          `Unsupported graph pattern inside EXISTS: ` +
+            (pattern as { type: string }).type,
+        );
+    }
+  }
+
+  /**
+   * existsContext builds the expression evaluation context bound to the
+   * current graph scope of a group evaluation, for FILTER / BIND / OPTIONAL
+   * conditions evaluated inside it.
+   */
+  private existsContext(
+    store: rdfjs.Source<rdfjs.Quad>,
+  ): ExpressionEvaluationContext {
+    const graph = store instanceof GraphScopedStore
+      ? store.graph
+      : defaultGraph();
+    return {
+      evaluateExists: (pattern, solution) =>
+        this.evaluateExists(pattern, solution, graph),
+    };
   }
 
   /**
@@ -114,10 +379,16 @@ export class BgpEvaluator {
     switch (pattern.type) {
       case "bgp":
         return await this.joinBgp(pattern.triples, bindings, store);
-      case "filter":
+      case "filter": {
+        const context = this.existsContext(store);
         return bindings.filter((binding) =>
-          this.expressionEvaluator.filterPasses(pattern.expression, binding)
+          this.expressionEvaluator.filterPasses(
+            pattern.expression,
+            binding,
+            context,
+          )
         );
+      }
       case "optional": {
         // The OPTIONAL group's own FILTER expressions are hoisted out and
         // evaluated against each merged binding (left joined with right), so
@@ -133,11 +404,12 @@ export class BgpEvaluator {
           }
         }
         const right = await this.evaluateGroup(innerPatterns, [{}], store);
+        const context = this.existsContext(store);
         return leftJoin(
           bindings,
           right,
           filters.map((expression) => (binding: TermBinding) =>
-            this.expressionEvaluator.filterPasses(expression, binding)
+            this.expressionEvaluator.filterPasses(expression, binding, context)
           ),
         );
       }
@@ -177,10 +449,12 @@ export class BgpEvaluator {
         // expression is evaluated per solution and the variable bound; an
         // evaluation error or a variable already bound (from an outer
         // scope) leaves the solution unchanged.
+        const context = this.existsContext(store);
         return bindings.map((binding) => {
           const value = this.expressionEvaluator.evaluate(
             pattern.expression,
             binding,
+            context,
           );
           if (
             value === undefined ||
@@ -345,4 +619,84 @@ export class BgpEvaluator {
     );
     return bindings.length * averageBucket;
   }
+}
+
+/**
+ * patternListContainsExists reports whether any pattern in the list (recursing
+ * into OPTIONAL / MINUS / UNION / GRAPH / group bodies) contains an EXISTS or
+ * NOT EXISTS expression. It drives prepareExistsIndex so the synchronous
+ * EXISTS index is built exactly when a query needs it.
+ */
+export function patternListContainsExists(patterns: Pattern[]): boolean {
+  return patterns.some(patternContainsExists);
+}
+
+function patternContainsExists(pattern: Pattern): boolean {
+  switch (pattern.type) {
+    case "bgp":
+    case "values":
+      return false;
+    case "filter":
+    case "bind":
+      return expressionContainsExists(pattern.expression);
+    case "optional":
+    case "minus":
+    case "union":
+    case "graph":
+    case "group":
+      return patternListContainsExists(pattern.patterns);
+    case "query":
+      return patternListContainsExists(
+        (pattern as unknown as { where: Pattern[] }).where ?? [],
+      );
+    default:
+      return false;
+  }
+}
+
+/**
+ * expressionContainsExists reports whether an expression tree contains an
+ * EXISTS or NOT EXISTS operator, used by the SparqlEvaluator to prepare the
+ * EXISTS index for projection / ORDER BY / HAVING expressions even when the
+ * WHERE clause itself has none.
+ */
+export function expressionContainsExists(expression: Expression): boolean {
+  if ("termType" in expression || !("type" in expression)) {
+    return false;
+  }
+  if (expression.type === "operation") {
+    if (
+      expression.operator === "exists" ||
+      expression.operator === "notexists"
+    ) {
+      return true;
+    }
+    return expression.args.some((arg) =>
+      expressionContainsExists(arg as Expression)
+    );
+  }
+  if (expression.type === "functionCall") {
+    return expression.args.some(expressionContainsExists);
+  }
+  if (expression.type === "aggregate") {
+    return (
+      expression.expression !== undefined &&
+      expressionContainsExists(expression.expression as Expression)
+    );
+  }
+  return false;
+}
+
+/**
+ * namedGraphTerms returns every named graph term present in the drained quad
+ * snapshot (the synchronous twin of namedGraphs, for the EXISTS evaluator).
+ */
+function namedGraphTerms(quads: rdfjs.Quad[]): rdfjs.Quad_Graph[] {
+  const graphs = new Map<string, rdfjs.Quad_Graph>();
+  for (const item of quads) {
+    if (item.graph.termType !== "DefaultGraph") {
+      graphs.set(termKey(item.graph), item.graph);
+    }
+  }
+  return [...graphs.values()];
 }

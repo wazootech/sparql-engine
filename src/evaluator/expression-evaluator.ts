@@ -4,6 +4,7 @@ import type {
   Expression,
   FunctionCallExpression,
   OperationExpression,
+  Pattern,
   Term as SparqlTerm,
 } from "sparqljs";
 import { DataFactory } from "n3";
@@ -58,6 +59,29 @@ type Ebv = boolean | "error";
  * boolean). Unsupported expression kinds (aggregates, IN tuples, other
  * function calls) raise a clear error.
  */
+/**
+ * ExpressionEvaluationContext carries the pattern-evaluation hooks EXISTS and
+ * NOT EXISTS need, injected by the group evaluator at every expression call
+ * site (FILTER, BIND, ORDER BY, HAVING, projection). The expression layer
+ * stays pure: it never references a store or pattern evaluator — it only
+ * calls back through these hooks, so EXISTS works in every expression
+ * position (nested &&, inside OPTIONAL, EXISTS-inside-EXISTS) uniformly.
+ */
+export interface ExpressionEvaluationContext {
+  /**
+   * evaluateExists returns whether the given graph pattern has at least one
+   * solution when evaluated with the incoming solution as its only input
+   * (correlated, bound to the current graph scope).
+   */
+  evaluateExists?: (pattern: Pattern, solution: TermBinding) => boolean;
+
+  /**
+   * evaluateNotExists is the negation of evaluateExists; defaults to
+   * negating it when absent.
+   */
+  evaluateNotExists?: (pattern: Pattern, solution: TermBinding) => boolean;
+}
+
 export class ExpressionEvaluator {
   /**
    * bnodeCounter mints fresh labels for zero-argument BNODE() calls, so two
@@ -73,8 +97,9 @@ export class ExpressionEvaluator {
   public evaluate(
     expression: Expression,
     binding: TermBinding,
+    context?: ExpressionEvaluationContext,
   ): rdfjs.Term | undefined {
-    return this.evaluateWith(expression, binding);
+    return this.evaluateWith(expression, binding, undefined, context);
   }
 
   /**
@@ -88,8 +113,9 @@ export class ExpressionEvaluator {
     expression: Expression,
     binding: TermBinding,
     aggregates?: (aggregate: AggregateExpression) => rdfjs.Term | undefined,
+    context?: ExpressionEvaluationContext,
   ): rdfjs.Term | undefined {
-    return this.evaluateWith(expression, binding, aggregates);
+    return this.evaluateWith(expression, binding, aggregates, context);
   }
 
   /**
@@ -100,8 +126,11 @@ export class ExpressionEvaluator {
     expression: Expression,
     binding: TermBinding,
     aggregates?: (aggregate: AggregateExpression) => rdfjs.Term | undefined,
+    context?: ExpressionEvaluationContext,
   ): boolean {
-    return this.ebv(this.evaluateWith(expression, binding, aggregates)) ===
+    return this.ebv(
+      this.evaluateWith(expression, binding, aggregates, context),
+    ) ===
       true;
   }
 
@@ -109,6 +138,7 @@ export class ExpressionEvaluator {
     expression: Expression,
     binding: TermBinding,
     aggregates?: (aggregate: AggregateExpression) => rdfjs.Term | undefined,
+    context?: ExpressionEvaluationContext,
   ): rdfjs.Term | undefined {
     if ("termType" in expression) {
       if (expression.termType === "Variable") {
@@ -126,7 +156,12 @@ export class ExpressionEvaluator {
       throw new Error("Unsupported SPARQL expression: aggregate");
     }
     if (expression.type === "functionCall") {
-      return this.evaluateFunctionCall(expression, binding, aggregates);
+      return this.evaluateFunctionCall(
+        expression,
+        binding,
+        aggregates,
+        context,
+      );
     }
     if (expression.type !== "operation") {
       throw new Error(
@@ -135,7 +170,7 @@ export class ExpressionEvaluator {
         }`,
       );
     }
-    return this.evaluateOperation(expression, binding, aggregates);
+    return this.evaluateOperation(expression, binding, aggregates, context);
   }
 
   /**
@@ -145,22 +180,31 @@ export class ExpressionEvaluator {
   public filterPasses(
     expression: Expression,
     binding: TermBinding,
+    context?: ExpressionEvaluationContext,
   ): boolean {
-    return this.ebv(this.evaluateWith(expression, binding)) === true;
+    return this.ebv(
+      this.evaluateWith(expression, binding, undefined, context),
+    ) ===
+      true;
   }
 
   private evaluateOperation(
     operation: OperationExpression,
     binding: TermBinding,
     aggregates?: (aggregate: AggregateExpression) => rdfjs.Term | undefined,
+    context?: ExpressionEvaluationContext,
   ): rdfjs.Term | undefined {
     const arg = (index: number): Expression =>
       operation.args[index] as Expression;
     switch (operation.operator) {
       case "&&":
       case "||": {
-        const left = this.ebv(this.evaluateWith(arg(0), binding, aggregates));
-        const right = this.ebv(this.evaluateWith(arg(1), binding, aggregates));
+        const left = this.ebv(
+          this.evaluateWith(arg(0), binding, aggregates, context),
+        );
+        const right = this.ebv(
+          this.evaluateWith(arg(1), binding, aggregates, context),
+        );
         if (operation.operator === "&&") {
           if (left === false || right === false) {
             return booleanLiteral(false);
@@ -179,7 +223,9 @@ export class ExpressionEvaluator {
         return booleanLiteral(false);
       }
       case "!": {
-        const value = this.ebv(this.evaluateWith(arg(0), binding, aggregates));
+        const value = this.ebv(
+          this.evaluateWith(arg(0), binding, aggregates, context),
+        );
         return value === "error" ? undefined : booleanLiteral(!value);
       }
       case "=":
@@ -188,8 +234,8 @@ export class ExpressionEvaluator {
       case ">":
       case "<=":
       case ">=": {
-        const a = this.evaluateWith(arg(0), binding, aggregates);
-        const b = this.evaluateWith(arg(1), binding, aggregates);
+        const a = this.evaluateWith(arg(0), binding, aggregates, context);
+        const b = this.evaluateWith(arg(1), binding, aggregates, context);
         if (a === undefined || b === undefined) {
           return undefined;
         }
@@ -218,10 +264,10 @@ export class ExpressionEvaluator {
       case "*":
       case "/": {
         if (operation.args.length === 1 && operation.operator === "-") {
-          return this.unaryMinus(arg(0), binding, aggregates);
+          return this.unaryMinus(arg(0), binding, aggregates, context);
         }
-        const a = this.evaluateWith(arg(0), binding, aggregates);
-        const b = this.evaluateWith(arg(1), binding, aggregates);
+        const a = this.evaluateWith(arg(0), binding, aggregates, context);
+        const b = this.evaluateWith(arg(1), binding, aggregates, context);
         if (a === undefined || b === undefined) {
           return undefined;
         }
@@ -229,6 +275,26 @@ export class ExpressionEvaluator {
           return undefined;
         }
         return this.arithmetic(operation.operator, a, b);
+      }
+      case "exists":
+      case "notexists": {
+        // EXISTS is always boolean per the decided contract: inner errors
+        // behave as no-match -> false. The pattern argument evaluates
+        // through the injected hook (correlated, graph-scoped); a missing
+        // hook is a wiring bug and fails loudly.
+        const existsPattern = arg(0) as unknown as Pattern;
+        const evaluateExists = context?.evaluateExists;
+        if (evaluateExists === undefined) {
+          throw new Error(
+            "EXISTS requires a pattern-evaluation context from the group evaluator",
+          );
+        }
+        const matched = operation.operator === "exists"
+          ? evaluateExists(existsPattern, binding)
+          : context?.evaluateNotExists !== undefined
+          ? context.evaluateNotExists(existsPattern, binding)
+          : !evaluateExists(existsPattern, binding);
+        return booleanLiteral(matched);
       }
       case "bound": {
         const boundArg = arg(0);
@@ -238,9 +304,11 @@ export class ExpressionEvaluator {
         return booleanLiteral(binding[boundArg.value] !== undefined);
       }
       case "str":
-        return this.str(this.evaluateWith(arg(0), binding, aggregates));
+        return this.str(
+          this.evaluateWith(arg(0), binding, aggregates, context),
+        );
       case "strlen": {
-        const value = this.evaluateWith(arg(0), binding, aggregates);
+        const value = this.evaluateWith(arg(0), binding, aggregates, context);
         if (
           value === undefined || value.termType !== "Literal" ||
           !this.isStringTyped(value)
@@ -282,6 +350,7 @@ export class ExpressionEvaluator {
           binding,
           (value, argument) => value.includes(argument),
           aggregates,
+          context,
         );
       case "strstarts":
         return this.stringPredicate(
@@ -289,6 +358,7 @@ export class ExpressionEvaluator {
           binding,
           (value, argument) => value.startsWith(argument),
           aggregates,
+          context,
         );
       case "strends":
         return this.stringPredicate(
@@ -303,6 +373,7 @@ export class ExpressionEvaluator {
           binding,
           true,
           aggregates,
+          context,
         );
       case "strafter":
         return this.stringSlice(
@@ -310,6 +381,7 @@ export class ExpressionEvaluator {
           binding,
           false,
           aggregates,
+          context,
         );
       case "lang":
         return this.lang(operation.args[0] as Expression, binding, aggregates);
@@ -556,8 +628,9 @@ export class ExpressionEvaluator {
     expression: Expression,
     binding: TermBinding,
     aggregates?: (aggregate: AggregateExpression) => rdfjs.Term | undefined,
+    context?: ExpressionEvaluationContext,
   ): rdfjs.Literal | undefined {
-    const value = this.evaluateWith(expression, binding, aggregates);
+    const value = this.evaluateWith(expression, binding, aggregates, context);
     if (value === undefined || value.termType !== "Literal") {
       return undefined;
     }
@@ -624,8 +697,9 @@ export class ExpressionEvaluator {
     expression: Expression,
     binding: TermBinding,
     aggregates?: (aggregate: AggregateExpression) => rdfjs.Term | undefined,
+    context?: ExpressionEvaluationContext,
   ): rdfjs.Literal | undefined {
-    const value = this.evaluateWith(expression, binding, aggregates);
+    const value = this.evaluateWith(expression, binding, aggregates, context);
     if (
       value === undefined || value.termType !== "Literal" ||
       !this.isStringTyped(value)
@@ -649,10 +723,11 @@ export class ExpressionEvaluator {
     expressions: Expression[],
     binding: TermBinding,
     aggregates?: (aggregate: AggregateExpression) => rdfjs.Term | undefined,
+    context?: ExpressionEvaluationContext,
   ): rdfjs.Literal | undefined {
     let result = "";
     for (const expression of expressions) {
-      const value = this.evaluateWith(expression, binding, aggregates);
+      const value = this.evaluateWith(expression, binding, aggregates, context);
       if (
         value === undefined || value.termType !== "Literal" ||
         !this.isStringTyped(value)
@@ -674,14 +749,20 @@ export class ExpressionEvaluator {
     expressions: Expression[],
     binding: TermBinding,
     aggregates?: (aggregate: AggregateExpression) => rdfjs.Term | undefined,
+    context?: ExpressionEvaluationContext,
   ): rdfjs.Literal | undefined {
     if (expressions.length < 2 || expressions.length > 3) {
       return undefined;
     }
-    const str = this.evaluateWith(expressions[0], binding, aggregates);
-    const startTerm = this.evaluateWith(expressions[1], binding, aggregates);
+    const str = this.evaluateWith(expressions[0], binding, aggregates, context);
+    const startTerm = this.evaluateWith(
+      expressions[1],
+      binding,
+      aggregates,
+      context,
+    );
     const lenTerm = expressions.length === 3
-      ? this.evaluateWith(expressions[2], binding, aggregates)
+      ? this.evaluateWith(expressions[2], binding, aggregates, context)
       : undefined;
     if (
       str === undefined || startTerm === undefined ||
@@ -715,9 +796,20 @@ export class ExpressionEvaluator {
     expressions: Expression[],
     binding: TermBinding,
     aggregates?: (aggregate: AggregateExpression) => rdfjs.Term | undefined,
+    context?: ExpressionEvaluationContext,
   ): rdfjs.Literal | undefined {
-    const value = this.evaluateWith(expressions[0], binding, aggregates);
-    const datatype = this.evaluateWith(expressions[1], binding, aggregates);
+    const value = this.evaluateWith(
+      expressions[0],
+      binding,
+      aggregates,
+      context,
+    );
+    const datatype = this.evaluateWith(
+      expressions[1],
+      binding,
+      aggregates,
+      context,
+    );
     if (value === undefined || datatype === undefined) {
       return undefined;
     }
@@ -735,9 +827,20 @@ export class ExpressionEvaluator {
     expressions: Expression[],
     binding: TermBinding,
     aggregates?: (aggregate: AggregateExpression) => rdfjs.Term | undefined,
+    context?: ExpressionEvaluationContext,
   ): rdfjs.Literal | undefined {
-    const value = this.evaluateWith(expressions[0], binding, aggregates);
-    const lang = this.evaluateWith(expressions[1], binding, aggregates);
+    const value = this.evaluateWith(
+      expressions[0],
+      binding,
+      aggregates,
+      context,
+    );
+    const lang = this.evaluateWith(
+      expressions[1],
+      binding,
+      aggregates,
+      context,
+    );
     if (value === undefined || lang === undefined) {
       return undefined;
     }
@@ -762,6 +865,7 @@ export class ExpressionEvaluator {
     expression: FunctionCallExpression,
     binding: TermBinding,
     aggregates?: (aggregate: AggregateExpression) => rdfjs.Term | undefined,
+    context?: ExpressionEvaluationContext,
   ): rdfjs.Term | undefined {
     const fn = expression.function;
     const fnIri = typeof fn === "string"
@@ -778,6 +882,7 @@ export class ExpressionEvaluator {
       expression.args[0] as Expression,
       binding,
       aggregates,
+      context,
     );
     switch (fnIri) {
       case XSD_INTEGER:
@@ -1035,8 +1140,9 @@ export class ExpressionEvaluator {
     expression: Expression,
     binding: TermBinding,
     aggregates?: (aggregate: AggregateExpression) => rdfjs.Term | undefined,
+    context?: ExpressionEvaluationContext,
   ): rdfjs.Literal | undefined {
-    const value = this.evaluateWith(expression, binding, aggregates);
+    const value = this.evaluateWith(expression, binding, aggregates, context);
     if (
       value === undefined || value.termType !== "Literal" ||
       !this.isStringTyped(value)
@@ -1055,9 +1161,10 @@ export class ExpressionEvaluator {
     binding: TermBinding,
     test: (value: string, argument: string) => boolean,
     aggregates?: (aggregate: AggregateExpression) => rdfjs.Term | undefined,
+    context?: ExpressionEvaluationContext,
   ): rdfjs.Literal | undefined {
-    const value = this.stringTerm(args[0], binding, aggregates);
-    const argument = this.stringTerm(args[1], binding, aggregates);
+    const value = this.stringTerm(args[0], binding, aggregates, context);
+    const argument = this.stringTerm(args[1], binding, aggregates, context);
     if (value === undefined || argument === undefined) {
       return undefined;
     }
@@ -1075,9 +1182,10 @@ export class ExpressionEvaluator {
     binding: TermBinding,
     before: boolean,
     aggregates?: (aggregate: AggregateExpression) => rdfjs.Term | undefined,
+    context?: ExpressionEvaluationContext,
   ): rdfjs.Literal | undefined {
-    const value = this.stringTerm(args[0], binding, aggregates);
-    const needle = this.stringTerm(args[1], binding, aggregates);
+    const value = this.stringTerm(args[0], binding, aggregates, context);
+    const needle = this.stringTerm(args[1], binding, aggregates, context);
     if (value === undefined || needle === undefined) {
       return undefined;
     }
@@ -1107,15 +1215,16 @@ export class ExpressionEvaluator {
     args: Expression[],
     binding: TermBinding,
     aggregates?: (aggregate: AggregateExpression) => rdfjs.Term | undefined,
+    context?: ExpressionEvaluationContext,
   ): rdfjs.Literal | undefined {
-    const value = this.stringTerm(args[0], binding, aggregates);
-    const pattern = this.stringTerm(args[1], binding, aggregates);
+    const value = this.stringTerm(args[0], binding, aggregates, context);
+    const pattern = this.stringTerm(args[1], binding, aggregates, context);
     if (value === undefined || pattern === undefined) {
       return undefined;
     }
     let flags = "";
     if (args.length > 2) {
-      const flagsTerm = this.stringTerm(args[2], binding, aggregates);
+      const flagsTerm = this.stringTerm(args[2], binding, aggregates, context);
       if (flagsTerm === undefined) {
         return undefined;
       }
@@ -1140,10 +1249,11 @@ export class ExpressionEvaluator {
     args: Expression[],
     binding: TermBinding,
     aggregates?: (aggregate: AggregateExpression) => rdfjs.Term | undefined,
+    context?: ExpressionEvaluationContext,
   ): rdfjs.Literal | undefined {
-    const value = this.stringTerm(args[0], binding, aggregates);
-    const pattern = this.stringTerm(args[1], binding, aggregates);
-    const replacement = this.stringTerm(args[2], binding, aggregates);
+    const value = this.stringTerm(args[0], binding, aggregates, context);
+    const pattern = this.stringTerm(args[1], binding, aggregates, context);
+    const replacement = this.stringTerm(args[2], binding, aggregates, context);
     if (
       value === undefined || pattern === undefined ||
       replacement === undefined
@@ -1152,7 +1262,7 @@ export class ExpressionEvaluator {
     }
     let flags = "";
     if (args.length > 3) {
-      const flagsTerm = this.stringTerm(args[3], binding, aggregates);
+      const flagsTerm = this.stringTerm(args[3], binding, aggregates, context);
       if (flagsTerm === undefined) {
         return undefined;
       }
@@ -1179,8 +1289,9 @@ export class ExpressionEvaluator {
     expression: Expression,
     binding: TermBinding,
     aggregates?: (aggregate: AggregateExpression) => rdfjs.Term | undefined,
+    context?: ExpressionEvaluationContext,
   ): rdfjs.Literal | undefined {
-    const value = this.evaluateWith(expression, binding, aggregates);
+    const value = this.evaluateWith(expression, binding, aggregates, context);
     if (value === undefined || value.termType !== "Literal") {
       return undefined;
     }
@@ -1196,9 +1307,10 @@ export class ExpressionEvaluator {
     args: Expression[],
     binding: TermBinding,
     aggregates?: (aggregate: AggregateExpression) => rdfjs.Term | undefined,
+    context?: ExpressionEvaluationContext,
   ): rdfjs.Literal | undefined {
-    const tag = this.stringTerm(args[0], binding, aggregates);
-    const range = this.stringTerm(args[1], binding, aggregates);
+    const tag = this.stringTerm(args[0], binding, aggregates, context);
+    const range = this.stringTerm(args[1], binding, aggregates, context);
     if (tag === undefined || range === undefined) {
       return undefined;
     }
@@ -1217,9 +1329,10 @@ export class ExpressionEvaluator {
     args: Expression[],
     binding: TermBinding,
     aggregates?: (aggregate: AggregateExpression) => rdfjs.Term | undefined,
+    context?: ExpressionEvaluationContext,
   ): rdfjs.Term | undefined {
     for (const arg of args) {
-      const value = this.evaluateWith(arg, binding, aggregates);
+      const value = this.evaluateWith(arg, binding, aggregates, context);
       if (value !== undefined) {
         return value;
       }
@@ -1235,12 +1348,20 @@ export class ExpressionEvaluator {
     args: Expression[],
     binding: TermBinding,
     aggregates?: (aggregate: AggregateExpression) => rdfjs.Term | undefined,
+    context?: ExpressionEvaluationContext,
   ): rdfjs.Term | undefined {
-    const condition = this.ebv(this.evaluateWith(args[0], binding, aggregates));
+    const condition = this.ebv(
+      this.evaluateWith(args[0], binding, aggregates, context),
+    );
     if (condition === "error") {
       return undefined;
     }
-    return this.evaluateWith(args[condition ? 1 : 2], binding, aggregates);
+    return this.evaluateWith(
+      args[condition ? 1 : 2],
+      binding,
+      aggregates,
+      context,
+    );
   }
 
   /**
@@ -1252,15 +1373,21 @@ export class ExpressionEvaluator {
     args: Expression[],
     binding: TermBinding,
     aggregates?: (aggregate: AggregateExpression) => rdfjs.Term | undefined,
+    context?: ExpressionEvaluationContext,
   ): rdfjs.Literal | undefined {
-    const value = this.evaluateWith(args[0], binding, aggregates);
+    const value = this.evaluateWith(args[0], binding, aggregates, context);
     if (value === undefined) {
       return undefined;
     }
     const list = args[1] as unknown as Expression[];
     let sawError = false;
     for (const element of list) {
-      const candidate = this.evaluateWith(element, binding, aggregates);
+      const candidate = this.evaluateWith(
+        element,
+        binding,
+        aggregates,
+        context,
+      );
       if (candidate === undefined) {
         sawError = true;
         continue;
@@ -1283,9 +1410,10 @@ export class ExpressionEvaluator {
     args: Expression[],
     binding: TermBinding,
     aggregates?: (aggregate: AggregateExpression) => rdfjs.Term | undefined,
+    context?: ExpressionEvaluationContext,
   ): rdfjs.Literal | undefined {
-    const a = this.evaluateWith(args[0], binding, aggregates);
-    const b = this.evaluateWith(args[1], binding, aggregates);
+    const a = this.evaluateWith(args[0], binding, aggregates, context);
+    const b = this.evaluateWith(args[1], binding, aggregates, context);
     if (a === undefined || b === undefined) {
       return undefined;
     }
@@ -1301,11 +1429,12 @@ export class ExpressionEvaluator {
     args: Expression[],
     binding: TermBinding,
     aggregates?: (aggregate: AggregateExpression) => rdfjs.Term | undefined,
+    context?: ExpressionEvaluationContext,
   ): rdfjs.BlankNode | undefined {
     if (args.length === 0) {
       return blankNode(`b${++this.bnodeCounter}`);
     }
-    const value = this.stringTerm(args[0], binding, aggregates);
+    const value = this.stringTerm(args[0], binding, aggregates, context);
     if (value === undefined) {
       return undefined;
     }
@@ -1351,8 +1480,9 @@ export class ExpressionEvaluator {
     expression: Expression,
     binding: TermBinding,
     aggregates?: (aggregate: AggregateExpression) => rdfjs.Term | undefined,
+    context?: ExpressionEvaluationContext,
   ): rdfjs.Literal | undefined {
-    const value = this.evaluateWith(expression, binding, aggregates);
+    const value = this.evaluateWith(expression, binding, aggregates, context);
     if (value === undefined || value.termType !== "Literal") {
       return undefined;
     }
@@ -1397,8 +1527,9 @@ export class ExpressionEvaluator {
     expression: Expression,
     binding: TermBinding,
     aggregates?: (aggregate: AggregateExpression) => rdfjs.Term | undefined,
+    context?: ExpressionEvaluationContext,
   ): rdfjs.Literal | undefined {
-    const value = this.evaluateWith(expression, binding, aggregates);
+    const value = this.evaluateWith(expression, binding, aggregates, context);
     if (
       value === undefined || value.termType !== "Literal" ||
       value.datatype?.value !== XSD_DATETIME
@@ -1420,8 +1551,9 @@ export class ExpressionEvaluator {
     expression: Expression,
     binding: TermBinding,
     aggregates?: (aggregate: AggregateExpression) => rdfjs.Term | undefined,
+    context?: ExpressionEvaluationContext,
   ): rdfjs.Literal | undefined {
-    const value = this.evaluateWith(expression, binding, aggregates);
+    const value = this.evaluateWith(expression, binding, aggregates, context);
     if (
       value === undefined || value.termType !== "Literal" ||
       value.datatype?.value !== XSD_DATETIME
@@ -1447,8 +1579,9 @@ export class ExpressionEvaluator {
     expression: Expression,
     binding: TermBinding,
     aggregates?: (aggregate: AggregateExpression) => rdfjs.Term | undefined,
+    context?: ExpressionEvaluationContext,
   ): rdfjs.Literal | undefined {
-    const value = this.evaluateWith(expression, binding, aggregates);
+    const value = this.evaluateWith(expression, binding, aggregates, context);
     if (
       value === undefined || value.termType !== "Literal" ||
       value.datatype?.value !== XSD_DATETIME
@@ -1474,8 +1607,9 @@ export class ExpressionEvaluator {
     expression: Expression,
     binding: TermBinding,
     aggregates?: (aggregate: AggregateExpression) => rdfjs.Term | undefined,
+    context?: ExpressionEvaluationContext,
   ): rdfjs.Literal | undefined {
-    const value = this.stringTerm(expression, binding, aggregates);
+    const value = this.stringTerm(expression, binding, aggregates, context);
     if (value === undefined) {
       return undefined;
     }
@@ -1508,10 +1642,11 @@ export class ExpressionEvaluator {
     args: Expression[],
     binding: TermBinding,
     aggregates?: (aggregate: AggregateExpression) => rdfjs.Term | undefined,
+    context?: ExpressionEvaluationContext,
   ): rdfjs.Quad | undefined {
-    const subject = this.evaluateWith(args[0], binding, aggregates);
-    const predicate = this.evaluateWith(args[1], binding, aggregates);
-    const object = this.evaluateWith(args[2], binding, aggregates);
+    const subject = this.evaluateWith(args[0], binding, aggregates, context);
+    const predicate = this.evaluateWith(args[1], binding, aggregates, context);
+    const object = this.evaluateWith(args[2], binding, aggregates, context);
     if (
       subject === undefined || predicate === undefined || object === undefined
     ) {
@@ -1534,8 +1669,9 @@ export class ExpressionEvaluator {
     expression: Expression,
     binding: TermBinding,
     aggregates?: (aggregate: AggregateExpression) => rdfjs.Term | undefined,
+    context?: ExpressionEvaluationContext,
   ): rdfjs.Term | undefined {
-    const value = this.evaluateWith(expression, binding, aggregates);
+    const value = this.evaluateWith(expression, binding, aggregates, context);
     if (value === undefined || value.termType !== "Quad") {
       return undefined;
     }
@@ -1550,8 +1686,9 @@ export class ExpressionEvaluator {
     expression: Expression,
     binding: TermBinding,
     aggregates?: (aggregate: AggregateExpression) => rdfjs.Term | undefined,
+    context?: ExpressionEvaluationContext,
   ): rdfjs.Literal | undefined {
-    const value = this.evaluateWith(expression, binding, aggregates);
+    const value = this.evaluateWith(expression, binding, aggregates, context);
     if (value === undefined) {
       return undefined;
     }

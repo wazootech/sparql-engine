@@ -135,7 +135,7 @@ export function simplePredicate(predicate: unknown): SparqlTerm {
 export class GraphScopedStore implements rdfjs.Source<rdfjs.Quad> {
   public constructor(
     private readonly store: rdfjs.Source<rdfjs.Quad>,
-    private readonly graph: rdfjs.Term,
+    public readonly graph: rdfjs.Term,
   ) {}
 
   public match(

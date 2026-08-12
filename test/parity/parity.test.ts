@@ -972,6 +972,69 @@ const expressionCases: ParityTestCase[] = [
       `BIND(isTRIPLE("x") AS ?n) }`,
     quads: [],
   },
+  {
+    name: "EXISTS - correlated FILTER keeps only matching solutions",
+    kind: "select",
+    query: `SELECT ?person WHERE { ?person ${foafName} ?n ` +
+      `FILTER EXISTS { ?person ${foafKnows} ?friend } }`,
+    quads: basicKnowledgeGraphQuads,
+  },
+  {
+    name: "EXISTS - NOT EXISTS keeps only non-matching solutions",
+    kind: "select",
+    query: `SELECT ?person WHERE { ?person ${foafName} ?n ` +
+      `FILTER NOT EXISTS { ?person ${foafKnows} ?friend } }`,
+    quads: basicKnowledgeGraphQuads,
+  },
+  {
+    name: "EXISTS - nested EXISTS inside EXISTS",
+    kind: "select",
+    query: `SELECT ?person WHERE { ?person ${foafName} ?n ` +
+      `FILTER EXISTS { ?person ${foafName} ?n1 ` +
+      `FILTER EXISTS { ?person ${foafAge} ?a } } }`,
+    quads: basicKnowledgeGraphQuads,
+  },
+  {
+    name: "EXISTS - in projection and ORDER BY",
+    kind: "select",
+    query: `SELECT ?person (EXISTS { ?person ${foafKnows} ?f } AS ?e) ` +
+      `WHERE { ?person ${foafName} ?n } ORDER BY ?person`,
+    quads: basicKnowledgeGraphQuads,
+    orderSensitive: true,
+  },
+  {
+    name: "EXISTS - inside OPTIONAL follows the left-join contract",
+    kind: "select",
+    query: `SELECT ?person ?f WHERE { ?person ${foafName} ?n ` +
+      `OPTIONAL { ?person ${foafKnows} ?f ` +
+      `FILTER EXISTS { ?f ${foafName} ?fn } } }`,
+    quads: basicKnowledgeGraphQuads,
+  },
+  {
+    name: "EXISTS - GRAPH ?g correlated with an outer binding",
+    kind: "select",
+    query: `SELECT ?s WHERE { ?s <http://example.org/p> ?g . ` +
+      `FILTER EXISTS { GRAPH ?g { ?s2 <http://example.org/p> ` +
+      `<http://example.org/o2> } } }`,
+    quads: [
+      quad(
+        namedNode("http://example.org/s1"),
+        namedNode("http://example.org/p"),
+        namedNode("http://example.org/g1"),
+      ),
+      quad(
+        namedNode("http://example.org/s2"),
+        namedNode("http://example.org/p"),
+        namedNode("http://example.org/o2"),
+      ),
+      quad(
+        namedNode("http://example.org/s3"),
+        namedNode("http://example.org/p"),
+        namedNode("http://example.org/o2"),
+        namedNode("http://example.org/g1"),
+      ),
+    ],
+  },
 ];
 
 const fromCases: ParityTestCase[] = [

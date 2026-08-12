@@ -18,10 +18,14 @@ import type {
 } from "@/sparql-engine-interface.ts";
 import { aggregateValue, groupSolutions } from "@/evaluator/aggregate.ts";
 import { innerJoin } from "@/evaluator/join.ts";
-import { BgpEvaluator } from "@/evaluator/bgp-evaluator.ts";
+import {
+  BgpEvaluator,
+  expressionContainsExists,
+} from "@/evaluator/bgp-evaluator.ts";
 import type { TermBinding } from "@/evaluator/bgp-evaluator.ts";
 import { buildDatasetStore, simplePredicate } from "@/quad-store.ts";
 import { ExpressionEvaluator } from "@/evaluator/expression-evaluator.ts";
+import type { ExpressionEvaluationContext } from "@/evaluator/expression-evaluator.ts";
 import {
   canonicalizeSparqlValue,
   compareRdfTerms,
@@ -123,8 +127,8 @@ export class SparqlEvaluator {
   private async evaluateSelect(
     query: SelectQuery,
   ): Promise<SparqlSelectResults> {
-    let rawBindings = await (await this.bgpEvaluatorFor(query.from))
-      .evaluateBgp(query.where || []);
+    const evaluator = await this.bgpEvaluatorFor(query.from);
+    let rawBindings = await evaluator.evaluateBgp(query.where || []);
 
     // A post-query VALUES clause joins the WHERE result with its rows
     // (SPARQL 1.1 §18.2.5: Join(G, ToMultiSet(VALUES))): a solution survives
@@ -166,6 +170,23 @@ export class SparqlEvaluator {
     // in projection, HAVING, and ORDER BY resolve over the group. When
     // aggregates appear without GROUP BY, the whole solution set is the one
     // implicit group (SPARQL 1.1 §18.2.4.2).
+    // EXISTS in projection / ORDER BY / HAVING (but not WHERE) still needs
+    // the synchronous pattern index; build the injected context once for all
+    // expression call sites below.
+    if (
+      [...projections.values()].some(expressionContainsExists) ||
+      (query.order ?? []).some((clause) =>
+        expressionContainsExists(clause.expression)
+      ) ||
+      (query.having ?? []).some(expressionContainsExists)
+    ) {
+      await evaluator.prepareExistsIndex();
+    }
+    const existsContext: ExpressionEvaluationContext = {
+      evaluateExists: (pattern, solution) =>
+        evaluator.evaluateExists(pattern, solution),
+    };
+
     const grouping = query.group ?? [];
     const hasGrouping = grouping.length > 0;
     const hasAggregates =
@@ -183,7 +204,11 @@ export class SparqlEvaluator {
           rawBindings,
           grouping,
           (expression, binding) =>
-            this.expressionEvaluator.evaluate(expression, binding),
+            this.expressionEvaluator.evaluate(
+              expression,
+              binding,
+              existsContext,
+            ),
         )
         : [{ key: {}, solutions: rawBindings }];
       const grouped: SelectSolution[] = groups.map((group) => ({
@@ -193,7 +218,7 @@ export class SparqlEvaluator {
       solutions = query.having !== undefined && query.having.length > 0
         ? grouped.filter((solution) =>
           query.having!.every((expression) =>
-            this.havingPasses(expression, solution)
+            this.havingPasses(expression, solution, existsContext)
           )
         )
         : grouped;
@@ -205,7 +230,7 @@ export class SparqlEvaluator {
     }
 
     const ordered = query.order?.length
-      ? this.orderBindings(solutions, query.order)
+      ? this.orderBindings(solutions, query.order, existsContext)
       : solutions;
 
     // Bindings travel internally as RDF/JS terms; this projection is the
@@ -215,7 +240,7 @@ export class SparqlEvaluator {
     // variable unbound, matching SPARQL 1.1 semantics. The wildcard projects
     // every variable the solution binds.
     const projected: SparqlBinding[] = ordered.map((solution) =>
-      this.projectSolution(solution, wildcard, vars, projections)
+      this.projectSolution(solution, wildcard, vars, projections, existsContext)
     );
 
     // Solution modifiers apply after projection, per SPARQL 1.1 §18.2.5:
@@ -252,6 +277,7 @@ export class SparqlEvaluator {
   private havingPasses(
     expression: Expression,
     solution: SelectSolution,
+    context?: ExpressionEvaluationContext,
   ): boolean {
     if (solution.group === null) {
       return false;
@@ -259,7 +285,8 @@ export class SparqlEvaluator {
     return this.expressionEvaluator.filterPassesWithAggregates(
       expression,
       solution.binding,
-      this.aggregateResolver(solution),
+      this.aggregateResolver(solution, context),
+      context,
     );
   }
 
@@ -269,6 +296,7 @@ export class SparqlEvaluator {
    */
   private aggregateResolver(
     solution: SelectSolution,
+    context?: ExpressionEvaluationContext,
   ): (aggregate: AggregateExpression) => rdfjs.Term | undefined {
     const group = solution.group;
     if (group === null) {
@@ -279,7 +307,7 @@ export class SparqlEvaluator {
         aggregate,
         group,
         (expression, binding) =>
-          this.expressionEvaluator.evaluate(expression, binding),
+          this.expressionEvaluator.evaluate(expression, binding, context),
       );
   }
 
@@ -294,6 +322,7 @@ export class SparqlEvaluator {
     wildcard: boolean,
     vars: string[],
     projections: Map<string, Expression>,
+    context?: ExpressionEvaluationContext,
   ): SparqlBinding {
     const binding = solution.binding;
     const result: SparqlBinding = {};
@@ -305,7 +334,7 @@ export class SparqlEvaluator {
     }
     const resolver = solution.group === null
       ? undefined
-      : this.aggregateResolver(solution);
+      : this.aggregateResolver(solution, context);
     for (const varName of vars) {
       const bound = binding[varName];
       if (bound) {
@@ -314,11 +343,12 @@ export class SparqlEvaluator {
       const projection = projections.get(varName);
       if (projection !== undefined && !(varName in result)) {
         const value = resolver === undefined
-          ? this.expressionEvaluator.evaluate(projection, binding)
+          ? this.expressionEvaluator.evaluate(projection, binding, context)
           : this.expressionEvaluator.evaluateWithAggregates(
             projection,
             binding,
             resolver,
+            context,
           );
         if (value !== undefined) {
           result[varName] = rdfTermToSparqlValue(value);
@@ -385,22 +415,25 @@ export class SparqlEvaluator {
   private orderBindings(
     solutions: SelectSolution[],
     order: NonNullable<SelectQuery["order"]>,
+    context?: ExpressionEvaluationContext,
   ): SelectSolution[] {
     const comparators = order.map((clause) => ({
       descending: clause.descending === true,
       resolve: (solution: SelectSolution): rdfjs.Term | undefined => {
         const resolver = solution.group === null
           ? undefined
-          : this.aggregateResolver(solution);
+          : this.aggregateResolver(solution, context);
         return resolver === undefined
           ? this.expressionEvaluator.evaluate(
             clause.expression,
             solution.binding,
+            context,
           )
           : this.expressionEvaluator.evaluateWithAggregates(
             clause.expression,
             solution.binding,
             resolver,
+            context,
           );
       },
     }));
