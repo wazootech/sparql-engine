@@ -14,7 +14,7 @@ const xsdInteger = namedNode(XSD_INTEGER);
  * literals, and blank nodes.
  */
 export const basicKnowledgeGraphQuads: rdfjs.Quad[] = [
-  quad(exampleResource("alice"), foaf("name"), literal("Alice")),
+  quad(exampleResource("alice"), foaf("name"), literal("Ethan")),
   quad(exampleResource("alice"), foaf("age"), literal("28", xsdInteger)),
   quad(exampleResource("alice"), foaf("knows"), exampleResource("bob")),
   quad(
@@ -22,7 +22,7 @@ export const basicKnowledgeGraphQuads: rdfjs.Quad[] = [
     exampleResource("pet"),
     blankNode("pet-alice"),
   ),
-  quad(exampleResource("bob"), foaf("name"), literal("Bob")),
+  quad(exampleResource("bob"), foaf("name"), literal("Gregory")),
   quad(exampleResource("bob"), foaf("knows"), exampleResource("carol")),
   quad(exampleResource("carol"), foaf("name"), literal("Carol", "en")),
   quad(exampleResource("carol"), foaf("age"), literal("30", xsdInteger)),

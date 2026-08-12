@@ -205,7 +205,7 @@ const selectCases: ParityTestCase[] = [
     name: "SELECT - FILTER string equality with lang-tagged literal",
     kind: "select",
     query: `SELECT ?person ?name WHERE { ?person ${foafName} ?name ` +
-      `FILTER(?name = "Alice") }`,
+      `FILTER(?name = "Ethan") }`,
     quads: basicKnowledgeGraphQuads,
   },
   {

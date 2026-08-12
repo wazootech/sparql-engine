@@ -10,14 +10,14 @@ Deno.test("WazooSparqlEngine - SELECT query BGP evaluation", async () => {
     quad(
       namedNode("http://example.org/alice"),
       namedNode("http://xmlns.com/foaf/0.1/name"),
-      literal("Alice"),
+      literal("Ethan"),
     ),
   );
   store.addQuad(
     quad(
       namedNode("http://example.org/bob"),
       namedNode("http://xmlns.com/foaf/0.1/name"),
-      literal("Bob"),
+      literal("Gregory"),
     ),
   );
 
@@ -32,7 +32,7 @@ Deno.test("WazooSparqlEngine - SELECT query BGP evaluation", async () => {
     assertEquals(result.data.head.vars, ["person", "name"]);
     assertEquals(result.data.results.bindings.length, 2);
     const names = result.data.results.bindings.map((b) => b.name.value).sort();
-    assertEquals(names, ["Alice", "Bob"]);
+    assertEquals(names, ["Ethan", "Gregory"]);
   }
 });
 
@@ -91,14 +91,14 @@ Deno.test("WazooSparqlEngine - FILTER string, language, STR and STRLEN", async (
       namedNode("http://xmlns.com/foaf/0.1/name"),
       language ? literal(value, language) : literal(value),
     );
-  store.addQuad(name("alice", "Alice"));
-  store.addQuad(name("bob", "Bob"));
+  store.addQuad(name("alice", "Ethan"));
+  store.addQuad(name("bob", "Gregory"));
   store.addQuad(name("carol", "Carol", "en"));
 
   const engine = new WazooSparqlEngine({ store });
   const eq = await engine.execute({
     query:
-      'SELECT ?person WHERE { ?person <http://xmlns.com/foaf/0.1/name> ?name FILTER(?name = "Alice") }',
+      'SELECT ?person WHERE { ?person <http://xmlns.com/foaf/0.1/name> ?name FILTER(?name = "Ethan") }',
   });
   assertEquals(eq.kind, "select");
   if (eq.kind === "select") {
@@ -123,13 +123,13 @@ Deno.test("WazooSparqlEngine - FILTER string, language, STR and STRLEN", async (
 
   const strlen = await engine.execute({
     query:
-      "SELECT ?person WHERE { ?person <http://xmlns.com/foaf/0.1/name> ?name FILTER(STRLEN(?name) > 4) }",
+      "SELECT ?person WHERE { ?person <http://xmlns.com/foaf/0.1/name> ?name FILTER(STRLEN(?name) > 5) }",
   });
   assertEquals(strlen.kind, "select");
   if (strlen.kind === "select") {
     assertEquals(
       strlen.data.results.bindings.map((b) => b.person.value),
-      ["http://example.org/alice", "http://example.org/carol"],
+      ["http://example.org/bob"],
     );
   }
 });
@@ -140,7 +140,7 @@ Deno.test("WazooSparqlEngine - FILTER bound(), EBV, and error semantics", async 
     quad(
       namedNode("http://example.org/alice"),
       namedNode("http://xmlns.com/foaf/0.1/name"),
-      literal("Alice"),
+      literal("Ethan"),
     ),
   );
   store.addQuad(
@@ -195,8 +195,8 @@ Deno.test("WazooSparqlEngine - ORDER BY expression (STRLEN and STR)", async () =
       namedNode("http://xmlns.com/foaf/0.1/name"),
       language ? literal(value, language) : literal(value),
     );
-  store.addQuad(name("alice", "Alice"));
-  store.addQuad(name("bob", "Bob"));
+  store.addQuad(name("alice", "Ethan"));
+  store.addQuad(name("bob", "Gregory"));
   store.addQuad(name("carol", "Carol", "en"));
 
   const engine = new WazooSparqlEngine({ store });
@@ -209,9 +209,9 @@ Deno.test("WazooSparqlEngine - ORDER BY expression (STRLEN and STR)", async () =
     assertEquals(
       byLen.data.results.bindings.map((b) => b.person.value),
       [
+        "http://example.org/bob",
         "http://example.org/alice",
         "http://example.org/carol",
-        "http://example.org/bob",
       ],
     );
   }
@@ -225,9 +225,9 @@ Deno.test("WazooSparqlEngine - ORDER BY expression (STRLEN and STR)", async () =
     assertEquals(
       byStr.data.results.bindings.map((b) => b.person.value),
       [
+        "http://example.org/carol",
         "http://example.org/alice",
         "http://example.org/bob",
-        "http://example.org/carol",
       ],
     );
   }
@@ -239,7 +239,7 @@ Deno.test("WazooSparqlEngine - unsupported FILTER expression is rejected", async
     quad(
       namedNode("http://example.org/alice"),
       namedNode("http://xmlns.com/foaf/0.1/name"),
-      literal("Alice"),
+      literal("Ethan"),
     ),
   );
   const engine = new WazooSparqlEngine({ store });
@@ -262,14 +262,14 @@ Deno.test("WazooSparqlEngine - ORDER BY sorts SELECT results by value", async ()
     quad(
       namedNode("http://example.org/alice"),
       namedNode("http://xmlns.com/foaf/0.1/name"),
-      literal("Alice"),
+      literal("Ethan"),
     ),
   );
   store.addQuad(
     quad(
       namedNode("http://example.org/bob"),
       namedNode("http://xmlns.com/foaf/0.1/name"),
-      literal("Bob"),
+      literal("Gregory"),
     ),
   );
   store.addQuad(
@@ -291,7 +291,7 @@ Deno.test("WazooSparqlEngine - ORDER BY sorts SELECT results by value", async ()
     // xsd:string literals by datatype IRI, then lexically.
     assertEquals(
       result.data.results.bindings.map((b) => b.name.value),
-      ["Carol", "Alice", "Bob"],
+      ["Carol", "Ethan", "Gregory"],
     );
   }
 });
@@ -302,14 +302,14 @@ Deno.test("WazooSparqlEngine - ORDER BY DESC reverses the order", async () => {
     quad(
       namedNode("http://example.org/alice"),
       namedNode("http://xmlns.com/foaf/0.1/name"),
-      literal("Alice"),
+      literal("Ethan"),
     ),
   );
   store.addQuad(
     quad(
       namedNode("http://example.org/bob"),
       namedNode("http://xmlns.com/foaf/0.1/name"),
-      literal("Bob"),
+      literal("Gregory"),
     ),
   );
 
@@ -322,7 +322,7 @@ Deno.test("WazooSparqlEngine - ORDER BY DESC reverses the order", async () => {
   if (result.kind === "select") {
     assertEquals(
       result.data.results.bindings.map((b) => b.name.value),
-      ["Bob", "Alice"],
+      ["Gregory", "Ethan"],
     );
   }
 });
@@ -362,8 +362,8 @@ Deno.test("WazooSparqlEngine - ORDER BY multiple keys with DESC", async () => {
   const store = new Store();
   for (
     const [person, age, name] of [
-      ["alice", "28", "Alice"],
-      ["bob", "20", "Bob"],
+      ["alice", "28", "Ethan"],
+      ["bob", "20", "Gregory"],
       ["carol", "30", "Carol"],
     ]
   ) {
@@ -408,14 +408,14 @@ Deno.test("WazooSparqlEngine - ORDER BY unbound key keeps evaluation order", asy
     quad(
       namedNode("http://example.org/alice"),
       namedNode("http://xmlns.com/foaf/0.1/name"),
-      literal("Alice"),
+      literal("Ethan"),
     ),
   );
   store.addQuad(
     quad(
       namedNode("http://example.org/bob"),
       namedNode("http://xmlns.com/foaf/0.1/name"),
-      literal("Bob"),
+      literal("Gregory"),
     ),
   );
 
@@ -441,14 +441,14 @@ Deno.test(
       quad(
         namedNode("http://example.org/alice"),
         namedNode("http://xmlns.com/foaf/0.1/name"),
-        literal("Alice"),
+        literal("Ethan"),
       ),
     );
     store.addQuad(
       quad(
         namedNode("http://example.org/bob"),
         namedNode("http://xmlns.com/foaf/0.1/name"),
-        literal("Bob"),
+        literal("Gregory"),
       ),
     );
     const engine = new WazooSparqlEngine({ store });
@@ -462,7 +462,7 @@ Deno.test(
     if (ordered.kind === "select") {
       assertEquals(
         ordered.data.results.bindings.map((b) => b.person.value),
-        ["http://example.org/bob", "http://example.org/alice"],
+        ["http://example.org/alice", "http://example.org/bob"],
       );
     }
 
@@ -483,9 +483,9 @@ Deno.test("WazooSparqlEngine - OPTIONAL extends matches and keeps unmatched unbo
   const ex = (s: string) => namedNode(`http://example.org/${s}`);
   const foaf = (s: string) => namedNode(`http://xmlns.com/foaf/0.1/${s}`);
   const xsdInteger = namedNode("http://www.w3.org/2001/XMLSchema#integer");
-  store.addQuad(quad(ex("alice"), foaf("name"), literal("Alice")));
+  store.addQuad(quad(ex("alice"), foaf("name"), literal("Ethan")));
   store.addQuad(quad(ex("alice"), foaf("age"), literal("28", xsdInteger)));
-  store.addQuad(quad(ex("bob"), foaf("name"), literal("Bob")));
+  store.addQuad(quad(ex("bob"), foaf("name"), literal("Gregory")));
   store.addQuad(quad(ex("carol"), foaf("name"), literal("Carol")));
   store.addQuad(quad(ex("carol"), foaf("age"), literal("30", xsdInteger)));
 
@@ -512,9 +512,9 @@ Deno.test("WazooSparqlEngine - OPTIONAL filter drops a join and keeps the soluti
   const ex = (s: string) => namedNode(`http://example.org/${s}`);
   const foaf = (s: string) => namedNode(`http://xmlns.com/foaf/0.1/${s}`);
   const xsdInteger = namedNode("http://www.w3.org/2001/XMLSchema#integer");
-  store.addQuad(quad(ex("alice"), foaf("name"), literal("Alice")));
+  store.addQuad(quad(ex("alice"), foaf("name"), literal("Ethan")));
   store.addQuad(quad(ex("alice"), foaf("age"), literal("28", xsdInteger)));
-  store.addQuad(quad(ex("bob"), foaf("name"), literal("Bob")));
+  store.addQuad(quad(ex("bob"), foaf("name"), literal("Gregory")));
   store.addQuad(quad(ex("carol"), foaf("name"), literal("Carol")));
   store.addQuad(quad(ex("carol"), foaf("age"), literal("30", xsdInteger)));
 
@@ -541,9 +541,9 @@ Deno.test("WazooSparqlEngine - OPTIONAL filter can reference an outer variable",
   const ex = (s: string) => namedNode(`http://example.org/${s}`);
   const foaf = (s: string) => namedNode(`http://xmlns.com/foaf/0.1/${s}`);
   const xsdInteger = namedNode("http://www.w3.org/2001/XMLSchema#integer");
-  store.addQuad(quad(ex("alice"), foaf("name"), literal("Alice")));
+  store.addQuad(quad(ex("alice"), foaf("name"), literal("Ethan")));
   store.addQuad(quad(ex("alice"), foaf("age"), literal("28", xsdInteger)));
-  store.addQuad(quad(ex("bob"), foaf("name"), literal("Bob")));
+  store.addQuad(quad(ex("bob"), foaf("name"), literal("Gregory")));
   store.addQuad(quad(ex("carol"), foaf("name"), literal("Carol")));
   store.addQuad(quad(ex("carol"), foaf("age"), literal("30", xsdInteger)));
 
@@ -568,9 +568,9 @@ Deno.test("WazooSparqlEngine - OPTIONAL nests inside OPTIONAL", async () => {
   const store = new Store();
   const ex = (s: string) => namedNode(`http://example.org/${s}`);
   const foaf = (s: string) => namedNode(`http://xmlns.com/foaf/0.1/${s}`);
-  store.addQuad(quad(ex("alice"), foaf("name"), literal("Alice")));
+  store.addQuad(quad(ex("alice"), foaf("name"), literal("Ethan")));
   store.addQuad(quad(ex("alice"), foaf("knows"), ex("bob")));
-  store.addQuad(quad(ex("bob"), foaf("name"), literal("Bob")));
+  store.addQuad(quad(ex("bob"), foaf("name"), literal("Gregory")));
 
   const engine = new WazooSparqlEngine({ store });
   const result = await engine.execute({
@@ -597,9 +597,9 @@ Deno.test("WazooSparqlEngine - MINUS eliminates solutions sharing a bound variab
   const ex = (s: string) => namedNode(`http://example.org/${s}`);
   const foaf = (s: string) => namedNode(`http://xmlns.com/foaf/0.1/${s}`);
   const xsdInteger = namedNode("http://www.w3.org/2001/XMLSchema#integer");
-  store.addQuad(quad(ex("alice"), foaf("name"), literal("Alice")));
+  store.addQuad(quad(ex("alice"), foaf("name"), literal("Ethan")));
   store.addQuad(quad(ex("alice"), foaf("age"), literal("28", xsdInteger)));
-  store.addQuad(quad(ex("bob"), foaf("name"), literal("Bob")));
+  store.addQuad(quad(ex("bob"), foaf("name"), literal("Gregory")));
   store.addQuad(quad(ex("carol"), foaf("name"), literal("Carol")));
   store.addQuad(quad(ex("carol"), foaf("age"), literal("30", xsdInteger)));
 
@@ -622,9 +622,9 @@ Deno.test("WazooSparqlEngine - MINUS with no shared variables keeps all solution
   const ex = (s: string) => namedNode(`http://example.org/${s}`);
   const foaf = (s: string) => namedNode(`http://xmlns.com/foaf/0.1/${s}`);
   const xsdInteger = namedNode("http://www.w3.org/2001/XMLSchema#integer");
-  store.addQuad(quad(ex("alice"), foaf("name"), literal("Alice")));
+  store.addQuad(quad(ex("alice"), foaf("name"), literal("Ethan")));
   store.addQuad(quad(ex("alice"), foaf("age"), literal("28", xsdInteger)));
-  store.addQuad(quad(ex("bob"), foaf("name"), literal("Bob")));
+  store.addQuad(quad(ex("bob"), foaf("name"), literal("Gregory")));
   store.addQuad(quad(ex("carol"), foaf("name"), literal("Carol")));
   store.addQuad(quad(ex("carol"), foaf("age"), literal("30", xsdInteger)));
 
@@ -644,9 +644,9 @@ Deno.test("WazooSparqlEngine - MINUS applies its own FILTER inside the group", a
   const ex = (s: string) => namedNode(`http://example.org/${s}`);
   const foaf = (s: string) => namedNode(`http://xmlns.com/foaf/0.1/${s}`);
   const xsdInteger = namedNode("http://www.w3.org/2001/XMLSchema#integer");
-  store.addQuad(quad(ex("alice"), foaf("name"), literal("Alice")));
+  store.addQuad(quad(ex("alice"), foaf("name"), literal("Ethan")));
   store.addQuad(quad(ex("alice"), foaf("age"), literal("28", xsdInteger)));
-  store.addQuad(quad(ex("bob"), foaf("name"), literal("Bob")));
+  store.addQuad(quad(ex("bob"), foaf("name"), literal("Gregory")));
   store.addQuad(quad(ex("carol"), foaf("name"), literal("Carol")));
   store.addQuad(quad(ex("carol"), foaf("age"), literal("30", xsdInteger)));
 
@@ -670,9 +670,9 @@ Deno.test("WazooSparqlEngine - UNION combines branch solutions as a multiset", a
   const ex = (s: string) => namedNode(`http://example.org/${s}`);
   const foaf = (s: string) => namedNode(`http://xmlns.com/foaf/0.1/${s}`);
   const xsdInteger = namedNode("http://www.w3.org/2001/XMLSchema#integer");
-  store.addQuad(quad(ex("alice"), foaf("name"), literal("Alice")));
+  store.addQuad(quad(ex("alice"), foaf("name"), literal("Ethan")));
   store.addQuad(quad(ex("alice"), foaf("age"), literal("28", xsdInteger)));
-  store.addQuad(quad(ex("bob"), foaf("name"), literal("Bob")));
+  store.addQuad(quad(ex("bob"), foaf("name"), literal("Gregory")));
   store.addQuad(quad(ex("carol"), foaf("name"), literal("Carol")));
   store.addQuad(quad(ex("carol"), foaf("age"), literal("30", xsdInteger)));
 
@@ -700,7 +700,7 @@ Deno.test("WazooSparqlEngine - UNION branches can bind different variables", asy
   const ex = (s: string) => namedNode(`http://example.org/${s}`);
   const foaf = (s: string) => namedNode(`http://xmlns.com/foaf/0.1/${s}`);
   const xsdInteger = namedNode("http://www.w3.org/2001/XMLSchema#integer");
-  store.addQuad(quad(ex("alice"), foaf("name"), literal("Alice")));
+  store.addQuad(quad(ex("alice"), foaf("name"), literal("Ethan")));
   store.addQuad(quad(ex("alice"), foaf("age"), literal("28", xsdInteger)));
 
   const engine = new WazooSparqlEngine({ store });
@@ -712,7 +712,7 @@ Deno.test("WazooSparqlEngine - UNION branches can bind different variables", asy
   if (result.kind === "select") {
     const bindings = result.data.results.bindings;
     assertEquals(bindings.length, 2);
-    assertEquals(bindings[0].n?.value, "Alice");
+    assertEquals(bindings[0].n?.value, "Ethan");
     assertEquals(bindings[0].a, undefined);
     assertEquals(bindings[1].n, undefined);
     assertEquals(bindings[1].a?.value, "28");
@@ -724,9 +724,9 @@ Deno.test("WazooSparqlEngine - UNION in a sequence joins with preceding patterns
   const ex = (s: string) => namedNode(`http://example.org/${s}`);
   const foaf = (s: string) => namedNode(`http://xmlns.com/foaf/0.1/${s}`);
   const xsdInteger = namedNode("http://www.w3.org/2001/XMLSchema#integer");
-  store.addQuad(quad(ex("alice"), foaf("name"), literal("Alice")));
+  store.addQuad(quad(ex("alice"), foaf("name"), literal("Ethan")));
   store.addQuad(quad(ex("alice"), foaf("age"), literal("28", xsdInteger)));
-  store.addQuad(quad(ex("bob"), foaf("name"), literal("Bob")));
+  store.addQuad(quad(ex("bob"), foaf("name"), literal("Gregory")));
   store.addQuad(quad(ex("carol"), foaf("name"), literal("Carol")));
   store.addQuad(quad(ex("carol"), foaf("age"), literal("30", xsdInteger)));
 
@@ -741,9 +741,9 @@ Deno.test("WazooSparqlEngine - UNION in a sequence joins with preceding patterns
       .map((b) => [b.s.value, b.n?.value, b.a?.value])
       .sort() as Array<Array<string | undefined>>;
     assertEquals(rows, [
-      ["http://example.org/alice", "Alice", undefined],
-      ["http://example.org/alice", "Alice", "28"],
-      ["http://example.org/bob", "Bob", undefined],
+      ["http://example.org/alice", "Ethan", undefined],
+      ["http://example.org/alice", "Ethan", "28"],
+      ["http://example.org/bob", "Gregory", undefined],
       ["http://example.org/carol", "Carol", undefined],
       ["http://example.org/carol", "Carol", "30"],
     ]);
@@ -886,7 +886,7 @@ Deno.test("WazooSparqlEngine - CONSTRUCT query evaluation", async () => {
     quad(
       namedNode("http://example.org/alice"),
       namedNode("http://xmlns.com/foaf/0.1/name"),
-      literal("Alice"),
+      literal("Ethan"),
     ),
   );
 
@@ -903,7 +903,7 @@ Deno.test("WazooSparqlEngine - CONSTRUCT query evaluation", async () => {
       result.data.quads[0].predicate.value,
       "http://schema.org/name",
     );
-    assertEquals(result.data.quads[0].object.value, "Alice");
+    assertEquals(result.data.quads[0].object.value, "Ethan");
   }
 });
 
@@ -913,7 +913,7 @@ Deno.test("WazooSparqlEngine - INSERT DATA adds quads and returns void", async (
 
   const result = await engine.execute({
     query:
-      'INSERT DATA { <http://example.org/alice> <http://xmlns.com/foaf/0.1/name> "Alice" . ' +
+      'INSERT DATA { <http://example.org/alice> <http://xmlns.com/foaf/0.1/name> "Ethan" . ' +
       "<http://example.org/alice> <http://xmlns.com/foaf/0.1/age> 28 }",
   });
 
@@ -984,14 +984,14 @@ Deno.test("WazooSparqlEngine - DELETE DATA removes matching quads", async () => 
     quad(
       namedNode("http://example.org/alice"),
       namedNode("http://xmlns.com/foaf/0.1/name"),
-      literal("Alice"),
+      literal("Ethan"),
     ),
   );
   const engine = new WazooSparqlEngine({ store });
 
   const result = await engine.execute({
     query:
-      'DELETE DATA { <http://example.org/alice> <http://xmlns.com/foaf/0.1/name> "Alice" }',
+      'DELETE DATA { <http://example.org/alice> <http://xmlns.com/foaf/0.1/name> "Ethan" }',
   });
 
   assertEquals(result.kind, "void");
@@ -1004,15 +1004,15 @@ Deno.test("WazooSparqlEngine - composite update runs all operations", async () =
     quad(
       namedNode("http://example.org/bob"),
       namedNode("http://xmlns.com/foaf/0.1/name"),
-      literal("Bob"),
+      literal("Gregory"),
     ),
   );
   const engine = new WazooSparqlEngine({ store });
 
   await engine.execute({
     query:
-      'INSERT DATA { <http://example.org/alice> <http://xmlns.com/foaf/0.1/name> "Alice" } ; ' +
-      'DELETE DATA { <http://example.org/bob> <http://xmlns.com/foaf/0.1/name> "Bob" }',
+      'INSERT DATA { <http://example.org/alice> <http://xmlns.com/foaf/0.1/name> "Ethan" } ; ' +
+      'DELETE DATA { <http://example.org/bob> <http://xmlns.com/foaf/0.1/name> "Gregory" }',
   });
 
   assertEquals(store.countQuads(null, null, null, null), 1);
@@ -1020,7 +1020,7 @@ Deno.test("WazooSparqlEngine - composite update runs all operations", async () =
     store.countQuads(
       namedNode("http://example.org/alice"),
       namedNode("http://xmlns.com/foaf/0.1/name"),
-      literal("Alice"),
+      literal("Ethan"),
       null,
     ),
     1,
@@ -1061,14 +1061,14 @@ Deno.test("WazooSparqlEngine - INSERT WHERE instantiates per solution", async ()
     quad(
       namedNode("http://example.org/alice"),
       namedNode("http://xmlns.com/foaf/0.1/name"),
-      literal("Alice"),
+      literal("Ethan"),
     ),
   );
   store.addQuad(
     quad(
       namedNode("http://example.org/bob"),
       namedNode("http://xmlns.com/foaf/0.1/name"),
-      literal("Bob"),
+      literal("Gregory"),
     ),
   );
   const engine = new WazooSparqlEngine({ store });
@@ -1087,7 +1087,7 @@ Deno.test("WazooSparqlEngine - INSERT WHERE instantiates per solution", async ()
   assertEquals(saw.length, 2);
   assertEquals(
     saw.map((q) => q.object.value).sort(),
-    ["Alice", "Bob"],
+    ["Ethan", "Gregory"],
   );
 });
 
@@ -1097,14 +1097,14 @@ Deno.test("WazooSparqlEngine - INSERT WHERE mints fresh blank nodes per solution
     quad(
       namedNode("http://example.org/alice"),
       namedNode("http://xmlns.com/foaf/0.1/name"),
-      literal("Alice"),
+      literal("Ethan"),
     ),
   );
   store.addQuad(
     quad(
       namedNode("http://example.org/bob"),
       namedNode("http://xmlns.com/foaf/0.1/name"),
-      literal("Bob"),
+      literal("Gregory"),
     ),
   );
   const engine = new WazooSparqlEngine({ store });
@@ -1134,7 +1134,7 @@ Deno.test("WazooSparqlEngine - DELETE WHERE shorthand removes matches", async ()
     quad(
       namedNode("http://example.org/alice"),
       namedNode("http://xmlns.com/foaf/0.1/name"),
-      literal("Alice"),
+      literal("Ethan"),
     ),
   );
   store.addQuad(
@@ -1203,7 +1203,7 @@ Deno.test("WazooSparqlEngine - INSERT WHERE skips unbound template variables", a
     quad(
       namedNode("http://example.org/alice"),
       namedNode("http://xmlns.com/foaf/0.1/name"),
-      literal("Alice"),
+      literal("Ethan"),
     ),
   );
   const engine = new WazooSparqlEngine({ store });
@@ -1231,7 +1231,7 @@ Deno.test("WazooSparqlEngine - UCASE and LCASE preserve language tags", async ()
     quad(
       namedNode("http://example.org/alice"),
       namedNode("http://xmlns.com/foaf/0.1/name"),
-      literal("Alice"),
+      literal("Ethan"),
     ),
   );
   store.addQuad(
@@ -1254,8 +1254,8 @@ Deno.test("WazooSparqlEngine - UCASE and LCASE preserve language tags", async ()
       result.data.results.bindings.map((b) => [b.person.value, b]),
     );
     const alice = byPerson.get("http://example.org/alice");
-    assertEquals(alice?.upper, { type: "literal", value: "ALICE" });
-    assertEquals(alice?.lower, { type: "literal", value: "alice" });
+    assertEquals(alice?.upper, { type: "literal", value: "ETHAN" });
+    assertEquals(alice?.lower, { type: "literal", value: "ethan" });
     const carol = byPerson.get("http://example.org/carol");
     assertEquals(carol?.upper, {
       type: "literal",
@@ -1271,7 +1271,7 @@ Deno.test("WazooSparqlEngine - SUBSTR clips positions before 1 and handles lengt
     quad(
       namedNode("http://example.org/alice"),
       namedNode("http://xmlns.com/foaf/0.1/name"),
-      literal("Alice"),
+      literal("Ethan"),
     ),
   );
   const engine = new WazooSparqlEngine({ store });
@@ -1286,8 +1286,8 @@ Deno.test("WazooSparqlEngine - SUBSTR clips positions before 1 and handles lengt
   assertEquals(result.kind, "select");
   if (result.kind === "select") {
     const b = result.data.results.bindings[0];
-    assertEquals(b.mid.value, "lic");
-    assertEquals(b.clipped.value, "A");
+    assertEquals(b.mid.value, "tha");
+    assertEquals(b.clipped.value, "E");
     assertEquals(b.empty.value, "");
   }
 });
@@ -1321,7 +1321,7 @@ Deno.test("WazooSparqlEngine - XSD value constructors produce canonical forms", 
     quad(
       namedNode("http://example.org/alice"),
       namedNode("http://xmlns.com/foaf/0.1/name"),
-      literal("Alice"),
+      literal("Ethan"),
     ),
   );
   const engine = new WazooSparqlEngine({ store });
@@ -1376,7 +1376,7 @@ Deno.test("WazooSparqlEngine - STRDT and STRLANG re-tag literals", async () => {
     quad(
       namedNode("http://example.org/alice"),
       namedNode("http://xmlns.com/foaf/0.1/name"),
-      literal("Alice"),
+      literal("Ethan"),
     ),
   );
   const engine = new WazooSparqlEngine({ store });
@@ -1409,7 +1409,7 @@ Deno.test("WazooSparqlEngine - unknown function call raises a clear error", asyn
     quad(
       namedNode("http://example.org/alice"),
       namedNode("http://xmlns.com/foaf/0.1/name"),
-      literal("Alice"),
+      literal("Ethan"),
     ),
   );
   const engine = new WazooSparqlEngine({ store });
@@ -1599,7 +1599,7 @@ Deno.test("WazooSparqlEngine - SELECT * wildcard projects all bound variables", 
     quad(
       namedNode("http://example.org/alice"),
       namedNode("http://xmlns.com/foaf/0.1/name"),
-      literal("Alice"),
+      literal("Ethan"),
     ),
   );
   store.addQuad(
