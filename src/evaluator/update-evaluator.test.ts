@@ -136,7 +136,7 @@ Deno.test("UpdateEvaluator - rollback discards buffered changes when an operatio
           },
           {
             type: "unsupported_op",
-          } as unknown as import("sparqljs").UpdateOperation,
+          } as unknown as import("@/parser/sparql-parser.ts").UpdateOperation,
         ],
       }),
     Error,

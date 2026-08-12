@@ -8,7 +8,7 @@ import type {
   SelectQuery,
   SparqlQuery,
   Term as SparqlTerm,
-} from "sparqljs";
+} from "@/parser/sparql-parser.ts";
 import type {
   SparqlAskResults,
   SparqlBinding,

@@ -4,7 +4,7 @@ import type {
   Expression,
   Grouping,
   Wildcard,
-} from "sparqljs";
+} from "@/parser/sparql-parser.ts";
 import { DataFactory } from "n3";
 import type { TermBinding } from "@/evaluator/join.ts";
 import {

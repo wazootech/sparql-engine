@@ -6,7 +6,7 @@ import type {
   OperationExpression,
   Pattern,
   Term as SparqlTerm,
-} from "sparqljs";
+} from "@/parser/sparql-parser.ts";
 import { DataFactory } from "n3";
 import {
   md5Hex,

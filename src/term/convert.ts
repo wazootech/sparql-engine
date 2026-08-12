@@ -1,5 +1,5 @@
 import type * as rdfjs from "@rdfjs/types";
-import type { Term as SparqlTerm } from "sparqljs";
+import type { Term as SparqlTerm } from "@/parser/sparql-parser.ts";
 import type { SparqlValue } from "@/sparql-engine-interface.ts";
 import { DataFactory } from "n3";
 import { XSD_STRING } from "./numeric.ts";

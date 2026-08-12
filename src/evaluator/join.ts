@@ -1,5 +1,9 @@
 import type * as rdfjs from "@rdfjs/types";
-import type { PropertyPath, Term as SparqlTerm, Triple } from "sparqljs";
+import type {
+  PropertyPath,
+  Term as SparqlTerm,
+  Triple,
+} from "@/parser/sparql-parser.ts";
 import {
   buildQuadIndex,
   matchQuads,

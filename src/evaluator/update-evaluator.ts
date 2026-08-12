@@ -1,12 +1,13 @@
 import type * as rdfjs from "@rdfjs/types";
 import type {
+  InsertDeleteOperation,
   Pattern,
   Quads,
   Term as SparqlTerm,
   Triple,
-  Update,
   UpdateOperation,
-} from "sparqljs";
+  UpdateQuery,
+} from "@/parser/sparql-parser.ts";
 import type { WazooSparqlTransaction } from "@/wazoo-sparql-engine.ts";
 import { BgpEvaluator } from "@/evaluator/bgp-evaluator.ts";
 import type { TermBinding } from "@/evaluator/bgp-evaluator.ts";
@@ -104,11 +105,11 @@ export class UpdateEvaluator {
   /**
    * executeUpdate applies a parsed SPARQL update request to the store.
    */
-  public async executeUpdate(update: Update): Promise<void> {
+  public async executeUpdate(ast: UpdateQuery): Promise<void> {
     const transaction = this.options.createTransaction?.();
     if (transaction) {
       try {
-        for (const operation of update.updates) {
+        for (const operation of ast.updates) {
           await this.applyOperation(
             operation,
             (item) => transaction.add(item),
@@ -133,7 +134,7 @@ export class UpdateEvaluator {
           "addQuad/removeQuad or provide createTransaction",
       );
     }
-    for (const operation of update.updates) {
+    for (const operation of ast.updates) {
       await this.applyOperation(
         operation,
         (item) => writeStore.addQuad(item),
@@ -330,7 +331,7 @@ export class UpdateEvaluator {
    * all deletions are applied, then all insertions, per SPARQL semantics.
    */
   private async applyDeleteInsert(
-    operation: Extract<UpdateOperation, { updateType: "insertdelete" }>,
+    operation: InsertDeleteOperation,
     add: (item: rdfjs.Quad) => unknown,
     remove: (item: rdfjs.Quad) => unknown,
   ): Promise<void> {
@@ -357,14 +358,14 @@ export class UpdateEvaluator {
       evaluator = this.bgpEvaluator.forStore(scopedStore);
     }
 
-    const bindings = await evaluator.evaluateBgp(operation.where);
+    const bindings = await evaluator.evaluateBgp(operation.where ?? []);
 
-    for (const pattern of operation.delete) {
+    for (const pattern of operation.delete ?? []) {
       await this.deleteMatches(pattern, bindings, remove, withGraph);
     }
     for (const binding of bindings) {
       const bnodeMap = new Map<string, rdfjs.BlankNode>();
-      for (const pattern of operation.insert) {
+      for (const pattern of operation.insert ?? []) {
         for (
           const item of this.instantiateInsertPattern(
             pattern,
@@ -384,12 +385,12 @@ export class UpdateEvaluator {
    * template is also the WHERE pattern.
    */
   private async applyDeleteWhere(
-    operation: Extract<UpdateOperation, { updateType: "deletewhere" }>,
+    operation: InsertDeleteOperation,
     remove: (item: rdfjs.Quad) => unknown,
   ): Promise<void> {
-    const wherePatterns = operation.delete as unknown as Pattern[];
+    const wherePatterns = (operation.delete ?? []) as Pattern[];
     const bindings = await this.bgpEvaluator.evaluateBgp(wherePatterns);
-    for (const pattern of operation.delete) {
+    for (const pattern of operation.delete ?? []) {
       await this.deleteMatches(pattern, bindings, remove);
     }
   }
@@ -403,7 +404,7 @@ export class UpdateEvaluator {
    * blank nodes act as wildcards.
    */
   private async deleteMatches(
-    pattern: Quads,
+    pattern: Pattern,
     bindings: TermBinding[],
     remove: (item: rdfjs.Quad) => unknown,
     withGraph: rdfjs.Term | null = null,
@@ -414,10 +415,11 @@ export class UpdateEvaluator {
     const graph = pattern.type === "graph"
       ? this.convertTerm(pattern.name, null)
       : (withGraph ?? defaultGraph());
-    const triples: Triple[] = pattern.triples ??
-      (pattern as unknown as { patterns?: { triples?: Triple[] }[] }).patterns
-        ?.flatMap((p) => p.triples ?? []) ??
-      [];
+    const triples: Triple[] =
+      (pattern as unknown as { triples?: Triple[] }).triples ??
+        (pattern as unknown as { patterns?: { triples?: Triple[] }[] }).patterns
+          ?.flatMap((p) => p.triples ?? []) ??
+        [];
     for (const triple of triples) {
       const scan = this.deleteScanPositions(triple);
       const candidates = await matchQuads(
@@ -494,7 +496,7 @@ export class UpdateEvaluator {
    * consistent across the templates of that solution.
    */
   private instantiateInsertPattern(
-    pattern: Quads,
+    pattern: Pattern,
     binding: TermBinding,
     bnodeMap: Map<string, rdfjs.BlankNode>,
     withGraph: rdfjs.Term | null = null,
@@ -503,10 +505,11 @@ export class UpdateEvaluator {
       ? this.convertTerm(pattern.name, null)
       : (withGraph ?? defaultGraph());
     const quads: rdfjs.Quad[] = [];
-    const triples: Triple[] = pattern.triples ??
-      (pattern as unknown as { patterns?: { triples?: Triple[] }[] }).patterns
-        ?.flatMap((p) => p.triples ?? []) ??
-      [];
+    const triples: Triple[] =
+      (pattern as unknown as { triples?: Triple[] }).triples ??
+        (pattern as unknown as { patterns?: { triples?: Triple[] }[] }).patterns
+          ?.flatMap((p) => p.triples ?? []) ??
+        [];
     for (const triple of triples) {
       const subject = this.resolveInsertTerm(triple.subject, binding, bnodeMap);
       const predicate = this.resolveInsertTerm(
@@ -597,13 +600,14 @@ export class UpdateEvaluator {
    * parser already rejects blank nodes).
    */
   private patternQuads(
-    pattern: Quads,
+    pattern: Pattern,
     bnodeMap: Map<string, rdfjs.BlankNode> | null,
   ): rdfjs.Quad[] {
-    const triples: Triple[] = pattern.triples ??
-      (pattern as unknown as { patterns?: { triples?: Triple[] }[] }).patterns
-        ?.flatMap((p) => p.triples ?? []) ??
-      [];
+    const triples: Triple[] =
+      (pattern as unknown as { triples?: Triple[] }).triples ??
+        (pattern as unknown as { patterns?: { triples?: Triple[] }[] }).patterns
+          ?.flatMap((p) => p.triples ?? []) ??
+        [];
     if (pattern.type === "graph") {
       const graph = this.convertTerm(pattern.name, bnodeMap);
       return triples.map((item) => this.convertTriple(item, graph, bnodeMap));

@@ -1047,7 +1047,7 @@ Deno.test("WazooSparqlEngine - unsupported update operation is rejected", async 
         updates: [
           {
             type: "unsupported_op",
-          } as unknown as import("sparqljs").UpdateOperation,
+          } as unknown as import("@/parser/sparql-parser.ts").UpdateOperation,
         ],
       }),
     Error,

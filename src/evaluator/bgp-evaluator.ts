@@ -1,5 +1,5 @@
 import type * as rdfjs from "@rdfjs/types";
-import type { Expression, Pattern, Triple } from "sparqljs";
+import type { Expression, Pattern, Triple } from "@/parser/sparql-parser.ts";
 import { DataFactory } from "n3";
 import {
   type ExpressionEvaluationContext,
@@ -549,7 +549,7 @@ export class BgpEvaluator {
           reorderPatterns: this.reorderPatterns,
         });
         const subResults = await subEvaluator.evaluateSelectTermBindings(
-          pattern as unknown as import("sparqljs").SelectQuery,
+          pattern as unknown as import("@/parser/sparql-parser.ts").SelectQuery,
         );
         return innerJoin(bindings, subResults);
       }
