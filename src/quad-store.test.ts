@@ -11,28 +11,28 @@ import {
 const { namedNode, literal, quad } = DataFactory;
 
 const ex = (suffix: string) => namedNode(`http://example.org/${suffix}`);
-const alice = ex("alice");
-const bob = ex("bob");
-const carol = ex("carol");
+const ethan = ex("ethan");
+const gregory = ex("gregory");
+const sandra = ex("sandra");
 const name = ex("name");
 const age = ex("age");
 const knows = ex("knows");
 
 const quads: rdfjs.Quad[] = [
-  quad(alice, name, literal("Alice")),
-  quad(alice, age, literal("28")),
-  quad(alice, knows, bob),
-  quad(bob, name, literal("Bob")),
-  quad(bob, knows, carol),
-  quad(carol, age, literal("30")),
+  quad(ethan, name, literal("Ethan")),
+  quad(ethan, age, literal("28")),
+  quad(ethan, knows, gregory),
+  quad(gregory, name, literal("Gregory")),
+  quad(gregory, knows, sandra),
+  quad(sandra, age, literal("30")),
 ];
 
 Deno.test("buildQuadIndex indexes every quad under all three positions", () => {
   const index = buildQuadIndex(quads);
-  assertEquals(index.bySubject.get("uri:http://example.org/alice")!.length, 3);
+  assertEquals(index.bySubject.get("uri:http://example.org/ethan")!.length, 3);
   assertEquals(index.byPredicate.get("uri:http://example.org/name")!.length, 2);
-  assertEquals(index.byObject.get("uri:http://example.org/bob")!.length, 1);
-  assertEquals(index.bySubject.get("uri:http://example.org/bob")!.length, 2);
+  assertEquals(index.byObject.get("uri:http://example.org/gregory")!.length, 1);
+  assertEquals(index.bySubject.get("uri:http://example.org/gregory")!.length, 2);
 });
 
 Deno.test("probeQuadIndex returns candidates when nothing is constrained", () => {
@@ -42,20 +42,20 @@ Deno.test("probeQuadIndex returns candidates when nothing is constrained", () =>
 
 Deno.test("probeQuadIndex narrows by a single constrained position", () => {
   const index = buildQuadIndex(quads);
-  const matches = probeQuadIndex(index, quads, alice, null, null);
+  const matches = probeQuadIndex(index, quads, ethan, null, null);
   assertEquals(matches.length, 3);
   for (const item of matches) {
-    assertEquals(item.subject, alice);
+    assertEquals(item.subject, ethan);
   }
 });
 
 Deno.test("probeQuadIndex intersects all constrained positions", () => {
   const index = buildQuadIndex(quads);
-  const matches = probeQuadIndex(index, quads, alice, knows, null);
+  const matches = probeQuadIndex(index, quads, ethan, knows, null);
   assertEquals(matches.length, 1);
-  assertEquals(matches[0].object, bob);
+  assertEquals(matches[0].object, gregory);
 
-  const none = probeQuadIndex(index, quads, alice, age, bob);
+  const none = probeQuadIndex(index, quads, ethan, age, gregory);
   assertEquals(none.length, 0);
 });
 
@@ -66,7 +66,7 @@ Deno.test("probeQuadIndex is empty for terms outside the candidates", () => {
 });
 
 Deno.test("probeQuadIndex compares RDF-star quads structurally", () => {
-  const nested = quad(quad(alice, name, literal("Alice")), name, literal("t"));
+  const nested = quad(quad(ethan, name, literal("Ethan")), name, literal("t"));
   const starQuads = [nested];
   const index = buildQuadIndex(starQuads);
   const matches = probeQuadIndex(index, starQuads, null, null, literal("t"));
@@ -81,9 +81,9 @@ Deno.test("matchQuads resolves the store stream into an array", async () => {
   }
   const all = await matchQuads(store, null, null, null);
   assertEquals(all.length, 6);
-  const bySubject = await matchQuads(store, alice, null, null);
+  const bySubject = await matchQuads(store, ethan, null, null);
   assertEquals(bySubject.length, 3);
-  const byPredicateAndObject = await matchQuads(store, null, knows, bob);
+  const byPredicateAndObject = await matchQuads(store, null, knows, gregory);
   assertEquals(byPredicateAndObject.length, 1);
 });
 

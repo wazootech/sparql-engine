@@ -24,8 +24,8 @@ const { literal, namedNode, quad } = DataFactory;
 const foafName = "<http://xmlns.com/foaf/0.1/name>";
 const foafKnows = "<http://xmlns.com/foaf/0.1/knows>";
 const foafAge = "<http://xmlns.com/foaf/0.1/age>";
-const exampleAlice = "<http://example.org/alice>";
-const exampleCarol = "<http://example.org/carol>";
+const exampleAlice = "<http://example.org/ethan>";
+const exampleCarol = "<http://example.org/sandra>";
 const exampleNobody = "<http://example.org/nobody>";
 const exampleSelf = "<http://example.org/self>";
 const exampleDave = "http://example.org/dave";
@@ -1139,8 +1139,8 @@ Deno.test(
     // Comunica skolemizes blank nodes from query sources into a per-source
     // prefixed label ("bc_<sourceId>_<label>"); the native engine deliberately
     // returns the store's own label instead.
-    assertMatch(comunicaBindings[0].pet.value, /^bc_\d+_pet-alice$/);
-    assertEquals(nativeResult.data.results.bindings[0].pet.value, "pet-alice");
+    assertMatch(comunicaBindings[0].pet.value, /^bc_\d+_pet-ethan$/);
+    assertEquals(nativeResult.data.results.bindings[0].pet.value, "pet-ethan");
 
     // After stripping the cosmetic prefix, both normalize to the same term.
     assertEquals(
