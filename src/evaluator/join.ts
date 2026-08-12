@@ -139,7 +139,7 @@ function sharesVariable(a: TermBinding, b: TermBinding): boolean {
  * matching its constant positions.
  */
 export function scanEntry(
-  store: rdfjs.Store,
+  store: rdfjs.Source<rdfjs.Quad>,
   pattern: Triple,
 ): Promise<ScanEntry> {
   const subject = pattern.subject;
@@ -291,7 +291,7 @@ export function isPropertyPath(
  * routes connect it).
  */
 export async function scanPathEntry(
-  store: rdfjs.Store,
+  store: rdfjs.Source<rdfjs.Quad>,
   path: PropertyPath,
   subject: SparqlTerm,
   object: SparqlTerm,
@@ -399,7 +399,9 @@ export function joinPathPattern(
  * in the store — the node set the reflexive path forms (? and *) are defined
  * over (per SPARQL 1.1 §9.1, matching Comunica, literals count as nodes).
  */
-async function graphNodes(store: rdfjs.Store): Promise<rdfjs.Term[]> {
+async function graphNodes(
+  store: rdfjs.Source<rdfjs.Quad>,
+): Promise<rdfjs.Term[]> {
   const quads = await matchQuads(store, null, null, null);
   const nodes = new Map<string, rdfjs.Term>();
   for (const quad of quads) {
@@ -416,7 +418,7 @@ async function graphNodes(store: rdfjs.Store): Promise<rdfjs.Term[]> {
  * result is the set of reachable subjects. Results are deduplicated.
  */
 async function pathSteps(
-  store: rdfjs.Store,
+  store: rdfjs.Source<rdfjs.Quad>,
   path: PathElement,
   direction: "forward" | "backward",
   term: rdfjs.Term,

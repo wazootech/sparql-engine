@@ -1,6 +1,10 @@
 import type * as rdfjs from "@rdfjs/types";
 import type { Expression, Pattern, Triple } from "sparqljs";
+import { DataFactory } from "n3";
 import { ExpressionEvaluator } from "@/evaluator/expression-evaluator.ts";
+import { GraphScopedStore, namedGraphs } from "@/quad-store.ts";
+
+const { defaultGraph } = DataFactory;
 import {
   innerJoin,
   isPropertyPath,
@@ -41,8 +45,9 @@ export interface BgpEvaluatorOptions {
  * combining pattern forms — OPTIONAL becomes a left join, MINUS a
  * shared-variable anti-join, UNION an evaluated-or branches case, FILTER
  * an expression pass, VALUES a natural join with a data block, BIND an
- * extend pass, and nested groups recurse. Unsupported pattern types
- * (GRAPH, SERVICE) raise a clear error rather than being silently dropped.
+ * extend pass, GRAPH a graph-scoped evaluation over a scoped store view,
+ * and nested groups recurse. Unsupported pattern types (SERVICE) raise a
+ * clear error rather than being silently dropped.
  */
 export class BgpEvaluator {
   private readonly reorderPatterns: boolean;
@@ -51,7 +56,7 @@ export class BgpEvaluator {
   private readonly expressionEvaluator = new ExpressionEvaluator();
 
   public constructor(
-    private readonly store: rdfjs.Store,
+    private readonly store: rdfjs.Source<rdfjs.Quad>,
     options: BgpEvaluatorOptions = {},
   ) {
     this.reorderPatterns = options.reorderPatterns ?? true;
@@ -62,7 +67,11 @@ export class BgpEvaluator {
    * binding, producing all solution bindings (as RDF/JS terms).
    */
   public async evaluateBgp(patterns: Pattern[]): Promise<TermBinding[]> {
-    return await this.evaluateGroup(patterns, [{}]);
+    // The top-level evaluation runs against the default graph (matching
+    // Comunica, whose plain patterns never see named-graph quads); GRAPH
+    // patterns scope further inside.
+    const defaultScope = new GraphScopedStore(this.store, defaultGraph());
+    return await this.evaluateGroup(patterns, [{}], defaultScope);
   }
 
   /**
@@ -74,10 +83,11 @@ export class BgpEvaluator {
   private async evaluateGroup(
     patterns: Pattern[],
     bindings: TermBinding[],
+    store: rdfjs.Source<rdfjs.Quad>,
   ): Promise<TermBinding[]> {
     let result = bindings;
     for (const pattern of patterns) {
-      result = await this.evaluatePattern(pattern, result);
+      result = await this.evaluatePattern(pattern, result, store);
     }
     return result;
   }
@@ -88,10 +98,11 @@ export class BgpEvaluator {
   private async evaluatePattern(
     pattern: Pattern,
     bindings: TermBinding[],
+    store: rdfjs.Source<rdfjs.Quad>,
   ): Promise<TermBinding[]> {
     switch (pattern.type) {
       case "bgp":
-        return await this.joinBgp(pattern.triples, bindings);
+        return await this.joinBgp(pattern.triples, bindings, store);
       case "filter":
         return bindings.filter((binding) =>
           this.expressionEvaluator.filterPasses(pattern.expression, binding)
@@ -110,7 +121,7 @@ export class BgpEvaluator {
             innerPatterns.push(inner);
           }
         }
-        const right = await this.evaluateGroup(innerPatterns, [{}]);
+        const right = await this.evaluateGroup(innerPatterns, [{}], store);
         return leftJoin(
           bindings,
           right,
@@ -120,7 +131,7 @@ export class BgpEvaluator {
         );
       }
       case "minus": {
-        const right = await this.evaluateGroup(pattern.patterns, [{}]);
+        const right = await this.evaluateGroup(pattern.patterns, [{}], store);
         return minus(bindings, right);
       }
       case "union": {
@@ -129,7 +140,7 @@ export class BgpEvaluator {
         // the incoming solutions — matching Join(P, Union(Q1, Q2)).
         const branchResults: TermBinding[][] = [];
         for (const branch of pattern.patterns) {
-          branchResults.push(await this.evaluateGroup([branch], [{}]));
+          branchResults.push(await this.evaluateGroup([branch], [{}], store));
         }
         return innerJoin(bindings, branchResults.flat());
       }
@@ -169,8 +180,45 @@ export class BgpEvaluator {
           return { ...binding, [pattern.variable.value]: value };
         });
       }
+      case "graph": {
+        // GRAPH <iri> evaluates the inner patterns against the named graph;
+        // GRAPH ?g additionally enumerates every named graph in the store
+        // and binds ?g to each. Both join naturally with the incoming
+        // solutions. A fresh BgpEvaluator over the scoped store view keeps
+        // the whole inner pipeline (joins, paths, OPTIONAL, MINUS, VALUES,
+        // BIND, nested GRAPH) graph-scoped without any of them knowing.
+        const graphName = pattern.name;
+        if (
+          graphName.termType !== "NamedNode" &&
+          graphName.termType !== "Variable"
+        ) {
+          throw new Error(
+            "Unsupported GRAPH name term type: " +
+              (graphName as { termType: string }).termType,
+          );
+        }
+        const graphTerms = graphName.termType === "Variable"
+          ? await namedGraphs(this.store)
+          : [sparqlTermToRdfTerm(graphName)];
+        const results: TermBinding[] = [];
+        for (const graphTerm of graphTerms) {
+          const scopedStore = new GraphScopedStore(store, graphTerm);
+          const inner = await this.evaluateGroup(
+            pattern.patterns,
+            [{}],
+            scopedStore,
+          );
+          for (const binding of inner) {
+            if (graphName.termType === "Variable") {
+              binding[graphName.value] = graphTerm;
+            }
+            results.push(binding);
+          }
+        }
+        return innerJoin(bindings, results);
+      }
       case "group":
-        return await this.evaluateGroup(pattern.patterns, bindings);
+        return await this.evaluateGroup(pattern.patterns, bindings, store);
       default:
         throw new Error(
           `Unsupported graph pattern type: ${(pattern as Pattern).type}`,
@@ -185,16 +233,17 @@ export class BgpEvaluator {
   private async joinBgp(
     triples: Triple[],
     bindings: TermBinding[],
+    store: rdfjs.Source<rdfjs.Quad>,
   ): Promise<TermBinding[]> {
     const hasPath = triples.some((triple) => isPropertyPath(triple.predicate));
     if (this.reorderPatterns && triples.length > 1 && !hasPath) {
-      return await this.evaluateWithReordering(triples, bindings);
+      return await this.evaluateWithReordering(triples, bindings, store);
     }
     let result = bindings;
     for (const triple of triples) {
       if (isPropertyPath(triple.predicate)) {
         const entry = await scanPathEntry(
-          this.store,
+          store,
           triple.predicate,
           triple.subject,
           triple.object,
@@ -203,7 +252,7 @@ export class BgpEvaluator {
       } else {
         result = joinTriplePattern(
           result,
-          await scanEntry(this.store, triple),
+          await scanEntry(store, triple),
         );
       }
     }
@@ -217,9 +266,10 @@ export class BgpEvaluator {
   private async evaluateWithReordering(
     triplePatterns: Triple[],
     bindings: TermBinding[],
+    store: rdfjs.Source<rdfjs.Quad>,
   ): Promise<TermBinding[]> {
     const remaining = await Promise.all(
-      triplePatterns.map((pattern) => scanEntry(this.store, pattern)),
+      triplePatterns.map((pattern) => scanEntry(store, pattern)),
     );
 
     let result = bindings;

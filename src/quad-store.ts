@@ -87,7 +87,7 @@ export function probeQuadIndex(
  * store, resolving the store's match stream into an array.
  */
 export function matchQuads(
-  store: rdfjs.Store,
+  store: rdfjs.Source<rdfjs.Quad>,
   s: rdfjs.Term | null,
   p: rdfjs.Term | null,
   o: rdfjs.Term | null,
@@ -124,4 +124,45 @@ export function simplePredicate(predicate: unknown): SparqlTerm {
     );
   }
   return predicate;
+}
+/**
+ * GraphScopedStore is a read-only RDF/JS store view that fixes the graph
+ * term of every scan. The whole evaluation pipeline (BGP joins, property
+ * paths, graph node enumeration) runs against one named graph through it
+ * without any call site knowing the scope exists.
+ */
+export class GraphScopedStore implements rdfjs.Source<rdfjs.Quad> {
+  public constructor(
+    private readonly store: rdfjs.Source<rdfjs.Quad>,
+    private readonly graph: rdfjs.Term,
+  ) {}
+
+  public match(
+    subject?: rdfjs.Term | null,
+    predicate?: rdfjs.Term | null,
+    object?: rdfjs.Term | null,
+    graph?: rdfjs.Term | null,
+  ): rdfjs.Stream<rdfjs.Quad> {
+    // An explicit graph wins; otherwise the view's fixed graph applies. The
+    // pipeline always scans with a null graph, so the scope is applied, and
+    // nested scopes (GRAPH inside GRAPH) compose correctly.
+    return this.store.match(subject, predicate, object, graph ?? this.graph);
+  }
+}
+
+/**
+ * namedGraphs returns every named graph present in the store (quads whose
+ * graph term is not the default graph), for GRAPH ?g evaluation.
+ */
+export async function namedGraphs(
+  store: rdfjs.Source<rdfjs.Quad>,
+): Promise<rdfjs.Quad_Graph[]> {
+  const quads = await matchQuads(store, null, null, null);
+  const graphs = new Map<string, rdfjs.Quad_Graph>();
+  for (const item of quads) {
+    if (item.graph.termType !== "DefaultGraph") {
+      graphs.set(termKey(item.graph), item.graph);
+    }
+  }
+  return [...graphs.values()];
 }
