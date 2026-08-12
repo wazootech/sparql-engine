@@ -1357,3 +1357,52 @@ SELECT ?s ?p ?isNum WHERE {
     quads,
   });
 });
+
+Deno.test("parity - ENCODE_FOR_URI function", async () => {
+  const query =
+    `SELECT ?encoded WHERE { BIND(ENCODE_FOR_URI("hello world! / foo&bar") AS ?encoded) }`;
+  await assertQueryParity({
+    name: "ENCODE_FOR_URI parity",
+    kind: "select",
+    query,
+    quads: [],
+  });
+});
+
+Deno.test("parity - IRI and URI function", async () => {
+  const query =
+    `SELECT ?iri ?uri WHERE { BIND(IRI("http://example.org/test") AS ?iri) BIND(URI("http://example.org/test2") AS ?uri) }`;
+  await assertQueryParity({
+    name: "IRI and URI parity",
+    kind: "select",
+    query,
+    quads: [],
+  });
+});
+
+Deno.test("parity - TZ function", async () => {
+  const query = `PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+SELECT ?tz1 ?tz2 WHERE {
+  BIND(TZ("2011-01-10T14:45:13-05:00"^^xsd:dateTime) AS ?tz1)
+  BIND(TZ("2011-01-10T14:45:13Z"^^xsd:dateTime) AS ?tz2)
+}`;
+  await assertQueryParity({
+    name: "TZ parity",
+    kind: "select",
+    query,
+    quads: [],
+  });
+});
+
+Deno.test("parity - non-BMP STRLEN and SUBSTR", async () => {
+  const query = `SELECT ?len ?sub WHERE {
+  BIND(STRLEN("𐍈bar") AS ?len)
+  BIND(SUBSTR("𐍈bar", 1, 2) AS ?sub)
+}`;
+  await assertQueryParity({
+    name: "non-BMP STRLEN and SUBSTR parity",
+    kind: "select",
+    query,
+    quads: [],
+  });
+});

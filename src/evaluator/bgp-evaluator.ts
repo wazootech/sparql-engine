@@ -361,6 +361,9 @@ export class BgpEvaluator {
     bindings: TermBinding[],
     store: rdfjs.Source<rdfjs.Quad>,
   ): Promise<TermBinding[]> {
+    if (patternListContainsExists(patterns)) {
+      await this.prepareExistsIndex();
+    }
     const nonFilters: Pattern[] = [];
     const filters: Pattern[] = [];
     for (const p of patterns) {
@@ -416,6 +419,9 @@ export class BgpEvaluator {
           }
         }
         const right = await this.evaluateGroup(innerPatterns, [{}], store);
+        if (filters.some(expressionContainsExists)) {
+          await this.prepareExistsIndex();
+        }
         const context = this.existsContext(store);
         return leftJoin(
           bindings,

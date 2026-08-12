@@ -263,6 +263,16 @@ export class ExpressionEvaluator {
       case "-":
       case "*":
       case "/": {
+        if (operation.args.length === 1 && operation.operator === "+") {
+          const val = this.evaluateWith(arg(0), binding, aggregates, context);
+          if (
+            val === undefined || val.termType !== "Literal" ||
+            numericValue(val) === null
+          ) {
+            return undefined;
+          }
+          return val;
+        }
         if (operation.args.length === 1 && operation.operator === "-") {
           return this.unaryMinus(arg(0), binding, aggregates, context);
         }
@@ -315,7 +325,8 @@ export class ExpressionEvaluator {
         ) {
           return undefined;
         }
-        return literal(String(value.value.length), namedNode(XSD_INTEGER));
+        const len = Array.from(value.value).length;
+        return literal(String(len), namedNode(XSD_INTEGER));
       }
       case "ucase":
       case "lcase":
@@ -418,11 +429,50 @@ export class ExpressionEvaluator {
           binding,
           aggregates,
         );
+      case "encode_for_uri":
+      case "encode-for-uri": {
+        const val = this.stringTerm(arg(0), binding, aggregates, context);
+        if (val === undefined) {
+          return undefined;
+        }
+        return literal(encodeURI(val.value), namedNode(XSD_STRING));
+      }
+      case "iri":
+      case "uri": {
+        const val = this.evaluateWith(arg(0), binding, aggregates, context);
+        if (val === undefined) {
+          return undefined;
+        }
+        if (val.termType === "NamedNode") {
+          return val;
+        }
+        if (val.termType === "Literal" && this.isStringTyped(val)) {
+          if (/[\s<>"{}`\\^]/.test(val.value)) {
+            return undefined;
+          }
+          return namedNode(val.value);
+        }
+        return undefined;
+      }
+      case "tz": {
+        const val = this.evaluateWith(arg(0), binding, aggregates, context);
+        if (
+          val === undefined || val.termType !== "Literal" ||
+          val.datatype?.value !== XSD_DATETIME
+        ) {
+          return undefined;
+        }
+        const match = val.value.match(/(Z|[+-]\d{2}:\d{2})$/);
+        return literal(match ? match[1] : "", namedNode(XSD_STRING));
+      }
       case "BNODE":
+      case "bnode":
         return this.bnode(operation.args as Expression[], binding, aggregates);
       case "struuid":
+      case "STRUUID":
         return this.struuid();
       case "uuid":
+      case "UUID":
         return this.uuid();
       case "rand":
         return this.rand();
@@ -795,10 +845,13 @@ export class ExpressionEvaluator {
     if (lenTerm !== undefined && length === null) {
       return undefined;
     }
+    const codePoints = Array.from(str.value);
     const end = length === null ? Number.POSITIVE_INFINITY : start + length;
     const from = Math.max(start, 1) - 1;
-    const to = end - 1;
-    const sliced = to < from ? "" : str.value.slice(from, to);
+    const to = end === Number.POSITIVE_INFINITY
+      ? codePoints.length
+      : Math.max(0, Math.floor(end) - 1);
+    const sliced = to <= from ? "" : codePoints.slice(from, to).join("");
     return this.stringResult(
       sliced,
       this.isLangTagged(str) ? str.language : undefined,
@@ -914,10 +967,39 @@ export class ExpressionEvaluator {
         return this.constructorString(value);
       case XSD_BOOLEAN:
         return this.constructorBoolean(value);
-      default:
+      case XSD_DATETIME:
+        return this.constructorDateTime(value);
+      default: {
+        const localName = fnIri.includes("#")
+          ? fnIri.split("#").pop()!
+          : fnIri.split("/").pop()!;
+        const opName = localName.toLowerCase();
+        if (
+          [
+            "encode_for_uri",
+            "encode-for-uri",
+            "iri",
+            "uri",
+            "bnode",
+            "struuid",
+            "uuid",
+          ].includes(opName)
+        ) {
+          return this.evaluateOperation(
+            {
+              type: "operation",
+              operator: opName,
+              args: expression.args,
+            },
+            binding,
+            aggregates,
+            context,
+          );
+        }
         throw new Error(
           `Unsupported SPARQL expression: functionCall ${fnIri}`,
         );
+      }
     }
   }
 
@@ -1082,6 +1164,28 @@ export class ExpressionEvaluator {
       }
       if (text === "false" || text === "0") {
         return literal("false", namedNode(XSD_BOOLEAN));
+      }
+    }
+    return undefined;
+  }
+
+  /**
+   * constructorDateTime implements xsd:dateTime(x): dateTime passthrough or
+   * valid ISO dateTime string cast.
+   */
+  private constructorDateTime(
+    term: rdfjs.Term | undefined,
+  ): rdfjs.Literal | undefined {
+    if (term === undefined || term.termType !== "Literal") {
+      return undefined;
+    }
+    if (term.datatype?.value === XSD_DATETIME) {
+      return term;
+    }
+    if (this.isStringTyped(term)) {
+      const parts = parseDateTime(term.value);
+      if (parts !== null) {
+        return literal(term.value, namedNode(XSD_DATETIME));
       }
     }
     return undefined;
