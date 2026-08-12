@@ -16,13 +16,8 @@
   },
   "nodeModulesDir": "auto",
   "tasks": {
-    "fmt": "deno fmt",
-    "fmt:check": "deno fmt --check",
-    "lint": "deno lint",
-    "check": "deno check",
-    "test": "deno test --allow-all",
     "bench": "deno bench --allow-all",
-    "publish:dry": "deno publish --dry-run --allow-dirty",
+    "check": "deno check",
     "ci": {
       "description": "Formats, lints, checks, and tests the code",
       "dependencies": [
@@ -31,7 +26,13 @@
         "check",
         "test"
       ]
-    }
+    },
+    "fmt": "deno fmt",
+    "fmt:check": "deno fmt --check",
+    "lint": "deno lint",
+    "publish:dry": "deno publish --dry-run --allow-dirty",
+    "test": "deno test --allow-all",
+    "test:w3c": "deno run --allow-all test/w3c/w3c-main.ts"
   },
   "fmt": {
     "exclude": [
