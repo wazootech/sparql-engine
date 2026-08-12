@@ -15,7 +15,8 @@ import type {
   SparqlSelectResults,
 } from "@/sparql-engine-interface.ts";
 import { BgpEvaluator } from "@/evaluator/bgp-evaluator.ts";
-import { sparqlTermToRdfTerm, sparqlValueToRdfTerm } from "@/term/mod.ts";
+import type { TermBinding } from "@/evaluator/bgp-evaluator.ts";
+import { rdfTermToSparqlValue, sparqlTermToRdfTerm } from "@/term/mod.ts";
 import { DataFactory } from "n3";
 
 /**
@@ -86,11 +87,14 @@ export class SparqlEvaluator {
       }
     }
 
+    // Bindings travel internally as RDF/JS terms; this projection is the
+    // single point where they become the SparqlValue wire format.
     const filteredBindings: SparqlBinding[] = rawBindings.map((binding) => {
       const projected: SparqlBinding = {};
       for (const varName of vars) {
-        if (binding[varName]) {
-          projected[varName] = binding[varName];
+        const bound = binding[varName];
+        if (bound) {
+          projected[varName] = rdfTermToSparqlValue(bound);
         }
       }
       return projected;
@@ -156,12 +160,12 @@ export class SparqlEvaluator {
 
   private resolveConstructTerm(
     term: SparqlTerm,
-    binding: SparqlBinding,
+    binding: TermBinding,
   ): rdfjs.Term | null {
     if (term.termType === "Variable") {
       const bound = binding[term.value];
       if (bound) {
-        return sparqlValueToRdfTerm(bound);
+        return bound;
       }
       return null;
     }

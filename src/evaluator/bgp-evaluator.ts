@@ -1,15 +1,6 @@
 import type * as rdfjs from "@rdfjs/types";
 import type { Pattern, Term as SparqlTerm, Triple } from "sparqljs";
-import type { SparqlBinding } from "@/sparql-engine-interface.ts";
-import {
-  rdfTermToSparqlValue,
-  sameRdfTerm,
-  sameSparqlValue,
-  sparqlTermToRdfTerm,
-  sparqlValueKey,
-  sparqlValueToRdfTerm,
-  termKey,
-} from "@/term/mod.ts";
+import { sameRdfTerm, sparqlTermToRdfTerm, termKey } from "@/term/mod.ts";
 
 /**
  * QuadIndex maps each triple position of the candidate quads to the quads
@@ -32,6 +23,13 @@ type ScanEntry = {
   object: SparqlTerm;
   candidates: rdfjs.Quad[];
 };
+
+/**
+ * TermBinding maps variable names to the RDF/JS terms they resolve to during
+ * evaluation. Bindings stay in term space internally; they are converted to
+ * the SparqlValue wire format exactly once, at the response boundary.
+ */
+export type TermBinding = Record<string, rdfjs.Term>;
 
 /**
  * BgpEvaluatorOptions configures BgpEvaluator.
@@ -65,9 +63,10 @@ export class BgpEvaluator {
   }
 
   /**
-   * evaluateBgp finds all variable bindings matching the given list of triple patterns.
+   * evaluateBgp finds all variable bindings (as RDF/JS terms) matching the
+   * given list of triple patterns.
    */
-  public async evaluateBgp(patterns: Pattern[]): Promise<SparqlBinding[]> {
+  public async evaluateBgp(patterns: Pattern[]): Promise<TermBinding[]> {
     // Flatten the triple patterns of all BGP blocks. Joining is a natural
     // join over the patterns, so the join order never changes the resulting
     // binding set — it only changes the intermediate cardinality.
@@ -83,7 +82,7 @@ export class BgpEvaluator {
       return await this.evaluateWithReordering(triplePatterns);
     }
 
-    let bindings: SparqlBinding[] = [{}];
+    let bindings: TermBinding[] = [{}];
     for (const triplePattern of triplePatterns) {
       bindings = this.joinTriplePattern(
         bindings,
@@ -99,12 +98,12 @@ export class BgpEvaluator {
    */
   private async evaluateWithReordering(
     triplePatterns: Triple[],
-  ): Promise<SparqlBinding[]> {
+  ): Promise<TermBinding[]> {
     const remaining = await Promise.all(
       triplePatterns.map((pattern) => this.scanEntry(pattern)),
     );
 
-    let bindings: SparqlBinding[] = [{}];
+    let bindings: TermBinding[] = [{}];
     while (remaining.length > 0) {
       let bestIndex = 0;
       let bestCost = Number.POSITIVE_INFINITY;
@@ -147,7 +146,7 @@ export class BgpEvaluator {
    */
   private estimateJoinCost(
     entry: ScanEntry,
-    bindings: SparqlBinding[],
+    bindings: TermBinding[],
   ): number {
     if (bindings.length === 0) {
       return 0;
@@ -161,7 +160,7 @@ export class BgpEvaluator {
       for (const binding of bindings) {
         const value = binding[term.value];
         if (value !== undefined) {
-          distinct.add(sparqlValueKey(value));
+          distinct.add(termKey(value));
         }
       }
       if (distinct.size === 0) {
@@ -190,9 +189,9 @@ export class BgpEvaluator {
    * index instead of issuing a stream round trip per binding.
    */
   private joinTriplePattern(
-    currentBindings: SparqlBinding[],
+    currentBindings: TermBinding[],
     entry: ScanEntry,
-  ): SparqlBinding[] {
+  ): TermBinding[] {
     const subject = entry.subject;
     const predicate = entry.predicate;
     const object = entry.object;
@@ -210,7 +209,7 @@ export class BgpEvaluator {
     );
     const quadIndex = needsIndex ? this.buildQuadIndex(candidateQuads) : null;
 
-    const nextBindings: SparqlBinding[] = [];
+    const nextBindings: TermBinding[] = [];
 
     for (const binding of currentBindings) {
       const resolvedSubject = this.resolveTerm(subject, binding);
@@ -255,10 +254,10 @@ export class BgpEvaluator {
 
         if (subjectIsVariable) {
           const varName = subject.value;
-          const val = rdfTermToSparqlValue(matchQuad.subject);
+          const val = matchQuad.subject;
           if (
             newBinding[varName] &&
-            !sameSparqlValue(newBinding[varName], val)
+            !sameRdfTerm(newBinding[varName], val)
           ) {
             valid = false;
           } else {
@@ -268,10 +267,10 @@ export class BgpEvaluator {
 
         if (valid && predicateIsVariable) {
           const varName = predicate.value;
-          const val = rdfTermToSparqlValue(matchQuad.predicate);
+          const val = matchQuad.predicate;
           if (
             newBinding[varName] &&
-            !sameSparqlValue(newBinding[varName], val)
+            !sameRdfTerm(newBinding[varName], val)
           ) {
             valid = false;
           } else {
@@ -281,10 +280,10 @@ export class BgpEvaluator {
 
         if (valid && objectIsVariable) {
           const varName = object.value;
-          const val = rdfTermToSparqlValue(matchQuad.object);
+          const val = matchQuad.object;
           if (
             newBinding[varName] &&
-            !sameSparqlValue(newBinding[varName], val)
+            !sameRdfTerm(newBinding[varName], val)
           ) {
             valid = false;
           } else {
@@ -394,12 +393,12 @@ export class BgpEvaluator {
 
   private resolveTerm(
     term: SparqlTerm,
-    binding: SparqlBinding,
+    binding: TermBinding,
   ): rdfjs.Term | null {
     if (term.termType === "Variable") {
       const bound = binding[term.value];
       if (bound) {
-        return sparqlValueToRdfTerm(bound);
+        return bound;
       }
       return null;
     }

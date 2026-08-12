@@ -8,9 +8,9 @@ import type {
   UpdateOperation,
 } from "sparqljs";
 import type { NativeSparqlTransaction } from "@/native-sparql-engine.ts";
-import type { SparqlBinding } from "@/sparql-engine-interface.ts";
 import { BgpEvaluator } from "@/evaluator/bgp-evaluator.ts";
-import { sparqlTermToRdfTerm, sparqlValueToRdfTerm } from "@/term/mod.ts";
+import type { TermBinding } from "@/evaluator/bgp-evaluator.ts";
+import { sparqlTermToRdfTerm } from "@/term/mod.ts";
 import { DataFactory } from "n3";
 
 const { blankNode, quad, defaultGraph } = DataFactory;
@@ -245,7 +245,7 @@ export class UpdateEvaluator {
    */
   private async deleteMatches(
     pattern: Quads,
-    binding: SparqlBinding,
+    binding: TermBinding,
     remove: (item: rdfjs.Quad) => unknown,
   ): Promise<void> {
     const graph = pattern.type === "graph"
@@ -283,7 +283,7 @@ export class UpdateEvaluator {
    */
   private instantiateInsertPattern(
     pattern: Quads,
-    binding: SparqlBinding,
+    binding: TermBinding,
     bnodeMap: Map<string, rdfjs.BlankNode>,
   ): rdfjs.Quad[] {
     const graph = pattern.type === "graph"
@@ -323,7 +323,7 @@ export class UpdateEvaluator {
    */
   private resolveDeleteTerm(
     term: SparqlTerm,
-    binding: SparqlBinding,
+    binding: TermBinding,
   ): ResolvedTemplateTerm {
     if (term.termType === "Variable") {
       const bound = binding[term.value];
@@ -332,7 +332,7 @@ export class UpdateEvaluator {
       }
       return {
         kind: "value",
-        term: sparqlValueToRdfTerm(bound),
+        term: bound,
       };
     }
     if (term.termType === "BlankNode") {
@@ -348,7 +348,7 @@ export class UpdateEvaluator {
    */
   private resolveInsertTerm(
     term: SparqlTerm,
-    binding: SparqlBinding,
+    binding: TermBinding,
     bnodeMap: Map<string, rdfjs.BlankNode>,
   ): ResolvedTemplateTerm {
     if (term.termType === "Variable") {
@@ -358,7 +358,7 @@ export class UpdateEvaluator {
       }
       return {
         kind: "value",
-        term: sparqlValueToRdfTerm(bound),
+        term: bound,
       };
     }
     if (term.termType === "BlankNode") {
