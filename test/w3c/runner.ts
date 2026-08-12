@@ -1,6 +1,6 @@
 import type * as rdfjs from "@rdfjs/types";
 import { DataFactory, Parser as N3Parser, Store as N3Store } from "n3";
-import { NativeSparqlEngine } from "@/native-sparql-engine.ts";
+import { WazooSparqlEngine } from "@/wazoo-sparql-engine.ts";
 import type { SparqlResponse } from "@/sparql-engine-interface.ts";
 import { canonicalizeRdfTerm, canonicalizeSparqlValue } from "@/term/mod.ts";
 import type { CanonicalTerm } from "@/term/mod.ts";
@@ -263,7 +263,7 @@ export class W3cRunner {
     let nativeResult: SparqlResponse;
     try {
       const store = this.loadStore(testCase);
-      const native = new NativeSparqlEngine({ store });
+      const native = new WazooSparqlEngine({ store });
       nativeResult = await native.execute({ query });
     } catch (error) {
       // Native rejected the query. Differential contract: pass only if
@@ -411,7 +411,7 @@ export class W3cRunner {
     const request = this.queryText(testCase);
 
     const nativeStore = this.loadStore(testCase);
-    const native = new NativeSparqlEngine({ store: nativeStore });
+    const native = new WazooSparqlEngine({ store: nativeStore });
     try {
       const result = await native.execute({ query: request });
       if (result.kind !== "void") {
@@ -494,7 +494,7 @@ export class W3cRunner {
       try {
         const store = this.loadStore(testCase);
         if (engine === "native") {
-          await new NativeSparqlEngine({ store }).execute({
+          await new WazooSparqlEngine({ store }).execute({
             query: this.queryText(testCase),
           });
         } else {

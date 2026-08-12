@@ -21,6 +21,7 @@
  */
 import { DataFactory } from "n3";
 import type { SparqlParser as SparqlJsParserType, SparqlQuery } from "sparqljs";
+export type * from "sparqljs";
 
 import generatedParser from "./parser.cjs";
 

@@ -1,5 +1,5 @@
 import type * as rdfjs from "@rdfjs/types";
-import type { Term as SparqlTerm } from "sparqljs";
+import type { Term as SparqlTerm } from "@/parser/sparql-parser.ts";
 import { DataFactory, Store as N3Store } from "n3";
 import { sameRdfTerm, termKey } from "@/term/mod.ts";
 
@@ -9,11 +9,11 @@ import { sameRdfTerm, termKey } from "@/term/mod.ts";
  * both the BGP hash join and the batched DELETE scans, so both paths probe
  * with identical semantics.
  */
-export type QuadIndex = {
+export interface QuadIndex {
   bySubject: Map<string, rdfjs.Quad[]>;
   byPredicate: Map<string, rdfjs.Quad[]>;
   byObject: Map<string, rdfjs.Quad[]>;
-};
+}
 
 /**
  * buildQuadIndex indexes candidate quads by each of their three positions,

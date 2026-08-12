@@ -7,7 +7,7 @@ import type {
   Update,
   UpdateOperation,
 } from "sparqljs";
-import type { NativeSparqlTransaction } from "@/native-sparql-engine.ts";
+import type { WazooSparqlTransaction } from "@/wazoo-sparql-engine.ts";
 import { BgpEvaluator } from "@/evaluator/bgp-evaluator.ts";
 import type { TermBinding } from "@/evaluator/bgp-evaluator.ts";
 import {
@@ -46,7 +46,7 @@ export interface UpdateEvaluatorOptions {
    * update runs through one transaction. When omitted, updates are applied
    * directly to the store, which must support addQuad/removeQuad.
    */
-  createTransaction?: () => NativeSparqlTransaction;
+  createTransaction?: () => WazooSparqlTransaction;
 
   /**
    * reorderPatterns forwards the engine's BGP pattern reordering policy to

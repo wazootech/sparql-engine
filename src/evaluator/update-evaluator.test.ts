@@ -1,8 +1,8 @@
 import { assertEquals, assertRejects } from "@std/assert";
 import type * as rdfjs from "@rdfjs/types";
 import { DataFactory, Store } from "n3";
-import { NativeSparqlEngine } from "@/native-sparql-engine.ts";
-import type { NativeSparqlTransaction } from "@/native-sparql-engine.ts";
+import { WazooSparqlEngine } from "@/wazoo-sparql-engine.ts";
+import type { WazooSparqlTransaction } from "@/wazoo-sparql-engine.ts";
 
 const { namedNode, literal, quad } = DataFactory;
 
@@ -12,12 +12,12 @@ const exampleV = namedNode("http://example.org/v");
 const exampleA = namedNode("http://example.org/a");
 
 /**
- * RecordingTransaction is a fake NativeSparqlTransaction that records every
+ * RecordingTransaction is a fake WazooSparqlTransaction that records every
  * buffered add/delete and, when applyOnCommit is set, applies them to the
  * backing store at commit time. It can be told to fail on commit to exercise
  * the rollback path.
  */
-class RecordingTransaction implements NativeSparqlTransaction {
+class RecordingTransaction implements WazooSparqlTransaction {
   public readonly added: rdfjs.Quad[] = [];
   public readonly deleted: rdfjs.Quad[] = [];
   public committed = false;
@@ -62,7 +62,7 @@ Deno.test("UpdateEvaluator - INSERT DATA buffers through the transaction and com
   const store = new Store();
   let transactionsCreated = 0;
   const transaction = new RecordingTransaction(store);
-  const engine = new NativeSparqlEngine({
+  const engine = new WazooSparqlEngine({
     store,
     createTransaction: () => {
       transactionsCreated++;
@@ -87,7 +87,7 @@ Deno.test("UpdateEvaluator - INSERT DATA buffers through the transaction and com
 Deno.test("UpdateEvaluator - nothing touches the store until commit", async () => {
   const store = new Store();
   const transaction = new RecordingTransaction(store, false);
-  const engine = new NativeSparqlEngine({
+  const engine = new WazooSparqlEngine({
     store,
     createTransaction: () => transaction,
   });
@@ -153,7 +153,7 @@ Deno.test("UpdateEvaluator - rollback when commit fails", async () => {
   const store = new Store();
   const transaction = new RecordingTransaction(store);
   transaction.failCommit = true;
-  const engine = new NativeSparqlEngine({
+  const engine = new WazooSparqlEngine({
     store,
     createTransaction: () => transaction,
   });
@@ -177,7 +177,7 @@ Deno.test("UpdateEvaluator - DELETE/INSERT through the transaction buffers delet
   const store = new Store();
   store.addQuad(quad(exampleA, exampleP, exampleV));
   const transaction = new RecordingTransaction(store);
-  const engine = new NativeSparqlEngine({
+  const engine = new WazooSparqlEngine({
     store,
     createTransaction: () => transaction,
   });

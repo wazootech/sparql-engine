@@ -1,7 +1,7 @@
 # Glossary
 
-- **NativeSparqlEngine** — the in-repo SPARQL engine; the subject of this
-  effort. Must be observably interchangeable with the parity reference.
+- **WazooSparqlEngine** — the in-repo SPARQL engine; the subject of this effort.
+  Must be observably interchangeable with the parity reference.
 - **Parity reference** — the installed `@comunica/query-sparql-rdfjs-lite`
   (5.3.0) that the native engine is measured against. The porting surface is the
   lite config (`config-rdfjs-lite-v5-1-3.json` in the Comunica monorepo).

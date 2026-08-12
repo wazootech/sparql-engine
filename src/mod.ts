@@ -8,11 +8,11 @@ export type {
   SparqlSelectResults,
   SparqlValue,
 } from "@/sparql-engine-interface.ts";
-export { NativeSparqlEngine } from "@/native-sparql-engine.ts";
+export { WazooSparqlEngine } from "@/wazoo-sparql-engine.ts";
 export type {
-  NativeSparqlEngineOptions,
-  NativeSparqlTransaction,
-} from "@/native-sparql-engine.ts";
+  WazooSparqlEngineOptions,
+  WazooSparqlTransaction,
+} from "@/wazoo-sparql-engine.ts";
 
 export {
   canonicalizeRdfTerm,

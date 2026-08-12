@@ -20,12 +20,12 @@ export type TermBinding = Record<string, rdfjs.Term>;
  * candidate quads, so join ordering can use true store cardinalities without
  * issuing extra scans.
  */
-export type ScanEntry = {
+export interface ScanEntry {
   subject: SparqlTerm;
   predicate: SparqlTerm;
   object: SparqlTerm;
   candidates: rdfjs.Quad[];
-};
+}
 
 /**
  * BindingFilter decides whether an extended binding survives an OPTIONAL
@@ -262,17 +262,20 @@ export function joinTriplePattern(
 /**
  * PathPair is one (subject, object) connection produced by a property path.
  */
-export type PathPair = { subject: rdfjs.Term; object: rdfjs.Term };
+export interface PathPair {
+  subject: rdfjs.Term;
+  object: rdfjs.Term;
+}
 
 /**
  * PathEntry is a property-path triple pattern with its resolved terms and
  * pre-computed connection pairs.
  */
-export type PathEntry = {
+export interface PathEntry {
   subject: SparqlTerm;
   object: SparqlTerm;
   pairs: PathPair[];
-};
+}
 
 /**
  * PathElement is either a plain predicate IRI or a nested property path.

@@ -1,6 +1,6 @@
 import { assertEquals, assertMatch } from "@std/assert";
 import { DataFactory } from "n3";
-import { NativeSparqlEngine } from "@/native-sparql-engine.ts";
+import { WazooSparqlEngine } from "@/wazoo-sparql-engine.ts";
 import { assertQueryParity } from "./parity-harness.ts";
 import type { ParityTestCase } from "./parity-harness.ts";
 import { canonicalizeSparqlValue } from "@/term/mod.ts";
@@ -1129,7 +1129,7 @@ Deno.test(
     );
 
     const nativeStore = createQuadStore(basicKnowledgeGraphQuads);
-    const nativeEngine = new NativeSparqlEngine({ store: nativeStore });
+    const nativeEngine = new WazooSparqlEngine({ store: nativeStore });
     const nativeResult = await nativeEngine.execute({ query: petQuery });
     assertEquals(nativeResult.kind, "select");
     if (nativeResult.kind !== "select") {
@@ -1157,7 +1157,7 @@ Deno.test(
   async () => {
     const comunicaEngine = getComunicaEngine();
     const comunicaStore = createQuadStore([]);
-    const nativeEngine = new NativeSparqlEngine({ store: createQuadStore([]) });
+    const nativeEngine = new WazooSparqlEngine({ store: createQuadStore([]) });
     const shapeQueries = {
       bnode: "SELECT ?v WHERE { BIND(BNODE() AS ?v) }",
       bnodeLabel: 'SELECT ?v WHERE { BIND(BNODE("x") AS ?v) }',
@@ -1273,7 +1273,7 @@ Deno.test(
       query,
       createQuadStore([]),
     );
-    const nativeEngine = new NativeSparqlEngine({
+    const nativeEngine = new WazooSparqlEngine({
       store: createQuadStore([]),
     });
     const nativeResult = await nativeEngine.execute({ query });
