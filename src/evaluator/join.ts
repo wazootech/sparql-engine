@@ -290,6 +290,18 @@ export function isPropertyPath(
  * SPARQL's path semantics (each pair appears once regardless of how many
  * routes connect it).
  */
+function isMultisetPath(path: PathElement): boolean {
+  if ("termType" in path) {
+    return true;
+  }
+  if (
+    path.pathType === "^" || path.pathType === "/" || path.pathType === "|"
+  ) {
+    return path.items.every((item) => isMultisetPath(item as PathElement));
+  }
+  return false;
+}
+
 export async function scanPathEntry(
   store: rdfjs.Source<rdfjs.Quad>,
   path: PropertyPath,
@@ -298,11 +310,16 @@ export async function scanPathEntry(
 ): Promise<PathEntry> {
   const pairs: PathPair[] = [];
   const seen = new Set<string>();
+  const allowDuplicates = isMultisetPath(path);
   const addPair = (s: rdfjs.Term, o: rdfjs.Term): void => {
-    const key = `${termKey(s)}\u0000${termKey(o)}`;
-    if (!seen.has(key)) {
-      seen.add(key);
+    if (allowDuplicates) {
       pairs.push({ subject: s, object: o });
+    } else {
+      const key = `${termKey(s)}\u0000${termKey(o)}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        pairs.push({ subject: s, object: o });
+      }
     }
   };
 
@@ -441,31 +458,42 @@ async function pathSteps(
         term,
       );
     case "/": {
-      const [first, second] = path.items;
-      const results: rdfjs.Term[] = [];
-      const seen = new Set<string>();
       if (direction === "forward") {
-        // term --first--> mid --second--> target
-        for (const mid of await pathSteps(store, first, "forward", term)) {
-          for (const target of await pathSteps(store, second, "forward", mid)) {
-            if (!seen.has(termKey(target))) {
-              seen.add(termKey(target));
-              results.push(target);
+        let current = [term];
+        for (const item of path.items) {
+          const next: rdfjs.Term[] = [];
+          for (const node of current) {
+            for (
+              const target of await pathSteps(store, item, "forward", node)
+            ) {
+              next.push(target);
             }
           }
+          current = next;
+          if (current.length === 0) {
+            break;
+          }
         }
+        return current;
       } else {
-        // source --first--> mid --second--> term
-        for (const mid of await pathSteps(store, second, "backward", term)) {
-          for (const source of await pathSteps(store, first, "backward", mid)) {
-            if (!seen.has(termKey(source))) {
-              seen.add(termKey(source));
-              results.push(source);
+        let current = [term];
+        for (let i = path.items.length - 1; i >= 0; i--) {
+          const item = path.items[i];
+          const next: rdfjs.Term[] = [];
+          for (const node of current) {
+            for (
+              const source of await pathSteps(store, item, "backward", node)
+            ) {
+              next.push(source);
             }
           }
+          current = next;
+          if (current.length === 0) {
+            break;
+          }
         }
+        return current;
       }
-      return results;
     }
     case "|": {
       const results: rdfjs.Term[] = [];
@@ -560,41 +588,90 @@ async function pathSteps(
       return results;
     }
     case "!": {
-      // Negated property set: every edge whose predicate is not a listed IRI
-      // and whose pair is not an inverse connection of a listed ^IRI.
-      const direct = new Set<string>();
-      const inverse: rdfjs.NamedNode[] = [];
-      for (const item of path.items) {
-        if ("termType" in item) {
-          direct.add(item.value);
-        } else if (item.items[0].termType === "NamedNode") {
-          inverse.push(item.items[0]);
-        }
-      }
-      const results: rdfjs.Term[] = [];
-      const seen = new Set<string>();
-      const quads = direction === "forward"
-        ? await matchQuads(store, term, null, null)
-        : await matchQuads(store, null, null, term);
-      for (const q of quads) {
-        if (direct.has(q.predicate.value)) {
-          continue;
-        }
-        const other = direction === "forward" ? q.object : q.subject;
-        let excluded = false;
-        for (const inv of inverse) {
-          if ((await matchQuads(store, other, inv, term)).length > 0) {
-            excluded = true;
-            break;
+      // Negated property set: direct excluded predicates apply to matching edges in the primary direction,
+      // and inverse excluded predicates apply to matching edges in the opposite direction.
+      const directExcluded = new Set<string>();
+      const inverseExcluded = new Set<string>();
+      let hasInverse = false;
+
+      const collectNpsItems = (items: PathElement[]) => {
+        for (const item of items) {
+          if ("termType" in item) {
+            directExcluded.add(item.value);
+          } else if (
+            typeof item === "object" && item !== null && "type" in item
+          ) {
+            const pObj = item as {
+              type: string;
+              pathType?: string;
+              items?: PathElement[];
+            };
+            if (pObj.pathType === "|") {
+              collectNpsItems(pObj.items ?? []);
+            } else if (pObj.pathType === "^") {
+              const invItem = pObj.items?.[0] as SparqlTerm | undefined;
+              if (invItem?.value) {
+                inverseExcluded.add(invItem.value);
+                hasInverse = true;
+              }
+            }
           }
         }
-        if (excluded) {
-          continue;
+      };
+      collectNpsItems(path.items);
+
+      const results: rdfjs.Term[] = [];
+      const seen = new Set<string>();
+
+      if (direction === "forward") {
+        if (directExcluded.size > 0) {
+          const forwardQuads = await matchQuads(store, term, null, null);
+          for (const q of forwardQuads) {
+            if (!directExcluded.has(q.predicate.value)) {
+              const key = termKey(q.object);
+              if (!seen.has(key)) {
+                seen.add(key);
+                results.push(q.object);
+              }
+            }
+          }
         }
-        const key = termKey(other);
-        if (!seen.has(key)) {
-          seen.add(key);
-          results.push(other);
+        if (hasInverse) {
+          const inverseQuads = await matchQuads(store, null, null, term);
+          for (const q of inverseQuads) {
+            if (!inverseExcluded.has(q.predicate.value)) {
+              const key = termKey(q.subject);
+              if (!seen.has(key)) {
+                seen.add(key);
+                results.push(q.subject);
+              }
+            }
+          }
+        }
+      } else {
+        if (directExcluded.size > 0) {
+          const backwardQuads = await matchQuads(store, null, null, term);
+          for (const q of backwardQuads) {
+            if (!directExcluded.has(q.predicate.value)) {
+              const key = termKey(q.subject);
+              if (!seen.has(key)) {
+                seen.add(key);
+                results.push(q.subject);
+              }
+            }
+          }
+        }
+        if (hasInverse) {
+          const forwardQuads = await matchQuads(store, term, null, null);
+          for (const q of forwardQuads) {
+            if (!inverseExcluded.has(q.predicate.value)) {
+              const key = termKey(q.object);
+              if (!seen.has(key)) {
+                seen.add(key);
+                results.push(q.object);
+              }
+            }
+          }
         }
       }
       return results;

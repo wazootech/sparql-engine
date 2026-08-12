@@ -1406,3 +1406,38 @@ Deno.test("parity - non-BMP STRLEN and SUBSTR", async () => {
     quads: [],
   });
 });
+
+Deno.test("parity - path - negated property set direct and inverse", async () => {
+  const query = `PREFIX : <http://example.org/>
+SELECT ?s ?o WHERE {
+  ?s !(:p|^:q) ?o
+}`;
+  const quads = [
+    quad(
+      namedNode("http://example.org/s1"),
+      namedNode("http://example.org/p"),
+      namedNode("http://example.org/o1"),
+    ),
+    quad(
+      namedNode("http://example.org/s2"),
+      namedNode("http://example.org/q"),
+      namedNode("http://example.org/o2"),
+    ),
+    quad(
+      namedNode("http://example.org/sa"),
+      namedNode("http://www.w3.org/1999/02/22-rdf-syntax-ns#type"),
+      namedNode("http://example.org/oa"),
+    ),
+    quad(
+      namedNode("http://example.org/sp"),
+      namedNode("http://example.org/p2"),
+      namedNode("http://example.org/op"),
+    ),
+  ];
+  await assertQueryParity({
+    name: "negated property set direct and inverse parity",
+    kind: "select",
+    query,
+    quads,
+  });
+});
