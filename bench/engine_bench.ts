@@ -100,13 +100,32 @@ function toOxigraphQuad(item: rdfjs.Quad): ReturnType<typeof oxigraphQuad> {
   );
 }
 
-const dataset = buildDataset();
-const n3Store = new Store();
-const oxigraphStore = new OxigraphStore();
-for (const item of dataset) {
-  n3Store.addQuad(item);
-  oxigraphStore.add(toOxigraphQuad(item));
+/**
+ * seedN3Store builds a fresh N3 Store seeded with the given quads.
+ */
+function seedN3Store(quads: rdfjs.Quad[]): Store {
+  const store = new Store();
+  for (const item of quads) {
+    store.addQuad(item);
+  }
+  return store;
 }
+
+/**
+ * seedOxigraphStore builds a fresh Oxigraph Store seeded with the given
+ * quads (converted to Oxigraph terms).
+ */
+function seedOxigraphStore(quads: rdfjs.Quad[]): OxigraphStore {
+  const store = new OxigraphStore();
+  for (const item of quads) {
+    store.add(toOxigraphQuad(item));
+  }
+  return store;
+}
+
+const dataset = buildDataset();
+const n3Store = seedN3Store(dataset);
+const oxigraphStore = seedOxigraphStore(dataset);
 
 const nativeEngine = new NativeSparqlEngine({ store: n3Store });
 const nativeEngineNoReorder = new NativeSparqlEngine({
@@ -345,10 +364,7 @@ async function verifyUpdateEquality(
   query: string,
   label: string,
 ): Promise<void> {
-  const nativeStore = new Store();
-  for (const item of dataset) {
-    nativeStore.addQuad(item);
-  }
+  const nativeStore = seedN3Store(dataset);
   const nativeUpdateEngine = new NativeSparqlEngine({ store: nativeStore });
   const nativeResult = await nativeUpdateEngine.execute({ query });
   if (nativeResult.kind !== "void") {
@@ -356,17 +372,11 @@ async function verifyUpdateEquality(
   }
   const nativeSet = storeQuadStrings(nativeStore);
 
-  const comunicaStore = new Store();
-  for (const item of dataset) {
-    comunicaStore.addQuad(item);
-  }
+  const comunicaStore = seedN3Store(dataset);
   await comunicaEngine.queryVoid(query, { sources: [comunicaStore] });
   const comunicaSet = storeQuadStrings(comunicaStore);
 
-  const oxigraphUpdateStore = new OxigraphStore();
-  for (const item of dataset) {
-    oxigraphUpdateStore.add(toOxigraphQuad(item));
-  }
+  const oxigraphUpdateStore = seedOxigraphStore(dataset);
   await oxigraphUpdateStore.update(query);
   const oxigraphQuads = oxigraphUpdateStore.query(
     "CONSTRUCT { ?s ?p ?o } WHERE { ?s ?p ?o }",
