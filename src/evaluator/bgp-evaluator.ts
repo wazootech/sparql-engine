@@ -75,6 +75,17 @@ export class BgpEvaluator {
   }
 
   /**
+   * forStore returns a fresh BgpEvaluator over the given store view with the
+   * same options, used by SparqlEvaluator to evaluate a query against its
+   * FROM / FROM NAMED dataset.
+   */
+  public forStore(store: rdfjs.Source<rdfjs.Quad>): BgpEvaluator {
+    return new BgpEvaluator(store, {
+      reorderPatterns: this.reorderPatterns,
+    });
+  }
+
+  /**
    * evaluateGroup threads the current solutions through a pattern list in
    * written order: each pattern transforms the binding set, so BGP joins
    * constrain it, FILTERs narrow it, OPTIONALs extend it, and MINUSes

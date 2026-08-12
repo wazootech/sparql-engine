@@ -23,6 +23,12 @@ export const XSD_FLOAT = `${XSD}float`;
 /** XSD_DOUBLE is the xsd:double datatype IRI. */
 export const XSD_DOUBLE = `${XSD}double`;
 
+/** XSD_DATETIME is the xsd:dateTime datatype IRI. */
+export const XSD_DATETIME = `${XSD}dateTime`;
+
+/** XSD_DAYTIME_DURATION is the xsd:dayTimeDuration datatype IRI. */
+export const XSD_DAYTIME_DURATION = `${XSD}dayTimeDuration`;
+
 /**
  * NUMERIC_DATATYPES is the set of XSD datatypes with numeric value semantics
  * per SPARQL 1.1: comparisons and arithmetic operate on their values rather

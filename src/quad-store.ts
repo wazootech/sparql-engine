@@ -1,5 +1,6 @@
 import type * as rdfjs from "@rdfjs/types";
 import type { Term as SparqlTerm } from "sparqljs";
+import { DataFactory, Store as N3Store } from "n3";
 import { sameRdfTerm, termKey } from "@/term/mod.ts";
 
 /**
@@ -165,4 +166,48 @@ export async function namedGraphs(
     }
   }
   return [...graphs.values()];
+}
+
+
+/**
+ * buildDatasetStore materializes the SPARQL 1.1 active dataset for a query
+ * with FROM / FROM NAMED clauses: the default graph is the merge of the
+ * quads of every FROM graph (deduplicated, re-graphed to the default graph,
+ * empty when no FROM is given), and the named graphs are exactly the FROM
+ * NAMED graphs (empty when none are given). Returning a real store means the
+ * whole evaluation pipeline — BGP scans, property paths, GRAPH enumeration —
+ * runs against the dataset with no special-casing; quads outside the
+ * dataset simply do not exist in the view.
+ */
+export async function buildDatasetStore(
+  store: rdfjs.Source<rdfjs.Quad>,
+  from: readonly rdfjs.Term[],
+  fromNamed: readonly rdfjs.Term[],
+): Promise<rdfjs.Store> {
+  const dataset = new N3Store();
+  const seen = new Set<string>();
+  for (const graph of from) {
+    const quads = await matchQuads(store, null, null, null, graph);
+    for (const item of quads) {
+      const key = termKey(item);
+      if (!seen.has(key)) {
+        seen.add(key);
+        dataset.addQuad(
+          DataFactory.quad(
+            item.subject,
+            item.predicate,
+            item.object,
+            DataFactory.defaultGraph(),
+          ),
+        );
+      }
+    }
+  }
+  for (const graph of fromNamed) {
+    const quads = await matchQuads(store, null, null, null, graph);
+    for (const item of quads) {
+      dataset.addQuad(item);
+    }
+  }
+  return dataset;
 }

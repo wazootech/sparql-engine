@@ -243,14 +243,16 @@ Deno.test("NativeSparqlEngine - unsupported FILTER expression is rejected", asyn
     ),
   );
   const engine = new NativeSparqlEngine({ store });
+  // ISIRI is not part of the ported surface yet, so it must still raise a
+  // clear error rather than silently passing.
   await assertRejects(
     () =>
       engine.execute({
         query:
-          'SELECT ?person WHERE { ?person <http://xmlns.com/foaf/0.1/name> ?name FILTER(STRSTARTS(?name, "A")) }',
+          'SELECT ?person WHERE { ?person <http://xmlns.com/foaf/0.1/name> ?name FILTER(ISIRI(?name)) }',
       }),
     Error,
-    "Unsupported SPARQL expression operator: strstarts",
+    "Unsupported SPARQL expression operator: isiri",
   );
 });
 

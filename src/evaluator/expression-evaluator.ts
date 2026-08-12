@@ -7,6 +7,17 @@ import type {
   Term as SparqlTerm,
 } from "sparqljs";
 import { DataFactory } from "n3";
+import {
+  md5Hex,
+  parseDateTime,
+  sha1Hex,
+  sha256Hex,
+  sha384Hex,
+  sha512Hex,
+  timezoneDurationLexical,
+  XSD_DATETIME,
+  XSD_DAYTIME_DURATION,
+} from "@/term/mod.ts";
 import type { TermBinding } from "@/evaluator/bgp-evaluator.ts";
 import {
   canonicalDouble,
@@ -24,7 +35,7 @@ import {
   XSD_STRING,
 } from "@/term/mod.ts";
 
-const { literal, namedNode } = DataFactory;
+const { blankNode, literal, namedNode, quad } = DataFactory;
 
 /**
  * Ebv is the effective boolean value of a term: true, false, or "error"
@@ -49,6 +60,13 @@ type Ebv = boolean | "error";
  */
 export class ExpressionEvaluator {
   /**
+   * bnodeCounter mints fresh labels for zero-argument BNODE() calls, so two
+   * calls in one query produce distinct blank nodes. Labels are opaque per
+   * SPARQL 1.1; only freshness within a query matters.
+   */
+  private bnodeCounter = 0;
+
+  /**
    * evaluate resolves an expression against a binding. Returns undefined for
    * unbound variables and runtime errors (type errors, division by zero).
    */
@@ -69,7 +87,7 @@ export class ExpressionEvaluator {
   public evaluateWithAggregates(
     expression: Expression,
     binding: TermBinding,
-    aggregates: (aggregate: AggregateExpression) => rdfjs.Term | undefined,
+    aggregates?: (aggregate: AggregateExpression) => rdfjs.Term | undefined,
   ): rdfjs.Term | undefined {
     return this.evaluateWith(expression, binding, aggregates);
   }
@@ -81,7 +99,7 @@ export class ExpressionEvaluator {
   public filterPassesWithAggregates(
     expression: Expression,
     binding: TermBinding,
-    aggregates: (aggregate: AggregateExpression) => rdfjs.Term | undefined,
+    aggregates?: (aggregate: AggregateExpression) => rdfjs.Term | undefined,
   ): boolean {
     return this.ebv(this.evaluateWith(expression, binding, aggregates)) ===
       true;
@@ -246,6 +264,164 @@ export class ExpressionEvaluator {
           binding,
           aggregates,
         );
+      case "regex":
+        return this.regex(
+          operation.args as Expression[],
+          binding,
+          aggregates,
+        );
+      case "replace":
+        return this.replace(
+          operation.args as Expression[],
+          binding,
+          aggregates,
+        );
+      case "contains":
+        return this.stringPredicate(
+          operation.args as Expression[],
+          binding,
+          (value, argument) => value.includes(argument),
+          aggregates,
+        );
+      case "strstarts":
+        return this.stringPredicate(
+          operation.args as Expression[],
+          binding,
+          (value, argument) => value.startsWith(argument),
+          aggregates,
+        );
+      case "strends":
+        return this.stringPredicate(
+          operation.args as Expression[],
+          binding,
+          (value, argument) => value.endsWith(argument),
+          aggregates,
+        );
+      case "strbefore":
+        return this.stringSlice(
+          operation.args as Expression[],
+          binding,
+          true,
+          aggregates,
+        );
+      case "strafter":
+        return this.stringSlice(
+          operation.args as Expression[],
+          binding,
+          false,
+          aggregates,
+        );
+      case "lang":
+        return this.lang(operation.args[0] as Expression, binding, aggregates);
+      case "langmatches":
+        return this.langmatches(
+          operation.args as Expression[],
+          binding,
+          aggregates,
+        );
+      case "coalesce":
+        return this.coalesce(
+          operation.args as Expression[],
+          binding,
+          aggregates,
+        );
+      case "if":
+        return this.ifElse(operation.args as Expression[], binding, aggregates);
+      case "in":
+        return this.inList(operation.args as Expression[], binding, aggregates);
+      case "notin": {
+        const member = this.inList(
+          operation.args as Expression[],
+          binding,
+          aggregates,
+        );
+        if (member === undefined) {
+          return undefined;
+        }
+        return booleanLiteral(member.value !== "true");
+      }
+      case "sameterm":
+        return this.sameterm(
+          operation.args as Expression[],
+          binding,
+          aggregates,
+        );
+      case "BNODE":
+        return this.bnode(operation.args as Expression[], binding, aggregates);
+      case "struuid":
+        return this.struuid();
+      case "uuid":
+        return this.uuid();
+      case "rand":
+        return this.rand();
+      case "abs":
+      case "ceil":
+      case "floor":
+      case "round":
+        return this.numericRound(
+          operation.operator as "abs" | "ceil" | "floor" | "round",
+          operation.args[0] as Expression,
+          binding,
+          aggregates,
+        );
+      case "now":
+        return this.now();
+      case "year":
+      case "month":
+      case "day":
+      case "hours":
+      case "minutes":
+        return this.dateComponent(
+          operation.operator as "year" | "month" | "day" | "hours" | "minutes",
+          operation.args[0] as Expression,
+          binding,
+          aggregates,
+        );
+      case "seconds":
+        return this.seconds(operation.args[0] as Expression, binding, aggregates);
+      case "timezone":
+        return this.timezone(
+          operation.args[0] as Expression,
+          binding,
+          aggregates,
+        );
+      case "md5":
+      case "sha1":
+      case "sha256":
+      case "sha384":
+      case "sha512":
+        return this.hash(
+          operation.operator as "md5" | "sha1" | "sha256" | "sha384" |
+            "sha512",
+          operation.args[0] as Expression,
+          binding,
+          aggregates,
+        );
+      case "triple":
+        return this.triple(operation.args as Expression[], binding, aggregates);
+      case "subject":
+        return this.tripleComponent(
+          "subject",
+          operation.args[0] as Expression,
+          binding,
+          aggregates,
+        );
+      case "predicate":
+        return this.tripleComponent(
+          "predicate",
+          operation.args[0] as Expression,
+          binding,
+          aggregates,
+        );
+      case "object":
+        return this.tripleComponent(
+          "object",
+          operation.args[0] as Expression,
+          binding,
+          aggregates,
+        );
+      case "istriple":
+        return this.isTriple(operation.args[0] as Expression, binding, aggregates);
       default:
         throw new Error(
           `Unsupported SPARQL expression operator: ${operation.operator}`,
@@ -842,7 +1018,535 @@ export class ExpressionEvaluator {
     }
     return "error";
   }
+
+  /**
+   * stringTerm evaluates an expression that must yield a string-typed literal
+   * (simple, xsd:string, or language-tagged), returning the literal or
+   * undefined for any other term or an evaluation error.
+   */
+  private stringTerm(
+    expression: Expression,
+    binding: TermBinding,
+    aggregates?: (aggregate: AggregateExpression) => rdfjs.Term | undefined,
+  ): rdfjs.Literal | undefined {
+    const value = this.evaluateWith(expression, binding, aggregates);
+    if (
+      value === undefined || value.termType !== "Literal" ||
+      !this.isStringTyped(value)
+    ) {
+      return undefined;
+    }
+    return value;
+  }
+
+  /**
+   * stringPredicate implements CONTAINS, STRSTARTS, and STRENDS: two string
+   * arguments tested by the given relation, returning an xsd:boolean literal.
+   */
+  private stringPredicate(
+    args: Expression[],
+    binding: TermBinding,
+    test: (value: string, argument: string) => boolean,
+    aggregates?: (aggregate: AggregateExpression) => rdfjs.Term | undefined,
+  ): rdfjs.Literal | undefined {
+    const value = this.stringTerm(args[0], binding, aggregates);
+    const argument = this.stringTerm(args[1], binding, aggregates);
+    if (value === undefined || argument === undefined) {
+      return undefined;
+    }
+    return booleanLiteral(test(value.value, argument.value));
+  }
+
+  /**
+   * stringSlice implements STRBEFORE and STRAFTER: the portion of the first
+   * string argument before (or after) the first occurrence of the second,
+   * keeping the first argument's language tag. An absent needle yields the
+   * empty string, matching the reference engines.
+   */
+  private stringSlice(
+    args: Expression[],
+    binding: TermBinding,
+    before: boolean,
+    aggregates?: (aggregate: AggregateExpression) => rdfjs.Term | undefined,
+  ): rdfjs.Literal | undefined {
+    const value = this.stringTerm(args[0], binding, aggregates);
+    const needle = this.stringTerm(args[1], binding, aggregates);
+    if (value === undefined || needle === undefined) {
+      return undefined;
+    }
+    const index = value.value.indexOf(needle.value);
+    let result: string;
+    if (index === -1) {
+      result = "";
+    } else if (before) {
+      result = value.value.slice(0, index);
+    } else {
+      result = value.value.slice(index + needle.value.length);
+    }
+    return this.stringResult(
+      result,
+      this.isLangTagged(value) ? value.language : undefined,
+    );
+  }
+
+  /**
+   * regex implements REGEX: the pattern (with optional flags) is compiled as
+   * a JS regular expression and tested against the string. A malformed
+   * pattern or flags, or a non-string argument, is an evaluation error
+   * (unbound) — the reference engine throws on malformed patterns, which is
+   * a deviation we deliberately do not replicate.
+   */
+  private regex(
+    args: Expression[],
+    binding: TermBinding,
+    aggregates?: (aggregate: AggregateExpression) => rdfjs.Term | undefined,
+  ): rdfjs.Literal | undefined {
+    const value = this.stringTerm(args[0], binding, aggregates);
+    const pattern = this.stringTerm(args[1], binding, aggregates);
+    if (value === undefined || pattern === undefined) {
+      return undefined;
+    }
+    let flags = "";
+    if (args.length > 2) {
+      const flagsTerm = this.stringTerm(args[2], binding, aggregates);
+      if (flagsTerm === undefined) {
+        return undefined;
+      }
+      flags = flagsTerm.value;
+    }
+    let expression: RegExp;
+    try {
+      expression = new RegExp(pattern.value, flags);
+    } catch {
+      return undefined;
+    }
+    return booleanLiteral(expression.test(value.value));
+  }
+
+  /**
+   * replace implements REPLACE: every match of the pattern (with optional
+   * flags) is replaced by the replacement, which may reference capture
+   * groups ($1). The result keeps the first argument's language tag,
+   * matching the reference engines.
+   */
+  private replace(
+    args: Expression[],
+    binding: TermBinding,
+    aggregates?: (aggregate: AggregateExpression) => rdfjs.Term | undefined,
+  ): rdfjs.Literal | undefined {
+    const value = this.stringTerm(args[0], binding, aggregates);
+    const pattern = this.stringTerm(args[1], binding, aggregates);
+    const replacement = this.stringTerm(args[2], binding, aggregates);
+    if (
+      value === undefined || pattern === undefined ||
+      replacement === undefined
+    ) {
+      return undefined;
+    }
+    let flags = "";
+    if (args.length > 3) {
+      const flagsTerm = this.stringTerm(args[3], binding, aggregates);
+      if (flagsTerm === undefined) {
+        return undefined;
+      }
+      flags = flagsTerm.value;
+    }
+    let expression: RegExp;
+    try {
+      expression = new RegExp(pattern.value, `${flags}g`);
+    } catch {
+      return undefined;
+    }
+    const result = value.value.replace(expression, replacement.value);
+    return this.stringResult(
+      result,
+      this.isLangTagged(value) ? value.language : undefined,
+    );
+  }
+
+  /**
+   * lang implements LANG: the language tag of a literal, or the empty string
+   * for a literal without one. Non-literal arguments are a type error.
+   */
+  private lang(
+    expression: Expression,
+    binding: TermBinding,
+    aggregates?: (aggregate: AggregateExpression) => rdfjs.Term | undefined,
+  ): rdfjs.Literal | undefined {
+    const value = this.evaluateWith(expression, binding, aggregates);
+    if (value === undefined || value.termType !== "Literal") {
+      return undefined;
+    }
+    return literal(value.language ?? "", namedNode(XSD_STRING));
+  }
+
+  /**
+   * langmatches implements LANGMATCHES basic filtering: the range "*"
+   * matches anything; otherwise the lowercased tag equals the lowercased
+   * range or has it as a prefix followed by "-".
+   */
+  private langmatches(
+    args: Expression[],
+    binding: TermBinding,
+    aggregates?: (aggregate: AggregateExpression) => rdfjs.Term | undefined,
+  ): rdfjs.Literal | undefined {
+    const tag = this.stringTerm(args[0], binding, aggregates);
+    const range = this.stringTerm(args[1], binding, aggregates);
+    if (tag === undefined || range === undefined) {
+      return undefined;
+    }
+    const tagValue = tag.value.toLowerCase();
+    const rangeValue = range.value.toLowerCase();
+    const matches = rangeValue === "*" || tagValue === rangeValue ||
+      tagValue.startsWith(`${rangeValue}-`);
+    return booleanLiteral(matches);
+  }
+
+  /**
+   * coalesce implements COALESCE: the first argument that evaluates without
+   * error; unbound values and evaluation errors are skipped.
+   */
+  private coalesce(
+    args: Expression[],
+    binding: TermBinding,
+    aggregates?: (aggregate: AggregateExpression) => rdfjs.Term | undefined,
+  ): rdfjs.Term | undefined {
+    for (const arg of args) {
+      const value = this.evaluateWith(arg, binding, aggregates);
+      if (value !== undefined) {
+        return value;
+      }
+    }
+    return undefined;
+  }
+
+  /**
+   * ifElse implements IF: the condition's effective boolean value selects
+   * the true or false branch; an error condition propagates.
+   */
+  private ifElse(
+    args: Expression[],
+    binding: TermBinding,
+    aggregates?: (aggregate: AggregateExpression) => rdfjs.Term | undefined,
+  ): rdfjs.Term | undefined {
+    const condition = this.ebv(this.evaluateWith(args[0], binding, aggregates));
+    if (condition === "error") {
+      return undefined;
+    }
+    return this.evaluateWith(args[condition ? 1 : 2], binding, aggregates);
+  }
+
+  /**
+   * inList implements IN: true when the value equals (by `=` semantics) any
+   * list element, false otherwise. An unbound value, or an erroring element
+   * before any match, propagates as an error (SPARQL 1.1 §17.4.1.11).
+   */
+  private inList(
+    args: Expression[],
+    binding: TermBinding,
+    aggregates?: (aggregate: AggregateExpression) => rdfjs.Term | undefined,
+  ): rdfjs.Literal | undefined {
+    const value = this.evaluateWith(args[0], binding, aggregates);
+    if (value === undefined) {
+      return undefined;
+    }
+    const list = args[1] as unknown as Expression[];
+    let sawError = false;
+    for (const element of list) {
+      const candidate = this.evaluateWith(element, binding, aggregates);
+      if (candidate === undefined) {
+        sawError = true;
+        continue;
+      }
+      if (this.valuesEqual(value, candidate)) {
+        return booleanLiteral(true);
+      }
+    }
+    if (sawError) {
+      return undefined;
+    }
+    return booleanLiteral(false);
+  }
+
+  /**
+   * sameterm implements SAMETERM: term identity (type, value, and literal
+   * language/datatype), with RDF-star triple terms compared structurally.
+   */
+  private sameterm(
+    args: Expression[],
+    binding: TermBinding,
+    aggregates?: (aggregate: AggregateExpression) => rdfjs.Term | undefined,
+  ): rdfjs.Literal | undefined {
+    const a = this.evaluateWith(args[0], binding, aggregates);
+    const b = this.evaluateWith(args[1], binding, aggregates);
+    if (a === undefined || b === undefined) {
+      return undefined;
+    }
+    return booleanLiteral(sameRdfTerm(a, b));
+  }
+
+  /**
+   * bnode implements BNODE: no argument mints a fresh blank node; a string
+   * argument creates a blank node labeled from it (the same label yields
+   * the same node within one query). Non-string arguments are type errors.
+   */
+  private bnode(
+    args: Expression[],
+    binding: TermBinding,
+    aggregates?: (aggregate: AggregateExpression) => rdfjs.Term | undefined,
+  ): rdfjs.BlankNode | undefined {
+    if (args.length === 0) {
+      return blankNode(`b${++this.bnodeCounter}`);
+    }
+    const value = this.stringTerm(args[0], binding, aggregates);
+    if (value === undefined) {
+      return undefined;
+    }
+    return blankNode(value.value);
+  }
+
+  /**
+   * struuid implements STRUUID: a fresh UUID as an xsd:string literal.
+   */
+  private struuid(): rdfjs.Literal {
+    return literal(crypto.randomUUID(), namedNode(XSD_STRING));
+  }
+
+  /**
+   * uuid implements UUID: a fresh urn:uuid: IRI.
+   */
+  private uuid(): rdfjs.NamedNode {
+    return namedNode(`urn:uuid:${crypto.randomUUID()}`);
+  }
+
+  /**
+   * rand implements RAND: a random double in [0, 1) in canonical form.
+   */
+  private rand(): rdfjs.Literal {
+    return literal(canonicalDouble(Math.random()), namedNode(XSD_DOUBLE));
+  }
+
+  /**
+   * now implements NOW: the current instant as an xsd:dateTime literal.
+   */
+  private now(): rdfjs.Literal {
+    return literal(new Date().toISOString(), namedNode(XSD_DATETIME));
+  }
+
+  /**
+   * numericRound implements ABS, CEIL, FLOOR, and ROUND over a numeric
+   * literal, preserving the input datatype: integers stay exact via BigInt,
+   * decimals and floats use their Number form, and doubles canonicalize to
+   * the XPath exponent form. Non-numeric inputs are type errors.
+   */
+  private numericRound(
+    operation: "abs" | "ceil" | "floor" | "round",
+    expression: Expression,
+    binding: TermBinding,
+    aggregates?: (aggregate: AggregateExpression) => rdfjs.Term | undefined,
+  ): rdfjs.Literal | undefined {
+    const value = this.evaluateWith(expression, binding, aggregates);
+    if (value === undefined || value.termType !== "Literal") {
+      return undefined;
+    }
+    const datatype = value.datatype?.value;
+    const numeric = numericValue(value);
+    if (numeric === null) {
+      return undefined;
+    }
+    if (datatype === XSD_INTEGER && typeof numeric === "bigint") {
+      let result: bigint = numeric;
+      if (operation === "abs") {
+        result = result < 0n ? -result : result;
+      }
+      return literal(result.toString(), namedNode(XSD_INTEGER));
+    }
+    const numberValue = Number(numeric);
+    let result: number;
+    if (operation === "abs") {
+      result = Math.abs(numberValue);
+    } else if (operation === "ceil") {
+      result = Math.ceil(numberValue);
+    } else if (operation === "floor") {
+      result = Math.floor(numberValue);
+    } else {
+      result = Math.round(numberValue);
+    }
+    if (datatype === XSD_DOUBLE) {
+      return literal(canonicalDouble(result), namedNode(XSD_DOUBLE));
+    }
+    return literal(
+      formatNumber(result, datatype ?? XSD_DECIMAL),
+      namedNode(datatype ?? XSD_DECIMAL),
+    );
+  }
+
+  /**
+   * dateComponent implements YEAR, MONTH, DAY, HOURS, and MINUTES over an
+   * xsd:dateTime literal, returning the component as an integer literal.
+   */
+  private dateComponent(
+    component: "year" | "month" | "day" | "hours" | "minutes",
+    expression: Expression,
+    binding: TermBinding,
+    aggregates?: (aggregate: AggregateExpression) => rdfjs.Term | undefined,
+  ): rdfjs.Literal | undefined {
+    const value = this.evaluateWith(expression, binding, aggregates);
+    if (
+      value === undefined || value.termType !== "Literal" ||
+      value.datatype?.value !== XSD_DATETIME
+    ) {
+      return undefined;
+    }
+    const parts = parseDateTime(value.value);
+    if (parts === null) {
+      return undefined;
+    }
+    return literal(String(parts[component]), namedNode(XSD_INTEGER));
+  }
+
+  /**
+   * seconds implements SECONDS: the seconds (including any fraction) of an
+   * xsd:dateTime literal as a decimal literal.
+   */
+  private seconds(
+    expression: Expression,
+    binding: TermBinding,
+    aggregates?: (aggregate: AggregateExpression) => rdfjs.Term | undefined,
+  ): rdfjs.Literal | undefined {
+    const value = this.evaluateWith(expression, binding, aggregates);
+    if (
+      value === undefined || value.termType !== "Literal" ||
+      value.datatype?.value !== XSD_DATETIME
+    ) {
+      return undefined;
+    }
+    const parts = parseDateTime(value.value);
+    if (parts === null) {
+      return undefined;
+    }
+    return literal(formatNumber(parts.seconds, XSD_DECIMAL), namedNode(XSD_DECIMAL));
+  }
+
+  /**
+   * timezone implements TIMEZONE: the signed UTC offset of an xsd:dateTime
+   * literal as an xsd:dayTimeDuration literal; a literal without a timezone
+   * is an evaluation error.
+   */
+  private timezone(
+    expression: Expression,
+    binding: TermBinding,
+    aggregates?: (aggregate: AggregateExpression) => rdfjs.Term | undefined,
+  ): rdfjs.Literal | undefined {
+    const value = this.evaluateWith(expression, binding, aggregates);
+    if (
+      value === undefined || value.termType !== "Literal" ||
+      value.datatype?.value !== XSD_DATETIME
+    ) {
+      return undefined;
+    }
+    const parts = parseDateTime(value.value);
+    if (parts === null || !parts.hasTimezone) {
+      return undefined;
+    }
+    return literal(
+      timezoneDurationLexical(parts.timezoneMinutes),
+      namedNode(XSD_DAYTIME_DURATION),
+    );
+  }
+
+  /**
+   * hash implements MD5 and the SHA family: the digest of the string
+   * argument as lowercase hexadecimal, typed xsd:string.
+   */
+  private hash(
+    algorithm: "md5" | "sha1" | "sha256" | "sha384" | "sha512",
+    expression: Expression,
+    binding: TermBinding,
+    aggregates?: (aggregate: AggregateExpression) => rdfjs.Term | undefined,
+  ): rdfjs.Literal | undefined {
+    const value = this.stringTerm(expression, binding, aggregates);
+    if (value === undefined) {
+      return undefined;
+    }
+    let digest: string;
+    switch (algorithm) {
+      case "md5":
+        digest = md5Hex(value.value);
+        break;
+      case "sha1":
+        digest = sha1Hex(value.value);
+        break;
+      case "sha256":
+        digest = sha256Hex(value.value);
+        break;
+      case "sha384":
+        digest = sha384Hex(value.value);
+        break;
+      case "sha512":
+        digest = sha512Hex(value.value);
+        break;
+    }
+    return literal(digest, namedNode(XSD_STRING));
+  }
+
+  /**
+   * triple implements TRIPLE: an RDF-star triple term built from its three
+   * arguments; any argument error propagates.
+   */
+  private triple(
+    args: Expression[],
+    binding: TermBinding,
+    aggregates?: (aggregate: AggregateExpression) => rdfjs.Term | undefined,
+  ): rdfjs.Quad | undefined {
+    const subject = this.evaluateWith(args[0], binding, aggregates);
+    const predicate = this.evaluateWith(args[1], binding, aggregates);
+    const object = this.evaluateWith(args[2], binding, aggregates);
+    if (subject === undefined || predicate === undefined || object === undefined) {
+      return undefined;
+    }
+    return quad(
+      subject as rdfjs.Quad_Subject,
+      predicate as rdfjs.Quad_Predicate,
+      object as rdfjs.Quad_Object,
+    );
+  }
+
+  /**
+   * tripleComponent implements SUBJECT, PREDICATE, and OBJECT: the
+   * corresponding component of an RDF-star triple term; any other term is a
+   * type error.
+   */
+  private tripleComponent(
+    component: "subject" | "predicate" | "object",
+    expression: Expression,
+    binding: TermBinding,
+    aggregates?: (aggregate: AggregateExpression) => rdfjs.Term | undefined,
+  ): rdfjs.Term | undefined {
+    const value = this.evaluateWith(expression, binding, aggregates);
+    if (value === undefined || value.termType !== "Quad") {
+      return undefined;
+    }
+    return value[component];
+  }
+
+  /**
+   * isTriple implements isTRIPLE: true exactly for RDF-star triple terms;
+   * an evaluation error propagates.
+   */
+  private isTriple(
+    expression: Expression,
+    binding: TermBinding,
+    aggregates?: (aggregate: AggregateExpression) => rdfjs.Term | undefined,
+  ): rdfjs.Literal | undefined {
+    const value = this.evaluateWith(expression, binding, aggregates);
+    if (value === undefined) {
+      return undefined;
+    }
+    return booleanLiteral(value.termType === "Quad");
+  }
 }
+
 
 /**
  * booleanLiteral builds an xsd:boolean literal.

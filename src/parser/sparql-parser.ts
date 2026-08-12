@@ -12,6 +12,11 @@ export class SparqlParser {
   public constructor() {
     this.parser = new SparqlJsParser({
       prefixes: { xsd: "http://www.w3.org/2001/XMLSchema#" },
+      // RDF-star syntax (quoted triples, TRIPLE()/SUBJECT()/...) is enabled
+      // so the RDF-star expression functions parse; quoted-triple *patterns*
+      // still raise a clear error at evaluation (sparqlTermToRdfTerm rejects
+      // Quad terms).
+      sparqlStar: true,
     });
   }
 

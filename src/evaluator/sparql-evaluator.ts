@@ -19,7 +19,7 @@ import type {
 import { aggregateValue, groupSolutions } from "@/evaluator/aggregate.ts";
 import { BgpEvaluator } from "@/evaluator/bgp-evaluator.ts";
 import type { TermBinding } from "@/evaluator/bgp-evaluator.ts";
-import { simplePredicate } from "@/quad-store.ts";
+import { buildDatasetStore, simplePredicate } from "@/quad-store.ts";
 import { ExpressionEvaluator } from "@/evaluator/expression-evaluator.ts";
 import {
   canonicalizeSparqlValue,
@@ -59,13 +59,40 @@ export class SparqlEvaluator {
   /** expressionEvaluator evaluates ORDER BY expressions against solutions. */
   private readonly expressionEvaluator = new ExpressionEvaluator();
 
+  private readonly store: rdfjs.Source<rdfjs.Quad>;
+
   public constructor(
     store: rdfjs.Source<rdfjs.Quad>,
     options: SparqlEvaluatorOptions = {},
   ) {
+    this.store = store;
     this.bgpEvaluator = new BgpEvaluator(store, {
       reorderPatterns: options.reorderPatterns,
     });
+  }
+
+  /**
+   * bgpEvaluatorFor returns the evaluator for a query's WHERE clause: the
+   * shared one when the query has no FROM / FROM NAMED clauses, otherwise a
+   * fresh evaluator over the materialized active dataset (SPARQL 1.1 §13.1:
+   * FROM graphs merge into the default graph, FROM NAMED graphs become the
+   * dataset's named graphs).
+   */
+  private async bgpEvaluatorFor(
+    from: { default: SparqlTerm[]; named: SparqlTerm[] } | undefined,
+  ): Promise<BgpEvaluator> {
+    if (
+      from === undefined ||
+      (from.default.length === 0 && from.named.length === 0)
+    ) {
+      return this.bgpEvaluator;
+    }
+    const dataset = await buildDatasetStore(
+      this.store,
+      from.default.map((term) => sparqlTermToRdfTerm(term)),
+      from.named.map((term) => sparqlTermToRdfTerm(term)),
+    );
+    return this.bgpEvaluator.forStore(dataset);
   }
 
   /**
@@ -95,7 +122,8 @@ export class SparqlEvaluator {
   private async evaluateSelect(
     query: SelectQuery,
   ): Promise<SparqlSelectResults> {
-    const rawBindings = await this.bgpEvaluator.evaluateBgp(query.where || []);
+    const rawBindings = await (await this.bgpEvaluatorFor(query.from))
+      .evaluateBgp(query.where || []);
     const vars: string[] = [];
     const projections = new Map<string, Expression>();
     let wildcard = false;
@@ -282,7 +310,8 @@ export class SparqlEvaluator {
   }
 
   private async evaluateAsk(query: AskQuery): Promise<SparqlAskResults> {
-    const bindings = await this.bgpEvaluator.evaluateBgp(query.where || []);
+    const bindings = await (await this.bgpEvaluatorFor(query.from))
+      .evaluateBgp(query.where || []);
     return {
       head: { link: null },
       boolean: bindings.length > 0,
@@ -292,7 +321,8 @@ export class SparqlEvaluator {
   private async evaluateConstruct(
     query: ConstructQuery,
   ): Promise<SparqlConstructResults> {
-    const bindings = await this.bgpEvaluator.evaluateBgp(query.where || []);
+    const bindings = await (await this.bgpEvaluatorFor(query.from))
+      .evaluateBgp(query.where || []);
     const quads: rdfjs.Quad[] = [];
 
     if (!query.template) {
