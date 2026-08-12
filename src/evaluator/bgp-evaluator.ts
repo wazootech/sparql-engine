@@ -1,32 +1,11 @@
 import type * as rdfjs from "@rdfjs/types";
-import type { Expression, Pattern, Term as SparqlTerm, Triple } from "sparqljs";
+import type { Expression, Pattern, Triple } from "sparqljs";
 import { ExpressionEvaluator } from "@/evaluator/expression-evaluator.ts";
-import {
-  buildQuadIndex,
-  matchQuads,
-  probeQuadIndex,
-  simplePredicate,
-} from "@/quad-store.ts";
-import { sameRdfTerm, sparqlTermToRdfTerm, termKey } from "@/term/mod.ts";
+import { joinTriplePattern, scanEntry } from "@/evaluator/join.ts";
+import type { ScanEntry, TermBinding } from "@/evaluator/join.ts";
+import { termKey } from "@/term/mod.ts";
 
-/**
- * ScanEntry is a triple pattern with its resolved terms and pre-fetched
- * candidate quads, so join ordering can use true store cardinalities without
- * issuing extra scans.
- */
-type ScanEntry = {
-  subject: SparqlTerm;
-  predicate: SparqlTerm;
-  object: SparqlTerm;
-  candidates: rdfjs.Quad[];
-};
-
-/**
- * TermBinding maps variable names to the RDF/JS terms they resolve to during
- * evaluation. Bindings stay in term space internally; they are converted to
- * the SparqlValue wire format exactly once, at the response boundary.
- */
-export type TermBinding = Record<string, rdfjs.Term>;
+export type { TermBinding } from "@/evaluator/join.ts";
 
 /**
  * BgpEvaluatorOptions configures BgpEvaluator.
@@ -48,6 +27,10 @@ export interface BgpEvaluatorOptions {
 
 /**
  * BgpEvaluator evaluates Basic Graph Patterns (BGPs) against an RDF/JS Store.
+ * It is the pattern-sequence orchestrator: it flattens a group into triple
+ * patterns and FILTER expressions, orders the patterns by estimated join
+ * cost, delegates scanning and joining to the join module, and applies
+ * filters to the resulting solutions.
  */
 export class BgpEvaluator {
   private readonly reorderPatterns: boolean;
@@ -86,9 +69,9 @@ export class BgpEvaluator {
     } else {
       bindings = [{}];
       for (const triplePattern of triplePatterns) {
-        bindings = this.joinTriplePattern(
+        bindings = joinTriplePattern(
           bindings,
-          await this.scanEntry(triplePattern),
+          await scanEntry(this.store, triplePattern),
         );
       }
     }
@@ -109,7 +92,7 @@ export class BgpEvaluator {
     triplePatterns: Triple[],
   ): Promise<TermBinding[]> {
     const remaining = await Promise.all(
-      triplePatterns.map((pattern) => this.scanEntry(pattern)),
+      triplePatterns.map((pattern) => scanEntry(this.store, pattern)),
     );
 
     let bindings: TermBinding[] = [{}];
@@ -124,26 +107,9 @@ export class BgpEvaluator {
         }
       }
       const [chosen] = remaining.splice(bestIndex, 1);
-      bindings = this.joinTriplePattern(bindings, chosen);
+      bindings = joinTriplePattern(bindings, chosen);
     }
     return bindings;
-  }
-
-  /**
-   * scanEntry resolves a triple pattern and pre-fetches the candidate quads
-   * matching its constant positions.
-   */
-  private async scanEntry(pattern: Triple): Promise<ScanEntry> {
-    const subject = pattern.subject;
-    const predicate = simplePredicate(pattern.predicate);
-    const object = pattern.object;
-    const candidates = await matchQuads(
-      this.store,
-      this.patternConstant(subject),
-      this.patternConstant(predicate),
-      this.patternConstant(object),
-    );
-    return { subject, predicate, object, candidates };
   }
 
   /**
@@ -190,126 +156,5 @@ export class BgpEvaluator {
         mostSelectiveDistinct,
     );
     return bindings.length * averageBucket;
-  }
-
-  /**
-   * joinTriplePattern joins the current bindings against a triple pattern with
-   * a hash join: candidate quads come from the pattern's single indexed store
-   * scan (performed once by the caller), and bindings probe a positional
-   * index instead of issuing a stream round trip per binding.
-   */
-  private joinTriplePattern(
-    currentBindings: TermBinding[],
-    entry: ScanEntry,
-  ): TermBinding[] {
-    const subject = entry.subject;
-    const predicate = entry.predicate;
-    const object = entry.object;
-
-    const subjectIsVariable = subject.termType === "Variable";
-    const predicateIsVariable = predicate.termType === "Variable";
-    const objectIsVariable = object.termType === "Variable";
-
-    const candidateQuads = entry.candidates;
-
-    const needsIndex = currentBindings.some((binding) =>
-      (subjectIsVariable && binding[subject.value] !== undefined) ||
-      (predicateIsVariable && binding[predicate.value] !== undefined) ||
-      (objectIsVariable && binding[object.value] !== undefined)
-    );
-    const quadIndex = needsIndex ? buildQuadIndex(candidateQuads) : null;
-
-    const nextBindings: TermBinding[] = [];
-
-    for (const binding of currentBindings) {
-      const resolvedSubject = this.resolveTerm(subject, binding);
-      const resolvedPredicate = this.resolveTerm(predicate, binding);
-      const resolvedObject = this.resolveTerm(object, binding);
-
-      const matchingQuads = quadIndex === null
-        ? candidateQuads
-        : probeQuadIndex(
-          quadIndex,
-          candidateQuads,
-          resolvedSubject,
-          resolvedPredicate,
-          resolvedObject,
-        );
-
-      for (const matchQuad of matchingQuads) {
-        const newBinding = { ...binding };
-        let valid = true;
-
-        if (subjectIsVariable) {
-          const varName = subject.value;
-          const val = matchQuad.subject;
-          if (
-            newBinding[varName] &&
-            !sameRdfTerm(newBinding[varName], val)
-          ) {
-            valid = false;
-          } else {
-            newBinding[varName] = val;
-          }
-        }
-
-        if (valid && predicateIsVariable) {
-          const varName = predicate.value;
-          const val = matchQuad.predicate;
-          if (
-            newBinding[varName] &&
-            !sameRdfTerm(newBinding[varName], val)
-          ) {
-            valid = false;
-          } else {
-            newBinding[varName] = val;
-          }
-        }
-
-        if (valid && objectIsVariable) {
-          const varName = object.value;
-          const val = matchQuad.object;
-          if (
-            newBinding[varName] &&
-            !sameRdfTerm(newBinding[varName], val)
-          ) {
-            valid = false;
-          } else {
-            newBinding[varName] = val;
-          }
-        }
-
-        if (valid) {
-          nextBindings.push(newBinding);
-        }
-      }
-    }
-
-    return nextBindings;
-  }
-
-  /**
-   * patternConstant returns the RDF/JS term for a constant pattern position, or
-   * null when the position is a variable that must not constrain the scan.
-   */
-  private patternConstant(term: SparqlTerm): rdfjs.Term | null {
-    if (term.termType === "Variable") {
-      return null;
-    }
-    return sparqlTermToRdfTerm(term);
-  }
-
-  private resolveTerm(
-    term: SparqlTerm,
-    binding: TermBinding,
-  ): rdfjs.Term | null {
-    if (term.termType === "Variable") {
-      const bound = binding[term.value];
-      if (bound) {
-        return bound;
-      }
-      return null;
-    }
-    return sparqlTermToRdfTerm(term);
   }
 }
