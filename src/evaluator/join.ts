@@ -28,6 +28,91 @@ export type ScanEntry = {
 };
 
 /**
+ * BindingFilter decides whether an extended binding survives an OPTIONAL
+ * join; it is supplied by the caller (the group evaluator) so the join stays
+ * a pure binding-set algebra.
+ */
+export type BindingFilter = (binding: TermBinding) => boolean;
+
+/**
+ * bindingsCompatible reports whether two solution bindings can be merged:
+ * every variable bound in both must resolve to the same RDF term (compared
+ * structurally, so RDF-star triple terms match by subject/predicate/object).
+ */
+export function bindingsCompatible(
+  a: TermBinding,
+  b: TermBinding,
+): boolean {
+  for (const key of Object.keys(a)) {
+    const bValue = b[key];
+    if (bValue !== undefined && !sameRdfTerm(a[key], bValue)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * leftJoin implements the OPTIONAL algebra: every left binding is extended
+ * with each compatible right binding whose merged binding passes all
+ * filters; when nothing matches, the left binding survives unextended. The
+ * filters are the OPTIONAL group's own FILTER expressions, evaluated against
+ * the merged binding so they can reference outer variables.
+ */
+export function leftJoin(
+  left: TermBinding[],
+  right: TermBinding[],
+  filters: BindingFilter[] = [],
+): TermBinding[] {
+  const result: TermBinding[] = [];
+  for (const l of left) {
+    let matched = false;
+    for (const r of right) {
+      if (!bindingsCompatible(l, r)) {
+        continue;
+      }
+      const merged = { ...l, ...r };
+      if (filters.every((filter) => filter(merged))) {
+        result.push(merged);
+        matched = true;
+      }
+    }
+    if (!matched) {
+      result.push(l);
+    }
+  }
+  return result;
+}
+
+/**
+ * minus implements the MINUS algebra: a left binding is eliminated exactly
+ * when some right binding shares at least one variable with it and is
+ * compatible on all of them. Right bindings sharing no variables with a
+ * left binding never eliminate it, per SPARQL 1.1 §18.2.2.9.
+ */
+export function minus(
+  left: TermBinding[],
+  right: TermBinding[],
+): TermBinding[] {
+  return left.filter((l) =>
+    !right.some((r) => sharesVariable(l, r) && bindingsCompatible(l, r))
+  );
+}
+
+/**
+ * sharesVariable reports whether two bindings both bind at least one
+ * variable in common.
+ */
+function sharesVariable(a: TermBinding, b: TermBinding): boolean {
+  for (const key of Object.keys(a)) {
+    if (b[key] !== undefined) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
  * scanEntry resolves a triple pattern and pre-fetches the candidate quads
  * matching its constant positions.
  */
@@ -51,9 +136,6 @@ export function scanEntry(
  * a hash join: candidate quads come from the pattern's single indexed store
  * scan (performed once by the caller), and bindings probe a positional index
  * instead of issuing a stream round trip per binding.
- *
- * This is the inner-join variant. OPTIONAL (left join) and MINUS (anti join)
- * will land here as sibling functions on the same index.
  */
 export function joinTriplePattern(
   currentBindings: TermBinding[],

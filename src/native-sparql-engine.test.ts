@@ -476,6 +476,207 @@ Deno.test(
   },
 );
 
+Deno.test("NativeSparqlEngine - OPTIONAL extends matches and keeps unmatched unbound", async () => {
+  const store = new Store();
+  const ex = (s: string) => namedNode(`http://example.org/${s}`);
+  const foaf = (s: string) => namedNode(`http://xmlns.com/foaf/0.1/${s}`);
+  const xsdInteger = namedNode("http://www.w3.org/2001/XMLSchema#integer");
+  store.addQuad(quad(ex("alice"), foaf("name"), literal("Alice")));
+  store.addQuad(quad(ex("alice"), foaf("age"), literal("28", xsdInteger)));
+  store.addQuad(quad(ex("bob"), foaf("name"), literal("Bob")));
+  store.addQuad(quad(ex("carol"), foaf("name"), literal("Carol")));
+  store.addQuad(quad(ex("carol"), foaf("age"), literal("30", xsdInteger)));
+
+  const engine = new NativeSparqlEngine({ store });
+  const result = await engine.execute({
+    query:
+      "SELECT ?p ?o WHERE { ?p <http://xmlns.com/foaf/0.1/name> ?n OPTIONAL { ?p <http://xmlns.com/foaf/0.1/age> ?o } }",
+  });
+  assertEquals(result.kind, "select");
+  if (result.kind === "select") {
+    const byPerson = new Map(
+      result.data.results.bindings.map((b) => [b.p.value, b.o?.value]),
+    );
+    assertEquals(byPerson.get("http://example.org/alice"), "28");
+    assertEquals(byPerson.get("http://example.org/carol"), "30");
+    // bob has no age: the solution survives with ?o unbound
+    assertEquals(byPerson.get("http://example.org/bob"), undefined);
+    assertEquals(byPerson.size, 3);
+  }
+});
+
+Deno.test("NativeSparqlEngine - OPTIONAL filter drops a join and keeps the solution unextended", async () => {
+  const store = new Store();
+  const ex = (s: string) => namedNode(`http://example.org/${s}`);
+  const foaf = (s: string) => namedNode(`http://xmlns.com/foaf/0.1/${s}`);
+  const xsdInteger = namedNode("http://www.w3.org/2001/XMLSchema#integer");
+  store.addQuad(quad(ex("alice"), foaf("name"), literal("Alice")));
+  store.addQuad(quad(ex("alice"), foaf("age"), literal("28", xsdInteger)));
+  store.addQuad(quad(ex("bob"), foaf("name"), literal("Bob")));
+  store.addQuad(quad(ex("carol"), foaf("name"), literal("Carol")));
+  store.addQuad(quad(ex("carol"), foaf("age"), literal("30", xsdInteger)));
+
+  const engine = new NativeSparqlEngine({ store });
+  const result = await engine.execute({
+    query:
+      "SELECT ?p ?o WHERE { ?p <http://xmlns.com/foaf/0.1/name> ?n OPTIONAL { ?p <http://xmlns.com/foaf/0.1/age> ?o FILTER(?o > 28) } }",
+  });
+  assertEquals(result.kind, "select");
+  if (result.kind === "select") {
+    const byPerson = new Map(
+      result.data.results.bindings.map((b) => [b.p.value, b.o?.value]),
+    );
+    // alice's join (28) fails the filter, so she is kept without ?o
+    assertEquals(byPerson.get("http://example.org/alice"), undefined);
+    assertEquals(byPerson.get("http://example.org/carol"), "30");
+    assertEquals(byPerson.get("http://example.org/bob"), undefined);
+    assertEquals(byPerson.size, 3);
+  }
+});
+
+Deno.test("NativeSparqlEngine - OPTIONAL filter can reference an outer variable", async () => {
+  const store = new Store();
+  const ex = (s: string) => namedNode(`http://example.org/${s}`);
+  const foaf = (s: string) => namedNode(`http://xmlns.com/foaf/0.1/${s}`);
+  const xsdInteger = namedNode("http://www.w3.org/2001/XMLSchema#integer");
+  store.addQuad(quad(ex("alice"), foaf("name"), literal("Alice")));
+  store.addQuad(quad(ex("alice"), foaf("age"), literal("28", xsdInteger)));
+  store.addQuad(quad(ex("bob"), foaf("name"), literal("Bob")));
+  store.addQuad(quad(ex("carol"), foaf("name"), literal("Carol")));
+  store.addQuad(quad(ex("carol"), foaf("age"), literal("30", xsdInteger)));
+
+  const engine = new NativeSparqlEngine({ store });
+  const result = await engine.execute({
+    query:
+      "SELECT ?p ?o WHERE { ?p <http://xmlns.com/foaf/0.1/name> ?n OPTIONAL { ?p <http://xmlns.com/foaf/0.1/age> ?o FILTER(?p = <http://example.org/alice>) } }",
+  });
+  assertEquals(result.kind, "select");
+  if (result.kind === "select") {
+    const byPerson = new Map(
+      result.data.results.bindings.map((b) => [b.p.value, b.o?.value]),
+    );
+    assertEquals(byPerson.get("http://example.org/alice"), "28");
+    assertEquals(byPerson.get("http://example.org/carol"), undefined);
+    assertEquals(byPerson.get("http://example.org/bob"), undefined);
+    assertEquals(byPerson.size, 3);
+  }
+});
+
+Deno.test("NativeSparqlEngine - OPTIONAL nests inside OPTIONAL", async () => {
+  const store = new Store();
+  const ex = (s: string) => namedNode(`http://example.org/${s}`);
+  const foaf = (s: string) => namedNode(`http://xmlns.com/foaf/0.1/${s}`);
+  store.addQuad(quad(ex("alice"), foaf("name"), literal("Alice")));
+  store.addQuad(quad(ex("alice"), foaf("knows"), ex("bob")));
+  store.addQuad(quad(ex("bob"), foaf("name"), literal("Bob")));
+
+  const engine = new NativeSparqlEngine({ store });
+  const result = await engine.execute({
+    query:
+      "SELECT ?p ?q WHERE { ?p <http://xmlns.com/foaf/0.1/name> ?n OPTIONAL { ?p <http://xmlns.com/foaf/0.1/knows> ?q OPTIONAL { ?q <http://xmlns.com/foaf/0.1/name> ?qn } } }",
+  });
+  assertEquals(result.kind, "select");
+  if (result.kind === "select") {
+    const byPerson = new Map(
+      result.data.results.bindings.map((b) => [b.p.value, b.q?.value]),
+    );
+    // alice knows bob (and bob has a name, but ?qn is not projected)
+    assertEquals(
+      byPerson.get("http://example.org/alice"),
+      "http://example.org/bob",
+    );
+    // bob knows nobody: ?q unbound
+    assertEquals(byPerson.get("http://example.org/bob"), undefined);
+  }
+});
+
+Deno.test("NativeSparqlEngine - MINUS eliminates solutions sharing a bound variable", async () => {
+  const store = new Store();
+  const ex = (s: string) => namedNode(`http://example.org/${s}`);
+  const foaf = (s: string) => namedNode(`http://xmlns.com/foaf/0.1/${s}`);
+  const xsdInteger = namedNode("http://www.w3.org/2001/XMLSchema#integer");
+  store.addQuad(quad(ex("alice"), foaf("name"), literal("Alice")));
+  store.addQuad(quad(ex("alice"), foaf("age"), literal("28", xsdInteger)));
+  store.addQuad(quad(ex("bob"), foaf("name"), literal("Bob")));
+  store.addQuad(quad(ex("carol"), foaf("name"), literal("Carol")));
+  store.addQuad(quad(ex("carol"), foaf("age"), literal("30", xsdInteger)));
+
+  const engine = new NativeSparqlEngine({ store });
+  const result = await engine.execute({
+    query:
+      "SELECT ?p WHERE { ?p <http://xmlns.com/foaf/0.1/name> ?n MINUS { ?p <http://xmlns.com/foaf/0.1/age> ?a } }",
+  });
+  assertEquals(result.kind, "select");
+  if (result.kind === "select") {
+    assertEquals(
+      result.data.results.bindings.map((b) => b.p.value),
+      ["http://example.org/bob"],
+    );
+  }
+});
+
+Deno.test("NativeSparqlEngine - MINUS with no shared variables keeps all solutions", async () => {
+  const store = new Store();
+  const ex = (s: string) => namedNode(`http://example.org/${s}`);
+  const foaf = (s: string) => namedNode(`http://xmlns.com/foaf/0.1/${s}`);
+  const xsdInteger = namedNode("http://www.w3.org/2001/XMLSchema#integer");
+  store.addQuad(quad(ex("alice"), foaf("name"), literal("Alice")));
+  store.addQuad(quad(ex("alice"), foaf("age"), literal("28", xsdInteger)));
+  store.addQuad(quad(ex("bob"), foaf("name"), literal("Bob")));
+  store.addQuad(quad(ex("carol"), foaf("name"), literal("Carol")));
+  store.addQuad(quad(ex("carol"), foaf("age"), literal("30", xsdInteger)));
+
+  const engine = new NativeSparqlEngine({ store });
+  const result = await engine.execute({
+    query:
+      "SELECT ?p WHERE { ?p <http://xmlns.com/foaf/0.1/name> ?n MINUS { ?x <http://xmlns.com/foaf/0.1/age> ?y } }",
+  });
+  assertEquals(result.kind, "select");
+  if (result.kind === "select") {
+    assertEquals(result.data.results.bindings.length, 3);
+  }
+});
+
+Deno.test("NativeSparqlEngine - MINUS applies its own FILTER inside the group", async () => {
+  const store = new Store();
+  const ex = (s: string) => namedNode(`http://example.org/${s}`);
+  const foaf = (s: string) => namedNode(`http://xmlns.com/foaf/0.1/${s}`);
+  const xsdInteger = namedNode("http://www.w3.org/2001/XMLSchema#integer");
+  store.addQuad(quad(ex("alice"), foaf("name"), literal("Alice")));
+  store.addQuad(quad(ex("alice"), foaf("age"), literal("28", xsdInteger)));
+  store.addQuad(quad(ex("bob"), foaf("name"), literal("Bob")));
+  store.addQuad(quad(ex("carol"), foaf("name"), literal("Carol")));
+  store.addQuad(quad(ex("carol"), foaf("age"), literal("30", xsdInteger)));
+
+  const engine = new NativeSparqlEngine({ store });
+  const result = await engine.execute({
+    query:
+      "SELECT ?p WHERE { ?p <http://xmlns.com/foaf/0.1/name> ?n MINUS { ?p <http://xmlns.com/foaf/0.1/age> ?a FILTER(?a > 29) } }",
+  });
+  assertEquals(result.kind, "select");
+  if (result.kind === "select") {
+    // carol (30) passes the filter and is eliminated; alice (28) is not in the minus set
+    assertEquals(
+      result.data.results.bindings.map((b) => b.p.value).sort(),
+      ["http://example.org/alice", "http://example.org/bob"],
+    );
+  }
+});
+
+Deno.test("NativeSparqlEngine - unsupported UNION pattern is rejected", async () => {
+  const store = new Store();
+  const engine = new NativeSparqlEngine({ store });
+  await assertRejects(
+    () =>
+      engine.execute({
+        query:
+          "SELECT ?s WHERE { { ?s <http://xmlns.com/foaf/0.1/name> ?n } UNION { ?s <http://xmlns.com/foaf/0.1/age> ?a } }",
+      }),
+    Error,
+    "Unsupported graph pattern type: union",
+  );
+});
+
 Deno.test("NativeSparqlEngine - ASK query evaluation", async () => {
   const store = new Store();
   store.addQuad(

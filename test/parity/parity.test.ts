@@ -233,6 +233,56 @@ const selectCases: ParityTestCase[] = [
     quads: basicKnowledgeGraphQuads,
     orderSensitive: true,
   },
+  {
+    name: "SELECT - OPTIONAL extends matches and keeps unmatched unbound",
+    kind: "select",
+    query: `SELECT ?person ?age WHERE { ?person ${foafName} ?name ` +
+      `OPTIONAL { ?person ${foafAge} ?age } }`,
+    quads: basicKnowledgeGraphQuads,
+  },
+  {
+    name: "SELECT - OPTIONAL with an inner FILTER drops the failed join",
+    kind: "select",
+    query: `SELECT ?person ?age WHERE { ?person ${foafName} ?name ` +
+      `OPTIONAL { ?person ${foafAge} ?age FILTER(?age > 28) } }`,
+    quads: basicKnowledgeGraphQuads,
+  },
+  {
+    name: "SELECT - OPTIONAL FILTER referencing an outer variable",
+    kind: "select",
+    query: `SELECT ?person ?age WHERE { ?person ${foafName} ?name ` +
+      `OPTIONAL { ?person ${foafAge} ?age FILTER(?person = ${exampleAlice}) } }`,
+    quads: basicKnowledgeGraphQuads,
+  },
+  {
+    name: "SELECT - MINUS eliminates solutions sharing a variable",
+    kind: "select",
+    query: `SELECT ?person ?name WHERE { ?person ${foafName} ?name ` +
+      `MINUS { ?person ${foafAge} ?age } }`,
+    quads: basicKnowledgeGraphQuads,
+  },
+  {
+    name: "SELECT - MINUS with no shared variables keeps every solution",
+    kind: "select",
+    query: `SELECT ?person ?name WHERE { ?person ${foafName} ?name ` +
+      `MINUS { ?x ${foafKnows} ?y } }`,
+    quads: basicKnowledgeGraphQuads,
+  },
+  {
+    name: "SELECT - MINUS applies its own inner FILTER",
+    kind: "select",
+    query: `SELECT ?person WHERE { ?person ${foafName} ?name ` +
+      `MINUS { ?person ${foafAge} ?age FILTER(?age > 28) } }`,
+    quads: basicKnowledgeGraphQuads,
+  },
+  {
+    name: "SELECT - nested OPTIONAL inside OPTIONAL",
+    kind: "select",
+    query: `SELECT ?person ?friend WHERE { ?person ${foafName} ?name ` +
+      `OPTIONAL { ?person ${foafKnows} ?friend ` +
+      `OPTIONAL { ?friend ${foafName} ?friendName } } }`,
+    quads: basicKnowledgeGraphQuads,
+  },
 ];
 
 const askCases: ParityTestCase[] = [
