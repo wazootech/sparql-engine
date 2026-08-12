@@ -32,6 +32,10 @@ const examplePet = namedNode("http://example.org/pet");
 const xsdInteger = namedNode(XSD_INTEGER);
 const examplePerson = (index: number) =>
   namedNode(`http://example.org/person${index}`);
+const exCity = namedNode("http://example.org/city");
+const exSpouse = namedNode("http://example.org/spouse");
+const exG1Prop = namedNode("http://example.org/g1prop");
+const g1Graph = namedNode("http://example.org/g1");
 
 /**
  * buildDataset generates the shared benchmark graph: a ring of people, each
@@ -55,6 +59,32 @@ function buildDataset(): rdfjs.Quad[] {
         person,
         foafKnows,
         examplePerson((index + 1) % PERSON_COUNT),
+      ),
+    );
+    // City tag (5 distinct values) — grouping/filter/distinct material.
+    quads.push(quad(person, exCity, literal(`City ${index % 5}`)));
+    // Spouse edge on even-indexed people only — OPTIONAL/MINUS null material.
+    if (index % 2 === 0) {
+      quads.push(quad(person, exSpouse, examplePerson(index + 1)));
+    }
+  }
+  return quads;
+}
+
+/**
+ * buildGraphDataset generates the named-graph benchmark data: person quads in
+ * graph <http://example.org/g1>. Kept separate from the main dataset so the
+ * update verification (which dumps stores graph-blind) stays symmetric.
+ */
+function buildGraphDataset(): rdfjs.Quad[] {
+  const quads: rdfjs.Quad[] = [];
+  for (let index = 0; index < 200; index++) {
+    quads.push(
+      quad(
+        examplePerson(index),
+        exG1Prop,
+        literal(`v${index % 10}`),
+        g1Graph,
       ),
     );
   }
@@ -134,6 +164,14 @@ const nativeEngineNoReorder = new NativeSparqlEngine({
 });
 const comunicaEngine = getComunicaEngine();
 
+// GRAPH / FROM groups run against their own named-graph stores; the update
+// verification keeps the main dataset default-graph-only so its graph-blind
+// store dump stays symmetric across engines.
+const graphDataset = buildGraphDataset();
+const graphN3Store = seedN3Store(graphDataset);
+const graphOxigraphStore = seedOxigraphStore(graphDataset);
+const graphNativeEngine = new NativeSparqlEngine({ store: graphN3Store });
+
 const scanQuery = "SELECT ?s ?p ?o WHERE { ?s ?p ?o }";
 const joinQuery =
   "SELECT ?friend ?name WHERE { ?person <http://xmlns.com/foaf/0.1/knows> ?friend . " +
@@ -174,6 +212,49 @@ const rewriteUpdateQuery =
 const constructQuery =
   "CONSTRUCT { ?person <http://example.org/displayName> ?name } " +
   "WHERE { ?person <http://xmlns.com/foaf/0.1/name> ?name }";
+
+// Feature groups landed since the last bench pass: OPTIONAL / MINUS / UNION,
+// property paths, GROUP BY + aggregates, expression FILTERs, ORDER BY + slice,
+// DISTINCT, VALUES + BIND, GRAPH, and FROM. (Subqueries in WHERE are a known
+// native gap — "Unsupported graph pattern type: query" — so they are not
+// benched yet.) Each group verifies all three engines agree on the result
+// *before* timings are taken.
+const optionalQuery =
+  "SELECT ?person ?spouse WHERE { ?person <http://xmlns.com/foaf/0.1/name> ?name " +
+  "OPTIONAL { ?person <http://example.org/spouse> ?spouse } }";
+const minusQuery =
+  "SELECT ?person WHERE { ?person <http://xmlns.com/foaf/0.1/name> ?name " +
+  "MINUS { ?person <http://example.org/spouse> ?s } }";
+const unionQuery =
+  "SELECT ?s WHERE { { ?s <http://xmlns.com/foaf/0.1/name> ?n } " +
+  "UNION { ?s <http://example.org/pet> ?p } }";
+const pathSeqQuery =
+  "SELECT ?person ?grand WHERE { ?person <http://xmlns.com/foaf/0.1/knows>/" +
+  "<http://xmlns.com/foaf/0.1/knows> ?grand }";
+const pathPlusQuery =
+  "SELECT ?person WHERE { ?person <http://xmlns.com/foaf/0.1/knows>+ " +
+  "<http://example.org/person100> }";
+const groupAggQuery =
+  "SELECT ?city (COUNT(*) AS ?cnt) (MAX(?age) AS ?maxAge) WHERE { " +
+  "?s <http://example.org/city> ?city ; <http://xmlns.com/foaf/0.1/age> ?age } " +
+  "GROUP BY ?city";
+const filterExprQuery =
+  "SELECT ?s ?name WHERE { ?s <http://xmlns.com/foaf/0.1/name> ?name ; " +
+  "<http://xmlns.com/foaf/0.1/age> ?age " +
+  "FILTER(STRLEN(?name) > 9 && ?age >= 40 && ?age < 45) }";
+const orderLimitQuery =
+  "SELECT ?name ?age WHERE { ?s <http://xmlns.com/foaf/0.1/name> ?name ; " +
+  "<http://xmlns.com/foaf/0.1/age> ?age } ORDER BY ?name LIMIT 50";
+const distinctQuery =
+  "SELECT DISTINCT ?city WHERE { ?s <http://example.org/city> ?city }";
+const valuesBindQuery = "SELECT ?person ?double WHERE { VALUES ?person { " +
+  "<http://example.org/person0> <http://example.org/person5> " +
+  "<http://example.org/person10> } " +
+  "?person <http://xmlns.com/foaf/0.1/age> ?age BIND(?age * 2 AS ?double) }";
+const graphQuery = "SELECT ?s ?o WHERE { GRAPH <http://example.org/g1> { " +
+  "?s <http://example.org/g1prop> ?o } }";
+const fromQuery = "SELECT ?s ?o FROM <http://example.org/g1> WHERE { " +
+  "?s <http://example.org/g1prop> ?o }";
 
 /**
  * OxigraphBinding is the structural binding shape Oxigraph returns.
@@ -227,11 +308,29 @@ function oxigraphBindingRecord(binding: OxigraphBinding): string {
  * verifySelectEquality asserts all three engines return identical SELECT
  * results for the given query, so benchmark timings compare like for like.
  */
+interface EngineTrio {
+  native: NativeSparqlEngine;
+  comunicaStore: Store;
+  oxigraph: OxigraphStore;
+}
+
+const mainTrio: EngineTrio = {
+  native: nativeEngine,
+  comunicaStore: n3Store,
+  oxigraph: oxigraphStore,
+};
+const graphTrio: EngineTrio = {
+  native: graphNativeEngine,
+  comunicaStore: graphN3Store,
+  oxigraph: graphOxigraphStore,
+};
+
 async function verifySelectEquality(
   query: string,
   label: string,
+  trio: EngineTrio = mainTrio,
 ): Promise<void> {
-  const nativeResult = await nativeEngine.execute({ query });
+  const nativeResult = await trio.native.execute({ query });
   if (nativeResult.kind !== "select") {
     throw new Error(`${label}: native engine returned ${nativeResult.kind}`);
   }
@@ -248,7 +347,7 @@ async function verifySelectEquality(
   const comunicaBindings = await runComunicaRawSelectBindings(
     comunicaEngine,
     query,
-    n3Store,
+    trio.comunicaStore,
   );
   const comunicaSet = comunicaBindings
     .map((binding) => {
@@ -260,7 +359,7 @@ async function verifySelectEquality(
     })
     .sort();
 
-  const oxigraphBindings = oxigraphStore.query(
+  const oxigraphBindings = trio.oxigraph.query(
     query,
   ) as unknown as OxigraphBinding[];
   const oxigraphSet = oxigraphBindings.map(oxigraphBindingRecord).sort();
@@ -407,6 +506,18 @@ await verifyConstructEquality(constructQuery, "construct");
 await verifyUpdateEquality(moveUpdateQuery, "update-move");
 await verifyUpdateEquality(rewriteUpdateQuery, "update-rewrite");
 await verifySelectEquality(chainQuery, "reorder-chain");
+await verifySelectEquality(optionalQuery, "optional");
+await verifySelectEquality(minusQuery, "minus");
+await verifySelectEquality(unionQuery, "union");
+await verifySelectEquality(pathSeqQuery, "path-seq");
+await verifySelectEquality(pathPlusQuery, "path-plus");
+await verifySelectEquality(groupAggQuery, "group-aggregate");
+await verifySelectEquality(filterExprQuery, "filter-expr");
+await verifySelectEquality(orderLimitQuery, "order-limit");
+await verifySelectEquality(distinctQuery, "distinct");
+await verifySelectEquality(valuesBindQuery, "values-bind");
+await verifySelectEquality(graphQuery, "graph", graphTrio);
+await verifySelectEquality(fromQuery, "from", graphTrio);
 
 Deno.bench(
   { name: "native - scan", group: "scan", baseline: true },
@@ -620,3 +731,58 @@ Deno.bench({ name: "comunica - update", group: "update" }, async () => {
 Deno.bench({ name: "oxigraph - update", group: "update" }, async () => {
   await oxigraphStore.update(rewriteUpdateQuery);
 });
+
+/**
+ * benchSelectTrio registers the native/comunica/oxigraph bench trio for one
+ * SELECT group. Native is the baseline; each body asserts a non-empty result
+ * so a silently-broken engine fails loudly mid-run.
+ */
+function benchSelectTrio(
+  group: string,
+  query: string,
+  label: string,
+  trio: EngineTrio = mainTrio,
+): void {
+  Deno.bench(
+    { name: `native - ${label}`, group, baseline: true },
+    async () => {
+      const result = await trio.native.execute({ query });
+      if (
+        result.kind !== "select" ||
+        result.data.results.bindings.length === 0
+      ) {
+        throw new Error(`native ${label} returned no bindings`);
+      }
+    },
+  );
+
+  Deno.bench({ name: `comunica - ${label}`, group }, async () => {
+    const stream = await comunicaEngine.queryBindings(query, {
+      sources: [trio.comunicaStore],
+    });
+    const bindings = await stream.toArray();
+    if (bindings.length === 0) {
+      throw new Error(`comunica ${label} returned no bindings`);
+    }
+  });
+
+  Deno.bench({ name: `oxigraph - ${label}`, group }, () => {
+    const result = trio.oxigraph.query(query) as unknown as OxigraphBinding[];
+    if (result.length === 0) {
+      throw new Error(`oxigraph ${label} returned no bindings`);
+    }
+  });
+}
+
+benchSelectTrio("optional", optionalQuery, "optional");
+benchSelectTrio("minus", minusQuery, "minus");
+benchSelectTrio("union", unionQuery, "union");
+benchSelectTrio("path", pathSeqQuery, "path-seq");
+benchSelectTrio("path", pathPlusQuery, "path-plus");
+benchSelectTrio("group-aggregate", groupAggQuery, "group-aggregate");
+benchSelectTrio("filter-expr", filterExprQuery, "filter-expr");
+benchSelectTrio("order-limit", orderLimitQuery, "order-limit");
+benchSelectTrio("distinct", distinctQuery, "distinct");
+benchSelectTrio("values-bind", valuesBindQuery, "values-bind");
+benchSelectTrio("graph", graphQuery, "graph", graphTrio);
+benchSelectTrio("from", fromQuery, "from", graphTrio);
