@@ -1,5 +1,6 @@
 import type * as rdfjs from "@rdfjs/types";
-import type { Pattern, Term as SparqlTerm, Triple } from "sparqljs";
+import type { Expression, Pattern, Term as SparqlTerm, Triple } from "sparqljs";
+import { ExpressionEvaluator } from "@/evaluator/expression-evaluator.ts";
 import { sameRdfTerm, sparqlTermToRdfTerm, termKey } from "@/term/mod.ts";
 
 /**
@@ -55,6 +56,9 @@ export interface BgpEvaluatorOptions {
 export class BgpEvaluator {
   private readonly reorderPatterns: boolean;
 
+  /** expressionEvaluator evaluates FILTER expressions against solutions. */
+  private readonly expressionEvaluator = new ExpressionEvaluator();
+
   public constructor(
     private readonly store: rdfjs.Store,
     options: BgpEvaluatorOptions = {},
@@ -67,26 +71,35 @@ export class BgpEvaluator {
    * given list of triple patterns.
    */
   public async evaluateBgp(patterns: Pattern[]): Promise<TermBinding[]> {
-    // Flatten the triple patterns of all BGP blocks. Joining is a natural
-    // join over the patterns, so the join order never changes the resulting
-    // binding set — it only changes the intermediate cardinality.
+    // Flatten the triple patterns and FILTER expressions of the group. A
+    // FILTER applies to every solution of the group regardless of its
+    // position, so all joins run first and the filters are applied after.
     const triplePatterns: Triple[] = [];
+    const filters: Expression[] = [];
     for (const pattern of patterns) {
-      if (pattern.type !== "bgp") {
-        continue;
+      if (pattern.type === "bgp") {
+        triplePatterns.push(...pattern.triples);
+      } else if (pattern.type === "filter") {
+        filters.push(pattern.expression);
       }
-      triplePatterns.push(...pattern.triples);
     }
 
+    let bindings: TermBinding[];
     if (this.reorderPatterns && triplePatterns.length > 1) {
-      return await this.evaluateWithReordering(triplePatterns);
+      bindings = await this.evaluateWithReordering(triplePatterns);
+    } else {
+      bindings = [{}];
+      for (const triplePattern of triplePatterns) {
+        bindings = this.joinTriplePattern(
+          bindings,
+          await this.scanEntry(triplePattern),
+        );
+      }
     }
 
-    let bindings: TermBinding[] = [{}];
-    for (const triplePattern of triplePatterns) {
-      bindings = this.joinTriplePattern(
-        bindings,
-        await this.scanEntry(triplePattern),
+    for (const filter of filters) {
+      bindings = bindings.filter((binding) =>
+        this.expressionEvaluator.filterPasses(filter, binding)
       );
     }
     return bindings;

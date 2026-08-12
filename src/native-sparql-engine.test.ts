@@ -36,6 +36,224 @@ Deno.test("NativeSparqlEngine - SELECT query BGP evaluation", async () => {
   }
 });
 
+Deno.test("NativeSparqlEngine - FILTER numeric comparison and arithmetic", async () => {
+  const store = new Store();
+  const age = (person: string, years: string) =>
+    quad(
+      namedNode(`http://example.org/${person}`),
+      namedNode("http://xmlns.com/foaf/0.1/age"),
+      literal(years, namedNode("http://www.w3.org/2001/XMLSchema#integer")),
+    );
+  store.addQuad(age("alice", "28"));
+  store.addQuad(age("bob", "17"));
+  store.addQuad(age("carol", "30"));
+
+  const engine = new NativeSparqlEngine({ store });
+  const greater = await engine.execute({
+    query:
+      "SELECT ?person WHERE { ?person <http://xmlns.com/foaf/0.1/age> ?age FILTER(?age > 18) }",
+  });
+  assertEquals(greater.kind, "select");
+  if (greater.kind === "select") {
+    assertEquals(
+      greater.data.results.bindings.map((b) => b.person.value),
+      ["http://example.org/alice", "http://example.org/carol"],
+    );
+  }
+
+  const arithmetic = await engine.execute({
+    query:
+      "SELECT ?person WHERE { ?person <http://xmlns.com/foaf/0.1/age> ?age FILTER(?age / 2 > 10) }",
+  });
+  assertEquals(arithmetic.kind, "select");
+  if (arithmetic.kind === "select") {
+    assertEquals(
+      arithmetic.data.results.bindings.map((b) => b.person.value),
+      ["http://example.org/alice", "http://example.org/carol"],
+    );
+  }
+
+  const exact = await engine.execute({
+    query:
+      "SELECT ?person WHERE { ?person <http://xmlns.com/foaf/0.1/age> ?age FILTER(?age = 28.0) }",
+  });
+  assertEquals(exact.kind, "select");
+  if (exact.kind === "select") {
+    assertEquals(exact.data.results.bindings.length, 1);
+  }
+});
+
+Deno.test("NativeSparqlEngine - FILTER string, language, STR and STRLEN", async () => {
+  const store = new Store();
+  const name = (person: string, value: string, language?: string) =>
+    quad(
+      namedNode(`http://example.org/${person}`),
+      namedNode("http://xmlns.com/foaf/0.1/name"),
+      language ? literal(value, language) : literal(value),
+    );
+  store.addQuad(name("alice", "Alice"));
+  store.addQuad(name("bob", "Bob"));
+  store.addQuad(name("carol", "Carol", "en"));
+
+  const engine = new NativeSparqlEngine({ store });
+  const eq = await engine.execute({
+    query:
+      'SELECT ?person WHERE { ?person <http://xmlns.com/foaf/0.1/name> ?name FILTER(?name = "Alice") }',
+  });
+  assertEquals(eq.kind, "select");
+  if (eq.kind === "select") {
+    assertEquals(eq.data.results.bindings.length, 1);
+    assertEquals(
+      eq.data.results.bindings[0].person.value,
+      "http://example.org/alice",
+    );
+  }
+
+  const lang = await engine.execute({
+    query:
+      'SELECT ?person WHERE { ?person <http://xmlns.com/foaf/0.1/name> ?name FILTER(?name != "Carol"@en) }',
+  });
+  assertEquals(lang.kind, "select");
+  if (lang.kind === "select") {
+    assertEquals(
+      lang.data.results.bindings.map((b) => b.person.value),
+      ["http://example.org/alice", "http://example.org/bob"],
+    );
+  }
+
+  const strlen = await engine.execute({
+    query:
+      "SELECT ?person WHERE { ?person <http://xmlns.com/foaf/0.1/name> ?name FILTER(STRLEN(?name) > 4) }",
+  });
+  assertEquals(strlen.kind, "select");
+  if (strlen.kind === "select") {
+    assertEquals(
+      strlen.data.results.bindings.map((b) => b.person.value),
+      ["http://example.org/alice", "http://example.org/carol"],
+    );
+  }
+});
+
+Deno.test("NativeSparqlEngine - FILTER bound(), EBV, and error semantics", async () => {
+  const store = new Store();
+  store.addQuad(
+    quad(
+      namedNode("http://example.org/alice"),
+      namedNode("http://xmlns.com/foaf/0.1/name"),
+      literal("Alice"),
+    ),
+  );
+  store.addQuad(
+    quad(
+      namedNode("http://example.org/carol"),
+      namedNode("http://xmlns.com/foaf/0.1/name"),
+      literal("Carol", "en"),
+    ),
+  );
+
+  const engine = new NativeSparqlEngine({ store });
+  // Unbound variable in BOUND is an error; !BOUND(?missing) is true.
+  const bound = await engine.execute({
+    query:
+      "SELECT ?person WHERE { ?person <http://xmlns.com/foaf/0.1/name> ?name FILTER(!BOUND(?missing)) }",
+  });
+  assertEquals(bound.kind, "select");
+  if (bound.kind === "select") {
+    assertEquals(bound.data.results.bindings.length, 2);
+  }
+
+  // EBV of a lang-tagged literal is a type error: carol is dropped.
+  const ebv = await engine.execute({
+    query:
+      "SELECT ?person WHERE { ?person <http://xmlns.com/foaf/0.1/name> ?name FILTER(?name) }",
+  });
+  assertEquals(ebv.kind, "select");
+  if (ebv.kind === "select") {
+    assertEquals(ebv.data.results.bindings.length, 1);
+    assertEquals(
+      ebv.data.results.bindings[0].person.value,
+      "http://example.org/alice",
+    );
+  }
+
+  // Comparing a lang-tagged literal with < is a type error: all dropped.
+  const langError = await engine.execute({
+    query:
+      'SELECT ?person WHERE { ?person <http://xmlns.com/foaf/0.1/name> ?name FILTER(?name < "Carol"@en) }',
+  });
+  assertEquals(langError.kind, "select");
+  if (langError.kind === "select") {
+    assertEquals(langError.data.results.bindings.length, 0);
+  }
+});
+
+Deno.test("NativeSparqlEngine - ORDER BY expression (STRLEN and STR)", async () => {
+  const store = new Store();
+  const name = (person: string, value: string, language?: string) =>
+    quad(
+      namedNode(`http://example.org/${person}`),
+      namedNode("http://xmlns.com/foaf/0.1/name"),
+      language ? literal(value, language) : literal(value),
+    );
+  store.addQuad(name("alice", "Alice"));
+  store.addQuad(name("bob", "Bob"));
+  store.addQuad(name("carol", "Carol", "en"));
+
+  const engine = new NativeSparqlEngine({ store });
+  const byLen = await engine.execute({
+    query:
+      "SELECT ?person ?name WHERE { ?person <http://xmlns.com/foaf/0.1/name> ?name } ORDER BY DESC(STRLEN(?name))",
+  });
+  assertEquals(byLen.kind, "select");
+  if (byLen.kind === "select") {
+    assertEquals(
+      byLen.data.results.bindings.map((b) => b.person.value),
+      [
+        "http://example.org/alice",
+        "http://example.org/carol",
+        "http://example.org/bob",
+      ],
+    );
+  }
+
+  const byStr = await engine.execute({
+    query:
+      "SELECT ?person ?name WHERE { ?person <http://xmlns.com/foaf/0.1/name> ?name } ORDER BY STR(?name)",
+  });
+  assertEquals(byStr.kind, "select");
+  if (byStr.kind === "select") {
+    assertEquals(
+      byStr.data.results.bindings.map((b) => b.person.value),
+      [
+        "http://example.org/alice",
+        "http://example.org/bob",
+        "http://example.org/carol",
+      ],
+    );
+  }
+});
+
+Deno.test("NativeSparqlEngine - unsupported FILTER expression is rejected", async () => {
+  const store = new Store();
+  store.addQuad(
+    quad(
+      namedNode("http://example.org/alice"),
+      namedNode("http://xmlns.com/foaf/0.1/name"),
+      literal("Alice"),
+    ),
+  );
+  const engine = new NativeSparqlEngine({ store });
+  await assertRejects(
+    () =>
+      engine.execute({
+        query:
+          'SELECT ?person WHERE { ?person <http://xmlns.com/foaf/0.1/name> ?name FILTER(STRSTARTS(?name, "A")) }',
+      }),
+    Error,
+    "Unsupported SPARQL expression operator: strstarts",
+  );
+});
+
 Deno.test("NativeSparqlEngine - ORDER BY sorts SELECT results by value", async () => {
   const store = new Store();
   store.addQuad(
@@ -224,15 +442,36 @@ Deno.test(
         literal("Alice"),
       ),
     );
+    store.addQuad(
+      quad(
+        namedNode("http://example.org/bob"),
+        namedNode("http://xmlns.com/foaf/0.1/name"),
+        literal("Bob"),
+      ),
+    );
     const engine = new NativeSparqlEngine({ store });
+    // STRLEN is supported now; only genuinely unsupported expressions
+    // (custom function calls) are rejected.
+    const ordered = await engine.execute({
+      query:
+        "SELECT ?person ?name WHERE { ?person <http://xmlns.com/foaf/0.1/name> ?name } ORDER BY STRLEN(?name)",
+    });
+    assertEquals(ordered.kind, "select");
+    if (ordered.kind === "select") {
+      assertEquals(
+        ordered.data.results.bindings.map((b) => b.person.value),
+        ["http://example.org/bob", "http://example.org/alice"],
+      );
+    }
+
     await assertRejects(
       () =>
         engine.execute({
           query:
-            "SELECT ?person WHERE { ?person <http://xmlns.com/foaf/0.1/name> ?name } ORDER BY STRLEN(?name)",
+            "SELECT ?person WHERE { ?person <http://xmlns.com/foaf/0.1/name> ?name } ORDER BY <http://example.org/customFn>(?name)",
         }),
       Error,
-      "Unsupported ORDER BY expression",
+      "Unsupported SPARQL expression: functionCall",
     );
   },
 );

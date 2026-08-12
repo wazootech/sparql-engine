@@ -141,6 +141,13 @@ const updateCases: ParityUpdateCase[] = [
       `INSERT DATA { ${exampleCarol} <http://example.org/seen> "y" }`,
     quads: basicKnowledgeGraphQuads,
   },
+  {
+    name: "DELETE/INSERT with FILTER in the WHERE clause",
+    update: `DELETE { ?person ${foafName} ?name } ` +
+      `INSERT { ?person <http://example.org/displayName> ?name } ` +
+      `WHERE { ?person ${foafName} ?name FILTER(STRLEN(?name) > 3) }`,
+    quads: basicKnowledgeGraphQuads,
+  },
 ];
 
 for (const testCase of updateCases) {

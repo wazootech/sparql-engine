@@ -182,6 +182,57 @@ const selectCases: ParityTestCase[] = [
     quads: basicKnowledgeGraphQuads,
     orderSensitive: true,
   },
+  {
+    name: "SELECT - FILTER numeric comparison",
+    kind: "select",
+    query: `SELECT ?person ?age WHERE { ?person ${foafAge} ?age ` +
+      `FILTER(?age > 18) }`,
+    quads: basicKnowledgeGraphQuads,
+  },
+  {
+    name: "SELECT - FILTER arithmetic with numeric promotion",
+    kind: "select",
+    query: `SELECT ?person ?age WHERE { ?person ${foafAge} ?age ` +
+      `FILTER(?age / 2 > 10) }`,
+    quads: basicKnowledgeGraphQuads,
+  },
+  {
+    name: "SELECT - FILTER string equality with lang-tagged literal",
+    kind: "select",
+    query: `SELECT ?person ?name WHERE { ?person ${foafName} ?name ` +
+      `FILTER(?name = "Alice") }`,
+    quads: basicKnowledgeGraphQuads,
+  },
+  {
+    name: "SELECT - FILTER STRLEN over mixed plain and lang-tagged literals",
+    kind: "select",
+    query: `SELECT ?person ?name WHERE { ?person ${foafName} ?name ` +
+      `FILTER(STRLEN(?name) > 4) }`,
+    quads: basicKnowledgeGraphQuads,
+  },
+  {
+    name: "SELECT - FILTER BOUND of an unbound variable",
+    kind: "select",
+    query: `SELECT ?person ?name WHERE { ?person ${foafName} ?name ` +
+      `FILTER(!BOUND(?missing)) }`,
+    quads: basicKnowledgeGraphQuads,
+  },
+  {
+    name: "SELECT - ORDER BY DESC(STRLEN(?name)) expression",
+    kind: "select",
+    query: `SELECT ?person ?name WHERE { ?person ${foafName} ?name } ` +
+      `ORDER BY DESC(STRLEN(?name))`,
+    quads: basicKnowledgeGraphQuads,
+    orderSensitive: true,
+  },
+  {
+    name: "SELECT - ORDER BY STR(?name) normalizes language tags",
+    kind: "select",
+    query: `SELECT ?person ?name WHERE { ?person ${foafName} ?name } ` +
+      `ORDER BY STR(?name)`,
+    quads: basicKnowledgeGraphQuads,
+    orderSensitive: true,
+  },
 ];
 
 const askCases: ParityTestCase[] = [
@@ -202,6 +253,12 @@ const askCases: ParityTestCase[] = [
     kind: "ask",
     query: `ASK WHERE { ${exampleAlice} ${foafKnows} ?friend . ` +
       `?friend ${foafName} ?name }`,
+    quads: basicKnowledgeGraphQuads,
+  },
+  {
+    name: "ASK - FILTER numeric comparison",
+    kind: "ask",
+    query: `ASK WHERE { ?person ${foafAge} ?age FILTER(?age > 25) }`,
     quads: basicKnowledgeGraphQuads,
   },
 ];

@@ -16,6 +16,7 @@ import type {
 } from "@/sparql-engine-interface.ts";
 import { BgpEvaluator } from "@/evaluator/bgp-evaluator.ts";
 import type { TermBinding } from "@/evaluator/bgp-evaluator.ts";
+import { ExpressionEvaluator } from "@/evaluator/expression-evaluator.ts";
 import {
   compareRdfTerms,
   rdfTermToSparqlValue,
@@ -39,6 +40,9 @@ export interface SparqlEvaluatorOptions {
  */
 export class SparqlEvaluator {
   private readonly bgpEvaluator: BgpEvaluator;
+
+  /** expressionEvaluator evaluates ORDER BY expressions against solutions. */
+  private readonly expressionEvaluator = new ExpressionEvaluator();
 
   public constructor(
     store: rdfjs.Store,
@@ -179,23 +183,11 @@ export class SparqlEvaluator {
     bindings: TermBinding[],
     order: NonNullable<SelectQuery["order"]>,
   ): TermBinding[] {
-    const comparators = order.map((clause) => {
-      const expression = clause.expression;
-      if (!("termType" in expression)) {
-        throw new Error(
-          "Unsupported ORDER BY expression: only variables and RDF terms " +
-            "are supported",
-        );
-      }
-      const constant = expression.termType === "Variable"
-        ? undefined
-        : sparqlTermToRdfTerm(expression);
-      return {
-        descending: clause.descending === true,
-        resolve: (binding: TermBinding): rdfjs.Term | undefined =>
-          constant ?? binding[expression.value],
-      };
-    });
+    const comparators = order.map((clause) => ({
+      descending: clause.descending === true,
+      resolve: (binding: TermBinding): rdfjs.Term | undefined =>
+        this.expressionEvaluator.evaluate(clause.expression, binding),
+    }));
     return [...bindings].sort((a, b) => {
       for (const comparator of comparators) {
         const result = compareRdfTerms(
