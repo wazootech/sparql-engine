@@ -83,6 +83,20 @@ const selectCases: ParityTestCase[] = [
     ],
   },
   {
+    name: "SELECT - asymmetric pattern order (reorder must be neutral)",
+    kind: "select",
+    query:
+      `SELECT ?s ?p ?o ?n WHERE { ?s ?p ?o . ${exampleAlice} ${foafName} ?n }`,
+    quads: basicKnowledgeGraphQuads,
+  },
+  {
+    name: "SELECT - join chain with reorder-sensitive pattern order",
+    kind: "select",
+    query: `SELECT ?s ?grand ?n WHERE { ?s ${foafKnows} ?friend . ` +
+      `?grand ${foafName} ?n . ?friend ${foafKnows} ?grand }`,
+    quads: basicKnowledgeGraphQuads,
+  },
+  {
     name: "SELECT - repeated variable through a join",
     kind: "select",
     query:

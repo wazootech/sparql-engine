@@ -19,13 +19,29 @@ import { sparqlTermToRdfTerm, sparqlValueToRdfTerm } from "@/term/mod.ts";
 import { DataFactory } from "n3";
 
 /**
+ * SparqlEvaluatorOptions configures SparqlEvaluator.
+ */
+export interface SparqlEvaluatorOptions {
+  /**
+   * reorderPatterns statically sorts BGP triple patterns by selectivity before
+   * joining. Defaults to true. See BgpEvaluatorOptions.reorderPatterns.
+   */
+  reorderPatterns?: boolean;
+}
+
+/**
  * SparqlEvaluator processes parsed SPARQL AST queries against an RDFJS store.
  */
 export class SparqlEvaluator {
   private readonly bgpEvaluator: BgpEvaluator;
 
-  public constructor(store: rdfjs.Store) {
-    this.bgpEvaluator = new BgpEvaluator(store);
+  public constructor(
+    store: rdfjs.Store,
+    options: SparqlEvaluatorOptions = {},
+  ) {
+    this.bgpEvaluator = new BgpEvaluator(store, {
+      reorderPatterns: options.reorderPatterns,
+    });
   }
 
   /**

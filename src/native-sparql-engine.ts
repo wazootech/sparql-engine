@@ -34,6 +34,13 @@ export interface NativeSparqlEngineOptions {
   store: rdfjs.Store;
 
   /**
+   * reorderPatterns dynamically reorders BGP triple patterns by estimated
+   * join cost before joining. Defaults to true. Disabling it preserves
+   * written order exactly.
+   */
+  reorderPatterns?: boolean;
+
+  /**
    * createTransaction is an optional factory to create a transaction for SPARQL
    * UPDATEs. When omitted, updates are unsupported and rejected.
    */
@@ -51,7 +58,9 @@ export class NativeSparqlEngine implements SparqlEngineInterface {
     private readonly options: NativeSparqlEngineOptions,
   ) {
     this.parser = new SparqlParser();
-    this.evaluator = new SparqlEvaluator(options.store);
+    this.evaluator = new SparqlEvaluator(options.store, {
+      reorderPatterns: options.reorderPatterns,
+    });
   }
 
   /** execute runs a SPARQL query/update against the configured store. */

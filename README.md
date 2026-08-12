@@ -54,8 +54,12 @@ Comunica output, so the normalization stays verified rather than assumed.
 `@comunica/query-sparql-rdfjs-lite` and the Oxigraph WASM engine (`oxigraph`)
 over an identical generated graph. Before timing, every run asserts that all
 three engines return identical results for each query, so the numbers always
-compare equivalent work. Timings use Deno's built-in bench runner with the
-native engine as the per-group baseline:
+compare equivalent work. The reorder-chain group demonstrates the dynamic join
+ordering: a three-pattern chain written in worst-case order runs ~32x faster
+with reordering enabled (and at parity with Oxigraph), because the planner scans
+each pattern once and joins in order of estimated cost, preferring patterns
+whose variables are already bound. Timings use Deno's built-in bench runner with
+the native engine as the per-group baseline:
 
 ```bash
 deno task bench

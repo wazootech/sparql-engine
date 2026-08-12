@@ -105,14 +105,33 @@ for (const item of dataset) {
 }
 
 const nativeEngine = new NativeSparqlEngine({ store: n3Store });
+const nativeEngineNoReorder = new NativeSparqlEngine({
+  store: n3Store,
+  reorderPatterns: false,
+});
 const comunicaEngine = getComunicaEngine();
 
 const scanQuery = "SELECT ?s ?p ?o WHERE { ?s ?p ?o }";
 const joinQuery =
   "SELECT ?friend ?name WHERE { ?person <http://xmlns.com/foaf/0.1/knows> ?friend . " +
   "?friend <http://xmlns.com/foaf/0.1/name> ?name }";
+// Written order is worst-case for the native engine: the unselective pattern
+// (0 constants, matches all 1,600 quads) comes first, followed by a very
+// selective pattern (2 constants, 1 quad). Static reordering flips them.
+const asymJoinQuery = "SELECT ?s ?p ?o ?n WHERE { ?s ?p ?o . " +
+  "<http://example.org/person0> <http://xmlns.com/foaf/0.1/name> ?n }";
 const askQuery =
   "ASK WHERE { <http://example.org/person0> <http://xmlns.com/foaf/0.1/name> ?name }";
+// Join chain written in worst-case order for a static planner: all three
+// patterns have one constant, so a constant-count heuristic keeps the
+// written order and joins ?grand <name> ?n before ?friend binds ?grand,
+// forcing a 400x400 intermediate. Dynamic reordering sees that the name
+// pattern's variable stays unbound and instead joins the knows patterns
+// first, collapsing the intermediate to 400.
+const chainQuery =
+  "SELECT ?s ?grand ?n WHERE { ?s <http://xmlns.com/foaf/0.1/knows> ?friend . " +
+  "?grand <http://xmlns.com/foaf/0.1/name> ?n . " +
+  "?friend <http://xmlns.com/foaf/0.1/knows> ?grand }";
 const constructQuery =
   "CONSTRUCT { ?person <http://example.org/displayName> ?name } " +
   "WHERE { ?person <http://xmlns.com/foaf/0.1/name> ?name }";
@@ -291,8 +310,10 @@ async function verifyConstructEquality(
 // timings below always compare equivalent work.
 await verifySelectEquality(scanQuery, "scan");
 await verifySelectEquality(joinQuery, "join");
+await verifySelectEquality(asymJoinQuery, "asym-join");
 await verifyAskEquality(askQuery, "ask");
 await verifyConstructEquality(constructQuery, "construct");
+await verifySelectEquality(chainQuery, "reorder-chain");
 
 Deno.bench(
   { name: "native - scan", group: "scan", baseline: true },
@@ -345,6 +366,90 @@ Deno.bench({ name: "oxigraph - join", group: "join" }, () => {
   const result = oxigraphStore.query(joinQuery) as unknown as OxigraphBinding[];
   if (result.length === 0) {
     throw new Error("oxigraph join returned no bindings");
+  }
+});
+
+Deno.bench(
+  { name: "native - asym (reorder on)", group: "asym-join", baseline: true },
+  async () => {
+    const result = await nativeEngine.execute({ query: asymJoinQuery });
+    if (result.kind !== "select" || result.data.results.bindings.length === 0) {
+      throw new Error("native asym join returned no bindings");
+    }
+  },
+);
+
+Deno.bench(
+  { name: "native - asym (reorder off)", group: "asym-join" },
+  async () => {
+    const result = await nativeEngineNoReorder.execute({
+      query: asymJoinQuery,
+    });
+    if (result.kind !== "select" || result.data.results.bindings.length === 0) {
+      throw new Error("native asym join (no reorder) returned no bindings");
+    }
+  },
+);
+
+Deno.bench({ name: "comunica - asym", group: "asym-join" }, async () => {
+  const stream = await comunicaEngine.queryBindings(asymJoinQuery, {
+    sources: [n3Store],
+  });
+  const bindings = await stream.toArray();
+  if (bindings.length === 0) {
+    throw new Error("comunica asym join returned no bindings");
+  }
+});
+
+Deno.bench({ name: "oxigraph - asym", group: "asym-join" }, () => {
+  const result = oxigraphStore.query(
+    asymJoinQuery,
+  ) as unknown as OxigraphBinding[];
+  if (result.length === 0) {
+    throw new Error("oxigraph asym join returned no bindings");
+  }
+});
+
+Deno.bench(
+  {
+    name: "native - chain (reorder on)",
+    group: "reorder-chain",
+    baseline: true,
+  },
+  async () => {
+    const result = await nativeEngine.execute({ query: chainQuery });
+    if (result.kind !== "select" || result.data.results.bindings.length === 0) {
+      throw new Error("native chain returned no bindings");
+    }
+  },
+);
+
+Deno.bench(
+  { name: "native - chain (reorder off)", group: "reorder-chain" },
+  async () => {
+    const result = await nativeEngineNoReorder.execute({ query: chainQuery });
+    if (result.kind !== "select" || result.data.results.bindings.length === 0) {
+      throw new Error("native chain (no reorder) returned no bindings");
+    }
+  },
+);
+
+Deno.bench({ name: "comunica - chain", group: "reorder-chain" }, async () => {
+  const stream = await comunicaEngine.queryBindings(chainQuery, {
+    sources: [n3Store],
+  });
+  const bindings = await stream.toArray();
+  if (bindings.length === 0) {
+    throw new Error("comunica chain returned no bindings");
+  }
+});
+
+Deno.bench({ name: "oxigraph - chain", group: "reorder-chain" }, () => {
+  const result = oxigraphStore.query(
+    chainQuery,
+  ) as unknown as OxigraphBinding[];
+  if (result.length === 0) {
+    throw new Error("oxigraph chain returned no bindings");
   }
 });
 
