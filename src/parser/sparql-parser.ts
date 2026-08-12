@@ -1,4 +1,4 @@
-import { Parser as SparqlJsParser } from "sparqljs";
+import { Parser as SparqlJsParser } from "../../vendor/sparql-parser/mod.ts";
 import type { SparqlParser as SparqlJsParserType, SparqlQuery } from "sparqljs";
 
 /**

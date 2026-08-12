@@ -32,5 +32,17 @@
         "test"
       ]
     }
+  },
+  "fmt": {
+    "exclude": [
+      "vendor/sparql-parser/parser.cjs",
+      "vendor/sparql-parser/Wildcard.js"
+    ]
+  },
+  "lint": {
+    "exclude": [
+      "vendor/sparql-parser/parser.cjs",
+      "vendor/sparql-parser/Wildcard.js"
+    ]
   }
 }
