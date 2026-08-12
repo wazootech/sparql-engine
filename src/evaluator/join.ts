@@ -85,6 +85,28 @@ export function leftJoin(
 }
 
 /**
+ * innerJoin merges two binding sets with a natural join: every compatible
+ * pair of bindings (one from each side) combines into one result, preserving
+ * multiset semantics. It threads a group element's independently evaluated
+ * solutions (e.g. UNION branches) into the incoming solutions, matching the
+ * Join(P, Union(Q1, Q2)) algebra translation.
+ */
+export function innerJoin(
+  left: TermBinding[],
+  right: TermBinding[],
+): TermBinding[] {
+  const result: TermBinding[] = [];
+  for (const l of left) {
+    for (const r of right) {
+      if (bindingsCompatible(l, r)) {
+        result.push({ ...l, ...r });
+      }
+    }
+  }
+  return result;
+}
+
+/**
  * minus implements the MINUS algebra: a left binding is eliminated exactly
  * when some right binding shares at least one variable with it and is
  * compatible on all of them. Right bindings sharing no variables with a

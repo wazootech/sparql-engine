@@ -2,6 +2,7 @@ import type * as rdfjs from "@rdfjs/types";
 import type { Expression, Pattern, Triple } from "sparqljs";
 import { ExpressionEvaluator } from "@/evaluator/expression-evaluator.ts";
 import {
+  innerJoin,
   joinTriplePattern,
   leftJoin,
   minus,
@@ -35,9 +36,10 @@ export interface BgpEvaluatorOptions {
  * It is the pattern-sequence orchestrator: it walks a group's patterns left
  * to right threading solutions, delegating BGP joins to the join module and
  * combining pattern forms — OPTIONAL becomes a left join, MINUS a
- * shared-variable anti-join, FILTER an expression pass, and nested groups
- * recurse. Unsupported pattern types (UNION, GRAPH, SERVICE, BIND, VALUES)
- * raise a clear error rather than being silently dropped.
+ * shared-variable anti-join, UNION an evaluated-or branches case, FILTER
+ * an expression pass, and nested groups recurse. Unsupported pattern types
+ * (GRAPH, SERVICE, BIND, VALUES) raise a clear error rather than being
+ * silently dropped.
  */
 export class BgpEvaluator {
   private readonly reorderPatterns: boolean;
@@ -117,6 +119,16 @@ export class BgpEvaluator {
       case "minus": {
         const right = await this.evaluateGroup(pattern.patterns, [{}]);
         return minus(bindings, right);
+      }
+      case "union": {
+        // Each branch evaluates independently over the graph; the union is
+        // the multiset concatenation of the branches, naturally joined with
+        // the incoming solutions — matching Join(P, Union(Q1, Q2)).
+        const branchResults: TermBinding[][] = [];
+        for (const branch of pattern.patterns) {
+          branchResults.push(await this.evaluateGroup([branch], [{}]));
+        }
+        return innerJoin(bindings, branchResults.flat());
       }
       case "group":
         return await this.evaluateGroup(pattern.patterns, bindings);

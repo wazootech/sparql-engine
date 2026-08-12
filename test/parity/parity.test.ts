@@ -283,6 +283,42 @@ const selectCases: ParityTestCase[] = [
       `OPTIONAL { ?friend ${foafName} ?friendName } } }`,
     quads: basicKnowledgeGraphQuads,
   },
+  {
+    name: "SELECT - UNION combines branch solutions as a multiset",
+    kind: "select",
+    query: `SELECT ?person WHERE { { ?person ${foafName} ?n } ` +
+      `UNION { ?person ${foafAge} ?a } }`,
+    quads: basicKnowledgeGraphQuads,
+  },
+  {
+    name: "SELECT - UNION branches binding different variables",
+    kind: "select",
+    query:
+      `SELECT ?n ?a WHERE { { ?s ${foafName} ?n } UNION { ?s ${foafAge} ?a } }`,
+    quads: basicKnowledgeGraphQuads,
+  },
+  {
+    name: "SELECT - UNION of identical branches doubles every solution",
+    kind: "select",
+    query: `SELECT ?person WHERE { { ?person ${foafName} ?n } ` +
+      `UNION { ?person ${foafName} ?n } }`,
+    quads: basicKnowledgeGraphQuads,
+  },
+  {
+    name: "SELECT - UNION with three branches",
+    kind: "select",
+    query: `SELECT ?person WHERE { { ?person ${foafName} ?n } ` +
+      `UNION { ?person ${foafAge} ?a } ` +
+      `UNION { ?person ${foafKnows} ?f } }`,
+    quads: basicKnowledgeGraphQuads,
+  },
+  {
+    name: "SELECT - UNION in a sequence joins with preceding patterns",
+    kind: "select",
+    query: `SELECT ?person ?name ?age WHERE { ?person ${foafName} ?name . ` +
+      `{ ?person ${foafName} ?n2 } UNION { ?person ${foafAge} ?age } }`,
+    quads: basicKnowledgeGraphQuads,
+  },
 ];
 
 const askCases: ParityTestCase[] = [

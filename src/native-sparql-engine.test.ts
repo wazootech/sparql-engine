@@ -663,17 +663,102 @@ Deno.test("NativeSparqlEngine - MINUS applies its own FILTER inside the group", 
   }
 });
 
-Deno.test("NativeSparqlEngine - unsupported UNION pattern is rejected", async () => {
+Deno.test("NativeSparqlEngine - UNION combines branch solutions as a multiset", async () => {
+  const store = new Store();
+  const ex = (s: string) => namedNode(`http://example.org/${s}`);
+  const foaf = (s: string) => namedNode(`http://xmlns.com/foaf/0.1/${s}`);
+  const xsdInteger = namedNode("http://www.w3.org/2001/XMLSchema#integer");
+  store.addQuad(quad(ex("alice"), foaf("name"), literal("Alice")));
+  store.addQuad(quad(ex("alice"), foaf("age"), literal("28", xsdInteger)));
+  store.addQuad(quad(ex("bob"), foaf("name"), literal("Bob")));
+  store.addQuad(quad(ex("carol"), foaf("name"), literal("Carol")));
+  store.addQuad(quad(ex("carol"), foaf("age"), literal("30", xsdInteger)));
+
+  const engine = new NativeSparqlEngine({ store });
+  const result = await engine.execute({
+    query:
+      "SELECT ?s WHERE { { ?s <http://xmlns.com/foaf/0.1/name> ?n } UNION { ?s <http://xmlns.com/foaf/0.1/age> ?a } }",
+  });
+  assertEquals(result.kind, "select");
+  if (result.kind === "select") {
+    const people = result.data.results.bindings.map((b) => b.s.value).sort();
+    // alice and carol appear twice: once from each branch (multiset union)
+    assertEquals(people, [
+      "http://example.org/alice",
+      "http://example.org/alice",
+      "http://example.org/bob",
+      "http://example.org/carol",
+      "http://example.org/carol",
+    ]);
+  }
+});
+
+Deno.test("NativeSparqlEngine - UNION branches can bind different variables", async () => {
+  const store = new Store();
+  const ex = (s: string) => namedNode(`http://example.org/${s}`);
+  const foaf = (s: string) => namedNode(`http://xmlns.com/foaf/0.1/${s}`);
+  const xsdInteger = namedNode("http://www.w3.org/2001/XMLSchema#integer");
+  store.addQuad(quad(ex("alice"), foaf("name"), literal("Alice")));
+  store.addQuad(quad(ex("alice"), foaf("age"), literal("28", xsdInteger)));
+
+  const engine = new NativeSparqlEngine({ store });
+  const result = await engine.execute({
+    query:
+      "SELECT ?n ?a WHERE { { ?s <http://xmlns.com/foaf/0.1/name> ?n } UNION { ?s <http://xmlns.com/foaf/0.1/age> ?a } }",
+  });
+  assertEquals(result.kind, "select");
+  if (result.kind === "select") {
+    const bindings = result.data.results.bindings;
+    assertEquals(bindings.length, 2);
+    assertEquals(bindings[0].n?.value, "Alice");
+    assertEquals(bindings[0].a, undefined);
+    assertEquals(bindings[1].n, undefined);
+    assertEquals(bindings[1].a?.value, "28");
+  }
+});
+
+Deno.test("NativeSparqlEngine - UNION in a sequence joins with preceding patterns", async () => {
+  const store = new Store();
+  const ex = (s: string) => namedNode(`http://example.org/${s}`);
+  const foaf = (s: string) => namedNode(`http://xmlns.com/foaf/0.1/${s}`);
+  const xsdInteger = namedNode("http://www.w3.org/2001/XMLSchema#integer");
+  store.addQuad(quad(ex("alice"), foaf("name"), literal("Alice")));
+  store.addQuad(quad(ex("alice"), foaf("age"), literal("28", xsdInteger)));
+  store.addQuad(quad(ex("bob"), foaf("name"), literal("Bob")));
+  store.addQuad(quad(ex("carol"), foaf("name"), literal("Carol")));
+  store.addQuad(quad(ex("carol"), foaf("age"), literal("30", xsdInteger)));
+
+  const engine = new NativeSparqlEngine({ store });
+  const result = await engine.execute({
+    query:
+      "SELECT ?s ?n ?a WHERE { ?s <http://xmlns.com/foaf/0.1/name> ?n . { ?s <http://xmlns.com/foaf/0.1/name> ?n2 } UNION { ?s <http://xmlns.com/foaf/0.1/age> ?a } }",
+  });
+  assertEquals(result.kind, "select");
+  if (result.kind === "select") {
+    const rows = result.data.results.bindings
+      .map((b) => [b.s.value, b.n?.value, b.a?.value])
+      .sort() as Array<Array<string | undefined>>;
+    assertEquals(rows, [
+      ["http://example.org/alice", "Alice", undefined],
+      ["http://example.org/alice", "Alice", "28"],
+      ["http://example.org/bob", "Bob", undefined],
+      ["http://example.org/carol", "Carol", undefined],
+      ["http://example.org/carol", "Carol", "30"],
+    ]);
+  }
+});
+
+Deno.test("NativeSparqlEngine - unsupported GRAPH pattern is rejected", async () => {
   const store = new Store();
   const engine = new NativeSparqlEngine({ store });
   await assertRejects(
     () =>
       engine.execute({
         query:
-          "SELECT ?s WHERE { { ?s <http://xmlns.com/foaf/0.1/name> ?n } UNION { ?s <http://xmlns.com/foaf/0.1/age> ?a } }",
+          "SELECT ?s WHERE { GRAPH <http://example.org/g> { ?s <http://xmlns.com/foaf/0.1/name> ?n } }",
       }),
     Error,
-    "Unsupported graph pattern type: union",
+    "Unsupported graph pattern type: graph",
   );
 });
 
