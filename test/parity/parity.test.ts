@@ -319,6 +319,43 @@ const selectCases: ParityTestCase[] = [
       `{ ?person ${foafName} ?n2 } UNION { ?person ${foafAge} ?age } }`,
     quads: basicKnowledgeGraphQuads,
   },
+  {
+    name: "SELECT - UCASE and LCASE preserve language tags in projections",
+    kind: "select",
+    query: `SELECT ?person (UCASE(?name) AS ?upper) (LCASE(?name) AS ?lower) ` +
+      `WHERE { ?person ${foafName} ?name }`,
+    quads: basicKnowledgeGraphQuads,
+  },
+  {
+    name: "SELECT - SUBSTR projection with start and length",
+    kind: "select",
+    query: `SELECT ?person (SUBSTR(?name, 2, 3) AS ?mid) ` +
+      `WHERE { ?person ${foafName} ?name }`,
+    quads: basicKnowledgeGraphQuads,
+  },
+  {
+    name: "SELECT - CONCAT projection",
+    kind: "select",
+    query: `SELECT ?person (CONCAT(?name, "!") AS ?greeting) ` +
+      `WHERE { ?person ${foafName} ?name }`,
+    quads: basicKnowledgeGraphQuads,
+  },
+  {
+    name: "SELECT - XSD value constructors in projections",
+    kind: "select",
+    query: `SELECT (xsd:integer("42") AS ?i) (xsd:double("5") AS ?d) ` +
+      `(xsd:boolean(1) AS ?b) (xsd:decimal(3.5) AS ?dec) ` +
+      `WHERE { ${exampleAlice} ${foafName} ?name }`,
+    quads: basicKnowledgeGraphQuads,
+  },
+  {
+    name: "SELECT - STRDT and STRLANG projections",
+    kind: "select",
+    query: `SELECT (STRDT("x", <http://example.org/t>) AS ?t) ` +
+      `(STRLANG("hello", "en") AS ?sl) ` +
+      `WHERE { ${exampleAlice} ${foafName} ?name }`,
+    quads: basicKnowledgeGraphQuads,
+  },
 ];
 
 const askCases: ParityTestCase[] = [

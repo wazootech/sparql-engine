@@ -102,7 +102,9 @@ function canonicalComunicaQuadString(item: rdfjs.Quad): string {
  * statically.
  */
 function extractSelectVars(query: string): string[] | null {
-  const ast = new SparqlJsParser().parse(query);
+  const ast = new SparqlJsParser({
+    prefixes: { xsd: "http://www.w3.org/2001/XMLSchema#" },
+  }).parse(query);
   if (ast.type !== "query" || ast.queryType !== "SELECT") {
     return null;
   }

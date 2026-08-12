@@ -1,6 +1,7 @@
 import type * as rdfjs from "@rdfjs/types";
 import type {
   Expression,
+  FunctionCallExpression,
   OperationExpression,
   Term as SparqlTerm,
 } from "sparqljs";
@@ -38,8 +39,11 @@ type Ebv = boolean | "error";
  *
  * Supported surface: comparisons (=, !=, <, >, <=, >=), logicals (&&, ||, !),
  * arithmetic (+, -, *, / with numeric datatype promotion and integer-exact
- * BigInt results), bound(), STR(), and STRLEN(). Unsupported expression kinds
- * (function calls, aggregates, IN tuples) raise a clear error.
+ * BigInt results), bound(), STR(), STRLEN(), the string functions UCASE,
+ * LCASE, CONCAT, and SUBSTR, the datatype constructors STRDT and STRLANG,
+ * and the XSD value constructors (xsd:integer/decimal/double/float/string/
+ * boolean). Unsupported expression kinds (aggregates, IN tuples, other
+ * function calls) raise a clear error.
  */
 export class ExpressionEvaluator {
   /**
@@ -58,6 +62,9 @@ export class ExpressionEvaluator {
     }
     if (!("type" in expression)) {
       throw new Error("Unsupported SPARQL expression: tuple");
+    }
+    if (expression.type === "functionCall") {
+      return this.evaluateFunctionCall(expression, binding);
     }
     if (expression.type !== "operation") {
       throw new Error(`Unsupported SPARQL expression: ${expression.type}`);
@@ -175,6 +182,17 @@ export class ExpressionEvaluator {
         }
         return literal(String(value.value.length), namedNode(XSD_INTEGER));
       }
+      case "ucase":
+      case "lcase":
+        return this.stringCase(operation.operator, arg(0), binding);
+      case "concat":
+        return this.concat(operation.args as Expression[], binding);
+      case "substr":
+        return this.substr(operation.args as Expression[], binding);
+      case "strdt":
+        return this.strdt(operation.args as Expression[], binding);
+      case "strlang":
+        return this.strlang(operation.args as Expression[], binding);
       default:
         throw new Error(
           `Unsupported SPARQL expression operator: ${operation.operator}`,
@@ -360,6 +378,378 @@ export class ExpressionEvaluator {
   }
 
   /**
+   * stringCase implements UCASE and LCASE: language-tagged inputs keep
+   * their language, everything else becomes an xsd:string literal, and any
+   * non-string input is a type error.
+   */
+  private stringCase(
+    operator: "ucase" | "lcase",
+    expression: Expression,
+    binding: TermBinding,
+  ): rdfjs.Literal | undefined {
+    const value = this.evaluate(expression, binding);
+    if (
+      value === undefined || value.termType !== "Literal" ||
+      !this.isStringTyped(value)
+    ) {
+      return undefined;
+    }
+    const transformed = operator === "ucase"
+      ? value.value.toUpperCase()
+      : value.value.toLowerCase();
+    return this.stringResult(
+      transformed,
+      this.isLangTagged(value) ? value.language : undefined,
+    );
+  }
+
+  /**
+   * concat implements CONCAT over string literals; any non-string argument
+   * (numeric literal, IRI, unbound) is a type error.
+   */
+  private concat(
+    expressions: Expression[],
+    binding: TermBinding,
+  ): rdfjs.Literal | undefined {
+    let result = "";
+    for (const expression of expressions) {
+      const value = this.evaluate(expression, binding);
+      if (
+        value === undefined || value.termType !== "Literal" ||
+        !this.isStringTyped(value)
+      ) {
+        return undefined;
+      }
+      result += value.value;
+    }
+    return literal(result, namedNode(XSD_STRING));
+  }
+
+  /**
+   * substr implements SUBSTR with XPath semantics for integer positions:
+   * 1-based start, optional length, positions before 1 clipped, a negative
+   * or zero length yielding the empty string. Non-integer positions are a
+   * type error, matching the reference engines.
+   */
+  private substr(
+    expressions: Expression[],
+    binding: TermBinding,
+  ): rdfjs.Literal | undefined {
+    if (expressions.length < 2 || expressions.length > 3) {
+      return undefined;
+    }
+    const str = this.evaluate(expressions[0], binding);
+    const startTerm = this.evaluate(expressions[1], binding);
+    const lenTerm = expressions.length === 3
+      ? this.evaluate(expressions[2], binding)
+      : undefined;
+    if (
+      str === undefined || startTerm === undefined ||
+      str.termType !== "Literal" || !this.isStringTyped(str)
+    ) {
+      return undefined;
+    }
+    const start = this.integerValue(startTerm);
+    if (start === null) {
+      return undefined;
+    }
+    const length = lenTerm === undefined ? null : this.integerValue(lenTerm);
+    if (lenTerm !== undefined && length === null) {
+      return undefined;
+    }
+    const end = length === null ? Number.POSITIVE_INFINITY : start + length;
+    const from = Math.max(start, 1) - 1;
+    const to = end - 1;
+    const sliced = to < from ? "" : str.value.slice(from, to);
+    return this.stringResult(
+      sliced,
+      this.isLangTagged(str) ? str.language : undefined,
+    );
+  }
+
+  /**
+   * strdt implements STRDT: the lexical form of a literal re-tagged with the
+   * given datatype IRI (its language, if any, is dropped).
+   */
+  private strdt(
+    expressions: Expression[],
+    binding: TermBinding,
+  ): rdfjs.Literal | undefined {
+    const value = this.evaluate(expressions[0], binding);
+    const datatype = this.evaluate(expressions[1], binding);
+    if (value === undefined || datatype === undefined) {
+      return undefined;
+    }
+    if (value.termType !== "Literal" || datatype.termType !== "NamedNode") {
+      return undefined;
+    }
+    return literal(value.value, namedNode(datatype.value));
+  }
+
+  /**
+   * strlang implements STRLANG: a simple literal re-tagged with the given
+   * language tag (a language-tagged input is a type error).
+   */
+  private strlang(
+    expressions: Expression[],
+    binding: TermBinding,
+  ): rdfjs.Literal | undefined {
+    const value = this.evaluate(expressions[0], binding);
+    const lang = this.evaluate(expressions[1], binding);
+    if (value === undefined || lang === undefined) {
+      return undefined;
+    }
+    if (
+      value.termType !== "Literal" || !this.isStringTyped(value) ||
+      this.isLangTagged(value)
+    ) {
+      return undefined;
+    }
+    if (lang.termType !== "Literal" || !this.isStringTyped(lang)) {
+      return undefined;
+    }
+    return literal(value.value, lang.value);
+  }
+
+  /**
+   * evaluateFunctionCall dispatches XSD value constructor calls by their
+   * function IRI (xsd:integer, xsd:decimal, xsd:double, xsd:float,
+   * xsd:string, xsd:boolean); anything else is rejected.
+   */
+  private evaluateFunctionCall(
+    expression: FunctionCallExpression,
+    binding: TermBinding,
+  ): rdfjs.Term | undefined {
+    const fn = expression.function;
+    const fnIri = typeof fn === "string"
+      ? fn
+      : fn.termType === "NamedNode"
+      ? fn.value
+      : null;
+    if (fnIri === null) {
+      throw new Error(
+        "Unsupported SPARQL expression: functionCall without an IRI function",
+      );
+    }
+    const value = this.evaluate(expression.args[0] as Expression, binding);
+    switch (fnIri) {
+      case XSD_INTEGER:
+        return this.constructorInteger(value);
+      case XSD_DECIMAL:
+        return this.constructorDecimal(value);
+      case XSD_DOUBLE:
+        return this.constructorDouble(value);
+      case XSD_FLOAT:
+        return this.constructorFloat(value);
+      case XSD_STRING:
+        return this.constructorString(value);
+      case XSD_BOOLEAN:
+        return this.constructorBoolean(value);
+      default:
+        throw new Error(
+          `Unsupported SPARQL expression: functionCall ${fnIri}`,
+        );
+    }
+  }
+
+  /**
+   * constructorInteger implements xsd:integer(x): strict xsd:integer
+   * lexical forms, integer-valued numerics, and booleans (1/0) cast; other
+   * inputs are type errors.
+   */
+  private constructorInteger(
+    term: rdfjs.Term | undefined,
+  ): rdfjs.Literal | undefined {
+    if (term === undefined || term.termType !== "Literal") {
+      return undefined;
+    }
+    const datatype = term.datatype?.value;
+    if (datatype === XSD_BOOLEAN) {
+      return literal(
+        term.value === "true" ? "1" : "0",
+        namedNode(XSD_INTEGER),
+      );
+    }
+    const numeric = numericValue(term);
+    if (numeric !== null) {
+      if (typeof numeric === "bigint") {
+        return literal(numeric.toString(), namedNode(XSD_INTEGER));
+      }
+      if (Number.isInteger(numeric)) {
+        return literal(String(numeric), namedNode(XSD_INTEGER));
+      }
+      return undefined;
+    }
+    if (this.isStringTyped(term) && /^-?\d+$/.test(term.value)) {
+      return literal(term.value, namedNode(XSD_INTEGER));
+    }
+    return undefined;
+  }
+
+  /**
+   * constructorDecimal implements xsd:decimal(x): numeric values and
+   * decimal lexical forms cast to their canonical decimal lexical form.
+   */
+  private constructorDecimal(
+    term: rdfjs.Term | undefined,
+  ): rdfjs.Literal | undefined {
+    if (term === undefined || term.termType !== "Literal") {
+      return undefined;
+    }
+    const numeric = numericValue(term);
+    if (numeric !== null) {
+      return literal(
+        formatNumber(Number(numeric), XSD_DECIMAL),
+        namedNode(XSD_DECIMAL),
+      );
+    }
+    if (this.isStringTyped(term) && /^-?\d+(\.\d+)?$/.test(term.value)) {
+      return literal(
+        formatNumber(Number(term.value), XSD_DECIMAL),
+        namedNode(XSD_DECIMAL),
+      );
+    }
+    return undefined;
+  }
+
+  /**
+   * constructorDouble implements xsd:double(x), producing the canonical
+   * XPath double lexical form ("5.0E0", "1.0E3", "INF").
+   */
+  private constructorDouble(
+    term: rdfjs.Term | undefined,
+  ): rdfjs.Literal | undefined {
+    if (term === undefined || term.termType !== "Literal") {
+      return undefined;
+    }
+    if (term.datatype?.value === XSD_BOOLEAN) {
+      return literal(
+        term.value === "true" ? "1.0E0" : "0.0E0",
+        namedNode(XSD_DOUBLE),
+      );
+    }
+    const numeric = numericValue(term);
+    let n: number;
+    if (numeric !== null) {
+      n = Number(numeric);
+    } else if (this.isStringTyped(term)) {
+      n = Number(term.value);
+      if (Number.isNaN(n)) {
+        return undefined;
+      }
+    } else {
+      return undefined;
+    }
+    return literal(canonicalDouble(n), namedNode(XSD_DOUBLE));
+  }
+
+  /**
+   * constructorFloat implements xsd:float(x): the numeric value in its
+   * Number string form tagged as xsd:float.
+   */
+  private constructorFloat(
+    term: rdfjs.Term | undefined,
+  ): rdfjs.Literal | undefined {
+    if (term === undefined || term.termType !== "Literal") {
+      return undefined;
+    }
+    const numeric = numericValue(term);
+    let n: number;
+    if (numeric !== null) {
+      n = Number(numeric);
+    } else if (this.isStringTyped(term)) {
+      n = Number(term.value);
+      if (Number.isNaN(n)) {
+        return undefined;
+      }
+    } else {
+      return undefined;
+    }
+    return literal(String(n), namedNode(XSD_FLOAT));
+  }
+
+  /**
+   * constructorString implements xsd:string(x): the lexical form of any
+   * literal, IRI, or blank node re-tagged as xsd:string.
+   */
+  private constructorString(
+    term: rdfjs.Term | undefined,
+  ): rdfjs.Literal | undefined {
+    if (term === undefined) {
+      return undefined;
+    }
+    if (
+      term.termType === "Literal" || term.termType === "NamedNode" ||
+      term.termType === "BlankNode"
+    ) {
+      return literal(term.value, namedNode(XSD_STRING));
+    }
+    return undefined;
+  }
+
+  /**
+   * constructorBoolean implements xsd:boolean(x): boolean passthrough,
+   * numeric zero as false (anything else true), and the strings true/1 and
+   * false/0; other inputs are type errors.
+   */
+  private constructorBoolean(
+    term: rdfjs.Term | undefined,
+  ): rdfjs.Literal | undefined {
+    if (term === undefined || term.termType !== "Literal") {
+      return undefined;
+    }
+    if (term.datatype?.value === XSD_BOOLEAN) {
+      return literal(term.value, namedNode(XSD_BOOLEAN));
+    }
+    const numeric = numericValue(term);
+    if (numeric !== null) {
+      const value = Number(numeric);
+      return literal(value === 0 ? "false" : "true", namedNode(XSD_BOOLEAN));
+    }
+    if (this.isStringTyped(term) && !this.isLangTagged(term)) {
+      const text = term.value;
+      if (text === "true" || text === "1") {
+        return literal("true", namedNode(XSD_BOOLEAN));
+      }
+      if (text === "false" || text === "0") {
+        return literal("false", namedNode(XSD_BOOLEAN));
+      }
+    }
+    return undefined;
+  }
+
+  /**
+   * integerValue extracts a strict integer value from a term for SUBSTR
+   * positions, or null when the term is not an integer-valued numeric.
+   */
+  private integerValue(term: rdfjs.Term): number | null {
+    if (term.termType !== "Literal") {
+      return null;
+    }
+    const numeric = numericValue(term);
+    if (numeric === null) {
+      return null;
+    }
+    if (typeof numeric === "bigint") {
+      return Number(numeric);
+    }
+    return Number.isInteger(numeric) ? numeric : null;
+  }
+
+  /**
+   * stringResult builds a string-function result: language-tagged inputs
+   * keep their language, everything else becomes an xsd:string literal.
+   */
+  private stringResult(
+    value: string,
+    lang: string | undefined,
+  ): rdfjs.Literal {
+    return lang === undefined || lang === ""
+      ? literal(value, namedNode(XSD_STRING))
+      : literal(value, lang);
+  }
+
+  /**
    * ebv computes the effective boolean value of a term: false for empty
    * strings, numeric zero, and xsd:boolean false; true for other literals and
    * non-literal terms; and "error" for unbound values, lang-tagged literals,
@@ -395,4 +785,22 @@ export class ExpressionEvaluator {
  */
 function booleanLiteral(value: boolean): rdfjs.Literal {
   return literal(value ? "true" : "false", namedNode(XSD_BOOLEAN));
+}
+
+/**
+ * canonicalDouble renders a number in the canonical XPath double lexical
+ * form: a mantissa in [1, 10) with at least one fractional digit followed by
+ * an exponent without a leading sign ("5.0E0", "1.0E3", "3.5E-1").
+ */
+function canonicalDouble(n: number): string {
+  if (n === 0) {
+    return "0.0E0";
+  }
+  if (!Number.isFinite(n)) {
+    return n > 0 ? "INF" : "-INF";
+  }
+  const [mantissa, exponent] = n.toExponential().split("e");
+  const mantissaFixed = mantissa.includes(".") ? mantissa : `${mantissa}.0`;
+  const exponentText = exponent.startsWith("+") ? exponent.slice(1) : exponent;
+  return `${mantissaFixed}E${exponentText}`;
 }

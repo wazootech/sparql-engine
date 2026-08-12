@@ -1127,3 +1127,203 @@ Deno.test("NativeSparqlEngine - INSERT WHERE skips unbound template variables", 
     0,
   );
 });
+
+Deno.test("NativeSparqlEngine - UCASE and LCASE preserve language tags", async () => {
+  const store = new Store();
+  store.addQuad(
+    quad(
+      namedNode("http://example.org/alice"),
+      namedNode("http://xmlns.com/foaf/0.1/name"),
+      literal("Alice"),
+    ),
+  );
+  store.addQuad(
+    quad(
+      namedNode("http://example.org/carol"),
+      namedNode("http://xmlns.com/foaf/0.1/name"),
+      literal("Carol", "en"),
+    ),
+  );
+  const engine = new NativeSparqlEngine({ store });
+
+  const result = await engine.execute({
+    query: "SELECT ?person (UCASE(?name) AS ?upper) (LCASE(?name) AS ?lower) " +
+      "WHERE { ?person <http://xmlns.com/foaf/0.1/name> ?name }",
+  });
+
+  assertEquals(result.kind, "select");
+  if (result.kind === "select") {
+    const byPerson = new Map(
+      result.data.results.bindings.map((b) => [b.person.value, b]),
+    );
+    const alice = byPerson.get("http://example.org/alice");
+    assertEquals(alice?.upper, { type: "literal", value: "ALICE" });
+    assertEquals(alice?.lower, { type: "literal", value: "alice" });
+    const carol = byPerson.get("http://example.org/carol");
+    assertEquals(carol?.upper, {
+      type: "literal",
+      value: "CAROL",
+      "xml:lang": "en",
+    });
+  }
+});
+
+Deno.test("NativeSparqlEngine - SUBSTR clips positions before 1 and handles length", async () => {
+  const store = new Store();
+  store.addQuad(
+    quad(
+      namedNode("http://example.org/alice"),
+      namedNode("http://xmlns.com/foaf/0.1/name"),
+      literal("Alice"),
+    ),
+  );
+  const engine = new NativeSparqlEngine({ store });
+
+  const result = await engine.execute({
+    query:
+      "SELECT (SUBSTR(?name, 2, 3) AS ?mid) (SUBSTR(?name, 0, 2) AS ?clipped) " +
+      "(SUBSTR(?name, 2, 0) AS ?empty) " +
+      "WHERE { <http://example.org/alice> <http://xmlns.com/foaf/0.1/name> ?name }",
+  });
+
+  assertEquals(result.kind, "select");
+  if (result.kind === "select") {
+    const b = result.data.results.bindings[0];
+    assertEquals(b.mid.value, "lic");
+    assertEquals(b.clipped.value, "A");
+    assertEquals(b.empty.value, "");
+  }
+});
+
+Deno.test("NativeSparqlEngine - CONCAT type error leaves the projection unbound", async () => {
+  const store = new Store();
+  store.addQuad(
+    quad(
+      namedNode("http://example.org/alice"),
+      namedNode("http://xmlns.com/foaf/0.1/age"),
+      literal("28", namedNode("http://www.w3.org/2001/XMLSchema#integer")),
+    ),
+  );
+  const engine = new NativeSparqlEngine({ store });
+
+  const result = await engine.execute({
+    query: 'SELECT (CONCAT(?age, "!") AS ?c) ' +
+      "WHERE { <http://example.org/alice> <http://xmlns.com/foaf/0.1/age> ?age }",
+  });
+
+  assertEquals(result.kind, "select");
+  if (result.kind === "select") {
+    const b = result.data.results.bindings[0];
+    assertEquals("c" in b, false);
+  }
+});
+
+Deno.test("NativeSparqlEngine - XSD value constructors produce canonical forms", async () => {
+  const store = new Store();
+  store.addQuad(
+    quad(
+      namedNode("http://example.org/alice"),
+      namedNode("http://xmlns.com/foaf/0.1/name"),
+      literal("Alice"),
+    ),
+  );
+  const engine = new NativeSparqlEngine({ store });
+
+  const result = await engine.execute({
+    query: 'SELECT (xsd:integer("42") AS ?i) (xsd:double("5") AS ?d) ' +
+      "(xsd:boolean(1) AS ?b) (xsd:decimal(3.5) AS ?dec) " +
+      "(xsd:integer(28) AS ?fromNum) (xsd:double(true) AS ?fromBool) " +
+      "WHERE { <http://example.org/alice> <http://xmlns.com/foaf/0.1/name> ?name }",
+  });
+
+  const xsd = "http://www.w3.org/2001/XMLSchema#";
+  assertEquals(result.kind, "select");
+  if (result.kind === "select") {
+    const b = result.data.results.bindings[0];
+    assertEquals(b.i, {
+      type: "literal",
+      value: "42",
+      datatype: `${xsd}integer`,
+    });
+    assertEquals(b.d, {
+      type: "literal",
+      value: "5.0E0",
+      datatype: `${xsd}double`,
+    });
+    assertEquals(b.b, {
+      type: "literal",
+      value: "true",
+      datatype: `${xsd}boolean`,
+    });
+    assertEquals(b.dec, {
+      type: "literal",
+      value: "3.5",
+      datatype: `${xsd}decimal`,
+    });
+    assertEquals(b.fromNum, {
+      type: "literal",
+      value: "28",
+      datatype: `${xsd}integer`,
+    });
+    assertEquals(b.fromBool, {
+      type: "literal",
+      value: "1.0E0",
+      datatype: `${xsd}double`,
+    });
+  }
+});
+
+Deno.test("NativeSparqlEngine - STRDT and STRLANG re-tag literals", async () => {
+  const store = new Store();
+  store.addQuad(
+    quad(
+      namedNode("http://example.org/alice"),
+      namedNode("http://xmlns.com/foaf/0.1/name"),
+      literal("Alice"),
+    ),
+  );
+  const engine = new NativeSparqlEngine({ store });
+
+  const result = await engine.execute({
+    query: 'SELECT (STRDT("x", <http://example.org/t>) AS ?t) ' +
+      '(STRLANG("hello", "en") AS ?sl) ' +
+      "WHERE { <http://example.org/alice> <http://xmlns.com/foaf/0.1/name> ?name }",
+  });
+
+  assertEquals(result.kind, "select");
+  if (result.kind === "select") {
+    const b = result.data.results.bindings[0];
+    assertEquals(b.t, {
+      type: "literal",
+      value: "x",
+      datatype: "http://example.org/t",
+    });
+    assertEquals(b.sl, {
+      type: "literal",
+      value: "hello",
+      "xml:lang": "en",
+    });
+  }
+});
+
+Deno.test("NativeSparqlEngine - unknown function call raises a clear error", async () => {
+  const store = new Store();
+  store.addQuad(
+    quad(
+      namedNode("http://example.org/alice"),
+      namedNode("http://xmlns.com/foaf/0.1/name"),
+      literal("Alice"),
+    ),
+  );
+  const engine = new NativeSparqlEngine({ store });
+
+  await assertRejects(
+    () =>
+      engine.execute({
+        query: "SELECT (<http://example.org/custom>(?name) AS ?c) " +
+          "WHERE { <http://example.org/alice> <http://xmlns.com/foaf/0.1/name> ?name }",
+      }),
+    Error,
+    "Unsupported SPARQL expression: functionCall",
+  );
+});

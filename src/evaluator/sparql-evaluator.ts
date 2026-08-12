@@ -2,6 +2,7 @@ import type * as rdfjs from "@rdfjs/types";
 import type {
   AskQuery,
   ConstructQuery,
+  Expression,
   SelectQuery,
   SparqlQuery,
   Term as SparqlTerm,
@@ -82,6 +83,7 @@ export class SparqlEvaluator {
   ): Promise<SparqlSelectResults> {
     const rawBindings = await this.bgpEvaluator.evaluateBgp(query.where || []);
     const vars: string[] = [];
+    const projections = new Map<string, Expression>();
 
     for (const v of query.variables) {
       if (
@@ -92,6 +94,7 @@ export class SparqlEvaluator {
         vars.push(v);
       } else if ("variable" in v && v.variable) {
         vars.push(v.variable.value);
+        projections.set(v.variable.value, v.expression);
       }
     }
 
@@ -100,13 +103,22 @@ export class SparqlEvaluator {
       : rawBindings;
 
     // Bindings travel internally as RDF/JS terms; this projection is the
-    // single point where they become the SparqlValue wire format.
+    // single point where they become the SparqlValue wire format. Projection
+    // expressions ((expr AS ?v)) are evaluated here; an error leaves the
+    // variable unbound, matching SPARQL 1.1 semantics.
     const filteredBindings: SparqlBinding[] = ordered.map((binding) => {
       const projected: SparqlBinding = {};
       for (const varName of vars) {
         const bound = binding[varName];
         if (bound) {
           projected[varName] = rdfTermToSparqlValue(bound);
+        }
+        const projection = projections.get(varName);
+        if (projection !== undefined && !(varName in projected)) {
+          const value = this.expressionEvaluator.evaluate(projection, binding);
+          if (value !== undefined) {
+            projected[varName] = rdfTermToSparqlValue(value);
+          }
         }
       }
       return projected;
