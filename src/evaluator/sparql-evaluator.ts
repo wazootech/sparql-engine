@@ -64,6 +64,12 @@ export class SparqlEvaluator {
   /** expressionEvaluator evaluates ORDER BY expressions against solutions. */
   private readonly expressionEvaluator = new ExpressionEvaluator();
 
+  /**
+   * nextConstructBnodeId mints fresh labels for CONSTRUCT template blank
+   * nodes, which must be distinct per solution mapping (SPARQL 1.1 §16.2.1).
+   */
+  private nextConstructBnodeId = 0;
+
   private readonly store: rdfjs.Source<rdfjs.Quad>;
 
   public constructor(
@@ -418,13 +424,18 @@ export class SparqlEvaluator {
     }
 
     for (const binding of bindings) {
+      // Blank nodes in a CONSTRUCT template are fresh per solution mapping
+      // (SPARQL 1.1 §16.2.1): the parser expands RDF collections and _:b
+      // template terms into shared labels, so remap them per binding.
+      const bnodeMap = new Map<string, rdfjs.BlankNode>();
       for (const t of query.template) {
-        const s = this.resolveConstructTerm(t.subject, binding);
+        const s = this.resolveConstructTerm(t.subject, binding, bnodeMap);
         const p = this.resolveConstructTerm(
           simplePredicate(t.predicate),
           binding,
+          bnodeMap,
         );
-        const o = this.resolveConstructTerm(t.object, binding);
+        const o = this.resolveConstructTerm(t.object, binding, bnodeMap);
 
         if (s && p && o) {
           quads.push(
@@ -493,6 +504,7 @@ export class SparqlEvaluator {
   private resolveConstructTerm(
     term: SparqlTerm,
     binding: TermBinding,
+    bnodeMap: Map<string, rdfjs.BlankNode>,
   ): rdfjs.Term | null {
     if (term.termType === "Variable") {
       const bound = binding[term.value];
@@ -500,6 +512,15 @@ export class SparqlEvaluator {
         return bound;
       }
       return null;
+    }
+    if (term.termType === "BlankNode") {
+      const existing = bnodeMap.get(term.value);
+      if (existing !== undefined) {
+        return existing;
+      }
+      const fresh = DataFactory.blankNode(`c${this.nextConstructBnodeId++}`);
+      bnodeMap.set(term.value, fresh);
+      return fresh;
     }
     return sparqlTermToRdfTerm(term);
   }
