@@ -11,7 +11,9 @@ import type { NativeSparqlTransaction } from "@/native-sparql-engine.ts";
 import { BgpEvaluator } from "@/evaluator/bgp-evaluator.ts";
 import type { TermBinding } from "@/evaluator/bgp-evaluator.ts";
 import {
+  buildDatasetStore,
   buildQuadIndex,
+  GraphScopedStore,
   matchQuads,
   probeQuadIndex,
   simplePredicate,
@@ -194,20 +196,33 @@ export class UpdateEvaluator {
     add: (item: rdfjs.Quad) => unknown,
     remove: (item: rdfjs.Quad) => unknown,
   ): Promise<void> {
+    const withGraph = operation.graph
+      ? sparqlTermToRdfTerm(operation.graph)
+      : null;
+
+    let evaluator = this.bgpEvaluator;
     if (operation.using) {
-      throw new Error(
-        "Unsupported SPARQL update feature: USING in DELETE/INSERT",
+      const usingObj = operation.using as unknown as {
+        default?: SparqlTerm[];
+        named?: SparqlTerm[];
+      };
+      const defaultTerms = usingObj.default ?? [];
+      const namedTerms = usingObj.named ?? [];
+      const dataset = await buildDatasetStore(
+        this.options.store,
+        defaultTerms.map((t) => sparqlTermToRdfTerm(t)),
+        namedTerms.map((t) => sparqlTermToRdfTerm(t)),
       );
+      evaluator = this.bgpEvaluator.forStore(dataset);
+    } else if (withGraph !== null) {
+      const scopedStore = new GraphScopedStore(this.options.store, withGraph);
+      evaluator = this.bgpEvaluator.forStore(scopedStore);
     }
-    if (operation.graph) {
-      throw new Error(
-        "Unsupported SPARQL update feature: WITH in DELETE/INSERT",
-      );
-    }
-    const bindings = await this.bgpEvaluator.evaluateBgp(operation.where);
+
+    const bindings = await evaluator.evaluateBgp(operation.where);
 
     for (const pattern of operation.delete) {
-      await this.deleteMatches(pattern, bindings, remove);
+      await this.deleteMatches(pattern, bindings, remove, withGraph);
     }
     for (const binding of bindings) {
       const bnodeMap = new Map<string, rdfjs.BlankNode>();
@@ -217,6 +232,7 @@ export class UpdateEvaluator {
             pattern,
             binding,
             bnodeMap,
+            withGraph,
           )
         ) {
           add(item);
@@ -252,13 +268,14 @@ export class UpdateEvaluator {
     pattern: Quads,
     bindings: TermBinding[],
     remove: (item: rdfjs.Quad) => unknown,
+    withGraph: rdfjs.Term | null = null,
   ): Promise<void> {
     if (bindings.length === 0) {
       return;
     }
     const graph = pattern.type === "graph"
       ? this.convertTerm(pattern.name, null)
-      : defaultGraph();
+      : (withGraph ?? defaultGraph());
     const triples: Triple[] = pattern.triples ??
       (pattern as unknown as { patterns?: { triples?: Triple[] }[] }).patterns
         ?.flatMap((p) => p.triples ?? []) ??
@@ -342,10 +359,11 @@ export class UpdateEvaluator {
     pattern: Quads,
     binding: TermBinding,
     bnodeMap: Map<string, rdfjs.BlankNode>,
+    withGraph: rdfjs.Term | null = null,
   ): rdfjs.Quad[] {
     const graph = pattern.type === "graph"
       ? this.convertTerm(pattern.name, null)
-      : defaultGraph();
+      : (withGraph ?? defaultGraph());
     const quads: rdfjs.Quad[] = [];
     const triples: Triple[] = pattern.triples ??
       (pattern as unknown as { patterns?: { triples?: Triple[] }[] }).patterns

@@ -98,7 +98,9 @@ export class BgpEvaluator {
     // The top-level evaluation runs against the default graph (matching
     // Comunica, whose plain patterns never see named-graph quads); GRAPH
     // patterns scope further inside.
-    const defaultScope = new GraphScopedStore(this.store, defaultGraph());
+    const defaultScope = this.store instanceof GraphScopedStore
+      ? this.store
+      : new GraphScopedStore(this.store, defaultGraph());
     return await this.evaluateGroup(patterns, [{}], defaultScope);
   }
 

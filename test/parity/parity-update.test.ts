@@ -148,6 +148,32 @@ const updateCases: ParityUpdateCase[] = [
       `WHERE { ?person ${foafName} ?name FILTER(STRLEN(?name) > 3) }`,
     quads: basicKnowledgeGraphQuads,
   },
+  {
+    name: "DELETE/INSERT with WITH clause",
+    update:
+      `WITH ${exampleGraph} DELETE { ?s ${foafName} ?name } INSERT { ?s <http://example.org/display> ?name } WHERE { ?s ${foafName} ?name }`,
+    quads: [
+      quad(
+        namedNode("http://example.org/alice"),
+        namedNode("http://xmlns.com/foaf/0.1/name"),
+        literal("Alice"),
+        namedNode("http://example.org/graph"),
+      ),
+    ],
+  },
+  {
+    name: "DELETE/INSERT with USING clause",
+    update:
+      `DELETE { ?s ${foafName} ?name } USING ${exampleGraph} WHERE { ?s ${foafName} ?name }`,
+    quads: [
+      quad(
+        namedNode("http://example.org/alice"),
+        namedNode("http://xmlns.com/foaf/0.1/name"),
+        literal("Alice"),
+        namedNode("http://example.org/graph"),
+      ),
+    ],
+  },
 ];
 
 for (const testCase of updateCases) {
