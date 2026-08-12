@@ -509,7 +509,12 @@ export class ExpressionEvaluator {
       }
       case "BNODE":
       case "bnode":
-        return this.bnode(operation.args as Expression[], binding, aggregates);
+        return this.bnode(
+          operation.args as Expression[],
+          binding,
+          aggregates,
+          context,
+        );
       case "struuid":
       case "STRUUID":
         return this.struuid();
@@ -1669,8 +1674,9 @@ export class ExpressionEvaluator {
 
   /**
    * bnode implements BNODE: no argument mints a fresh blank node; a string
-   * argument creates a blank node labeled from it (the same label yields
-   * the same node within one query). Non-string arguments are type errors.
+   * argument reuses one blank node per distinct string within a single
+   * solution mapping (the context's bnodeMap), minting distinct nodes
+   * across solutions. Non-string arguments are type errors.
    */
   private bnode(
     args: Expression[],
@@ -1684,6 +1690,16 @@ export class ExpressionEvaluator {
     const value = this.stringTerm(args[0], binding, aggregates, context);
     if (value === undefined) {
       return undefined;
+    }
+    const bnodeMap = context?.bnodeMap;
+    if (bnodeMap !== undefined) {
+      const existing = bnodeMap.get(value.value);
+      if (existing !== undefined) {
+        return existing;
+      }
+      const fresh = blankNode(`b${++this.bnodeCounter}`);
+      bnodeMap.set(value.value, fresh);
+      return fresh;
     }
     return blankNode(value.value);
   }
