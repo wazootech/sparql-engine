@@ -36,6 +36,207 @@ Deno.test("NativeSparqlEngine - SELECT query BGP evaluation", async () => {
   }
 });
 
+Deno.test("NativeSparqlEngine - ORDER BY sorts SELECT results by value", async () => {
+  const store = new Store();
+  store.addQuad(
+    quad(
+      namedNode("http://example.org/alice"),
+      namedNode("http://xmlns.com/foaf/0.1/name"),
+      literal("Alice"),
+    ),
+  );
+  store.addQuad(
+    quad(
+      namedNode("http://example.org/bob"),
+      namedNode("http://xmlns.com/foaf/0.1/name"),
+      literal("Bob"),
+    ),
+  );
+  store.addQuad(
+    quad(
+      namedNode("http://example.org/carol"),
+      namedNode("http://xmlns.com/foaf/0.1/name"),
+      literal("Carol", "en"),
+    ),
+  );
+
+  const engine = new NativeSparqlEngine({ store });
+  const result = await engine.execute({
+    query:
+      "SELECT ?person ?name WHERE { ?person <http://xmlns.com/foaf/0.1/name> ?name } ORDER BY ?name",
+  });
+  assertEquals(result.kind, "select");
+  if (result.kind === "select") {
+    // The lang-tagged literal (rdf:langString) sorts before the plain
+    // xsd:string literals by datatype IRI, then lexically.
+    assertEquals(
+      result.data.results.bindings.map((b) => b.name.value),
+      ["Carol", "Alice", "Bob"],
+    );
+  }
+});
+
+Deno.test("NativeSparqlEngine - ORDER BY DESC reverses the order", async () => {
+  const store = new Store();
+  store.addQuad(
+    quad(
+      namedNode("http://example.org/alice"),
+      namedNode("http://xmlns.com/foaf/0.1/name"),
+      literal("Alice"),
+    ),
+  );
+  store.addQuad(
+    quad(
+      namedNode("http://example.org/bob"),
+      namedNode("http://xmlns.com/foaf/0.1/name"),
+      literal("Bob"),
+    ),
+  );
+
+  const engine = new NativeSparqlEngine({ store });
+  const result = await engine.execute({
+    query:
+      "SELECT ?person ?name WHERE { ?person <http://xmlns.com/foaf/0.1/name> ?name } ORDER BY DESC(?name)",
+  });
+  assertEquals(result.kind, "select");
+  if (result.kind === "select") {
+    assertEquals(
+      result.data.results.bindings.map((b) => b.name.value),
+      ["Bob", "Alice"],
+    );
+  }
+});
+
+Deno.test("NativeSparqlEngine - ORDER BY sorts integers numerically", async () => {
+  const store = new Store();
+  store.addQuad(
+    quad(
+      namedNode("http://example.org/bob"),
+      namedNode("http://xmlns.com/foaf/0.1/age"),
+      literal("9", namedNode("http://www.w3.org/2001/XMLSchema#integer")),
+    ),
+  );
+  store.addQuad(
+    quad(
+      namedNode("http://example.org/alice"),
+      namedNode("http://xmlns.com/foaf/0.1/age"),
+      literal("10", namedNode("http://www.w3.org/2001/XMLSchema#integer")),
+    ),
+  );
+
+  const engine = new NativeSparqlEngine({ store });
+  const result = await engine.execute({
+    query:
+      "SELECT ?person ?age WHERE { ?person <http://xmlns.com/foaf/0.1/age> ?age } ORDER BY ?age",
+  });
+  assertEquals(result.kind, "select");
+  if (result.kind === "select") {
+    assertEquals(
+      result.data.results.bindings.map((b) => b.person.value),
+      ["http://example.org/bob", "http://example.org/alice"],
+    );
+  }
+});
+
+Deno.test("NativeSparqlEngine - ORDER BY multiple keys with DESC", async () => {
+  const store = new Store();
+  for (
+    const [person, age, name] of [
+      ["alice", "28", "Alice"],
+      ["bob", "20", "Bob"],
+      ["carol", "30", "Carol"],
+    ]
+  ) {
+    store.addQuad(
+      quad(
+        namedNode(`http://example.org/${person}`),
+        namedNode("http://xmlns.com/foaf/0.1/age"),
+        literal(age, namedNode("http://www.w3.org/2001/XMLSchema#integer")),
+      ),
+    );
+    store.addQuad(
+      quad(
+        namedNode(`http://example.org/${person}`),
+        namedNode("http://xmlns.com/foaf/0.1/name"),
+        literal(name),
+      ),
+    );
+  }
+
+  const engine = new NativeSparqlEngine({ store });
+  const result = await engine.execute({
+    query:
+      "SELECT ?person ?age ?name WHERE { ?person <http://xmlns.com/foaf/0.1/age> ?age . " +
+      "?person <http://xmlns.com/foaf/0.1/name> ?name } ORDER BY DESC(?age) ?name",
+  });
+  assertEquals(result.kind, "select");
+  if (result.kind === "select") {
+    assertEquals(
+      result.data.results.bindings.map((b) => b.person.value),
+      [
+        "http://example.org/carol",
+        "http://example.org/alice",
+        "http://example.org/bob",
+      ],
+    );
+  }
+});
+
+Deno.test("NativeSparqlEngine - ORDER BY unbound key keeps evaluation order", async () => {
+  const store = new Store();
+  store.addQuad(
+    quad(
+      namedNode("http://example.org/alice"),
+      namedNode("http://xmlns.com/foaf/0.1/name"),
+      literal("Alice"),
+    ),
+  );
+  store.addQuad(
+    quad(
+      namedNode("http://example.org/bob"),
+      namedNode("http://xmlns.com/foaf/0.1/name"),
+      literal("Bob"),
+    ),
+  );
+
+  const engine = new NativeSparqlEngine({ store });
+  const result = await engine.execute({
+    query:
+      "SELECT ?person ?name ?missing WHERE { ?person <http://xmlns.com/foaf/0.1/name> ?name } ORDER BY ?missing",
+  });
+  assertEquals(result.kind, "select");
+  if (result.kind === "select") {
+    assertEquals(
+      result.data.results.bindings.map((b) => b.person.value),
+      ["http://example.org/alice", "http://example.org/bob"],
+    );
+  }
+});
+
+Deno.test(
+  "NativeSparqlEngine - ORDER BY with an unsupported expression is rejected",
+  async () => {
+    const store = new Store();
+    store.addQuad(
+      quad(
+        namedNode("http://example.org/alice"),
+        namedNode("http://xmlns.com/foaf/0.1/name"),
+        literal("Alice"),
+      ),
+    );
+    const engine = new NativeSparqlEngine({ store });
+    await assertRejects(
+      () =>
+        engine.execute({
+          query:
+            "SELECT ?person WHERE { ?person <http://xmlns.com/foaf/0.1/name> ?name } ORDER BY STRLEN(?name)",
+        }),
+      Error,
+      "Unsupported ORDER BY expression",
+    );
+  },
+);
+
 Deno.test("NativeSparqlEngine - ASK query evaluation", async () => {
   const store = new Store();
   store.addQuad(

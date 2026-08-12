@@ -16,7 +16,11 @@ import type {
 } from "@/sparql-engine-interface.ts";
 import { BgpEvaluator } from "@/evaluator/bgp-evaluator.ts";
 import type { TermBinding } from "@/evaluator/bgp-evaluator.ts";
-import { rdfTermToSparqlValue, sparqlTermToRdfTerm } from "@/term/mod.ts";
+import {
+  compareRdfTerms,
+  rdfTermToSparqlValue,
+  sparqlTermToRdfTerm,
+} from "@/term/mod.ts";
 import { DataFactory } from "n3";
 
 /**
@@ -87,9 +91,13 @@ export class SparqlEvaluator {
       }
     }
 
+    const ordered = query.order?.length
+      ? this.orderBindings(rawBindings, query.order)
+      : rawBindings;
+
     // Bindings travel internally as RDF/JS terms; this projection is the
     // single point where they become the SparqlValue wire format.
-    const filteredBindings: SparqlBinding[] = rawBindings.map((binding) => {
+    const filteredBindings: SparqlBinding[] = ordered.map((binding) => {
       const projected: SparqlBinding = {};
       for (const varName of vars) {
         const bound = binding[varName];
@@ -156,6 +164,50 @@ export class SparqlEvaluator {
     throw new Error(
       `Unsupported property path predicate in CONSTRUCT template`,
     );
+  }
+
+  /**
+   * orderBindings sorts term bindings by the query's ORDER BY clauses, using
+   * the term module's ordering (unbound lowest, then blank nodes, IRIs, and
+   * literals; literals by datatype, numeric value, then lexical form).
+   * Comparison is stable, so ties keep the evaluation order. Only variable
+   * and constant-term expressions are supported; anything else (function
+   * calls, arithmetic) has no expression evaluator yet and raises a clear
+   * error.
+   */
+  private orderBindings(
+    bindings: TermBinding[],
+    order: NonNullable<SelectQuery["order"]>,
+  ): TermBinding[] {
+    const comparators = order.map((clause) => {
+      const expression = clause.expression;
+      if (!("termType" in expression)) {
+        throw new Error(
+          "Unsupported ORDER BY expression: only variables and RDF terms " +
+            "are supported",
+        );
+      }
+      const constant = expression.termType === "Variable"
+        ? undefined
+        : sparqlTermToRdfTerm(expression);
+      return {
+        descending: clause.descending === true,
+        resolve: (binding: TermBinding): rdfjs.Term | undefined =>
+          constant ?? binding[expression.value],
+      };
+    });
+    return [...bindings].sort((a, b) => {
+      for (const comparator of comparators) {
+        const result = compareRdfTerms(
+          comparator.resolve(a),
+          comparator.resolve(b),
+        );
+        if (result !== 0) {
+          return comparator.descending ? -result : result;
+        }
+      }
+      return 0;
+    });
   }
 
   private resolveConstructTerm(

@@ -13,4 +13,5 @@ export {
   canonicalizeRdfTerm,
   canonicalizeSparqlValue,
 } from "@/term/canonical.ts";
+export { compareRdfTerms } from "@/term/ordering.ts";
 export type { CanonicalTerm } from "@/term/canonical.ts";

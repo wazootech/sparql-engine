@@ -141,6 +141,47 @@ const selectCases: ParityTestCase[] = [
       ),
     ],
   },
+  {
+    name: "SELECT - ORDER BY name ascending (mixed lang-tagged and plain)",
+    kind: "select",
+    query: `SELECT ?person ?name WHERE { ?person ${foafName} ?name } ` +
+      `ORDER BY ?name`,
+    quads: basicKnowledgeGraphQuads,
+    orderSensitive: true,
+  },
+  {
+    name: "SELECT - ORDER BY name descending",
+    kind: "select",
+    query: `SELECT ?person ?name WHERE { ?person ${foafName} ?name } ` +
+      `ORDER BY DESC(?name)`,
+    quads: basicKnowledgeGraphQuads,
+    orderSensitive: true,
+  },
+  {
+    name: "SELECT - ORDER BY age ascending (numeric)",
+    kind: "select",
+    query:
+      `SELECT ?person ?age WHERE { ?person ${foafAge} ?age } ORDER BY ?age`,
+    quads: basicKnowledgeGraphQuads,
+    orderSensitive: true,
+  },
+  {
+    name: "SELECT - ORDER BY age descending then name ascending",
+    kind: "select",
+    query: `SELECT ?person ?age ?name WHERE { ?person ${foafAge} ?age . ` +
+      `?person ${foafName} ?name } ORDER BY DESC(?age) ?name`,
+    quads: basicKnowledgeGraphQuads,
+    orderSensitive: true,
+  },
+  {
+    name: "SELECT - ORDER BY an unbound variable keeps evaluation order",
+    kind: "select",
+    query:
+      `SELECT ?person ?name ?missing WHERE { ?person ${foafName} ?name } ` +
+      `ORDER BY ?missing`,
+    quads: basicKnowledgeGraphQuads,
+    orderSensitive: true,
+  },
 ];
 
 const askCases: ParityTestCase[] = [

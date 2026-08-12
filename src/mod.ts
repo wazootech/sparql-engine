@@ -17,6 +17,7 @@ export type {
 export {
   canonicalizeRdfTerm,
   canonicalizeSparqlValue,
+  compareRdfTerms,
   rdfTermToSparqlValue,
   sameRdfTerm,
   sameSparqlValue,
