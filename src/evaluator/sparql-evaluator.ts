@@ -19,6 +19,7 @@ import type { TermBinding } from "@/evaluator/bgp-evaluator.ts";
 import { simplePredicate } from "@/quad-store.ts";
 import { ExpressionEvaluator } from "@/evaluator/expression-evaluator.ts";
 import {
+  canonicalizeSparqlValue,
   compareRdfTerms,
   rdfTermToSparqlValue,
   sparqlTermToRdfTerm,
@@ -84,17 +85,19 @@ export class SparqlEvaluator {
     const rawBindings = await this.bgpEvaluator.evaluateBgp(query.where || []);
     const vars: string[] = [];
     const projections = new Map<string, Expression>();
+    let wildcard = false;
 
     for (const v of query.variables) {
-      if (
-        typeof v === "object" && "termType" in v && v.termType === "Variable"
-      ) {
-        vars.push(v.value);
-      } else if (typeof v === "string") {
+      if (typeof v === "string") {
         vars.push(v);
+      } else if ("termType" in v && v.termType === "Variable") {
+        vars.push(v.value);
       } else if ("variable" in v && v.variable) {
         vars.push(v.variable.value);
         projections.set(v.variable.value, v.expression);
+      } else {
+        // SELECT * — sparqljs represents the wildcard as an empty object.
+        wildcard = true;
       }
     }
 
@@ -105,27 +108,54 @@ export class SparqlEvaluator {
     // Bindings travel internally as RDF/JS terms; this projection is the
     // single point where they become the SparqlValue wire format. Projection
     // expressions ((expr AS ?v)) are evaluated here; an error leaves the
-    // variable unbound, matching SPARQL 1.1 semantics.
-    const filteredBindings: SparqlBinding[] = ordered.map((binding) => {
-      const projected: SparqlBinding = {};
+    // variable unbound, matching SPARQL 1.1 semantics. The wildcard projects
+    // every variable the solution binds.
+    const projected: SparqlBinding[] = ordered.map((binding) => {
+      const result: SparqlBinding = {};
+      if (wildcard) {
+        for (const varName of Object.keys(binding)) {
+          result[varName] = rdfTermToSparqlValue(binding[varName]);
+        }
+        return result;
+      }
       for (const varName of vars) {
         const bound = binding[varName];
         if (bound) {
-          projected[varName] = rdfTermToSparqlValue(bound);
+          result[varName] = rdfTermToSparqlValue(bound);
         }
         const projection = projections.get(varName);
-        if (projection !== undefined && !(varName in projected)) {
+        if (projection !== undefined && !(varName in result)) {
           const value = this.expressionEvaluator.evaluate(projection, binding);
           if (value !== undefined) {
-            projected[varName] = rdfTermToSparqlValue(value);
+            result[varName] = rdfTermToSparqlValue(value);
           }
         }
       }
-      return projected;
+      return result;
     });
 
+    // Solution modifiers apply after projection, per SPARQL 1.1 §18.2.5:
+    // DISTINCT removes duplicate projected solutions, then LIMIT/OFFSET
+    // slice the sequence.
+    let filteredBindings = projected;
+    if (query.distinct) {
+      filteredBindings = deduplicateBindings(filteredBindings);
+    }
+    if (query.offset !== undefined) {
+      filteredBindings = filteredBindings.slice(query.offset);
+    }
+    if (query.limit !== undefined) {
+      filteredBindings = filteredBindings.slice(0, query.limit);
+    }
+
     return {
-      head: { vars },
+      head: {
+        vars: wildcard
+          ? Array.from(
+            new Set(projected.flatMap((binding) => Object.keys(binding))),
+          )
+          : vars,
+      },
       results: { bindings: filteredBindings },
     };
   }
@@ -218,4 +248,27 @@ export class SparqlEvaluator {
     }
     return sparqlTermToRdfTerm(term);
   }
+}
+
+/**
+ * deduplicateBindings removes duplicate projected solutions, comparing each
+ * value by its canonical form (so identical terms in different wire shapes
+ * collapse).
+ */
+function deduplicateBindings(bindings: SparqlBinding[]): SparqlBinding[] {
+  const seen = new Set<string>();
+  const result: SparqlBinding[] = [];
+  for (const binding of bindings) {
+    const key = Object.keys(binding)
+      .sort()
+      .map((name) =>
+        `${name}=${JSON.stringify(canonicalizeSparqlValue(binding[name]))}`
+      )
+      .join("|");
+    if (!seen.has(key)) {
+      seen.add(key);
+      result.push(binding);
+    }
+  }
+  return result;
 }

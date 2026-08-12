@@ -3,13 +3,16 @@ import type { Expression, Pattern, Triple } from "sparqljs";
 import { ExpressionEvaluator } from "@/evaluator/expression-evaluator.ts";
 import {
   innerJoin,
+  isPropertyPath,
+  joinPathPattern,
   joinTriplePattern,
   leftJoin,
   minus,
   scanEntry,
+  scanPathEntry,
 } from "@/evaluator/join.ts";
 import type { ScanEntry, TermBinding } from "@/evaluator/join.ts";
-import { termKey } from "@/term/mod.ts";
+import { sparqlTermToRdfTerm, termKey } from "@/term/mod.ts";
 
 export type { TermBinding } from "@/evaluator/join.ts";
 
@@ -37,9 +40,9 @@ export interface BgpEvaluatorOptions {
  * to right threading solutions, delegating BGP joins to the join module and
  * combining pattern forms — OPTIONAL becomes a left join, MINUS a
  * shared-variable anti-join, UNION an evaluated-or branches case, FILTER
- * an expression pass, and nested groups recurse. Unsupported pattern types
- * (GRAPH, SERVICE, BIND, VALUES) raise a clear error rather than being
- * silently dropped.
+ * an expression pass, VALUES a natural join with a data block, BIND an
+ * extend pass, and nested groups recurse. Unsupported pattern types
+ * (GRAPH, SERVICE) raise a clear error rather than being silently dropped.
  */
 export class BgpEvaluator {
   private readonly reorderPatterns: boolean;
@@ -130,6 +133,42 @@ export class BgpEvaluator {
         }
         return innerJoin(bindings, branchResults.flat());
       }
+      case "values": {
+        // VALUES data blocks are a multiset of rows naturally joined with
+        // the incoming solutions (Join(P, Values(...))): a row's shared
+        // variables must agree with the binding it extends, and duplicate
+        // rows survive as duplicates.
+        const rows: TermBinding[] = pattern.values.map((row) => {
+          const binding: TermBinding = {};
+          for (const name of Object.keys(row)) {
+            const term = row[name];
+            if (term !== undefined) {
+              binding[name.slice(1)] = sparqlTermToRdfTerm(term);
+            }
+          }
+          return binding;
+        });
+        return innerJoin(bindings, rows);
+      }
+      case "bind": {
+        // BIND is Extend(P, var, expr) per SPARQL 1.1 §18.2.2.2: the
+        // expression is evaluated per solution and the variable bound; an
+        // evaluation error or a variable already bound (from an outer
+        // scope) leaves the solution unchanged.
+        return bindings.map((binding) => {
+          const value = this.expressionEvaluator.evaluate(
+            pattern.expression,
+            binding,
+          );
+          if (
+            value === undefined ||
+            binding[pattern.variable.value] !== undefined
+          ) {
+            return binding;
+          }
+          return { ...binding, [pattern.variable.value]: value };
+        });
+      }
       case "group":
         return await this.evaluateGroup(pattern.patterns, bindings);
       default:
@@ -147,15 +186,26 @@ export class BgpEvaluator {
     triples: Triple[],
     bindings: TermBinding[],
   ): Promise<TermBinding[]> {
-    if (this.reorderPatterns && triples.length > 1) {
+    const hasPath = triples.some((triple) => isPropertyPath(triple.predicate));
+    if (this.reorderPatterns && triples.length > 1 && !hasPath) {
       return await this.evaluateWithReordering(triples, bindings);
     }
     let result = bindings;
     for (const triple of triples) {
-      result = joinTriplePattern(
-        result,
-        await scanEntry(this.store, triple),
-      );
+      if (isPropertyPath(triple.predicate)) {
+        const entry = await scanPathEntry(
+          this.store,
+          triple.predicate,
+          triple.subject,
+          triple.object,
+        );
+        result = joinPathPattern(result, entry);
+      } else {
+        result = joinTriplePattern(
+          result,
+          await scanEntry(this.store, triple),
+        );
+      }
     }
     return result;
   }
