@@ -153,6 +153,17 @@ export function scanEntry(
   ).then((candidates) => ({ subject, predicate, object, candidates }));
 }
 
+function isQueryVar(term: SparqlTerm): boolean {
+  return term.termType === "Variable" || term.termType === "BlankNode";
+}
+
+function getQueryVarName(term: SparqlTerm): string {
+  if (term.termType === "BlankNode") {
+    return `_:${term.value}`;
+  }
+  return term.value;
+}
+
 /**
  * joinTriplePattern joins the current bindings against a triple pattern with
  * a hash join: candidate quads come from the pattern's single indexed store
@@ -167,16 +178,17 @@ export function joinTriplePattern(
   const predicate = entry.predicate;
   const object = entry.object;
 
-  const subjectIsVariable = subject.termType === "Variable";
-  const predicateIsVariable = predicate.termType === "Variable";
-  const objectIsVariable = object.termType === "Variable";
+  const subjectIsVariable = isQueryVar(subject);
+  const predicateIsVariable = isQueryVar(predicate);
+  const objectIsVariable = isQueryVar(object);
 
   const candidateQuads = entry.candidates;
 
   const needsIndex = currentBindings.some((binding) =>
-    (subjectIsVariable && binding[subject.value] !== undefined) ||
-    (predicateIsVariable && binding[predicate.value] !== undefined) ||
-    (objectIsVariable && binding[object.value] !== undefined)
+    (subjectIsVariable && binding[getQueryVarName(subject)] !== undefined) ||
+    (predicateIsVariable &&
+      binding[getQueryVarName(predicate)] !== undefined) ||
+    (objectIsVariable && binding[getQueryVarName(object)] !== undefined)
   );
   const quadIndex = needsIndex ? buildQuadIndex(candidateQuads) : null;
 
@@ -200,7 +212,7 @@ export function joinTriplePattern(
       let valid = true;
 
       if (subjectIsVariable) {
-        const varName = subject.value;
+        const varName = getQueryVarName(subject);
         const val = matchQuad.subject;
         if (
           newBinding[varName] &&
@@ -213,7 +225,7 @@ export function joinTriplePattern(
       }
 
       if (valid && predicateIsVariable) {
-        const varName = predicate.value;
+        const varName = getQueryVarName(predicate);
         const val = matchQuad.predicate;
         if (
           newBinding[varName] &&
@@ -226,7 +238,7 @@ export function joinTriplePattern(
       }
 
       if (valid && objectIsVariable) {
-        const varName = object.value;
+        const varName = getQueryVarName(object);
         const val = matchQuad.object;
         if (
           newBinding[varName] &&
@@ -690,7 +702,7 @@ async function pathSteps(
  * null when the position is a variable that must not constrain the scan.
  */
 function patternConstant(term: SparqlTerm): rdfjs.Term | null {
-  if (term.termType === "Variable") {
+  if (isQueryVar(term)) {
     return null;
   }
   return sparqlTermToRdfTerm(term);
@@ -705,8 +717,8 @@ function resolveTerm(
   term: SparqlTerm,
   binding: TermBinding,
 ): rdfjs.Term | null {
-  if (term.termType === "Variable") {
-    const bound = binding[term.value];
+  if (isQueryVar(term)) {
+    const bound = binding[getQueryVarName(term)];
     if (bound) {
       return bound;
     }

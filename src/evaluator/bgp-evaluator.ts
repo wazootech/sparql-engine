@@ -541,6 +541,18 @@ export class BgpEvaluator {
         );
         return innerJoin(bindings, groupResult);
       }
+      case "query": {
+        const { SparqlEvaluator } = await import(
+          "@/evaluator/sparql-evaluator.ts"
+        );
+        const subEvaluator = new SparqlEvaluator(store, {
+          reorderPatterns: this.reorderPatterns,
+        });
+        const subResults = await subEvaluator.evaluateSelectTermBindings(
+          pattern as unknown as import("sparqljs").SelectQuery,
+        );
+        return innerJoin(bindings, subResults);
+      }
       default:
         throw new Error(
           `Unsupported graph pattern type: ${(pattern as Pattern).type}`,

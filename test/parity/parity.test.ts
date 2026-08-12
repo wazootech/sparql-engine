@@ -1441,3 +1441,29 @@ SELECT ?s ?o WHERE {
     quads,
   });
 });
+
+Deno.test("parity - subquery in WHERE clause", async () => {
+  const query = `PREFIX : <http://example.org/>
+SELECT ?s ?o WHERE {
+  ?s :p ?mid .
+  { SELECT ?mid ?o WHERE { ?mid :q ?o } }
+}`;
+  const quads = [
+    quad(
+      namedNode("http://example.org/s1"),
+      namedNode("http://example.org/p"),
+      namedNode("http://example.org/m1"),
+    ),
+    quad(
+      namedNode("http://example.org/m1"),
+      namedNode("http://example.org/q"),
+      namedNode("http://example.org/o1"),
+    ),
+  ];
+  await assertQueryParity({
+    name: "subquery in WHERE clause parity",
+    kind: "select",
+    query,
+    quads,
+  });
+});

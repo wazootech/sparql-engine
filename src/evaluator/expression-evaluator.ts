@@ -313,6 +313,28 @@ export class ExpressionEvaluator {
         }
         return booleanLiteral(binding[boundArg.value] !== undefined);
       }
+      case "isiri":
+      case "isuri": {
+        const val = this.evaluateWith(arg(0), binding, aggregates, context);
+        if (val === undefined) {
+          return undefined;
+        }
+        return booleanLiteral(val.termType === "NamedNode");
+      }
+      case "isblank": {
+        const val = this.evaluateWith(arg(0), binding, aggregates, context);
+        if (val === undefined) {
+          return undefined;
+        }
+        return booleanLiteral(val.termType === "BlankNode");
+      }
+      case "isliteral": {
+        const val = this.evaluateWith(arg(0), binding, aggregates, context);
+        if (val === undefined) {
+          return undefined;
+        }
+        return booleanLiteral(val.termType === "Literal");
+      }
       case "str":
         return this.str(
           this.evaluateWith(arg(0), binding, aggregates, context),
@@ -983,6 +1005,10 @@ export class ExpressionEvaluator {
             "bnode",
             "struuid",
             "uuid",
+            "isiri",
+            "isuri",
+            "isblank",
+            "isliteral",
           ].includes(opName)
         ) {
           return this.evaluateOperation(

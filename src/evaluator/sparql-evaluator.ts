@@ -27,10 +27,10 @@ import { buildDatasetStore, simplePredicate } from "@/quad-store.ts";
 import { ExpressionEvaluator } from "@/evaluator/expression-evaluator.ts";
 import type { ExpressionEvaluationContext } from "@/evaluator/expression-evaluator.ts";
 import {
-  canonicalizeSparqlValue,
   compareRdfTerms,
   rdfTermToSparqlValue,
   sparqlTermToRdfTerm,
+  termKey,
 } from "@/term/mod.ts";
 import { DataFactory } from "n3";
 
@@ -124,16 +124,12 @@ export class SparqlEvaluator {
     }
   }
 
-  private async evaluateSelect(
+  public async evaluateSelectTermBindings(
     query: SelectQuery,
-  ): Promise<SparqlSelectResults> {
+  ): Promise<TermBinding[]> {
     const evaluator = await this.bgpEvaluatorFor(query.from);
     let rawBindings = await evaluator.evaluateBgp(query.where || []);
 
-    // A post-query VALUES clause joins the WHERE result with its rows
-    // (SPARQL 1.1 §18.2.5: Join(G, ToMultiSet(VALUES))): a solution survives
-    // exactly when some row is compatible with it on the shared variables,
-    // and the row's bindings extend it.
     if (query.values !== undefined && query.values.length > 0) {
       const rows: TermBinding[] = query.values.map((row) => {
         const binding: TermBinding = {};
@@ -160,19 +156,10 @@ export class SparqlEvaluator {
         vars.push(v.variable.value);
         projections.set(v.variable.value, v.expression);
       } else {
-        // SELECT * — sparqljs represents the wildcard as an empty object.
         wildcard = true;
       }
     }
 
-    // GROUP BY partitions the raw solutions; each partition becomes one
-    // solution carrying its group's raw solutions so aggregate expressions
-    // in projection, HAVING, and ORDER BY resolve over the group. When
-    // aggregates appear without GROUP BY, the whole solution set is the one
-    // implicit group (SPARQL 1.1 §18.2.4.2).
-    // EXISTS in projection / ORDER BY / HAVING (but not WHERE) still needs
-    // the synchronous pattern index; build the injected context once for all
-    // expression call sites below.
     if (
       [...projections.values()].some(expressionContainsExists) ||
       (query.order ?? []).some((clause) =>
@@ -233,28 +220,68 @@ export class SparqlEvaluator {
       ? this.orderBindings(solutions, query.order, existsContext)
       : solutions;
 
-    // Bindings travel internally as RDF/JS terms; this projection is the
-    // single point where they become the SparqlValue wire format. Projection
-    // expressions ((expr AS ?v)) are evaluated here — with aggregate
-    // resolution when the solution carries a group — and an error leaves the
-    // variable unbound, matching SPARQL 1.1 semantics. The wildcard projects
-    // every variable the solution binds.
-    const projected: SparqlBinding[] = ordered.map((solution) =>
-      this.projectSolution(solution, wildcard, vars, projections, existsContext)
+    const projected: TermBinding[] = ordered.map((solution) =>
+      this.projectSolutionToTermBinding(
+        solution,
+        wildcard,
+        vars,
+        projections,
+        existsContext,
+      )
     );
 
-    // Solution modifiers apply after projection, per SPARQL 1.1 §18.2.5:
-    // DISTINCT removes duplicate projected solutions, then LIMIT/OFFSET
-    // slice the sequence.
     let filteredBindings = projected;
     if (query.distinct) {
-      filteredBindings = deduplicateBindings(filteredBindings);
+      const seen = new Set<string>();
+      filteredBindings = filteredBindings.filter((b) => {
+        const key = Object.keys(b).sort().map((k) => `${k}:${termKey(b[k])}`)
+          .join("\u0000");
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
     }
     if (query.offset !== undefined) {
       filteredBindings = filteredBindings.slice(query.offset);
     }
     if (query.limit !== undefined) {
       filteredBindings = filteredBindings.slice(0, query.limit);
+    }
+    return filteredBindings.map((b) => {
+      const clean: TermBinding = {};
+      for (const k of Object.keys(b)) {
+        if (!k.startsWith("_:")) {
+          clean[k] = b[k];
+        }
+      }
+      return clean;
+    });
+  }
+
+  private async evaluateSelect(
+    query: SelectQuery,
+  ): Promise<SparqlSelectResults> {
+    const termBindings = await this.evaluateSelectTermBindings(query);
+    const projected: SparqlBinding[] = termBindings.map((b) => {
+      const sb: SparqlBinding = {};
+      for (const k of Object.keys(b)) {
+        sb[k] = rdfTermToSparqlValue(b[k]);
+      }
+      return sb;
+    });
+
+    const vars: string[] = [];
+    let wildcard = false;
+    for (const v of query.variables) {
+      if (typeof v === "string") {
+        vars.push(v);
+      } else if ("termType" in v && v.termType === "Variable") {
+        vars.push(v.value);
+      } else if ("variable" in v && v.variable) {
+        vars.push(v.variable.value);
+      } else {
+        wildcard = true;
+      }
     }
 
     return {
@@ -265,7 +292,7 @@ export class SparqlEvaluator {
           )
           : vars,
       },
-      results: { bindings: filteredBindings },
+      results: { bindings: projected },
     };
   }
 
@@ -317,18 +344,18 @@ export class SparqlEvaluator {
    * key variables are bound by grouping); projection expressions evaluate
    * with the solution's aggregate resolver when it is grouped.
    */
-  private projectSolution(
+  private projectSolutionToTermBinding(
     solution: SelectSolution,
     wildcard: boolean,
     vars: string[],
     projections: Map<string, Expression>,
     context?: ExpressionEvaluationContext,
-  ): SparqlBinding {
+  ): TermBinding {
     const binding = solution.binding;
-    const result: SparqlBinding = {};
+    const result: TermBinding = {};
     if (wildcard) {
       for (const varName of Object.keys(binding)) {
-        result[varName] = rdfTermToSparqlValue(binding[varName]);
+        result[varName] = binding[varName];
       }
       return result;
     }
@@ -338,20 +365,25 @@ export class SparqlEvaluator {
     for (const varName of vars) {
       const bound = binding[varName];
       if (bound) {
-        result[varName] = rdfTermToSparqlValue(bound);
+        result[varName] = bound;
       }
       const projection = projections.get(varName);
       if (projection !== undefined && !(varName in result)) {
+        const mergedBinding = { ...binding, ...result };
         const value = resolver === undefined
-          ? this.expressionEvaluator.evaluate(projection, binding, context)
+          ? this.expressionEvaluator.evaluate(
+            projection,
+            mergedBinding,
+            context,
+          )
           : this.expressionEvaluator.evaluateWithAggregates(
             projection,
-            binding,
+            mergedBinding,
             resolver,
             context,
           );
         if (value !== undefined) {
-          result[varName] = rdfTermToSparqlValue(value);
+          result[varName] = value;
         }
       }
     }
@@ -464,29 +496,6 @@ export class SparqlEvaluator {
     }
     return sparqlTermToRdfTerm(term);
   }
-}
-
-/**
- * deduplicateBindings removes duplicate projected solutions, comparing each
- * value by its canonical form (so identical terms in different wire shapes
- * collapse).
- */
-function deduplicateBindings(bindings: SparqlBinding[]): SparqlBinding[] {
-  const seen = new Set<string>();
-  const result: SparqlBinding[] = [];
-  for (const binding of bindings) {
-    const key = Object.keys(binding)
-      .sort()
-      .map((name) =>
-        `${name}=${JSON.stringify(canonicalizeSparqlValue(binding[name]))}`
-      )
-      .join("|");
-    if (!seen.has(key)) {
-      seen.add(key);
-      result.push(binding);
-    }
-  }
-  return result;
 }
 
 /**
