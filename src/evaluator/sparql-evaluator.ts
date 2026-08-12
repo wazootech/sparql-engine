@@ -360,9 +360,15 @@ export class SparqlEvaluator {
       }
       return result;
     }
+    // BNODE(str) scopes its blank nodes to a single solution mapping, so each
+    // solution's projection carries a fresh bnode cache (SPARQL 1.1 §17.4.1.5).
+    const solutionContext: ExpressionEvaluationContext = {
+      ...(context ?? {}),
+      bnodeMap: new Map<string, rdfjs.BlankNode>(),
+    };
     const resolver = solution.group === null
       ? undefined
-      : this.aggregateResolver(solution, context);
+      : this.aggregateResolver(solution, solutionContext);
     for (const varName of vars) {
       const bound = binding[varName];
       if (bound) {
@@ -375,13 +381,13 @@ export class SparqlEvaluator {
           ? this.expressionEvaluator.evaluate(
             projection,
             mergedBinding,
-            context,
+            solutionContext,
           )
           : this.expressionEvaluator.evaluateWithAggregates(
             projection,
             mergedBinding,
             resolver,
-            context,
+            solutionContext,
           );
         if (value !== undefined) {
           result[varName] = value;
