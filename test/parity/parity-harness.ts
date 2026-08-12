@@ -4,10 +4,10 @@ import { fail } from "@std/assert";
 import type { Store } from "n3";
 import { Parser as SparqlJsParser } from "sparqljs";
 import { NativeSparqlEngine } from "@/native-sparql-engine.ts";
-import type { SparqlResponse, SparqlValue } from "@/sparql-engine-interface.ts";
+import type { SparqlResponse } from "@/sparql-engine-interface.ts";
+import { canonicalizeRdfTerm, canonicalizeSparqlValue } from "@/term/mod.ts";
+import type { CanonicalTerm } from "@/term/mod.ts";
 import { createQuadStore } from "./parity-fixtures.ts";
-
-const XSD_STRING = "http://www.w3.org/2001/XMLSchema#string";
 
 /**
  * ParityQueryKind selects which result channel a parity test case compares.
@@ -35,89 +35,6 @@ export interface ParityTestCase {
    * Set this for queries with ORDER BY, where row order is part of the contract.
    */
   orderSensitive?: boolean;
-}
-
-/**
- * CanonicalTerm is a serialization-stable projection of an RDF term that is
- * produced identically from Comunica terms, native SparqlValue objects, and
- * other RDF/JS-shaped terms such as Oxigraph's.
- */
-export type CanonicalTerm = {
-  termType: "NamedNode" | "BlankNode" | "Literal" | "DefaultGraph" | "Quad";
-  value: string;
-  language?: string;
-  datatype?: string;
-  subject?: CanonicalTerm;
-  predicate?: CanonicalTerm;
-  object?: CanonicalTerm;
-};
-
-/**
- * canonicalizeRdfTerm normalizes an RDF/JS-shaped term into a CanonicalTerm.
- */
-export function canonicalizeRdfTerm(term: rdfjs.Term): CanonicalTerm {
-  switch (term.termType) {
-    case "NamedNode":
-      return { termType: "NamedNode", value: term.value };
-    case "BlankNode":
-      return { termType: "BlankNode", value: term.value };
-    case "DefaultGraph":
-      return { termType: "DefaultGraph", value: term.value };
-    case "Literal": {
-      const canonical: CanonicalTerm = {
-        termType: "Literal",
-        value: term.value,
-      };
-      if (term.language) {
-        canonical.language = term.language;
-      } else if (term.datatype && term.datatype.value !== XSD_STRING) {
-        canonical.datatype = term.datatype.value;
-      }
-      return canonical;
-    }
-    case "Quad":
-      return {
-        termType: "Quad",
-        value: "",
-        subject: canonicalizeRdfTerm(term.subject),
-        predicate: canonicalizeRdfTerm(term.predicate),
-        object: canonicalizeRdfTerm(term.object),
-      };
-    default:
-      throw new Error(`Unsupported RDF term type: ${term.termType}`);
-  }
-}
-
-/**
- * canonicalizeSparqlValue normalizes a native SparqlValue into a CanonicalTerm.
- */
-export function canonicalizeSparqlValue(value: SparqlValue): CanonicalTerm {
-  switch (value.type) {
-    case "uri":
-      return { termType: "NamedNode", value: value.value };
-    case "bnode":
-      return { termType: "BlankNode", value: value.value };
-    case "literal": {
-      const canonical: CanonicalTerm = {
-        termType: "Literal",
-        value: value.value,
-      };
-      if (value["xml:lang"]) {
-        canonical.language = value["xml:lang"];
-      } else if (value.datatype && value.datatype !== XSD_STRING) {
-        canonical.datatype = value.datatype;
-      }
-      return canonical;
-    }
-    case "triple":
-      return {
-        termType: "Quad",
-        value: "",
-        subject: canonicalizeSparqlValue(value.value.subject),
-        predicate: canonicalizeSparqlValue(value.value.predicate),
-        object: canonicalizeSparqlValue(value.value.object),
-      };
-  }
 }
 
 /**

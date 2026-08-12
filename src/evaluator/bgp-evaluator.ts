@@ -1,9 +1,14 @@
 import type * as rdfjs from "@rdfjs/types";
 import type { Pattern, Term as SparqlTerm, Triple } from "sparqljs";
-import type { SparqlBinding, SparqlValue } from "@/sparql-engine-interface.ts";
-import { DataFactory } from "n3";
-
-const { namedNode, blankNode, literal, quad, defaultGraph } = DataFactory;
+import type { SparqlBinding } from "@/sparql-engine-interface.ts";
+import {
+  rdfTermToSparqlValue,
+  sameRdfTerm,
+  sameSparqlValue,
+  sparqlTermToRdfTerm,
+  sparqlValueToRdfTerm,
+  termKey,
+} from "@/term/mod.ts";
 
 /**
  * QuadIndex maps each triple position of the candidate quads to the quads
@@ -95,19 +100,19 @@ export class BgpEvaluator {
       for (const matchQuad of matchingQuads) {
         if (
           resolvedSubject !== null &&
-          !this.sameRdfTerm(matchQuad.subject, resolvedSubject)
+          !sameRdfTerm(matchQuad.subject, resolvedSubject)
         ) {
           continue;
         }
         if (
           resolvedPredicate !== null &&
-          !this.sameRdfTerm(matchQuad.predicate, resolvedPredicate)
+          !sameRdfTerm(matchQuad.predicate, resolvedPredicate)
         ) {
           continue;
         }
         if (
           resolvedObject !== null &&
-          !this.sameRdfTerm(matchQuad.object, resolvedObject)
+          !sameRdfTerm(matchQuad.object, resolvedObject)
         ) {
           continue;
         }
@@ -117,9 +122,9 @@ export class BgpEvaluator {
 
         if (subjectIsVariable) {
           const varName = subject.value;
-          const val = this.rdfTermToSparqlValue(matchQuad.subject);
+          const val = rdfTermToSparqlValue(matchQuad.subject);
           if (
-            newBinding[varName] && !this.sameValue(newBinding[varName], val)
+            newBinding[varName] && !sameSparqlValue(newBinding[varName], val)
           ) {
             valid = false;
           } else {
@@ -129,9 +134,9 @@ export class BgpEvaluator {
 
         if (valid && predicateIsVariable) {
           const varName = predicate.value;
-          const val = this.rdfTermToSparqlValue(matchQuad.predicate);
+          const val = rdfTermToSparqlValue(matchQuad.predicate);
           if (
-            newBinding[varName] && !this.sameValue(newBinding[varName], val)
+            newBinding[varName] && !sameSparqlValue(newBinding[varName], val)
           ) {
             valid = false;
           } else {
@@ -141,9 +146,9 @@ export class BgpEvaluator {
 
         if (valid && objectIsVariable) {
           const varName = object.value;
-          const val = this.rdfTermToSparqlValue(matchQuad.object);
+          const val = rdfTermToSparqlValue(matchQuad.object);
           if (
-            newBinding[varName] && !this.sameValue(newBinding[varName], val)
+            newBinding[varName] && !sameSparqlValue(newBinding[varName], val)
           ) {
             valid = false;
           } else {
@@ -168,7 +173,7 @@ export class BgpEvaluator {
     if (term.termType === "Variable") {
       return null;
     }
-    return this.sparqlTermToRdfTerm(term);
+    return sparqlTermToRdfTerm(term);
   }
 
   /**
@@ -179,9 +184,9 @@ export class BgpEvaluator {
     const byPredicate = new Map<string, rdfjs.Quad[]>();
     const byObject = new Map<string, rdfjs.Quad[]>();
     for (const item of quads) {
-      this.indexQuad(bySubject, this.termKey(item.subject), item);
-      this.indexQuad(byPredicate, this.termKey(item.predicate), item);
-      this.indexQuad(byObject, this.termKey(item.object), item);
+      this.indexQuad(bySubject, termKey(item.subject), item);
+      this.indexQuad(byPredicate, termKey(item.predicate), item);
+      this.indexQuad(byObject, termKey(item.object), item);
     }
     return { bySubject, byPredicate, byObject };
   }
@@ -219,19 +224,19 @@ export class BgpEvaluator {
     const options: Array<[rdfjs.Quad[], rdfjs.Term]> = [];
     if (subjectIsVariable && resolvedSubject !== null) {
       options.push([
-        index.bySubject.get(this.termKey(resolvedSubject)) ?? [],
+        index.bySubject.get(termKey(resolvedSubject)) ?? [],
         resolvedSubject,
       ]);
     }
     if (predicateIsVariable && resolvedPredicate !== null) {
       options.push([
-        index.byPredicate.get(this.termKey(resolvedPredicate)) ?? [],
+        index.byPredicate.get(termKey(resolvedPredicate)) ?? [],
         resolvedPredicate,
       ]);
     }
     if (objectIsVariable && resolvedObject !== null) {
       options.push([
-        index.byObject.get(this.termKey(resolvedObject)) ?? [],
+        index.byObject.get(termKey(resolvedObject)) ?? [],
         resolvedObject,
       ]);
     }
@@ -240,71 +245,6 @@ export class BgpEvaluator {
     }
     options.sort((a, b) => a[0].length - b[0].length);
     return options[0][0];
-  }
-
-  /**
-   * termKey renders a deterministic key for a term used in the hash index.
-   */
-  private termKey(term: rdfjs.Term): string {
-    switch (term.termType) {
-      case "NamedNode":
-        return `uri:${term.value}`;
-      case "BlankNode":
-        return `bnode:${term.value}`;
-      case "Variable":
-        return `var:${term.value}`;
-      case "DefaultGraph":
-        return "default";
-      case "Literal":
-        return (
-          `literal:${term.value}|${term.language ?? ""}|` +
-          `${term.datatype?.value ?? ""}`
-        );
-      case "Quad":
-        return (
-          `quad:${this.termKey(term.subject)}|${
-            this.termKey(term.predicate)
-          }|` +
-          this.termKey(term.object)
-        );
-      default:
-        throw new Error(
-          `Unsupported RDF term type: ${(term as rdfjs.Term).termType}`,
-        );
-    }
-  }
-
-  /**
-   * sameRdfTerm compares two RDF/JS terms by type, value, and literal
-   * language/datatype.
-   */
-  private sameRdfTerm(a: rdfjs.Term, b: rdfjs.Term): boolean {
-    if (a.termType !== b.termType) {
-      return false;
-    }
-    switch (a.termType) {
-      case "NamedNode":
-        return a.value === (b as rdfjs.NamedNode).value;
-      case "BlankNode":
-        return a.value === (b as rdfjs.BlankNode).value;
-      case "Variable":
-        return a.value === (b as rdfjs.Variable).value;
-      case "DefaultGraph":
-        return true;
-      case "Literal":
-        return a.value === (b as rdfjs.Literal).value &&
-          a.language === (b as rdfjs.Literal).language &&
-          (a.datatype?.value ?? "") ===
-            ((b as rdfjs.Literal).datatype?.value ?? "");
-      case "Quad":
-        return this.sameRdfTerm(a.subject, (b as rdfjs.Quad).subject) &&
-          this.sameRdfTerm(a.predicate, (b as rdfjs.Quad).predicate) &&
-          this.sameRdfTerm(a.object, (b as rdfjs.Quad).object);
-      default:
-        throw new Error(
-          `Unsupported RDF term type: ${(a as rdfjs.Term).termType}`,
-        );
-    }
   }
 
   private resolveTriplePredicate(predicate: Triple["predicate"]): SparqlTerm {
@@ -323,11 +263,11 @@ export class BgpEvaluator {
     if (term.termType === "Variable") {
       const bound = binding[term.value];
       if (bound) {
-        return this.sparqlValueToRdfTerm(bound);
+        return sparqlValueToRdfTerm(bound);
       }
       return null;
     }
-    return this.sparqlTermToRdfTerm(term);
+    return sparqlTermToRdfTerm(term);
   }
 
   private matchStore(
@@ -342,90 +282,5 @@ export class BgpEvaluator {
       stream.on("end", () => resolve(quads));
       stream.on("error", reject);
     });
-  }
-
-  public sparqlTermToRdfTerm(term: SparqlTerm): rdfjs.Term {
-    switch (term.termType) {
-      case "NamedNode":
-        return namedNode(term.value);
-      case "BlankNode":
-        return blankNode(term.value);
-      case "Literal":
-        if (term.language) {
-          return literal(term.value, term.language);
-        }
-        if (term.datatype) {
-          return literal(term.value, namedNode(term.datatype.value));
-        }
-        return literal(term.value);
-      default:
-        throw new Error(`Unsupported term type: ${term.termType}`);
-    }
-  }
-
-  public sparqlValueToRdfTerm(val: SparqlValue): rdfjs.Term {
-    switch (val.type) {
-      case "uri":
-        return namedNode(val.value);
-      case "bnode":
-        return blankNode(val.value);
-      case "literal":
-        if (val["xml:lang"]) {
-          return literal(val.value, val["xml:lang"]);
-        }
-        if (val.datatype) {
-          return literal(val.value, namedNode(val.datatype));
-        }
-        return literal(val.value);
-      case "triple":
-        return quad(
-          this.sparqlValueToRdfTerm(val.value.subject) as rdfjs.Quad_Subject,
-          this.sparqlValueToRdfTerm(
-            val.value.predicate,
-          ) as rdfjs.Quad_Predicate,
-          this.sparqlValueToRdfTerm(val.value.object) as rdfjs.Quad_Object,
-          defaultGraph(),
-        );
-    }
-  }
-
-  public rdfTermToSparqlValue(term: rdfjs.Term): SparqlValue {
-    switch (term.termType) {
-      case "NamedNode":
-        return { type: "uri", value: term.value };
-      case "BlankNode":
-        return { type: "bnode", value: term.value };
-      case "Literal": {
-        const result: SparqlValue = { type: "literal", value: term.value };
-        if (term.language) {
-          result["xml:lang"] = term.language;
-        } else if (
-          term.datatype &&
-          term.datatype.value !== "http://www.w3.org/2001/XMLSchema#string"
-        ) {
-          result.datatype = term.datatype.value;
-        }
-        return result;
-      }
-      case "Quad":
-        return {
-          type: "triple",
-          value: {
-            subject: this.rdfTermToSparqlValue(term.subject),
-            predicate: this.rdfTermToSparqlValue(term.predicate),
-            object: this.rdfTermToSparqlValue(term.object),
-          },
-        };
-      default:
-        throw new Error(`Unsupported RDF term type: ${term.termType}`);
-    }
-  }
-
-  private sameValue(a: SparqlValue, b: SparqlValue): boolean {
-    if (a.type !== b.type || a.value !== b.value) return false;
-    if (a.type === "literal" && b.type === "literal") {
-      return a["xml:lang"] === b["xml:lang"] && a.datatype === b.datatype;
-    }
-    return true;
   }
 }

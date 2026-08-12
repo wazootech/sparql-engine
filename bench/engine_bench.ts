@@ -12,12 +12,11 @@ import {
 import { NativeSparqlEngine } from "@/native-sparql-engine.ts";
 import {
   canonicalizeComunicaTerm,
-  canonicalizeRdfTerm,
-  canonicalizeSparqlValue,
   getComunicaEngine,
   runComunicaRawSelectBindings,
 } from "../test/parity/parity-harness.ts";
-import type { CanonicalTerm } from "../test/parity/parity-harness.ts";
+import { canonicalizeRdfTerm, canonicalizeSparqlValue } from "@/term/mod.ts";
+import type { CanonicalTerm } from "@/term/mod.ts";
 
 const { blankNode, literal, namedNode, quad } = DataFactory;
 

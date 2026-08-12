@@ -15,6 +15,7 @@ import type {
   SparqlSelectResults,
 } from "@/sparql-engine-interface.ts";
 import { BgpEvaluator } from "@/evaluator/bgp-evaluator.ts";
+import { sparqlTermToRdfTerm, sparqlValueToRdfTerm } from "@/term/mod.ts";
 import { DataFactory } from "n3";
 
 /**
@@ -138,16 +139,16 @@ export class SparqlEvaluator {
   }
 
   private resolveConstructTerm(
-    term: Parameters<BgpEvaluator["sparqlTermToRdfTerm"]>[0],
+    term: SparqlTerm,
     binding: SparqlBinding,
   ): rdfjs.Term | null {
     if (term.termType === "Variable") {
       const bound = binding[term.value];
       if (bound) {
-        return this.bgpEvaluator.sparqlValueToRdfTerm(bound);
+        return sparqlValueToRdfTerm(bound);
       }
       return null;
     }
-    return this.bgpEvaluator.sparqlTermToRdfTerm(term);
+    return sparqlTermToRdfTerm(term);
   }
 }

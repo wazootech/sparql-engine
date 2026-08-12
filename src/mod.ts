@@ -13,3 +13,16 @@ export type {
   NativeSparqlEngineOptions,
   NativeSparqlTransaction,
 } from "@/native-sparql-engine.ts";
+
+export {
+  canonicalizeRdfTerm,
+  canonicalizeSparqlValue,
+  rdfTermToSparqlValue,
+  sameRdfTerm,
+  sameSparqlValue,
+  sparqlTermToRdfTerm,
+  sparqlValueKey,
+  sparqlValueToRdfTerm,
+  termKey,
+} from "@/term/mod.ts";
+export type { CanonicalTerm } from "@/term/mod.ts";

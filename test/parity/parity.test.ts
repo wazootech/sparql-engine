@@ -3,9 +3,9 @@ import { DataFactory } from "n3";
 import { NativeSparqlEngine } from "@/native-sparql-engine.ts";
 import { assertQueryParity } from "./parity-harness.ts";
 import type { ParityTestCase } from "./parity-harness.ts";
+import { canonicalizeSparqlValue } from "@/term/mod.ts";
 import {
   canonicalizeComunicaTerm,
-  canonicalizeSparqlValue,
   getComunicaEngine,
   runComunicaRawSelectBindings,
 } from "./parity-harness.ts";
@@ -98,6 +98,32 @@ const selectCases: ParityTestCase[] = [
         namedNode(exampleDave),
         namedNode("http://example.org/self"),
         namedNode(exampleDave),
+      ),
+    ],
+  },
+  {
+    name: "SELECT - repeated variable bound to an RDF-star triple term",
+    kind: "select",
+    query: `SELECT ?t ?src WHERE { ?t <http://example.org/source> ?src . ` +
+      `?t <http://example.org/source> ?src }`,
+    quads: [
+      quad(
+        quad(
+          namedNode(exampleAlice),
+          namedNode("http://example.org/knows"),
+          namedNode(exampleCarol),
+        ),
+        namedNode("http://example.org/source"),
+        namedNode(exampleAlice),
+      ),
+      quad(
+        quad(
+          namedNode(exampleAlice),
+          namedNode("http://example.org/knows"),
+          namedNode(exampleCarol),
+        ),
+        namedNode("http://example.org/source"),
+        namedNode(exampleCarol),
       ),
     ],
   },
