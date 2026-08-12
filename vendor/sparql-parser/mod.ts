@@ -20,7 +20,8 @@
  * `Parser` export.
  */
 import { DataFactory } from "n3";
-import type { SparqlParser as SparqlJsParserType, SparqlQuery } from "sparqljs";
+import type { SparqlQuery } from "./ast.ts";
+export type * from "./ast.ts";
 
 import generatedParser from "./parser.cjs";
 
@@ -108,5 +109,5 @@ export class Parser {
   }
 }
 
-/** Alias kept for parity with upstream's `SparqlParser` type name. */
-export type { SparqlJsParserType as SparqlParser, SparqlQuery };
+/** Alias kept for parity with upstream's `SparqlParser` export name. */
+export { Parser as SparqlParser };

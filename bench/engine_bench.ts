@@ -9,7 +9,7 @@ import {
   quad as oxigraphQuad,
   Store as OxigraphStore,
 } from "oxigraph";
-import { NativeSparqlEngine } from "@/native-sparql-engine.ts";
+import { WazooSparqlEngine } from "@/wazoo-sparql-engine.ts";
 import {
   canonicalizeComunicaTerm,
   getComunicaEngine,
@@ -157,8 +157,8 @@ const dataset = buildDataset();
 const n3Store = seedN3Store(dataset);
 const oxigraphStore = seedOxigraphStore(dataset);
 
-const nativeEngine = new NativeSparqlEngine({ store: n3Store });
-const nativeEngineNoReorder = new NativeSparqlEngine({
+const nativeEngine = new WazooSparqlEngine({ store: n3Store });
+const nativeEngineNoReorder = new WazooSparqlEngine({
   store: n3Store,
   reorderPatterns: false,
 });
@@ -170,7 +170,7 @@ const comunicaEngine = getComunicaEngine();
 const graphDataset = buildGraphDataset();
 const graphN3Store = seedN3Store(graphDataset);
 const graphOxigraphStore = seedOxigraphStore(graphDataset);
-const graphNativeEngine = new NativeSparqlEngine({ store: graphN3Store });
+const graphNativeEngine = new WazooSparqlEngine({ store: graphN3Store });
 
 const scanQuery = "SELECT ?s ?p ?o WHERE { ?s ?p ?o }";
 const joinQuery =
@@ -309,7 +309,7 @@ function oxigraphBindingRecord(binding: OxigraphBinding): string {
  * results for the given query, so benchmark timings compare like for like.
  */
 interface EngineTrio {
-  native: NativeSparqlEngine;
+  native: WazooSparqlEngine;
   comunicaStore: Store;
   oxigraph: OxigraphStore;
 }
@@ -464,7 +464,7 @@ async function verifyUpdateEquality(
   label: string,
 ): Promise<void> {
   const nativeStore = seedN3Store(dataset);
-  const nativeUpdateEngine = new NativeSparqlEngine({ store: nativeStore });
+  const nativeUpdateEngine = new WazooSparqlEngine({ store: nativeStore });
   const nativeResult = await nativeUpdateEngine.execute({ query });
   if (nativeResult.kind !== "void") {
     throw new Error(`${label}: native engine returned ${nativeResult.kind}`);

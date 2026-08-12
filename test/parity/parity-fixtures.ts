@@ -14,18 +14,18 @@ const xsdInteger = namedNode(XSD_INTEGER);
  * literals, and blank nodes.
  */
 export const basicKnowledgeGraphQuads: rdfjs.Quad[] = [
-  quad(exampleResource("alice"), foaf("name"), literal("Alice")),
-  quad(exampleResource("alice"), foaf("age"), literal("28", xsdInteger)),
-  quad(exampleResource("alice"), foaf("knows"), exampleResource("bob")),
+  quad(exampleResource("ethan"), foaf("name"), literal("Ethan")),
+  quad(exampleResource("ethan"), foaf("age"), literal("28", xsdInteger)),
+  quad(exampleResource("ethan"), foaf("knows"), exampleResource("gregory")),
   quad(
-    exampleResource("alice"),
+    exampleResource("ethan"),
     exampleResource("pet"),
-    blankNode("pet-alice"),
+    blankNode("pet-ethan"),
   ),
-  quad(exampleResource("bob"), foaf("name"), literal("Bob")),
-  quad(exampleResource("bob"), foaf("knows"), exampleResource("carol")),
-  quad(exampleResource("carol"), foaf("name"), literal("Carol", "en")),
-  quad(exampleResource("carol"), foaf("age"), literal("30", xsdInteger)),
+  quad(exampleResource("gregory"), foaf("name"), literal("Gregory")),
+  quad(exampleResource("gregory"), foaf("knows"), exampleResource("sandra")),
+  quad(exampleResource("sandra"), foaf("name"), literal("Sandra", "en")),
+  quad(exampleResource("sandra"), foaf("age"), literal("30", xsdInteger)),
 ];
 
 /**

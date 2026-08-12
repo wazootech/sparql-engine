@@ -2,11 +2,10 @@
 
 Runs the vendored W3C SPARQL 1.1 evaluation-core suite **differentially**: every
 query and update executes through both `@comunica/query-sparql-rdfjs-lite` and
-the native `NativeSparqlEngine` over identical stores, and the observable
-results (SELECT bindings, CONSTRUCT quads, ASK booleans, final update store
-contents) are compared. This is the shared fixture base adopted by the wayfinder
-decision "Decide whether to adopt the W3C SPARQL 1.1 suite as the shared fixture
-base".
+the native `WazooSparqlEngine` over identical stores, and the observable results
+(SELECT bindings, CONSTRUCT quads, ASK booleans, final update store contents)
+are compared. This is the shared fixture base adopted by the wayfinder decision
+"Decide whether to adopt the W3C SPARQL 1.1 suite as the shared fixture base".
 
 ## Run
 

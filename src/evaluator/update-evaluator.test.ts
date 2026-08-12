@@ -1,10 +1,10 @@
 import { assertEquals, assertRejects } from "@std/assert";
 import type * as rdfjs from "@rdfjs/types";
 import { DataFactory, Store } from "n3";
-import { NativeSparqlEngine } from "@/native-sparql-engine.ts";
-import type { NativeSparqlTransaction } from "@/native-sparql-engine.ts";
+import { WazooSparqlEngine } from "@/wazoo-sparql-engine.ts";
+import type { WazooSparqlTransaction } from "@/wazoo-sparql-engine.ts";
 
-const { namedNode, quad } = DataFactory;
+const { namedNode, literal, quad } = DataFactory;
 
 const exampleP = namedNode("http://example.org/p");
 const exampleQ = namedNode("http://example.org/q");
@@ -12,12 +12,12 @@ const exampleV = namedNode("http://example.org/v");
 const exampleA = namedNode("http://example.org/a");
 
 /**
- * RecordingTransaction is a fake NativeSparqlTransaction that records every
+ * RecordingTransaction is a fake WazooSparqlTransaction that records every
  * buffered add/delete and, when applyOnCommit is set, applies them to the
  * backing store at commit time. It can be told to fail on commit to exercise
  * the rollback path.
  */
-class RecordingTransaction implements NativeSparqlTransaction {
+class RecordingTransaction implements WazooSparqlTransaction {
   public readonly added: rdfjs.Quad[] = [];
   public readonly deleted: rdfjs.Quad[] = [];
   public committed = false;
@@ -62,7 +62,7 @@ Deno.test("UpdateEvaluator - INSERT DATA buffers through the transaction and com
   const store = new Store();
   let transactionsCreated = 0;
   const transaction = new RecordingTransaction(store);
-  const engine = new NativeSparqlEngine({
+  const engine = new WazooSparqlEngine({
     store,
     createTransaction: () => {
       transactionsCreated++;
@@ -87,7 +87,7 @@ Deno.test("UpdateEvaluator - INSERT DATA buffers through the transaction and com
 Deno.test("UpdateEvaluator - nothing touches the store until commit", async () => {
   const store = new Store();
   const transaction = new RecordingTransaction(store, false);
-  const engine = new NativeSparqlEngine({
+  const engine = new WazooSparqlEngine({
     store,
     createTransaction: () => transaction,
   });
@@ -106,20 +106,41 @@ Deno.test("UpdateEvaluator - nothing touches the store until commit", async () =
 Deno.test("UpdateEvaluator - rollback discards buffered changes when an operation fails", async () => {
   const store = new Store();
   const transaction = new RecordingTransaction(store);
-  const engine = new NativeSparqlEngine({
-    store,
-    createTransaction: () => transaction,
-  });
+  const evaluator = new (await import("./update-evaluator.ts")).UpdateEvaluator(
+    {
+      store,
+      createTransaction: () => transaction,
+    },
+  );
 
   await assertRejects(
     () =>
-      engine.execute({
-        query:
-          'INSERT DATA { <http://example.org/a> <http://example.org/p> "v" } ; ' +
-          "CLEAR ALL",
+      evaluator.executeUpdate({
+        type: "update",
+        prefixes: {},
+        updates: [
+          {
+            updateType: "insert",
+            insert: [
+              {
+                type: "bgp",
+                triples: [
+                  {
+                    subject: namedNode("http://example.org/a"),
+                    predicate: namedNode("http://example.org/p"),
+                    object: literal("v"),
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            type: "unsupported_op",
+          } as unknown as import("@/parser/sparql-parser.ts").UpdateOperation,
+        ],
       }),
     Error,
-    "Unsupported SPARQL update operation: clear",
+    "Unsupported SPARQL update operation: unsupported_op",
   );
 
   assertEquals(transaction.added.length, 1);
@@ -132,7 +153,7 @@ Deno.test("UpdateEvaluator - rollback when commit fails", async () => {
   const store = new Store();
   const transaction = new RecordingTransaction(store);
   transaction.failCommit = true;
-  const engine = new NativeSparqlEngine({
+  const engine = new WazooSparqlEngine({
     store,
     createTransaction: () => transaction,
   });
@@ -156,7 +177,7 @@ Deno.test("UpdateEvaluator - DELETE/INSERT through the transaction buffers delet
   const store = new Store();
   store.addQuad(quad(exampleA, exampleP, exampleV));
   const transaction = new RecordingTransaction(store);
-  const engine = new NativeSparqlEngine({
+  const engine = new WazooSparqlEngine({
     store,
     createTransaction: () => transaction,
   });

@@ -4,7 +4,7 @@ import type {
   Expression,
   Grouping,
   Wildcard,
-} from "sparqljs";
+} from "@/parser/sparql-parser.ts";
 import { DataFactory } from "n3";
 import type { TermBinding } from "@/evaluator/join.ts";
 import {
@@ -52,11 +52,14 @@ export function groupSolutions(
     const key: TermBinding = {};
     const parts: string[] = [];
     for (const entry of grouping) {
-      const value = evaluate(entry.expression, solution);
-      const varName = entry.variable?.value ??
-        ("termType" in entry.expression &&
-            entry.expression.termType === "Variable"
-          ? entry.expression.value
+      const expr = ("expression" in entry && entry.expression)
+        ? entry.expression
+        : (entry as unknown as Expression);
+      const value = evaluate(expr, solution);
+      const varName = ("variable" in entry && entry.variable)
+        ? entry.variable.value
+        : ("termType" in expr && expr.termType === "Variable"
+          ? expr.value
           : undefined);
       if (varName !== undefined && value !== undefined) {
         key[varName] = value;

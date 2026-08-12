@@ -1,5 +1,9 @@
 import { Parser as SparqlJsParser } from "../../vendor/sparql-parser/mod.ts";
-import type { SparqlParser as SparqlJsParserType, SparqlQuery } from "sparqljs";
+import type {
+  SparqlParser as SparqlJsParserType,
+  SparqlQuery,
+} from "../../vendor/sparql-parser/mod.ts";
+export type * from "../../vendor/sparql-parser/mod.ts";
 
 /**
  * SparqlParser handles parsing raw SPARQL 1.1 strings into structured AST objects.

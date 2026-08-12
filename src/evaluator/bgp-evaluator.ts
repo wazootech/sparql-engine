@@ -1,5 +1,5 @@
 import type * as rdfjs from "@rdfjs/types";
-import type { Expression, Pattern, Triple } from "sparqljs";
+import type { Expression, Pattern, Triple } from "@/parser/sparql-parser.ts";
 import { DataFactory } from "n3";
 import {
   type ExpressionEvaluationContext,
@@ -98,7 +98,9 @@ export class BgpEvaluator {
     // The top-level evaluation runs against the default graph (matching
     // Comunica, whose plain patterns never see named-graph quads); GRAPH
     // patterns scope further inside.
-    const defaultScope = new GraphScopedStore(this.store, defaultGraph());
+    const defaultScope = this.store instanceof GraphScopedStore
+      ? this.store
+      : new GraphScopedStore(this.store, defaultGraph());
     return await this.evaluateGroup(patterns, [{}], defaultScope);
   }
 
@@ -361,9 +363,24 @@ export class BgpEvaluator {
     bindings: TermBinding[],
     store: rdfjs.Source<rdfjs.Quad>,
   ): Promise<TermBinding[]> {
+    if (patternListContainsExists(patterns)) {
+      await this.prepareExistsIndex();
+    }
+    const nonFilters: Pattern[] = [];
+    const filters: Pattern[] = [];
+    for (const p of patterns) {
+      if (p.type === "filter") {
+        filters.push(p);
+      } else {
+        nonFilters.push(p);
+      }
+    }
     let result = bindings;
-    for (const pattern of patterns) {
+    for (const pattern of nonFilters) {
       result = await this.evaluatePattern(pattern, result, store);
+    }
+    for (const filterPattern of filters) {
+      result = await this.evaluatePattern(filterPattern, result, store);
     }
     return result;
   }
@@ -404,6 +421,9 @@ export class BgpEvaluator {
           }
         }
         const right = await this.evaluateGroup(innerPatterns, [{}], store);
+        if (filters.some(expressionContainsExists)) {
+          await this.prepareExistsIndex();
+        }
         const context = this.existsContext(store);
         return leftJoin(
           bindings,
@@ -486,24 +506,53 @@ export class BgpEvaluator {
           ? await namedGraphs(this.store)
           : [sparqlTermToRdfTerm(graphName)];
         const results: TermBinding[] = [];
+        const innerPatterns: Pattern[] = pattern.patterns ?? [
+          {
+            type: "bgp",
+            triples: (pattern as unknown as { triples: Triple[] }).triples,
+          },
+        ];
         for (const graphTerm of graphTerms) {
           const scopedStore = new GraphScopedStore(store, graphTerm);
           const inner = await this.evaluateGroup(
-            pattern.patterns,
+            innerPatterns,
             [{}],
             scopedStore,
           );
           for (const binding of inner) {
             if (graphName.termType === "Variable") {
-              binding[graphName.value] = graphTerm;
+              const existing = binding[graphName.value];
+              if (existing !== undefined && !sameRdfTerm(existing, graphTerm)) {
+                continue;
+              }
+              results.push({ ...binding, [graphName.value]: graphTerm });
+            } else {
+              results.push(binding);
             }
-            results.push(binding);
           }
         }
         return innerJoin(bindings, results);
       }
-      case "group":
-        return await this.evaluateGroup(pattern.patterns, bindings, store);
+      case "group": {
+        const groupResult = await this.evaluateGroup(
+          pattern.patterns,
+          [{}],
+          store,
+        );
+        return innerJoin(bindings, groupResult);
+      }
+      case "query": {
+        const { SparqlEvaluator } = await import(
+          "@/evaluator/sparql-evaluator.ts"
+        );
+        const subEvaluator = new SparqlEvaluator(store, {
+          reorderPatterns: this.reorderPatterns,
+        });
+        const subResults = await subEvaluator.evaluateSelectTermBindings(
+          pattern as unknown as import("@/parser/sparql-parser.ts").SelectQuery,
+        );
+        return innerJoin(bindings, subResults);
+      }
       default:
         throw new Error(
           `Unsupported graph pattern type: ${(pattern as Pattern).type}`,
@@ -627,8 +676,10 @@ export class BgpEvaluator {
  * NOT EXISTS expression. It drives prepareExistsIndex so the synchronous
  * EXISTS index is built exactly when a query needs it.
  */
-export function patternListContainsExists(patterns: Pattern[]): boolean {
-  return patterns.some(patternContainsExists);
+export function patternListContainsExists(
+  patterns: Pattern[] | undefined,
+): boolean {
+  return patterns?.some(patternContainsExists) ?? false;
 }
 
 function patternContainsExists(pattern: Pattern): boolean {
@@ -644,7 +695,12 @@ function patternContainsExists(pattern: Pattern): boolean {
     case "union":
     case "graph":
     case "group":
-      return patternListContainsExists(pattern.patterns);
+      return patternListContainsExists(
+        pattern.patterns ??
+            (pattern as unknown as { triples?: Triple[] }).triples
+          ? []
+          : [],
+      );
     case "query":
       return patternListContainsExists(
         (pattern as unknown as { where: Pattern[] }).where ?? [],

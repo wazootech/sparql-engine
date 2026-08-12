@@ -16,11 +16,11 @@ Wazoo-native SPARQL 1.1 Query & Update Engine over RDF/JS Quad Stores.
 ## Usage
 
 ```typescript
-import { NativeSparqlEngine } from "@wazoo/sparql-engine";
+import { WazooSparqlEngine } from "@wazoo/sparql-engine";
 import { DataFactory, Store } from "n3";
 
 const store = new Store();
-const engine = new NativeSparqlEngine({ store });
+const engine = new WazooSparqlEngine({ store });
 
 const result = await engine.execute({
   query: "SELECT ?s ?p ?o WHERE { ?s ?p ?o }",

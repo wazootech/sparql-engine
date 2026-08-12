@@ -1,27 +1,27 @@
 import { assertEquals, assertRejects } from "@std/assert";
 import { DataFactory, Store } from "n3";
-import { NativeSparqlEngine } from "@/native-sparql-engine.ts";
+import { WazooSparqlEngine } from "@/wazoo-sparql-engine.ts";
 
 const { namedNode, literal, quad } = DataFactory;
 
-Deno.test("NativeSparqlEngine - SELECT query BGP evaluation", async () => {
+Deno.test("WazooSparqlEngine - SELECT query BGP evaluation", async () => {
   const store = new Store();
   store.addQuad(
     quad(
       namedNode("http://example.org/alice"),
       namedNode("http://xmlns.com/foaf/0.1/name"),
-      literal("Alice"),
+      literal("Ethan"),
     ),
   );
   store.addQuad(
     quad(
       namedNode("http://example.org/bob"),
       namedNode("http://xmlns.com/foaf/0.1/name"),
-      literal("Bob"),
+      literal("Gregory"),
     ),
   );
 
-  const engine = new NativeSparqlEngine({ store });
+  const engine = new WazooSparqlEngine({ store });
   const result = await engine.execute({
     query:
       "SELECT ?person ?name WHERE { ?person <http://xmlns.com/foaf/0.1/name> ?name }",
@@ -32,11 +32,11 @@ Deno.test("NativeSparqlEngine - SELECT query BGP evaluation", async () => {
     assertEquals(result.data.head.vars, ["person", "name"]);
     assertEquals(result.data.results.bindings.length, 2);
     const names = result.data.results.bindings.map((b) => b.name.value).sort();
-    assertEquals(names, ["Alice", "Bob"]);
+    assertEquals(names, ["Ethan", "Gregory"]);
   }
 });
 
-Deno.test("NativeSparqlEngine - FILTER numeric comparison and arithmetic", async () => {
+Deno.test("WazooSparqlEngine - FILTER numeric comparison and arithmetic", async () => {
   const store = new Store();
   const age = (person: string, years: string) =>
     quad(
@@ -48,7 +48,7 @@ Deno.test("NativeSparqlEngine - FILTER numeric comparison and arithmetic", async
   store.addQuad(age("bob", "17"));
   store.addQuad(age("carol", "30"));
 
-  const engine = new NativeSparqlEngine({ store });
+  const engine = new WazooSparqlEngine({ store });
   const greater = await engine.execute({
     query:
       "SELECT ?person WHERE { ?person <http://xmlns.com/foaf/0.1/age> ?age FILTER(?age > 18) }",
@@ -83,7 +83,7 @@ Deno.test("NativeSparqlEngine - FILTER numeric comparison and arithmetic", async
   }
 });
 
-Deno.test("NativeSparqlEngine - FILTER string, language, STR and STRLEN", async () => {
+Deno.test("WazooSparqlEngine - FILTER string, language, STR and STRLEN", async () => {
   const store = new Store();
   const name = (person: string, value: string, language?: string) =>
     quad(
@@ -91,14 +91,14 @@ Deno.test("NativeSparqlEngine - FILTER string, language, STR and STRLEN", async 
       namedNode("http://xmlns.com/foaf/0.1/name"),
       language ? literal(value, language) : literal(value),
     );
-  store.addQuad(name("alice", "Alice"));
-  store.addQuad(name("bob", "Bob"));
+  store.addQuad(name("alice", "Ethan"));
+  store.addQuad(name("bob", "Gregory"));
   store.addQuad(name("carol", "Carol", "en"));
 
-  const engine = new NativeSparqlEngine({ store });
+  const engine = new WazooSparqlEngine({ store });
   const eq = await engine.execute({
     query:
-      'SELECT ?person WHERE { ?person <http://xmlns.com/foaf/0.1/name> ?name FILTER(?name = "Alice") }',
+      'SELECT ?person WHERE { ?person <http://xmlns.com/foaf/0.1/name> ?name FILTER(?name = "Ethan") }',
   });
   assertEquals(eq.kind, "select");
   if (eq.kind === "select") {
@@ -123,24 +123,24 @@ Deno.test("NativeSparqlEngine - FILTER string, language, STR and STRLEN", async 
 
   const strlen = await engine.execute({
     query:
-      "SELECT ?person WHERE { ?person <http://xmlns.com/foaf/0.1/name> ?name FILTER(STRLEN(?name) > 4) }",
+      "SELECT ?person WHERE { ?person <http://xmlns.com/foaf/0.1/name> ?name FILTER(STRLEN(?name) > 5) }",
   });
   assertEquals(strlen.kind, "select");
   if (strlen.kind === "select") {
     assertEquals(
       strlen.data.results.bindings.map((b) => b.person.value),
-      ["http://example.org/alice", "http://example.org/carol"],
+      ["http://example.org/bob"],
     );
   }
 });
 
-Deno.test("NativeSparqlEngine - FILTER bound(), EBV, and error semantics", async () => {
+Deno.test("WazooSparqlEngine - FILTER bound(), EBV, and error semantics", async () => {
   const store = new Store();
   store.addQuad(
     quad(
       namedNode("http://example.org/alice"),
       namedNode("http://xmlns.com/foaf/0.1/name"),
-      literal("Alice"),
+      literal("Ethan"),
     ),
   );
   store.addQuad(
@@ -151,7 +151,7 @@ Deno.test("NativeSparqlEngine - FILTER bound(), EBV, and error semantics", async
     ),
   );
 
-  const engine = new NativeSparqlEngine({ store });
+  const engine = new WazooSparqlEngine({ store });
   // Unbound variable in BOUND is an error; !BOUND(?missing) is true.
   const bound = await engine.execute({
     query:
@@ -187,7 +187,7 @@ Deno.test("NativeSparqlEngine - FILTER bound(), EBV, and error semantics", async
   }
 });
 
-Deno.test("NativeSparqlEngine - ORDER BY expression (STRLEN and STR)", async () => {
+Deno.test("WazooSparqlEngine - ORDER BY expression (STRLEN and STR)", async () => {
   const store = new Store();
   const name = (person: string, value: string, language?: string) =>
     quad(
@@ -195,11 +195,11 @@ Deno.test("NativeSparqlEngine - ORDER BY expression (STRLEN and STR)", async () 
       namedNode("http://xmlns.com/foaf/0.1/name"),
       language ? literal(value, language) : literal(value),
     );
-  store.addQuad(name("alice", "Alice"));
-  store.addQuad(name("bob", "Bob"));
+  store.addQuad(name("alice", "Ethan"));
+  store.addQuad(name("bob", "Gregory"));
   store.addQuad(name("carol", "Carol", "en"));
 
-  const engine = new NativeSparqlEngine({ store });
+  const engine = new WazooSparqlEngine({ store });
   const byLen = await engine.execute({
     query:
       "SELECT ?person ?name WHERE { ?person <http://xmlns.com/foaf/0.1/name> ?name } ORDER BY DESC(STRLEN(?name))",
@@ -209,9 +209,9 @@ Deno.test("NativeSparqlEngine - ORDER BY expression (STRLEN and STR)", async () 
     assertEquals(
       byLen.data.results.bindings.map((b) => b.person.value),
       [
+        "http://example.org/bob",
         "http://example.org/alice",
         "http://example.org/carol",
-        "http://example.org/bob",
       ],
     );
   }
@@ -225,51 +225,51 @@ Deno.test("NativeSparqlEngine - ORDER BY expression (STRLEN and STR)", async () 
     assertEquals(
       byStr.data.results.bindings.map((b) => b.person.value),
       [
+        "http://example.org/carol",
         "http://example.org/alice",
         "http://example.org/bob",
-        "http://example.org/carol",
       ],
     );
   }
 });
 
-Deno.test("NativeSparqlEngine - unsupported FILTER expression is rejected", async () => {
+Deno.test("WazooSparqlEngine - unsupported FILTER expression is rejected", async () => {
   const store = new Store();
   store.addQuad(
     quad(
       namedNode("http://example.org/alice"),
       namedNode("http://xmlns.com/foaf/0.1/name"),
-      literal("Alice"),
+      literal("Ethan"),
     ),
   );
-  const engine = new NativeSparqlEngine({ store });
-  // ISIRI is not part of the ported surface yet, so it must still raise a
+  const engine = new WazooSparqlEngine({ store });
+  // UNSUPPORTED_FUNC is not part of the ported surface, so it must still raise a
   // clear error rather than silently passing.
   await assertRejects(
     () =>
       engine.execute({
         query:
-          "SELECT ?person WHERE { ?person <http://xmlns.com/foaf/0.1/name> ?name FILTER(ISIRI(?name)) }",
+          "SELECT ?person WHERE { ?person <http://xmlns.com/foaf/0.1/name> ?name FILTER(<http://example.org/unsupported>(?name)) }",
       }),
     Error,
-    "Unsupported SPARQL expression operator: isiri",
+    "Unsupported SPARQL expression",
   );
 });
 
-Deno.test("NativeSparqlEngine - ORDER BY sorts SELECT results by value", async () => {
+Deno.test("WazooSparqlEngine - ORDER BY sorts SELECT results by value", async () => {
   const store = new Store();
   store.addQuad(
     quad(
       namedNode("http://example.org/alice"),
       namedNode("http://xmlns.com/foaf/0.1/name"),
-      literal("Alice"),
+      literal("Ethan"),
     ),
   );
   store.addQuad(
     quad(
       namedNode("http://example.org/bob"),
       namedNode("http://xmlns.com/foaf/0.1/name"),
-      literal("Bob"),
+      literal("Gregory"),
     ),
   );
   store.addQuad(
@@ -280,7 +280,7 @@ Deno.test("NativeSparqlEngine - ORDER BY sorts SELECT results by value", async (
     ),
   );
 
-  const engine = new NativeSparqlEngine({ store });
+  const engine = new WazooSparqlEngine({ store });
   const result = await engine.execute({
     query:
       "SELECT ?person ?name WHERE { ?person <http://xmlns.com/foaf/0.1/name> ?name } ORDER BY ?name",
@@ -291,29 +291,29 @@ Deno.test("NativeSparqlEngine - ORDER BY sorts SELECT results by value", async (
     // xsd:string literals by datatype IRI, then lexically.
     assertEquals(
       result.data.results.bindings.map((b) => b.name.value),
-      ["Carol", "Alice", "Bob"],
+      ["Carol", "Ethan", "Gregory"],
     );
   }
 });
 
-Deno.test("NativeSparqlEngine - ORDER BY DESC reverses the order", async () => {
+Deno.test("WazooSparqlEngine - ORDER BY DESC reverses the order", async () => {
   const store = new Store();
   store.addQuad(
     quad(
       namedNode("http://example.org/alice"),
       namedNode("http://xmlns.com/foaf/0.1/name"),
-      literal("Alice"),
+      literal("Ethan"),
     ),
   );
   store.addQuad(
     quad(
       namedNode("http://example.org/bob"),
       namedNode("http://xmlns.com/foaf/0.1/name"),
-      literal("Bob"),
+      literal("Gregory"),
     ),
   );
 
-  const engine = new NativeSparqlEngine({ store });
+  const engine = new WazooSparqlEngine({ store });
   const result = await engine.execute({
     query:
       "SELECT ?person ?name WHERE { ?person <http://xmlns.com/foaf/0.1/name> ?name } ORDER BY DESC(?name)",
@@ -322,12 +322,12 @@ Deno.test("NativeSparqlEngine - ORDER BY DESC reverses the order", async () => {
   if (result.kind === "select") {
     assertEquals(
       result.data.results.bindings.map((b) => b.name.value),
-      ["Bob", "Alice"],
+      ["Gregory", "Ethan"],
     );
   }
 });
 
-Deno.test("NativeSparqlEngine - ORDER BY sorts integers numerically", async () => {
+Deno.test("WazooSparqlEngine - ORDER BY sorts integers numerically", async () => {
   const store = new Store();
   store.addQuad(
     quad(
@@ -344,7 +344,7 @@ Deno.test("NativeSparqlEngine - ORDER BY sorts integers numerically", async () =
     ),
   );
 
-  const engine = new NativeSparqlEngine({ store });
+  const engine = new WazooSparqlEngine({ store });
   const result = await engine.execute({
     query:
       "SELECT ?person ?age WHERE { ?person <http://xmlns.com/foaf/0.1/age> ?age } ORDER BY ?age",
@@ -358,12 +358,12 @@ Deno.test("NativeSparqlEngine - ORDER BY sorts integers numerically", async () =
   }
 });
 
-Deno.test("NativeSparqlEngine - ORDER BY multiple keys with DESC", async () => {
+Deno.test("WazooSparqlEngine - ORDER BY multiple keys with DESC", async () => {
   const store = new Store();
   for (
     const [person, age, name] of [
-      ["alice", "28", "Alice"],
-      ["bob", "20", "Bob"],
+      ["alice", "28", "Ethan"],
+      ["bob", "20", "Gregory"],
       ["carol", "30", "Carol"],
     ]
   ) {
@@ -383,7 +383,7 @@ Deno.test("NativeSparqlEngine - ORDER BY multiple keys with DESC", async () => {
     );
   }
 
-  const engine = new NativeSparqlEngine({ store });
+  const engine = new WazooSparqlEngine({ store });
   const result = await engine.execute({
     query:
       "SELECT ?person ?age ?name WHERE { ?person <http://xmlns.com/foaf/0.1/age> ?age . " +
@@ -402,24 +402,24 @@ Deno.test("NativeSparqlEngine - ORDER BY multiple keys with DESC", async () => {
   }
 });
 
-Deno.test("NativeSparqlEngine - ORDER BY unbound key keeps evaluation order", async () => {
+Deno.test("WazooSparqlEngine - ORDER BY unbound key keeps evaluation order", async () => {
   const store = new Store();
   store.addQuad(
     quad(
       namedNode("http://example.org/alice"),
       namedNode("http://xmlns.com/foaf/0.1/name"),
-      literal("Alice"),
+      literal("Ethan"),
     ),
   );
   store.addQuad(
     quad(
       namedNode("http://example.org/bob"),
       namedNode("http://xmlns.com/foaf/0.1/name"),
-      literal("Bob"),
+      literal("Gregory"),
     ),
   );
 
-  const engine = new NativeSparqlEngine({ store });
+  const engine = new WazooSparqlEngine({ store });
   const result = await engine.execute({
     query:
       "SELECT ?person ?name ?missing WHERE { ?person <http://xmlns.com/foaf/0.1/name> ?name } ORDER BY ?missing",
@@ -434,24 +434,24 @@ Deno.test("NativeSparqlEngine - ORDER BY unbound key keeps evaluation order", as
 });
 
 Deno.test(
-  "NativeSparqlEngine - ORDER BY with an unsupported expression is rejected",
+  "WazooSparqlEngine - ORDER BY with an unsupported expression is rejected",
   async () => {
     const store = new Store();
     store.addQuad(
       quad(
         namedNode("http://example.org/alice"),
         namedNode("http://xmlns.com/foaf/0.1/name"),
-        literal("Alice"),
+        literal("Ethan"),
       ),
     );
     store.addQuad(
       quad(
         namedNode("http://example.org/bob"),
         namedNode("http://xmlns.com/foaf/0.1/name"),
-        literal("Bob"),
+        literal("Gregory"),
       ),
     );
-    const engine = new NativeSparqlEngine({ store });
+    const engine = new WazooSparqlEngine({ store });
     // STRLEN is supported now; only genuinely unsupported expressions
     // (custom function calls) are rejected.
     const ordered = await engine.execute({
@@ -462,7 +462,7 @@ Deno.test(
     if (ordered.kind === "select") {
       assertEquals(
         ordered.data.results.bindings.map((b) => b.person.value),
-        ["http://example.org/bob", "http://example.org/alice"],
+        ["http://example.org/alice", "http://example.org/bob"],
       );
     }
 
@@ -478,18 +478,18 @@ Deno.test(
   },
 );
 
-Deno.test("NativeSparqlEngine - OPTIONAL extends matches and keeps unmatched unbound", async () => {
+Deno.test("WazooSparqlEngine - OPTIONAL extends matches and keeps unmatched unbound", async () => {
   const store = new Store();
   const ex = (s: string) => namedNode(`http://example.org/${s}`);
   const foaf = (s: string) => namedNode(`http://xmlns.com/foaf/0.1/${s}`);
   const xsdInteger = namedNode("http://www.w3.org/2001/XMLSchema#integer");
-  store.addQuad(quad(ex("alice"), foaf("name"), literal("Alice")));
+  store.addQuad(quad(ex("alice"), foaf("name"), literal("Ethan")));
   store.addQuad(quad(ex("alice"), foaf("age"), literal("28", xsdInteger)));
-  store.addQuad(quad(ex("bob"), foaf("name"), literal("Bob")));
+  store.addQuad(quad(ex("bob"), foaf("name"), literal("Gregory")));
   store.addQuad(quad(ex("carol"), foaf("name"), literal("Carol")));
   store.addQuad(quad(ex("carol"), foaf("age"), literal("30", xsdInteger)));
 
-  const engine = new NativeSparqlEngine({ store });
+  const engine = new WazooSparqlEngine({ store });
   const result = await engine.execute({
     query:
       "SELECT ?p ?o WHERE { ?p <http://xmlns.com/foaf/0.1/name> ?n OPTIONAL { ?p <http://xmlns.com/foaf/0.1/age> ?o } }",
@@ -507,18 +507,18 @@ Deno.test("NativeSparqlEngine - OPTIONAL extends matches and keeps unmatched unb
   }
 });
 
-Deno.test("NativeSparqlEngine - OPTIONAL filter drops a join and keeps the solution unextended", async () => {
+Deno.test("WazooSparqlEngine - OPTIONAL filter drops a join and keeps the solution unextended", async () => {
   const store = new Store();
   const ex = (s: string) => namedNode(`http://example.org/${s}`);
   const foaf = (s: string) => namedNode(`http://xmlns.com/foaf/0.1/${s}`);
   const xsdInteger = namedNode("http://www.w3.org/2001/XMLSchema#integer");
-  store.addQuad(quad(ex("alice"), foaf("name"), literal("Alice")));
+  store.addQuad(quad(ex("alice"), foaf("name"), literal("Ethan")));
   store.addQuad(quad(ex("alice"), foaf("age"), literal("28", xsdInteger)));
-  store.addQuad(quad(ex("bob"), foaf("name"), literal("Bob")));
+  store.addQuad(quad(ex("bob"), foaf("name"), literal("Gregory")));
   store.addQuad(quad(ex("carol"), foaf("name"), literal("Carol")));
   store.addQuad(quad(ex("carol"), foaf("age"), literal("30", xsdInteger)));
 
-  const engine = new NativeSparqlEngine({ store });
+  const engine = new WazooSparqlEngine({ store });
   const result = await engine.execute({
     query:
       "SELECT ?p ?o WHERE { ?p <http://xmlns.com/foaf/0.1/name> ?n OPTIONAL { ?p <http://xmlns.com/foaf/0.1/age> ?o FILTER(?o > 28) } }",
@@ -536,18 +536,18 @@ Deno.test("NativeSparqlEngine - OPTIONAL filter drops a join and keeps the solut
   }
 });
 
-Deno.test("NativeSparqlEngine - OPTIONAL filter can reference an outer variable", async () => {
+Deno.test("WazooSparqlEngine - OPTIONAL filter can reference an outer variable", async () => {
   const store = new Store();
   const ex = (s: string) => namedNode(`http://example.org/${s}`);
   const foaf = (s: string) => namedNode(`http://xmlns.com/foaf/0.1/${s}`);
   const xsdInteger = namedNode("http://www.w3.org/2001/XMLSchema#integer");
-  store.addQuad(quad(ex("alice"), foaf("name"), literal("Alice")));
+  store.addQuad(quad(ex("alice"), foaf("name"), literal("Ethan")));
   store.addQuad(quad(ex("alice"), foaf("age"), literal("28", xsdInteger)));
-  store.addQuad(quad(ex("bob"), foaf("name"), literal("Bob")));
+  store.addQuad(quad(ex("bob"), foaf("name"), literal("Gregory")));
   store.addQuad(quad(ex("carol"), foaf("name"), literal("Carol")));
   store.addQuad(quad(ex("carol"), foaf("age"), literal("30", xsdInteger)));
 
-  const engine = new NativeSparqlEngine({ store });
+  const engine = new WazooSparqlEngine({ store });
   const result = await engine.execute({
     query:
       "SELECT ?p ?o WHERE { ?p <http://xmlns.com/foaf/0.1/name> ?n OPTIONAL { ?p <http://xmlns.com/foaf/0.1/age> ?o FILTER(?p = <http://example.org/alice>) } }",
@@ -564,15 +564,15 @@ Deno.test("NativeSparqlEngine - OPTIONAL filter can reference an outer variable"
   }
 });
 
-Deno.test("NativeSparqlEngine - OPTIONAL nests inside OPTIONAL", async () => {
+Deno.test("WazooSparqlEngine - OPTIONAL nests inside OPTIONAL", async () => {
   const store = new Store();
   const ex = (s: string) => namedNode(`http://example.org/${s}`);
   const foaf = (s: string) => namedNode(`http://xmlns.com/foaf/0.1/${s}`);
-  store.addQuad(quad(ex("alice"), foaf("name"), literal("Alice")));
+  store.addQuad(quad(ex("alice"), foaf("name"), literal("Ethan")));
   store.addQuad(quad(ex("alice"), foaf("knows"), ex("bob")));
-  store.addQuad(quad(ex("bob"), foaf("name"), literal("Bob")));
+  store.addQuad(quad(ex("bob"), foaf("name"), literal("Gregory")));
 
-  const engine = new NativeSparqlEngine({ store });
+  const engine = new WazooSparqlEngine({ store });
   const result = await engine.execute({
     query:
       "SELECT ?p ?q WHERE { ?p <http://xmlns.com/foaf/0.1/name> ?n OPTIONAL { ?p <http://xmlns.com/foaf/0.1/knows> ?q OPTIONAL { ?q <http://xmlns.com/foaf/0.1/name> ?qn } } }",
@@ -592,18 +592,18 @@ Deno.test("NativeSparqlEngine - OPTIONAL nests inside OPTIONAL", async () => {
   }
 });
 
-Deno.test("NativeSparqlEngine - MINUS eliminates solutions sharing a bound variable", async () => {
+Deno.test("WazooSparqlEngine - MINUS eliminates solutions sharing a bound variable", async () => {
   const store = new Store();
   const ex = (s: string) => namedNode(`http://example.org/${s}`);
   const foaf = (s: string) => namedNode(`http://xmlns.com/foaf/0.1/${s}`);
   const xsdInteger = namedNode("http://www.w3.org/2001/XMLSchema#integer");
-  store.addQuad(quad(ex("alice"), foaf("name"), literal("Alice")));
+  store.addQuad(quad(ex("alice"), foaf("name"), literal("Ethan")));
   store.addQuad(quad(ex("alice"), foaf("age"), literal("28", xsdInteger)));
-  store.addQuad(quad(ex("bob"), foaf("name"), literal("Bob")));
+  store.addQuad(quad(ex("bob"), foaf("name"), literal("Gregory")));
   store.addQuad(quad(ex("carol"), foaf("name"), literal("Carol")));
   store.addQuad(quad(ex("carol"), foaf("age"), literal("30", xsdInteger)));
 
-  const engine = new NativeSparqlEngine({ store });
+  const engine = new WazooSparqlEngine({ store });
   const result = await engine.execute({
     query:
       "SELECT ?p WHERE { ?p <http://xmlns.com/foaf/0.1/name> ?n MINUS { ?p <http://xmlns.com/foaf/0.1/age> ?a } }",
@@ -617,18 +617,18 @@ Deno.test("NativeSparqlEngine - MINUS eliminates solutions sharing a bound varia
   }
 });
 
-Deno.test("NativeSparqlEngine - MINUS with no shared variables keeps all solutions", async () => {
+Deno.test("WazooSparqlEngine - MINUS with no shared variables keeps all solutions", async () => {
   const store = new Store();
   const ex = (s: string) => namedNode(`http://example.org/${s}`);
   const foaf = (s: string) => namedNode(`http://xmlns.com/foaf/0.1/${s}`);
   const xsdInteger = namedNode("http://www.w3.org/2001/XMLSchema#integer");
-  store.addQuad(quad(ex("alice"), foaf("name"), literal("Alice")));
+  store.addQuad(quad(ex("alice"), foaf("name"), literal("Ethan")));
   store.addQuad(quad(ex("alice"), foaf("age"), literal("28", xsdInteger)));
-  store.addQuad(quad(ex("bob"), foaf("name"), literal("Bob")));
+  store.addQuad(quad(ex("bob"), foaf("name"), literal("Gregory")));
   store.addQuad(quad(ex("carol"), foaf("name"), literal("Carol")));
   store.addQuad(quad(ex("carol"), foaf("age"), literal("30", xsdInteger)));
 
-  const engine = new NativeSparqlEngine({ store });
+  const engine = new WazooSparqlEngine({ store });
   const result = await engine.execute({
     query:
       "SELECT ?p WHERE { ?p <http://xmlns.com/foaf/0.1/name> ?n MINUS { ?x <http://xmlns.com/foaf/0.1/age> ?y } }",
@@ -639,18 +639,18 @@ Deno.test("NativeSparqlEngine - MINUS with no shared variables keeps all solutio
   }
 });
 
-Deno.test("NativeSparqlEngine - MINUS applies its own FILTER inside the group", async () => {
+Deno.test("WazooSparqlEngine - MINUS applies its own FILTER inside the group", async () => {
   const store = new Store();
   const ex = (s: string) => namedNode(`http://example.org/${s}`);
   const foaf = (s: string) => namedNode(`http://xmlns.com/foaf/0.1/${s}`);
   const xsdInteger = namedNode("http://www.w3.org/2001/XMLSchema#integer");
-  store.addQuad(quad(ex("alice"), foaf("name"), literal("Alice")));
+  store.addQuad(quad(ex("alice"), foaf("name"), literal("Ethan")));
   store.addQuad(quad(ex("alice"), foaf("age"), literal("28", xsdInteger)));
-  store.addQuad(quad(ex("bob"), foaf("name"), literal("Bob")));
+  store.addQuad(quad(ex("bob"), foaf("name"), literal("Gregory")));
   store.addQuad(quad(ex("carol"), foaf("name"), literal("Carol")));
   store.addQuad(quad(ex("carol"), foaf("age"), literal("30", xsdInteger)));
 
-  const engine = new NativeSparqlEngine({ store });
+  const engine = new WazooSparqlEngine({ store });
   const result = await engine.execute({
     query:
       "SELECT ?p WHERE { ?p <http://xmlns.com/foaf/0.1/name> ?n MINUS { ?p <http://xmlns.com/foaf/0.1/age> ?a FILTER(?a > 29) } }",
@@ -665,18 +665,18 @@ Deno.test("NativeSparqlEngine - MINUS applies its own FILTER inside the group", 
   }
 });
 
-Deno.test("NativeSparqlEngine - UNION combines branch solutions as a multiset", async () => {
+Deno.test("WazooSparqlEngine - UNION combines branch solutions as a multiset", async () => {
   const store = new Store();
   const ex = (s: string) => namedNode(`http://example.org/${s}`);
   const foaf = (s: string) => namedNode(`http://xmlns.com/foaf/0.1/${s}`);
   const xsdInteger = namedNode("http://www.w3.org/2001/XMLSchema#integer");
-  store.addQuad(quad(ex("alice"), foaf("name"), literal("Alice")));
+  store.addQuad(quad(ex("alice"), foaf("name"), literal("Ethan")));
   store.addQuad(quad(ex("alice"), foaf("age"), literal("28", xsdInteger)));
-  store.addQuad(quad(ex("bob"), foaf("name"), literal("Bob")));
+  store.addQuad(quad(ex("bob"), foaf("name"), literal("Gregory")));
   store.addQuad(quad(ex("carol"), foaf("name"), literal("Carol")));
   store.addQuad(quad(ex("carol"), foaf("age"), literal("30", xsdInteger)));
 
-  const engine = new NativeSparqlEngine({ store });
+  const engine = new WazooSparqlEngine({ store });
   const result = await engine.execute({
     query:
       "SELECT ?s WHERE { { ?s <http://xmlns.com/foaf/0.1/name> ?n } UNION { ?s <http://xmlns.com/foaf/0.1/age> ?a } }",
@@ -695,15 +695,15 @@ Deno.test("NativeSparqlEngine - UNION combines branch solutions as a multiset", 
   }
 });
 
-Deno.test("NativeSparqlEngine - UNION branches can bind different variables", async () => {
+Deno.test("WazooSparqlEngine - UNION branches can bind different variables", async () => {
   const store = new Store();
   const ex = (s: string) => namedNode(`http://example.org/${s}`);
   const foaf = (s: string) => namedNode(`http://xmlns.com/foaf/0.1/${s}`);
   const xsdInteger = namedNode("http://www.w3.org/2001/XMLSchema#integer");
-  store.addQuad(quad(ex("alice"), foaf("name"), literal("Alice")));
+  store.addQuad(quad(ex("alice"), foaf("name"), literal("Ethan")));
   store.addQuad(quad(ex("alice"), foaf("age"), literal("28", xsdInteger)));
 
-  const engine = new NativeSparqlEngine({ store });
+  const engine = new WazooSparqlEngine({ store });
   const result = await engine.execute({
     query:
       "SELECT ?n ?a WHERE { { ?s <http://xmlns.com/foaf/0.1/name> ?n } UNION { ?s <http://xmlns.com/foaf/0.1/age> ?a } }",
@@ -712,25 +712,25 @@ Deno.test("NativeSparqlEngine - UNION branches can bind different variables", as
   if (result.kind === "select") {
     const bindings = result.data.results.bindings;
     assertEquals(bindings.length, 2);
-    assertEquals(bindings[0].n?.value, "Alice");
+    assertEquals(bindings[0].n?.value, "Ethan");
     assertEquals(bindings[0].a, undefined);
     assertEquals(bindings[1].n, undefined);
     assertEquals(bindings[1].a?.value, "28");
   }
 });
 
-Deno.test("NativeSparqlEngine - UNION in a sequence joins with preceding patterns", async () => {
+Deno.test("WazooSparqlEngine - UNION in a sequence joins with preceding patterns", async () => {
   const store = new Store();
   const ex = (s: string) => namedNode(`http://example.org/${s}`);
   const foaf = (s: string) => namedNode(`http://xmlns.com/foaf/0.1/${s}`);
   const xsdInteger = namedNode("http://www.w3.org/2001/XMLSchema#integer");
-  store.addQuad(quad(ex("alice"), foaf("name"), literal("Alice")));
+  store.addQuad(quad(ex("alice"), foaf("name"), literal("Ethan")));
   store.addQuad(quad(ex("alice"), foaf("age"), literal("28", xsdInteger)));
-  store.addQuad(quad(ex("bob"), foaf("name"), literal("Bob")));
+  store.addQuad(quad(ex("bob"), foaf("name"), literal("Gregory")));
   store.addQuad(quad(ex("carol"), foaf("name"), literal("Carol")));
   store.addQuad(quad(ex("carol"), foaf("age"), literal("30", xsdInteger)));
 
-  const engine = new NativeSparqlEngine({ store });
+  const engine = new WazooSparqlEngine({ store });
   const result = await engine.execute({
     query:
       "SELECT ?s ?n ?a WHERE { ?s <http://xmlns.com/foaf/0.1/name> ?n . { ?s <http://xmlns.com/foaf/0.1/name> ?n2 } UNION { ?s <http://xmlns.com/foaf/0.1/age> ?a } }",
@@ -741,16 +741,16 @@ Deno.test("NativeSparqlEngine - UNION in a sequence joins with preceding pattern
       .map((b) => [b.s.value, b.n?.value, b.a?.value])
       .sort() as Array<Array<string | undefined>>;
     assertEquals(rows, [
-      ["http://example.org/alice", "Alice", undefined],
-      ["http://example.org/alice", "Alice", "28"],
-      ["http://example.org/bob", "Bob", undefined],
+      ["http://example.org/alice", "Ethan", undefined],
+      ["http://example.org/alice", "Ethan", "28"],
+      ["http://example.org/bob", "Gregory", undefined],
       ["http://example.org/carol", "Carol", undefined],
       ["http://example.org/carol", "Carol", "30"],
     ]);
   }
 });
 
-Deno.test("NativeSparqlEngine - GRAPH scopes patterns to a named graph", async () => {
+Deno.test("WazooSparqlEngine - GRAPH scopes patterns to a named graph", async () => {
   const store = new Store();
   const name = (s: string, o: string, graph?: string) =>
     store.addQuad(
@@ -767,7 +767,7 @@ Deno.test("NativeSparqlEngine - GRAPH scopes patterns to a named graph", async (
   name("alice", "G1", "g1");
   name("bob", "G1", "g1");
   name("alice", "G2", "g2");
-  const engine = new NativeSparqlEngine({ store });
+  const engine = new WazooSparqlEngine({ store });
 
   const scoped = await engine.execute({
     query: "SELECT ?s ?n WHERE { GRAPH <http://example.org/g1> { " +
@@ -783,7 +783,7 @@ Deno.test("NativeSparqlEngine - GRAPH scopes patterns to a named graph", async (
   }
 });
 
-Deno.test("NativeSparqlEngine - GRAPH ?g enumerates named graphs and binds the variable", async () => {
+Deno.test("WazooSparqlEngine - GRAPH ?g enumerates named graphs and binds the variable", async () => {
   const store = new Store();
   const name = (s: string, o: string, graph?: string) =>
     store.addQuad(
@@ -800,7 +800,7 @@ Deno.test("NativeSparqlEngine - GRAPH ?g enumerates named graphs and binds the v
   name("alice", "G1", "g1");
   name("bob", "G1", "g1");
   name("alice", "G2", "g2");
-  const engine = new NativeSparqlEngine({ store });
+  const engine = new WazooSparqlEngine({ store });
 
   const result = await engine.execute({
     query: "SELECT ?g ?s WHERE { GRAPH ?g { " +
@@ -820,7 +820,7 @@ Deno.test("NativeSparqlEngine - GRAPH ?g enumerates named graphs and binds the v
   }
 });
 
-Deno.test("NativeSparqlEngine - GRAPH joins with a preceding pattern", async () => {
+Deno.test("WazooSparqlEngine - GRAPH joins with a preceding pattern", async () => {
   const store = new Store();
   store.addQuad(
     quad(
@@ -837,7 +837,7 @@ Deno.test("NativeSparqlEngine - GRAPH joins with a preceding pattern", async () 
       namedNode("http://example.org/g1"),
     ),
   );
-  const engine = new NativeSparqlEngine({ store });
+  const engine = new WazooSparqlEngine({ store });
   const result = await engine.execute({
     query: "SELECT ?s ?o WHERE { ?s <http://example.org/p> ?o1 . " +
       "GRAPH <http://example.org/g1> { ?s <http://example.org/p> ?o } }",
@@ -849,7 +849,7 @@ Deno.test("NativeSparqlEngine - GRAPH joins with a preceding pattern", async () 
   }
 });
 
-Deno.test("NativeSparqlEngine - ASK query evaluation", async () => {
+Deno.test("WazooSparqlEngine - ASK query evaluation", async () => {
   const store = new Store();
   store.addQuad(
     quad(
@@ -859,7 +859,7 @@ Deno.test("NativeSparqlEngine - ASK query evaluation", async () => {
     ),
   );
 
-  const engine = new NativeSparqlEngine({ store });
+  const engine = new WazooSparqlEngine({ store });
 
   const trueResult = await engine.execute({
     query:
@@ -880,17 +880,17 @@ Deno.test("NativeSparqlEngine - ASK query evaluation", async () => {
   }
 });
 
-Deno.test("NativeSparqlEngine - CONSTRUCT query evaluation", async () => {
+Deno.test("WazooSparqlEngine - CONSTRUCT query evaluation", async () => {
   const store = new Store();
   store.addQuad(
     quad(
       namedNode("http://example.org/alice"),
       namedNode("http://xmlns.com/foaf/0.1/name"),
-      literal("Alice"),
+      literal("Ethan"),
     ),
   );
 
-  const engine = new NativeSparqlEngine({ store });
+  const engine = new WazooSparqlEngine({ store });
   const result = await engine.execute({
     query:
       "CONSTRUCT { ?person <http://schema.org/name> ?name } WHERE { ?person <http://xmlns.com/foaf/0.1/name> ?name }",
@@ -903,17 +903,17 @@ Deno.test("NativeSparqlEngine - CONSTRUCT query evaluation", async () => {
       result.data.quads[0].predicate.value,
       "http://schema.org/name",
     );
-    assertEquals(result.data.quads[0].object.value, "Alice");
+    assertEquals(result.data.quads[0].object.value, "Ethan");
   }
 });
 
-Deno.test("NativeSparqlEngine - INSERT DATA adds quads and returns void", async () => {
+Deno.test("WazooSparqlEngine - INSERT DATA adds quads and returns void", async () => {
   const store = new Store();
-  const engine = new NativeSparqlEngine({ store });
+  const engine = new WazooSparqlEngine({ store });
 
   const result = await engine.execute({
     query:
-      'INSERT DATA { <http://example.org/alice> <http://xmlns.com/foaf/0.1/name> "Alice" . ' +
+      'INSERT DATA { <http://example.org/alice> <http://xmlns.com/foaf/0.1/name> "Ethan" . ' +
       "<http://example.org/alice> <http://xmlns.com/foaf/0.1/age> 28 }",
   });
 
@@ -938,9 +938,9 @@ Deno.test("NativeSparqlEngine - INSERT DATA adds quads and returns void", async 
   );
 });
 
-Deno.test("NativeSparqlEngine - INSERT DATA mints fresh blank nodes per execution", async () => {
+Deno.test("WazooSparqlEngine - INSERT DATA mints fresh blank nodes per execution", async () => {
   const store = new Store();
-  const engine = new NativeSparqlEngine({ store });
+  const engine = new WazooSparqlEngine({ store });
 
   await engine.execute({
     query:
@@ -960,9 +960,9 @@ Deno.test("NativeSparqlEngine - INSERT DATA mints fresh blank nodes per executio
   assertEquals(subjects.size, 2);
 });
 
-Deno.test("NativeSparqlEngine - INSERT DATA into a named graph", async () => {
+Deno.test("WazooSparqlEngine - INSERT DATA into a named graph", async () => {
   const store = new Store();
-  const engine = new NativeSparqlEngine({ store });
+  const engine = new WazooSparqlEngine({ store });
 
   await engine.execute({
     query: "INSERT DATA { GRAPH <http://example.org/g> { " +
@@ -978,41 +978,41 @@ Deno.test("NativeSparqlEngine - INSERT DATA into a named graph", async () => {
   assertEquals(graphQuads.length, 1);
 });
 
-Deno.test("NativeSparqlEngine - DELETE DATA removes matching quads", async () => {
+Deno.test("WazooSparqlEngine - DELETE DATA removes matching quads", async () => {
   const store = new Store();
   store.addQuad(
     quad(
       namedNode("http://example.org/alice"),
       namedNode("http://xmlns.com/foaf/0.1/name"),
-      literal("Alice"),
+      literal("Ethan"),
     ),
   );
-  const engine = new NativeSparqlEngine({ store });
+  const engine = new WazooSparqlEngine({ store });
 
   const result = await engine.execute({
     query:
-      'DELETE DATA { <http://example.org/alice> <http://xmlns.com/foaf/0.1/name> "Alice" }',
+      'DELETE DATA { <http://example.org/alice> <http://xmlns.com/foaf/0.1/name> "Ethan" }',
   });
 
   assertEquals(result.kind, "void");
   assertEquals(store.countQuads(null, null, null, null), 0);
 });
 
-Deno.test("NativeSparqlEngine - composite update runs all operations", async () => {
+Deno.test("WazooSparqlEngine - composite update runs all operations", async () => {
   const store = new Store();
   store.addQuad(
     quad(
       namedNode("http://example.org/bob"),
       namedNode("http://xmlns.com/foaf/0.1/name"),
-      literal("Bob"),
+      literal("Gregory"),
     ),
   );
-  const engine = new NativeSparqlEngine({ store });
+  const engine = new WazooSparqlEngine({ store });
 
   await engine.execute({
     query:
-      'INSERT DATA { <http://example.org/alice> <http://xmlns.com/foaf/0.1/name> "Alice" } ; ' +
-      'DELETE DATA { <http://example.org/bob> <http://xmlns.com/foaf/0.1/name> "Bob" }',
+      'INSERT DATA { <http://example.org/alice> <http://xmlns.com/foaf/0.1/name> "Ethan" } ; ' +
+      'DELETE DATA { <http://example.org/bob> <http://xmlns.com/foaf/0.1/name> "Gregory" }',
   });
 
   assertEquals(store.countQuads(null, null, null, null), 1);
@@ -1020,14 +1020,14 @@ Deno.test("NativeSparqlEngine - composite update runs all operations", async () 
     store.countQuads(
       namedNode("http://example.org/alice"),
       namedNode("http://xmlns.com/foaf/0.1/name"),
-      literal("Alice"),
+      literal("Ethan"),
       null,
     ),
     1,
   );
 });
 
-Deno.test("NativeSparqlEngine - unsupported update operation is rejected", async () => {
+Deno.test("WazooSparqlEngine - unsupported update operation is rejected", async () => {
   const store = new Store();
   store.addQuad(
     quad(
@@ -1036,32 +1036,42 @@ Deno.test("NativeSparqlEngine - unsupported update operation is rejected", async
       literal("v"),
     ),
   );
-  const engine = new NativeSparqlEngine({ store });
-
+  const engine = new WazooSparqlEngine({ store });
   await assertRejects(
-    () => engine.execute({ query: "CLEAR ALL" }),
+    () =>
+      (engine as unknown as {
+        updateEvaluator: { executeUpdate: (u: unknown) => Promise<void> };
+      }).updateEvaluator.executeUpdate({
+        type: "update",
+        prefixes: {},
+        updates: [
+          {
+            type: "unsupported_op",
+          } as unknown as import("@/parser/sparql-parser.ts").UpdateOperation,
+        ],
+      }),
     Error,
-    "Unsupported SPARQL update operation: clear",
+    "Unsupported SPARQL update operation: unsupported_op",
   );
 });
 
-Deno.test("NativeSparqlEngine - INSERT WHERE instantiates per solution", async () => {
+Deno.test("WazooSparqlEngine - INSERT WHERE instantiates per solution", async () => {
   const store = new Store();
   store.addQuad(
     quad(
       namedNode("http://example.org/alice"),
       namedNode("http://xmlns.com/foaf/0.1/name"),
-      literal("Alice"),
+      literal("Ethan"),
     ),
   );
   store.addQuad(
     quad(
       namedNode("http://example.org/bob"),
       namedNode("http://xmlns.com/foaf/0.1/name"),
-      literal("Bob"),
+      literal("Gregory"),
     ),
   );
-  const engine = new NativeSparqlEngine({ store });
+  const engine = new WazooSparqlEngine({ store });
 
   await engine.execute({
     query: "INSERT { <http://example.org/x> <http://example.org/saw> ?name } " +
@@ -1077,27 +1087,27 @@ Deno.test("NativeSparqlEngine - INSERT WHERE instantiates per solution", async (
   assertEquals(saw.length, 2);
   assertEquals(
     saw.map((q) => q.object.value).sort(),
-    ["Alice", "Bob"],
+    ["Ethan", "Gregory"],
   );
 });
 
-Deno.test("NativeSparqlEngine - INSERT WHERE mints fresh blank nodes per solution", async () => {
+Deno.test("WazooSparqlEngine - INSERT WHERE mints fresh blank nodes per solution", async () => {
   const store = new Store();
   store.addQuad(
     quad(
       namedNode("http://example.org/alice"),
       namedNode("http://xmlns.com/foaf/0.1/name"),
-      literal("Alice"),
+      literal("Ethan"),
     ),
   );
   store.addQuad(
     quad(
       namedNode("http://example.org/bob"),
       namedNode("http://xmlns.com/foaf/0.1/name"),
-      literal("Bob"),
+      literal("Gregory"),
     ),
   );
-  const engine = new NativeSparqlEngine({ store });
+  const engine = new WazooSparqlEngine({ store });
 
   await engine.execute({
     query: "INSERT { _:fresh <http://example.org/owns> ?name } " +
@@ -1118,13 +1128,13 @@ Deno.test("NativeSparqlEngine - INSERT WHERE mints fresh blank nodes per solutio
   assertEquals(subjects.size, 2);
 });
 
-Deno.test("NativeSparqlEngine - DELETE WHERE shorthand removes matches", async () => {
+Deno.test("WazooSparqlEngine - DELETE WHERE shorthand removes matches", async () => {
   const store = new Store();
   store.addQuad(
     quad(
       namedNode("http://example.org/alice"),
       namedNode("http://xmlns.com/foaf/0.1/name"),
-      literal("Alice"),
+      literal("Ethan"),
     ),
   );
   store.addQuad(
@@ -1134,7 +1144,7 @@ Deno.test("NativeSparqlEngine - DELETE WHERE shorthand removes matches", async (
       literal("28"),
     ),
   );
-  const engine = new NativeSparqlEngine({ store });
+  const engine = new WazooSparqlEngine({ store });
 
   await engine.execute({
     query:
@@ -1153,7 +1163,7 @@ Deno.test("NativeSparqlEngine - DELETE WHERE shorthand removes matches", async (
   );
 });
 
-Deno.test("NativeSparqlEngine - DELETE/INSERT moves quads", async () => {
+Deno.test("WazooSparqlEngine - DELETE/INSERT moves quads", async () => {
   const store = new Store();
   store.addQuad(
     quad(
@@ -1169,7 +1179,7 @@ Deno.test("NativeSparqlEngine - DELETE/INSERT moves quads", async () => {
       literal("2"),
     ),
   );
-  const engine = new NativeSparqlEngine({ store });
+  const engine = new WazooSparqlEngine({ store });
 
   await engine.execute({
     query: "DELETE { ?s <http://example.org/p> ?o } " +
@@ -1187,16 +1197,16 @@ Deno.test("NativeSparqlEngine - DELETE/INSERT moves quads", async () => {
   );
 });
 
-Deno.test("NativeSparqlEngine - INSERT WHERE skips unbound template variables", async () => {
+Deno.test("WazooSparqlEngine - INSERT WHERE skips unbound template variables", async () => {
   const store = new Store();
   store.addQuad(
     quad(
       namedNode("http://example.org/alice"),
       namedNode("http://xmlns.com/foaf/0.1/name"),
-      literal("Alice"),
+      literal("Ethan"),
     ),
   );
-  const engine = new NativeSparqlEngine({ store });
+  const engine = new WazooSparqlEngine({ store });
 
   await engine.execute({
     query:
@@ -1215,13 +1225,13 @@ Deno.test("NativeSparqlEngine - INSERT WHERE skips unbound template variables", 
   );
 });
 
-Deno.test("NativeSparqlEngine - UCASE and LCASE preserve language tags", async () => {
+Deno.test("WazooSparqlEngine - UCASE and LCASE preserve language tags", async () => {
   const store = new Store();
   store.addQuad(
     quad(
       namedNode("http://example.org/alice"),
       namedNode("http://xmlns.com/foaf/0.1/name"),
-      literal("Alice"),
+      literal("Ethan"),
     ),
   );
   store.addQuad(
@@ -1231,7 +1241,7 @@ Deno.test("NativeSparqlEngine - UCASE and LCASE preserve language tags", async (
       literal("Carol", "en"),
     ),
   );
-  const engine = new NativeSparqlEngine({ store });
+  const engine = new WazooSparqlEngine({ store });
 
   const result = await engine.execute({
     query: "SELECT ?person (UCASE(?name) AS ?upper) (LCASE(?name) AS ?lower) " +
@@ -1244,8 +1254,8 @@ Deno.test("NativeSparqlEngine - UCASE and LCASE preserve language tags", async (
       result.data.results.bindings.map((b) => [b.person.value, b]),
     );
     const alice = byPerson.get("http://example.org/alice");
-    assertEquals(alice?.upper, { type: "literal", value: "ALICE" });
-    assertEquals(alice?.lower, { type: "literal", value: "alice" });
+    assertEquals(alice?.upper, { type: "literal", value: "ETHAN" });
+    assertEquals(alice?.lower, { type: "literal", value: "ethan" });
     const carol = byPerson.get("http://example.org/carol");
     assertEquals(carol?.upper, {
       type: "literal",
@@ -1255,16 +1265,16 @@ Deno.test("NativeSparqlEngine - UCASE and LCASE preserve language tags", async (
   }
 });
 
-Deno.test("NativeSparqlEngine - SUBSTR clips positions before 1 and handles length", async () => {
+Deno.test("WazooSparqlEngine - SUBSTR clips positions before 1 and handles length", async () => {
   const store = new Store();
   store.addQuad(
     quad(
       namedNode("http://example.org/alice"),
       namedNode("http://xmlns.com/foaf/0.1/name"),
-      literal("Alice"),
+      literal("Ethan"),
     ),
   );
-  const engine = new NativeSparqlEngine({ store });
+  const engine = new WazooSparqlEngine({ store });
 
   const result = await engine.execute({
     query:
@@ -1276,13 +1286,13 @@ Deno.test("NativeSparqlEngine - SUBSTR clips positions before 1 and handles leng
   assertEquals(result.kind, "select");
   if (result.kind === "select") {
     const b = result.data.results.bindings[0];
-    assertEquals(b.mid.value, "lic");
-    assertEquals(b.clipped.value, "A");
+    assertEquals(b.mid.value, "tha");
+    assertEquals(b.clipped.value, "E");
     assertEquals(b.empty.value, "");
   }
 });
 
-Deno.test("NativeSparqlEngine - CONCAT type error leaves the projection unbound", async () => {
+Deno.test("WazooSparqlEngine - CONCAT type error leaves the projection unbound", async () => {
   const store = new Store();
   store.addQuad(
     quad(
@@ -1291,7 +1301,7 @@ Deno.test("NativeSparqlEngine - CONCAT type error leaves the projection unbound"
       literal("28", namedNode("http://www.w3.org/2001/XMLSchema#integer")),
     ),
   );
-  const engine = new NativeSparqlEngine({ store });
+  const engine = new WazooSparqlEngine({ store });
 
   const result = await engine.execute({
     query: 'SELECT (CONCAT(?age, "!") AS ?c) ' +
@@ -1305,16 +1315,16 @@ Deno.test("NativeSparqlEngine - CONCAT type error leaves the projection unbound"
   }
 });
 
-Deno.test("NativeSparqlEngine - XSD value constructors produce canonical forms", async () => {
+Deno.test("WazooSparqlEngine - XSD value constructors produce canonical forms", async () => {
   const store = new Store();
   store.addQuad(
     quad(
       namedNode("http://example.org/alice"),
       namedNode("http://xmlns.com/foaf/0.1/name"),
-      literal("Alice"),
+      literal("Ethan"),
     ),
   );
-  const engine = new NativeSparqlEngine({ store });
+  const engine = new WazooSparqlEngine({ store });
 
   const result = await engine.execute({
     query: 'SELECT (xsd:integer("42") AS ?i) (xsd:double("5") AS ?d) ' +
@@ -1360,16 +1370,16 @@ Deno.test("NativeSparqlEngine - XSD value constructors produce canonical forms",
   }
 });
 
-Deno.test("NativeSparqlEngine - STRDT and STRLANG re-tag literals", async () => {
+Deno.test("WazooSparqlEngine - STRDT and STRLANG re-tag literals", async () => {
   const store = new Store();
   store.addQuad(
     quad(
       namedNode("http://example.org/alice"),
       namedNode("http://xmlns.com/foaf/0.1/name"),
-      literal("Alice"),
+      literal("Ethan"),
     ),
   );
-  const engine = new NativeSparqlEngine({ store });
+  const engine = new WazooSparqlEngine({ store });
 
   const result = await engine.execute({
     query: 'SELECT (STRDT("x", <http://example.org/t>) AS ?t) ' +
@@ -1393,16 +1403,16 @@ Deno.test("NativeSparqlEngine - STRDT and STRLANG re-tag literals", async () => 
   }
 });
 
-Deno.test("NativeSparqlEngine - unknown function call raises a clear error", async () => {
+Deno.test("WazooSparqlEngine - unknown function call raises a clear error", async () => {
   const store = new Store();
   store.addQuad(
     quad(
       namedNode("http://example.org/alice"),
       namedNode("http://xmlns.com/foaf/0.1/name"),
-      literal("Alice"),
+      literal("Ethan"),
     ),
   );
-  const engine = new NativeSparqlEngine({ store });
+  const engine = new WazooSparqlEngine({ store });
 
   await assertRejects(
     () =>
@@ -1415,7 +1425,7 @@ Deno.test("NativeSparqlEngine - unknown function call raises a clear error", asy
   );
 });
 
-function aggregateEngine(): NativeSparqlEngine {
+function aggregateEngine(): WazooSparqlEngine {
   const store = new Store();
   const num = (s: string, v: string) =>
     store.addQuad(
@@ -1430,10 +1440,10 @@ function aggregateEngine(): NativeSparqlEngine {
   num("a", "3");
   num("b", "2");
   num("b", "4");
-  return new NativeSparqlEngine({ store });
+  return new WazooSparqlEngine({ store });
 }
 
-async function aggregateRows(engine: NativeSparqlEngine, query: string) {
+async function aggregateRows(engine: WazooSparqlEngine, query: string) {
   const result = await engine.execute({ query });
   assertEquals(result.kind, "select");
   if (result.kind !== "select") {
@@ -1451,7 +1461,7 @@ async function aggregateRows(engine: NativeSparqlEngine, query: string) {
   });
 }
 
-Deno.test("NativeSparqlEngine - GROUP BY partitions and COUNT/SUM/AVG aggregate per group", async () => {
+Deno.test("WazooSparqlEngine - GROUP BY partitions and COUNT/SUM/AVG aggregate per group", async () => {
   const engine = aggregateEngine();
   assertEquals(
     await aggregateRows(
@@ -1466,7 +1476,7 @@ Deno.test("NativeSparqlEngine - GROUP BY partitions and COUNT/SUM/AVG aggregate 
   );
 });
 
-Deno.test("NativeSparqlEngine - aggregates without GROUP BY treat the whole result as one group", async () => {
+Deno.test("WazooSparqlEngine - aggregates without GROUP BY treat the whole result as one group", async () => {
   const engine = aggregateEngine();
   assertEquals(
     await aggregateRows(
@@ -1480,7 +1490,7 @@ Deno.test("NativeSparqlEngine - aggregates without GROUP BY treat the whole resu
   );
 });
 
-Deno.test("NativeSparqlEngine - COUNT(DISTINCT) and SUM(DISTINCT) deduplicate", async () => {
+Deno.test("WazooSparqlEngine - COUNT(DISTINCT) and SUM(DISTINCT) deduplicate", async () => {
   const engine = aggregateEngine();
   assertEquals(
     await aggregateRows(
@@ -1494,7 +1504,7 @@ Deno.test("NativeSparqlEngine - COUNT(DISTINCT) and SUM(DISTINCT) deduplicate", 
   );
 });
 
-Deno.test("NativeSparqlEngine - HAVING filters groups by aggregate value", async () => {
+Deno.test("WazooSparqlEngine - HAVING filters groups by aggregate value", async () => {
   const engine = aggregateEngine();
   assertEquals(
     await aggregateRows(
@@ -1508,7 +1518,7 @@ Deno.test("NativeSparqlEngine - HAVING filters groups by aggregate value", async
   );
 });
 
-Deno.test("NativeSparqlEngine - empty aggregate set: COUNT/SUM/AVG zero, MIN/MAX/SAMPLE unbound, GC empty", async () => {
+Deno.test("WazooSparqlEngine - empty aggregate set: COUNT/SUM/AVG zero, MIN/MAX/SAMPLE unbound, GC empty", async () => {
   const engine = aggregateEngine();
   assertEquals(
     await aggregateRows(
@@ -1523,7 +1533,7 @@ Deno.test("NativeSparqlEngine - empty aggregate set: COUNT/SUM/AVG zero, MIN/MAX
   );
 });
 
-Deno.test("NativeSparqlEngine - non-numeric SUM and AVG are unbound", async () => {
+Deno.test("WazooSparqlEngine - non-numeric SUM and AVG are unbound", async () => {
   const store = new Store();
   store.addQuad(
     quad(
@@ -1532,7 +1542,7 @@ Deno.test("NativeSparqlEngine - non-numeric SUM and AVG are unbound", async () =
       literal("x"),
     ),
   );
-  const engine = new NativeSparqlEngine({ store });
+  const engine = new WazooSparqlEngine({ store });
   assertEquals(
     await aggregateRows(
       engine,
@@ -1543,7 +1553,7 @@ Deno.test("NativeSparqlEngine - non-numeric SUM and AVG are unbound", async () =
   );
 });
 
-Deno.test("NativeSparqlEngine - GROUP_CONCAT joins values with the separator", async () => {
+Deno.test("WazooSparqlEngine - GROUP_CONCAT joins values with the separator", async () => {
   const engine = aggregateEngine();
   assertEquals(
     await aggregateRows(
@@ -1557,7 +1567,7 @@ Deno.test("NativeSparqlEngine - GROUP_CONCAT joins values with the separator", a
   );
 });
 
-Deno.test("NativeSparqlEngine - AVG of doubles produces canonical double forms", async () => {
+Deno.test("WazooSparqlEngine - AVG of doubles produces canonical double forms", async () => {
   const engine = aggregateEngine();
   assertEquals(
     await aggregateRows(
@@ -1568,7 +1578,7 @@ Deno.test("NativeSparqlEngine - AVG of doubles produces canonical double forms",
   );
 });
 
-Deno.test("NativeSparqlEngine - ORDER BY an aggregate expression orders the groups", async () => {
+Deno.test("WazooSparqlEngine - ORDER BY an aggregate expression orders the groups", async () => {
   const engine = aggregateEngine();
   assertEquals(
     await aggregateRows(
@@ -1583,13 +1593,13 @@ Deno.test("NativeSparqlEngine - ORDER BY an aggregate expression orders the grou
   );
 });
 
-Deno.test("NativeSparqlEngine - SELECT * wildcard projects all bound variables", async () => {
+Deno.test("WazooSparqlEngine - SELECT * wildcard projects all bound variables", async () => {
   const store = new Store();
   store.addQuad(
     quad(
       namedNode("http://example.org/alice"),
       namedNode("http://xmlns.com/foaf/0.1/name"),
-      literal("Alice"),
+      literal("Ethan"),
     ),
   );
   store.addQuad(
@@ -1599,7 +1609,7 @@ Deno.test("NativeSparqlEngine - SELECT * wildcard projects all bound variables",
       literal("28", namedNode("http://www.w3.org/2001/XMLSchema#integer")),
     ),
   );
-  const engine = new NativeSparqlEngine({ store });
+  const engine = new WazooSparqlEngine({ store });
   const result = await engine.execute({
     query: "SELECT * WHERE { <http://example.org/alice> ?p ?o }",
   });
@@ -1623,9 +1633,9 @@ Deno.test("NativeSparqlEngine - SELECT * wildcard projects all bound variables",
   }
 });
 
-Deno.test("NativeSparqlEngine - VALUES block joins as a multiset with UNDEF rows", async () => {
+Deno.test("WazooSparqlEngine - VALUES block joins as a multiset with UNDEF rows", async () => {
   const store = new Store();
-  const engine = new NativeSparqlEngine({ store });
+  const engine = new WazooSparqlEngine({ store });
   const result = await engine.execute({
     query: "SELECT ?s ?n WHERE { VALUES (?s ?n) " +
       "{ (<http://example.org/a> 1) (<http://example.org/a> 1) (UNDEF 2) } }",
@@ -1647,7 +1657,7 @@ Deno.test("NativeSparqlEngine - VALUES block joins as a multiset with UNDEF rows
   }
 });
 
-Deno.test("NativeSparqlEngine - VALUES block constrains a preceding BGP join", async () => {
+Deno.test("WazooSparqlEngine - VALUES block constrains a preceding BGP join", async () => {
   const store = new Store();
   store.addQuad(
     quad(
@@ -1663,7 +1673,7 @@ Deno.test("NativeSparqlEngine - VALUES block constrains a preceding BGP join", a
       namedNode("http://example.org/d"),
     ),
   );
-  const engine = new NativeSparqlEngine({ store });
+  const engine = new WazooSparqlEngine({ store });
   const result = await engine.execute({
     query: "SELECT ?s ?n WHERE { ?s <http://example.org/p> ?o . " +
       "VALUES (?s ?n) { (<http://example.org/a> 1) (<http://example.org/c> 2) } }",
@@ -1675,7 +1685,7 @@ Deno.test("NativeSparqlEngine - VALUES block constrains a preceding BGP join", a
   }
 });
 
-Deno.test("NativeSparqlEngine - BIND extends solutions and keeps error solutions unbound", async () => {
+Deno.test("WazooSparqlEngine - BIND extends solutions and keeps error solutions unbound", async () => {
   const store = new Store();
   store.addQuad(
     quad(
@@ -1684,7 +1694,7 @@ Deno.test("NativeSparqlEngine - BIND extends solutions and keeps error solutions
       namedNode("http://example.org/b"),
     ),
   );
-  const engine = new NativeSparqlEngine({ store });
+  const engine = new WazooSparqlEngine({ store });
   const result = await engine.execute({
     query:
       "SELECT ?x ?u WHERE { ?x <http://example.org/p> ?y . BIND(STR(?z) AS ?u) }",
@@ -1699,7 +1709,7 @@ Deno.test("NativeSparqlEngine - BIND extends solutions and keeps error solutions
   }
 });
 
-Deno.test("NativeSparqlEngine - DISTINCT removes duplicate projected solutions", async () => {
+Deno.test("WazooSparqlEngine - DISTINCT removes duplicate projected solutions", async () => {
   const store = new Store();
   for (const o of ["b", "c"]) {
     store.addQuad(
@@ -1717,7 +1727,7 @@ Deno.test("NativeSparqlEngine - DISTINCT removes duplicate projected solutions",
       namedNode("http://example.org/c"),
     ),
   );
-  const engine = new NativeSparqlEngine({ store });
+  const engine = new WazooSparqlEngine({ store });
   const result = await engine.execute({
     query: "SELECT DISTINCT ?o WHERE { ?s <http://example.org/p> ?o }",
   });
@@ -1728,7 +1738,7 @@ Deno.test("NativeSparqlEngine - DISTINCT removes duplicate projected solutions",
   }
 });
 
-Deno.test("NativeSparqlEngine - LIMIT and OFFSET slice ordered results", async () => {
+Deno.test("WazooSparqlEngine - LIMIT and OFFSET slice ordered results", async () => {
   const store = new Store();
   for (const o of ["d", "b", "c", "a"]) {
     store.addQuad(
@@ -1739,7 +1749,7 @@ Deno.test("NativeSparqlEngine - LIMIT and OFFSET slice ordered results", async (
       ),
     );
   }
-  const engine = new NativeSparqlEngine({ store });
+  const engine = new WazooSparqlEngine({ store });
   const result = await engine.execute({
     query: "SELECT ?o WHERE { ?s <http://example.org/p> ?o } " +
       "ORDER BY ?o LIMIT 2 OFFSET 1",
@@ -1753,7 +1763,7 @@ Deno.test("NativeSparqlEngine - LIMIT and OFFSET slice ordered results", async (
   }
 });
 
-function pathEngine(): NativeSparqlEngine {
+function pathEngine(): WazooSparqlEngine {
   const store = new Store();
   const edge = (s: string, p: string, o: string) =>
     store.addQuad(
@@ -1771,10 +1781,10 @@ function pathEngine(): NativeSparqlEngine {
   edge("c", "q", "w");
   edge("z", "q", "w");
   edge("x", "p", "y");
-  return new NativeSparqlEngine({ store });
+  return new WazooSparqlEngine({ store });
 }
 
-async function pathBindings(engine: NativeSparqlEngine, query: string) {
+async function pathBindings(engine: WazooSparqlEngine, query: string) {
   const result = await engine.execute({ query });
   assertEquals(result.kind, "select");
   if (result.kind !== "select") {
@@ -1785,7 +1795,7 @@ async function pathBindings(engine: NativeSparqlEngine, query: string) {
   ).sort();
 }
 
-Deno.test("NativeSparqlEngine - property path + traverses a sequence", async () => {
+Deno.test("WazooSparqlEngine - property path + traverses a sequence", async () => {
   const engine = pathEngine();
   assertEquals(
     await pathBindings(
@@ -1799,7 +1809,7 @@ Deno.test("NativeSparqlEngine - property path + traverses a sequence", async () 
   );
 });
 
-Deno.test("NativeSparqlEngine - property path ^ reverses an edge", async () => {
+Deno.test("WazooSparqlEngine - property path ^ reverses an edge", async () => {
   const engine = pathEngine();
   assertEquals(
     await pathBindings(
@@ -1816,7 +1826,7 @@ Deno.test("NativeSparqlEngine - property path ^ reverses an edge", async () => {
   );
 });
 
-Deno.test("NativeSparqlEngine - property path | alternates with deduplication", async () => {
+Deno.test("WazooSparqlEngine - property path | alternates with deduplication", async () => {
   const engine = pathEngine();
   assertEquals(
     await pathBindings(
@@ -1835,7 +1845,7 @@ Deno.test("NativeSparqlEngine - property path | alternates with deduplication", 
   );
 });
 
-Deno.test("NativeSparqlEngine - property path ? is zero-or-one with reflexivity", async () => {
+Deno.test("WazooSparqlEngine - property path ? is zero-or-one with reflexivity", async () => {
   const engine = pathEngine();
   const bindings = await pathBindings(
     engine,
@@ -1850,7 +1860,7 @@ Deno.test("NativeSparqlEngine - property path ? is zero-or-one with reflexivity"
   ]);
 });
 
-Deno.test("NativeSparqlEngine - property path + is one-or-more transitive closure", async () => {
+Deno.test("WazooSparqlEngine - property path + is one-or-more transitive closure", async () => {
   const engine = pathEngine();
   const bindings = await pathBindings(
     engine,
@@ -1863,7 +1873,7 @@ Deno.test("NativeSparqlEngine - property path + is one-or-more transitive closur
   ]);
 });
 
-Deno.test("NativeSparqlEngine - property path * is reflexive-transitive closure over all nodes", async () => {
+Deno.test("WazooSparqlEngine - property path * is reflexive-transitive closure over all nodes", async () => {
   const engine = pathEngine();
   const bindings = await pathBindings(
     engine,
@@ -1882,7 +1892,7 @@ Deno.test("NativeSparqlEngine - property path * is reflexive-transitive closure 
   assertEquals(reachable.length, 1);
 });
 
-Deno.test("NativeSparqlEngine - property path ! negates a property set", async () => {
+Deno.test("WazooSparqlEngine - property path ! negates a property set", async () => {
   const engine = pathEngine();
   assertEquals(
     await pathBindings(
@@ -1896,7 +1906,7 @@ Deno.test("NativeSparqlEngine - property path ! negates a property set", async (
   );
 });
 
-Deno.test("NativeSparqlEngine - nested inverse sequence path", async () => {
+Deno.test("WazooSparqlEngine - nested inverse sequence path", async () => {
   const engine = pathEngine();
   // ^(p/q) connects x to y when y --p--> m --q--> x. In the fixture the only
   // p-then-q chains are b -p-> c -q-> w and d -p-> c -q-> w, so the pairs
@@ -1911,7 +1921,7 @@ Deno.test("NativeSparqlEngine - nested inverse sequence path", async () => {
   ]);
 });
 
-Deno.test("NativeSparqlEngine - property path joins with an incoming binding", async () => {
+Deno.test("WazooSparqlEngine - property path joins with an incoming binding", async () => {
   const engine = pathEngine();
   // The first pattern binds ?z to a's p-targets {b, d}; the path result's
   // ?x is then constrained to match ?z, giving b -p+-> c and d -p+-> c.
@@ -1933,7 +1943,7 @@ const XSD = "http://www.w3.org/2001/XMLSchema#";
  * binding's value for the given variable as the wire format.
  */
 async function bindValue(
-  engine: NativeSparqlEngine,
+  engine: WazooSparqlEngine,
   query: string,
   variable: string,
 ): Promise<
@@ -1966,11 +1976,11 @@ async function bindValue(
   return out;
 }
 
-function emptyEngine(): NativeSparqlEngine {
-  return new NativeSparqlEngine({ store: new Store() });
+function emptyEngine(): WazooSparqlEngine {
+  return new WazooSparqlEngine({ store: new Store() });
 }
 
-Deno.test("NativeSparqlEngine - REGEX, CONTAINS, STRSTARTS, STRENDS", async () => {
+Deno.test("WazooSparqlEngine - REGEX, CONTAINS, STRSTARTS, STRENDS", async () => {
   const engine = emptyEngine();
   const regex = await bindValue(
     engine,
@@ -2011,7 +2021,7 @@ Deno.test("NativeSparqlEngine - REGEX, CONTAINS, STRSTARTS, STRENDS", async () =
   });
 });
 
-Deno.test("NativeSparqlEngine - REPLACE with groups, flags, and language", async () => {
+Deno.test("WazooSparqlEngine - REPLACE with groups, flags, and language", async () => {
   const engine = emptyEngine();
   const grouped = await bindValue(
     engine,
@@ -2039,7 +2049,7 @@ Deno.test("NativeSparqlEngine - REPLACE with groups, flags, and language", async
   assertEquals(nonString, null);
 });
 
-Deno.test("NativeSparqlEngine - STRBEFORE/STRAFTER preserve language and empty when absent", async () => {
+Deno.test("WazooSparqlEngine - STRBEFORE/STRAFTER preserve language and empty when absent", async () => {
   const engine = emptyEngine();
   const before = await bindValue(
     engine,
@@ -2055,7 +2065,7 @@ Deno.test("NativeSparqlEngine - STRBEFORE/STRAFTER preserve language and empty w
   assertEquals(after, { type: "literal", value: "" });
 });
 
-Deno.test("NativeSparqlEngine - LANG and LANGMATCHES", async () => {
+Deno.test("WazooSparqlEngine - LANG and LANGMATCHES", async () => {
   const engine = emptyEngine();
   const lang = await bindValue(
     engine,
@@ -2087,7 +2097,7 @@ Deno.test("NativeSparqlEngine - LANG and LANGMATCHES", async () => {
   });
 });
 
-Deno.test("NativeSparqlEngine - COALESCE, IF, IN, NOT IN, SAMETERM", async () => {
+Deno.test("WazooSparqlEngine - COALESCE, IF, IN, NOT IN, SAMETERM", async () => {
   const engine = emptyEngine();
   const coalesce = await bindValue(
     engine,
@@ -2143,7 +2153,7 @@ Deno.test("NativeSparqlEngine - COALESCE, IF, IN, NOT IN, SAMETERM", async () =>
   });
 });
 
-Deno.test("NativeSparqlEngine - BNODE mints fresh and labeled blank nodes", async () => {
+Deno.test("WazooSparqlEngine - BNODE mints fresh and labeled blank nodes", async () => {
   const engine = emptyEngine();
   const fresh = await bindValue(
     engine,
@@ -2178,7 +2188,7 @@ Deno.test("NativeSparqlEngine - BNODE mints fresh and labeled blank nodes", asyn
   assertEquals(labeled?.value, labeledB?.value);
 });
 
-Deno.test("NativeSparqlEngine - ABS, CEIL, FLOOR, ROUND preserve the datatype", async () => {
+Deno.test("WazooSparqlEngine - ABS, CEIL, FLOOR, ROUND preserve the datatype", async () => {
   const engine = emptyEngine();
   const absInt = await bindValue(
     engine,
@@ -2232,7 +2242,7 @@ Deno.test("NativeSparqlEngine - ABS, CEIL, FLOOR, ROUND preserve the datatype", 
   });
 });
 
-Deno.test("NativeSparqlEngine - date functions over xsd:dateTime", async () => {
+Deno.test("WazooSparqlEngine - date functions over xsd:dateTime", async () => {
   const engine = emptyEngine();
   const dt = `"2011-01-10T14:45:13.815-05:00"^^<${XSD}dateTime>`;
   const year = await bindValue(
@@ -2281,7 +2291,7 @@ Deno.test("NativeSparqlEngine - date functions over xsd:dateTime", async () => {
   assertEquals(plain, null);
 });
 
-Deno.test("NativeSparqlEngine - MD5 and SHA digests", async () => {
+Deno.test("WazooSparqlEngine - MD5 and SHA digests", async () => {
   const engine = emptyEngine();
   const checks: Array<[string, string]> = [
     ["MD5", "900150983cd24fb0d6963f7d28e17f72"],
@@ -2309,7 +2319,7 @@ Deno.test("NativeSparqlEngine - MD5 and SHA digests", async () => {
   }
 });
 
-Deno.test("NativeSparqlEngine - RDF-star expression functions", async () => {
+Deno.test("WazooSparqlEngine - RDF-star expression functions", async () => {
   const engine = emptyEngine();
   const triple = await bindValue(
     engine,
@@ -2357,7 +2367,7 @@ Deno.test("NativeSparqlEngine - RDF-star expression functions", async () => {
   assertEquals(err, null);
 });
 
-Deno.test("NativeSparqlEngine - RAND, STRUUID, UUID, NOW have the right shape", async () => {
+Deno.test("WazooSparqlEngine - RAND, STRUUID, UUID, NOW have the right shape", async () => {
   const engine = emptyEngine();
   const rand = await bindValue(
     engine,
@@ -2405,14 +2415,14 @@ Deno.test("NativeSparqlEngine - RAND, STRUUID, UUID, NOW have the right shape", 
   assertEquals(now?.datatype, `${XSD}dateTime`);
 });
 
-Deno.test("NativeSparqlEngine - FROM scopes the default graph", async () => {
+Deno.test("WazooSparqlEngine - FROM scopes the default graph", async () => {
   const store = new Store();
   const ex = (s: string) => namedNode(`http://example.org/${s}`);
   store.addQuad(quad(ex("a"), ex("p"), literal("d")));
   store.addQuad(quad(ex("a"), ex("p"), literal("1"), ex("g1")));
   store.addQuad(quad(ex("b"), ex("p"), literal("2"), ex("g1")));
   store.addQuad(quad(ex("c"), ex("p"), literal("3"), ex("g2")));
-  const engine = new NativeSparqlEngine({ store });
+  const engine = new WazooSparqlEngine({ store });
 
   const fromG1 = await engine.execute({
     query: `SELECT ?s ?o FROM <http://example.org/g1> ` +
@@ -2455,12 +2465,12 @@ Deno.test("NativeSparqlEngine - FROM scopes the default graph", async () => {
   }
 });
 
-Deno.test("NativeSparqlEngine - FROM NAMED restricts GRAPH enumeration", async () => {
+Deno.test("WazooSparqlEngine - FROM NAMED restricts GRAPH enumeration", async () => {
   const store = new Store();
   const ex = (s: string) => namedNode(`http://example.org/${s}`);
   store.addQuad(quad(ex("a"), ex("p"), literal("1"), ex("g1")));
   store.addQuad(quad(ex("c"), ex("p"), literal("3"), ex("g2")));
-  const engine = new NativeSparqlEngine({ store });
+  const engine = new WazooSparqlEngine({ store });
 
   const graphs = await engine.execute({
     query: `SELECT ?g FROM NAMED <http://example.org/g1> ` +

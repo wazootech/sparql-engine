@@ -2,8 +2,8 @@ import { QueryEngine } from "@comunica/query-sparql-rdfjs-lite";
 import type * as rdfjs from "@rdfjs/types";
 import { fail } from "@std/assert";
 import type { Store } from "n3";
-import { Parser as SparqlJsParser } from "sparqljs";
-import { NativeSparqlEngine } from "@/native-sparql-engine.ts";
+import { SparqlParser as SparqlJsParser } from "@/parser/sparql-parser.ts";
+import { WazooSparqlEngine } from "@/wazoo-sparql-engine.ts";
 import type { SparqlResponse } from "@/sparql-engine-interface.ts";
 import { canonicalizeRdfTerm, canonicalizeSparqlValue } from "@/term/mod.ts";
 import type { CanonicalTerm } from "@/term/mod.ts";
@@ -102,10 +102,7 @@ function canonicalComunicaQuadString(item: rdfjs.Quad): string {
  * statically.
  */
 function extractSelectVars(query: string): string[] | null {
-  const ast = new SparqlJsParser({
-    prefixes: { xsd: "http://www.w3.org/2001/XMLSchema#" },
-    sparqlStar: true,
-  }).parse(query);
+  const ast = new SparqlJsParser().parse(query);
   if (ast.type !== "query" || ast.queryType !== "SELECT") {
     return null;
   }
@@ -354,7 +351,7 @@ export async function assertQueryParity(
 ): Promise<void> {
   const comunicaEngine = getComunicaEngine();
   const comunicaStore = createQuadStore(testCase.quads);
-  const nativeEngine = new NativeSparqlEngine({
+  const nativeEngine = new WazooSparqlEngine({
     store: createQuadStore(testCase.quads),
   });
 
@@ -445,7 +442,7 @@ export async function assertUpdateParity(
   const comunicaEngine = getComunicaEngine();
   const comunicaStore = createQuadStore(testCase.quads);
   const nativeStore = createQuadStore(testCase.quads);
-  const nativeEngine = new NativeSparqlEngine({ store: nativeStore });
+  const nativeEngine = new WazooSparqlEngine({ store: nativeStore });
 
   const nativeResult = await nativeEngine.execute({ query: testCase.update });
   if (nativeResult.kind !== "void") {

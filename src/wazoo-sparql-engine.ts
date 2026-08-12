@@ -9,11 +9,11 @@ import { SparqlEvaluator } from "@/evaluator/sparql-evaluator.ts";
 import { UpdateEvaluator } from "@/evaluator/update-evaluator.ts";
 
 /**
- * NativeSparqlTransaction is the minimal write contract the engine uses for updates.
+ * WazooSparqlTransaction is the minimal write contract the engine uses for updates.
  * It mirrors the structural shape of @worlds/client's Transaction so durable
  * backends can pass their existing transaction objects.
  */
-export interface NativeSparqlTransaction {
+export interface WazooSparqlTransaction {
   /** add buffers a single quad for insertion on the next commit. */
   add(quad: rdfjs.Quad): unknown;
 
@@ -28,9 +28,9 @@ export interface NativeSparqlTransaction {
 }
 
 /**
- * NativeSparqlEngineOptions configures NativeSparqlEngine.
+ * WazooSparqlEngineOptions configures WazooSparqlEngine.
  */
-export interface NativeSparqlEngineOptions {
+export interface WazooSparqlEngineOptions {
   /** store is the RDFJS store to execute queries on. */
   store: rdfjs.Store;
 
@@ -40,7 +40,7 @@ export interface NativeSparqlEngineOptions {
    * When omitted, updates are applied directly to the store, which must then
    * implement addQuad/removeQuad (as N3.Store does).
    */
-  createTransaction?: () => NativeSparqlTransaction;
+  createTransaction?: () => WazooSparqlTransaction;
 
   /**
    * reorderPatterns statically sorts BGP triple patterns by selectivity
@@ -51,15 +51,15 @@ export interface NativeSparqlEngineOptions {
 }
 
 /**
- * NativeSparqlEngine is the Wazoo-native SPARQL 1.1 engine over RDFJS Store sources.
+ * WazooSparqlEngine is the Wazoo-native SPARQL 1.1 engine over RDFJS Store sources.
  */
-export class NativeSparqlEngine implements SparqlEngineInterface {
+export class WazooSparqlEngine implements SparqlEngineInterface {
   private readonly parser: SparqlParser;
   private readonly evaluator: SparqlEvaluator;
   private readonly updateEvaluator: UpdateEvaluator;
 
   public constructor(
-    private readonly options: NativeSparqlEngineOptions,
+    private readonly options: WazooSparqlEngineOptions,
   ) {
     this.parser = new SparqlParser();
     this.evaluator = new SparqlEvaluator(options.store, {
@@ -74,7 +74,11 @@ export class NativeSparqlEngine implements SparqlEngineInterface {
 
   /** execute runs a SPARQL query/update against the configured store. */
   public async execute(request: SparqlRequest): Promise<SparqlResponse> {
-    const ast = this.parser.parse(request.query);
+    const raw = request.query ?? request.update;
+    if (!raw) {
+      throw new Error("SparqlRequest must specify either query or update");
+    }
+    const ast = this.parser.parse(raw);
     if (ast.type === "update") {
       await this.updateEvaluator.executeUpdate(ast);
       return { kind: "void" };

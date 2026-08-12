@@ -1,5 +1,9 @@
 import type * as rdfjs from "@rdfjs/types";
-import type { PropertyPath, Term as SparqlTerm, Triple } from "sparqljs";
+import type {
+  PropertyPath,
+  Term as SparqlTerm,
+  Triple,
+} from "@/parser/sparql-parser.ts";
 import {
   buildQuadIndex,
   matchQuads,
@@ -20,12 +24,12 @@ export type TermBinding = Record<string, rdfjs.Term>;
  * candidate quads, so join ordering can use true store cardinalities without
  * issuing extra scans.
  */
-export type ScanEntry = {
+export interface ScanEntry {
   subject: SparqlTerm;
   predicate: SparqlTerm;
   object: SparqlTerm;
   candidates: rdfjs.Quad[];
-};
+}
 
 /**
  * BindingFilter decides whether an extended binding survives an OPTIONAL
@@ -153,6 +157,17 @@ export function scanEntry(
   ).then((candidates) => ({ subject, predicate, object, candidates }));
 }
 
+function isQueryVar(term: SparqlTerm): boolean {
+  return term.termType === "Variable" || term.termType === "BlankNode";
+}
+
+function getQueryVarName(term: SparqlTerm): string {
+  if (term.termType === "BlankNode") {
+    return `_:${term.value}`;
+  }
+  return term.value;
+}
+
 /**
  * joinTriplePattern joins the current bindings against a triple pattern with
  * a hash join: candidate quads come from the pattern's single indexed store
@@ -167,16 +182,17 @@ export function joinTriplePattern(
   const predicate = entry.predicate;
   const object = entry.object;
 
-  const subjectIsVariable = subject.termType === "Variable";
-  const predicateIsVariable = predicate.termType === "Variable";
-  const objectIsVariable = object.termType === "Variable";
+  const subjectIsVariable = isQueryVar(subject);
+  const predicateIsVariable = isQueryVar(predicate);
+  const objectIsVariable = isQueryVar(object);
 
   const candidateQuads = entry.candidates;
 
   const needsIndex = currentBindings.some((binding) =>
-    (subjectIsVariable && binding[subject.value] !== undefined) ||
-    (predicateIsVariable && binding[predicate.value] !== undefined) ||
-    (objectIsVariable && binding[object.value] !== undefined)
+    (subjectIsVariable && binding[getQueryVarName(subject)] !== undefined) ||
+    (predicateIsVariable &&
+      binding[getQueryVarName(predicate)] !== undefined) ||
+    (objectIsVariable && binding[getQueryVarName(object)] !== undefined)
   );
   const quadIndex = needsIndex ? buildQuadIndex(candidateQuads) : null;
 
@@ -200,7 +216,7 @@ export function joinTriplePattern(
       let valid = true;
 
       if (subjectIsVariable) {
-        const varName = subject.value;
+        const varName = getQueryVarName(subject);
         const val = matchQuad.subject;
         if (
           newBinding[varName] &&
@@ -213,7 +229,7 @@ export function joinTriplePattern(
       }
 
       if (valid && predicateIsVariable) {
-        const varName = predicate.value;
+        const varName = getQueryVarName(predicate);
         const val = matchQuad.predicate;
         if (
           newBinding[varName] &&
@@ -226,7 +242,7 @@ export function joinTriplePattern(
       }
 
       if (valid && objectIsVariable) {
-        const varName = object.value;
+        const varName = getQueryVarName(object);
         const val = matchQuad.object;
         if (
           newBinding[varName] &&
@@ -250,17 +266,20 @@ export function joinTriplePattern(
 /**
  * PathPair is one (subject, object) connection produced by a property path.
  */
-export type PathPair = { subject: rdfjs.Term; object: rdfjs.Term };
+export interface PathPair {
+  subject: rdfjs.Term;
+  object: rdfjs.Term;
+}
 
 /**
  * PathEntry is a property-path triple pattern with its resolved terms and
  * pre-computed connection pairs.
  */
-export type PathEntry = {
+export interface PathEntry {
   subject: SparqlTerm;
   object: SparqlTerm;
   pairs: PathPair[];
-};
+}
 
 /**
  * PathElement is either a plain predicate IRI or a nested property path.
@@ -282,13 +301,31 @@ export function isPropertyPath(
 }
 
 /**
+ * isMultisetPath reports whether a property-path element can connect the same
+ * (subject, object) pair through more than one route. Terms are always
+ * multiset; the composition operators ^, /, and | inherit multiset semantics
+ * from their parts, while the remaining operators yield a set of pairs.
+ */
+function isMultisetPath(path: PathElement): boolean {
+  if ("termType" in path) {
+    return true;
+  }
+  if (
+    path.pathType === "^" || path.pathType === "/" || path.pathType === "|"
+  ) {
+    return path.items.every((item) => isMultisetPath(item as PathElement));
+  }
+  return false;
+}
+
+/**
  * scanPathEntry resolves a property-path triple pattern and pre-computes the
  * pairs (subject, object) the path connects. When one endpoint is a constant
  * the path is evaluated from that end (forward from a constant subject,
  * backward from a constant object); when both are variables the full pair
- * set is computed from every graph node. Pair sets are deduplicated, matching
- * SPARQL's path semantics (each pair appears once regardless of how many
- * routes connect it).
+ * set is computed from every graph node. Pair sets are deduplicated unless the
+ * path is multiset, matching SPARQL's path semantics (each pair appears once
+ * regardless of how many routes connect it unless the operator is multiset).
  */
 export async function scanPathEntry(
   store: rdfjs.Source<rdfjs.Quad>,
@@ -298,11 +335,16 @@ export async function scanPathEntry(
 ): Promise<PathEntry> {
   const pairs: PathPair[] = [];
   const seen = new Set<string>();
+  const allowDuplicates = isMultisetPath(path);
   const addPair = (s: rdfjs.Term, o: rdfjs.Term): void => {
-    const key = `${termKey(s)}\u0000${termKey(o)}`;
-    if (!seen.has(key)) {
-      seen.add(key);
+    if (allowDuplicates) {
       pairs.push({ subject: s, object: o });
+    } else {
+      const key = `${termKey(s)}\u0000${termKey(o)}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        pairs.push({ subject: s, object: o });
+      }
     }
   };
 
@@ -441,31 +483,42 @@ async function pathSteps(
         term,
       );
     case "/": {
-      const [first, second] = path.items;
-      const results: rdfjs.Term[] = [];
-      const seen = new Set<string>();
       if (direction === "forward") {
-        // term --first--> mid --second--> target
-        for (const mid of await pathSteps(store, first, "forward", term)) {
-          for (const target of await pathSteps(store, second, "forward", mid)) {
-            if (!seen.has(termKey(target))) {
-              seen.add(termKey(target));
-              results.push(target);
+        let current = [term];
+        for (const item of path.items) {
+          const next: rdfjs.Term[] = [];
+          for (const node of current) {
+            for (
+              const target of await pathSteps(store, item, "forward", node)
+            ) {
+              next.push(target);
             }
           }
+          current = next;
+          if (current.length === 0) {
+            break;
+          }
         }
+        return current;
       } else {
-        // source --first--> mid --second--> term
-        for (const mid of await pathSteps(store, second, "backward", term)) {
-          for (const source of await pathSteps(store, first, "backward", mid)) {
-            if (!seen.has(termKey(source))) {
-              seen.add(termKey(source));
-              results.push(source);
+        let current = [term];
+        for (let i = path.items.length - 1; i >= 0; i--) {
+          const item = path.items[i];
+          const next: rdfjs.Term[] = [];
+          for (const node of current) {
+            for (
+              const source of await pathSteps(store, item, "backward", node)
+            ) {
+              next.push(source);
             }
           }
+          current = next;
+          if (current.length === 0) {
+            break;
+          }
         }
+        return current;
       }
-      return results;
     }
     case "|": {
       const results: rdfjs.Term[] = [];
@@ -560,41 +613,90 @@ async function pathSteps(
       return results;
     }
     case "!": {
-      // Negated property set: every edge whose predicate is not a listed IRI
-      // and whose pair is not an inverse connection of a listed ^IRI.
-      const direct = new Set<string>();
-      const inverse: rdfjs.NamedNode[] = [];
-      for (const item of path.items) {
-        if ("termType" in item) {
-          direct.add(item.value);
-        } else if (item.items[0].termType === "NamedNode") {
-          inverse.push(item.items[0]);
-        }
-      }
-      const results: rdfjs.Term[] = [];
-      const seen = new Set<string>();
-      const quads = direction === "forward"
-        ? await matchQuads(store, term, null, null)
-        : await matchQuads(store, null, null, term);
-      for (const q of quads) {
-        if (direct.has(q.predicate.value)) {
-          continue;
-        }
-        const other = direction === "forward" ? q.object : q.subject;
-        let excluded = false;
-        for (const inv of inverse) {
-          if ((await matchQuads(store, other, inv, term)).length > 0) {
-            excluded = true;
-            break;
+      // Negated property set: direct excluded predicates apply to matching edges in the primary direction,
+      // and inverse excluded predicates apply to matching edges in the opposite direction.
+      const directExcluded = new Set<string>();
+      const inverseExcluded = new Set<string>();
+      let hasInverse = false;
+
+      const collectNpsItems = (items: PathElement[]) => {
+        for (const item of items) {
+          if ("termType" in item) {
+            directExcluded.add(item.value);
+          } else if (
+            typeof item === "object" && item !== null && "type" in item
+          ) {
+            const pObj = item as {
+              type: string;
+              pathType?: string;
+              items?: PathElement[];
+            };
+            if (pObj.pathType === "|") {
+              collectNpsItems(pObj.items ?? []);
+            } else if (pObj.pathType === "^") {
+              const invItem = pObj.items?.[0] as SparqlTerm | undefined;
+              if (invItem?.value) {
+                inverseExcluded.add(invItem.value);
+                hasInverse = true;
+              }
+            }
           }
         }
-        if (excluded) {
-          continue;
+      };
+      collectNpsItems(path.items);
+
+      const results: rdfjs.Term[] = [];
+      const seen = new Set<string>();
+
+      if (direction === "forward") {
+        if (directExcluded.size > 0) {
+          const forwardQuads = await matchQuads(store, term, null, null);
+          for (const q of forwardQuads) {
+            if (!directExcluded.has(q.predicate.value)) {
+              const key = termKey(q.object);
+              if (!seen.has(key)) {
+                seen.add(key);
+                results.push(q.object);
+              }
+            }
+          }
         }
-        const key = termKey(other);
-        if (!seen.has(key)) {
-          seen.add(key);
-          results.push(other);
+        if (hasInverse) {
+          const inverseQuads = await matchQuads(store, null, null, term);
+          for (const q of inverseQuads) {
+            if (!inverseExcluded.has(q.predicate.value)) {
+              const key = termKey(q.subject);
+              if (!seen.has(key)) {
+                seen.add(key);
+                results.push(q.subject);
+              }
+            }
+          }
+        }
+      } else {
+        if (directExcluded.size > 0) {
+          const backwardQuads = await matchQuads(store, null, null, term);
+          for (const q of backwardQuads) {
+            if (!directExcluded.has(q.predicate.value)) {
+              const key = termKey(q.subject);
+              if (!seen.has(key)) {
+                seen.add(key);
+                results.push(q.subject);
+              }
+            }
+          }
+        }
+        if (hasInverse) {
+          const forwardQuads = await matchQuads(store, term, null, null);
+          for (const q of forwardQuads) {
+            if (!inverseExcluded.has(q.predicate.value)) {
+              const key = termKey(q.object);
+              if (!seen.has(key)) {
+                seen.add(key);
+                results.push(q.object);
+              }
+            }
+          }
         }
       }
       return results;
@@ -613,7 +715,7 @@ async function pathSteps(
  * null when the position is a variable that must not constrain the scan.
  */
 function patternConstant(term: SparqlTerm): rdfjs.Term | null {
-  if (term.termType === "Variable") {
+  if (isQueryVar(term)) {
     return null;
   }
   return sparqlTermToRdfTerm(term);
@@ -628,8 +730,8 @@ function resolveTerm(
   term: SparqlTerm,
   binding: TermBinding,
 ): rdfjs.Term | null {
-  if (term.termType === "Variable") {
-    const bound = binding[term.value];
+  if (isQueryVar(term)) {
+    const bound = binding[getQueryVarName(term)];
     if (bound) {
       return bound;
     }

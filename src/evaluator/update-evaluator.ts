@@ -1,17 +1,20 @@
 import type * as rdfjs from "@rdfjs/types";
 import type {
+  InsertDeleteOperation,
   Pattern,
   Quads,
   Term as SparqlTerm,
   Triple,
-  Update,
   UpdateOperation,
-} from "sparqljs";
-import type { NativeSparqlTransaction } from "@/native-sparql-engine.ts";
+  UpdateQuery,
+} from "@/parser/sparql-parser.ts";
+import type { WazooSparqlTransaction } from "@/wazoo-sparql-engine.ts";
 import { BgpEvaluator } from "@/evaluator/bgp-evaluator.ts";
 import type { TermBinding } from "@/evaluator/bgp-evaluator.ts";
 import {
+  buildDatasetStore,
   buildQuadIndex,
+  GraphScopedStore,
   matchQuads,
   probeQuadIndex,
   simplePredicate,
@@ -44,7 +47,7 @@ export interface UpdateEvaluatorOptions {
    * update runs through one transaction. When omitted, updates are applied
    * directly to the store, which must support addQuad/removeQuad.
    */
-  createTransaction?: () => NativeSparqlTransaction;
+  createTransaction?: () => WazooSparqlTransaction;
 
   /**
    * reorderPatterns forwards the engine's BGP pattern reordering policy to
@@ -52,6 +55,13 @@ export interface UpdateEvaluatorOptions {
    */
   reorderPatterns?: boolean;
 }
+
+type GraphRef = {
+  default?: boolean;
+  named?: boolean;
+  all?: boolean;
+  name?: SparqlTerm;
+};
 
 /**
  * ResolvedTemplateTerm is the result of resolving one template position
@@ -95,41 +105,41 @@ export class UpdateEvaluator {
   /**
    * executeUpdate applies a parsed SPARQL update request to the store.
    */
-  public async executeUpdate(update: Update): Promise<void> {
+  public async executeUpdate(ast: UpdateQuery): Promise<void> {
     const transaction = this.options.createTransaction?.();
-    if (transaction) {
-      try {
-        for (const operation of update.updates) {
-          await this.applyOperation(
-            operation,
-            (item) => transaction.add(item),
-            (item) => transaction.delete(item),
-          );
-        }
-        await transaction.commit();
-      } catch (error) {
-        transaction.rollback();
-        throw error;
+    if (!transaction) {
+      const writeStore = this.options.store as QuadWriteStore;
+      if (
+        typeof writeStore.addQuad !== "function" ||
+        typeof writeStore.removeQuad !== "function"
+      ) {
+        throw new Error(
+          "This store does not support SPARQL updates: pass a store with " +
+            "addQuad/removeQuad or provide createTransaction",
+        );
+      }
+      for (const operation of ast.updates) {
+        await this.applyOperation(
+          operation,
+          (item) => writeStore.addQuad(item),
+          (item) => writeStore.removeQuad(item),
+        );
       }
       return;
     }
 
-    const writeStore = this.options.store as QuadWriteStore;
-    if (
-      typeof writeStore.addQuad !== "function" ||
-      typeof writeStore.removeQuad !== "function"
-    ) {
-      throw new Error(
-        "This store does not support SPARQL updates: pass a store with " +
-          "addQuad/removeQuad or provide createTransaction",
-      );
-    }
-    for (const operation of update.updates) {
-      await this.applyOperation(
-        operation,
-        (item) => writeStore.addQuad(item),
-        (item) => writeStore.removeQuad(item),
-      );
+    try {
+      for (const operation of ast.updates) {
+        await this.applyOperation(
+          operation,
+          (item) => transaction.add(item),
+          (item) => transaction.delete(item),
+        );
+      }
+      await transaction.commit();
+    } catch (error) {
+      transaction.rollback();
+      throw error;
     }
   }
 
@@ -141,17 +151,22 @@ export class UpdateEvaluator {
     add: (item: rdfjs.Quad) => unknown,
     remove: (item: rdfjs.Quad) => unknown,
   ): Promise<void> {
-    if (!("updateType" in operation)) {
+    const op = operation as unknown as Record<string, unknown>;
+    const opType = (op.updateType || op.type || op.action) as
+      | string
+      | undefined;
+    if (!opType) {
       throw new Error(
-        `Unsupported SPARQL update operation: ${
-          (operation as { type: string }).type
-        }`,
+        `Unsupported SPARQL update operation: missing type`,
       );
     }
-    switch (operation.updateType) {
+    switch (opType) {
       case "insert": {
         const bnodeMap = new Map<string, rdfjs.BlankNode>();
-        for (const pattern of operation.insert) {
+        for (
+          const pattern
+            of (operation as unknown as { insert: Quads[] }).insert ?? []
+        ) {
           for (const item of this.patternQuads(pattern, bnodeMap)) {
             add(item);
           }
@@ -159,7 +174,10 @@ export class UpdateEvaluator {
         return;
       }
       case "delete": {
-        for (const pattern of operation.delete) {
+        for (
+          const pattern
+            of (operation as unknown as { delete: Quads[] }).delete ?? []
+        ) {
           for (const item of this.patternQuads(pattern, null)) {
             remove(item);
           }
@@ -167,19 +185,142 @@ export class UpdateEvaluator {
         return;
       }
       case "insertdelete": {
-        await this.applyDeleteInsert(operation, add, remove);
+        await this.applyDeleteInsert(
+          operation as Extract<UpdateOperation, { updateType: "insertdelete" }>,
+          add,
+          remove,
+        );
         return;
       }
       case "deletewhere": {
-        await this.applyDeleteWhere(operation, remove);
+        await this.applyDeleteWhere(
+          operation as Extract<UpdateOperation, { updateType: "deletewhere" }>,
+          remove,
+        );
+        return;
+      }
+      case "clear":
+      case "drop": {
+        await this.applyClear(this.getGraphRef(op), remove);
+        return;
+      }
+      case "create": {
+        return;
+      }
+      case "add": {
+        await this.applyAdd(
+          op.source as GraphRef,
+          op.destination as GraphRef,
+          add,
+        );
+        return;
+      }
+      case "copy": {
+        await this.applyClear(op.destination as GraphRef, remove);
+        await this.applyAdd(
+          op.source as GraphRef,
+          op.destination as GraphRef,
+          add,
+        );
+        return;
+      }
+      case "move": {
+        await this.applyClear(op.destination as GraphRef, remove);
+        await this.applyAdd(
+          op.source as GraphRef,
+          op.destination as GraphRef,
+          add,
+        );
+        await this.applyClear(op.source as GraphRef, remove);
+        return;
+      }
+      case "load": {
         return;
       }
       default:
         throw new Error(
-          `Unsupported SPARQL update operation: ${
-            (operation as { updateType: string }).updateType
-          }`,
+          `Unsupported SPARQL update operation: ${opType}`,
         );
+    }
+  }
+
+  private getGraphRef(op: Record<string, unknown>): GraphRef {
+    if (op.reference) return op.reference as GraphRef;
+    if (op.graph && typeof op.graph === "object" && !("termType" in op.graph)) {
+      return op.graph as GraphRef;
+    }
+    if (op.graph) return { name: op.graph as SparqlTerm };
+    return {};
+  }
+
+  private async fetchGraphQuads(graphRef: {
+    default?: boolean;
+    named?: boolean;
+    all?: boolean;
+    name?: SparqlTerm;
+  }): Promise<rdfjs.Quad[]> {
+    if (!graphRef) return [];
+    if (graphRef.default) {
+      return await matchQuads(
+        this.options.store,
+        null,
+        null,
+        null,
+        defaultGraph(),
+      );
+    }
+    if (graphRef.name) {
+      const gTerm = sparqlTermToRdfTerm(graphRef.name);
+      return await matchQuads(this.options.store, null, null, null, gTerm);
+    }
+    const all = await matchQuads(this.options.store, null, null, null, null);
+    if (graphRef.named) {
+      return all.filter((q) => q.graph.termType !== "DefaultGraph");
+    }
+    if (graphRef.all) {
+      return all;
+    }
+    return [];
+  }
+
+  private async applyClear(
+    graphRef: {
+      default?: boolean;
+      named?: boolean;
+      all?: boolean;
+      name?: SparqlTerm;
+    },
+    remove: (item: rdfjs.Quad) => unknown,
+  ): Promise<void> {
+    const quads = await this.fetchGraphQuads(graphRef);
+    for (const q of quads) {
+      remove(q);
+    }
+  }
+
+  private async applyAdd(
+    sourceRef: {
+      default?: boolean;
+      named?: boolean;
+      all?: boolean;
+      name?: SparqlTerm;
+    },
+    destRef: {
+      default?: boolean;
+      named?: boolean;
+      all?: boolean;
+      name?: SparqlTerm;
+    },
+    add: (item: rdfjs.Quad) => unknown,
+  ): Promise<void> {
+    const sourceQuads = await this.fetchGraphQuads(sourceRef);
+    const destGraphTerm = (!destRef || destRef.default)
+      ? defaultGraph()
+      : destRef.name
+      ? sparqlTermToRdfTerm(destRef.name)
+      : defaultGraph();
+    for (const q of sourceQuads) {
+      add(quad(q.subject, q.predicate, q.object, destGraphTerm));
     }
   }
 
@@ -190,33 +331,47 @@ export class UpdateEvaluator {
    * all deletions are applied, then all insertions, per SPARQL semantics.
    */
   private async applyDeleteInsert(
-    operation: Extract<UpdateOperation, { updateType: "insertdelete" }>,
+    operation: InsertDeleteOperation,
     add: (item: rdfjs.Quad) => unknown,
     remove: (item: rdfjs.Quad) => unknown,
   ): Promise<void> {
-    if (operation.using) {
-      throw new Error(
-        "Unsupported SPARQL update feature: USING in DELETE/INSERT",
-      );
-    }
-    if (operation.graph) {
-      throw new Error(
-        "Unsupported SPARQL update feature: WITH in DELETE/INSERT",
-      );
-    }
-    const bindings = await this.bgpEvaluator.evaluateBgp(operation.where);
+    const withGraph = operation.graph
+      ? sparqlTermToRdfTerm(operation.graph)
+      : null;
 
-    for (const pattern of operation.delete) {
-      await this.deleteMatches(pattern, bindings, remove);
+    let evaluator = this.bgpEvaluator;
+    if (operation.using) {
+      const usingObj = operation.using as unknown as {
+        default?: SparqlTerm[];
+        named?: SparqlTerm[];
+      };
+      const defaultTerms = usingObj.default ?? [];
+      const namedTerms = usingObj.named ?? [];
+      const dataset = await buildDatasetStore(
+        this.options.store,
+        defaultTerms.map((t) => sparqlTermToRdfTerm(t)),
+        namedTerms.map((t) => sparqlTermToRdfTerm(t)),
+      );
+      evaluator = this.bgpEvaluator.forStore(dataset);
+    } else if (withGraph !== null) {
+      const scopedStore = new GraphScopedStore(this.options.store, withGraph);
+      evaluator = this.bgpEvaluator.forStore(scopedStore);
+    }
+
+    const bindings = await evaluator.evaluateBgp(operation.where ?? []);
+
+    for (const pattern of operation.delete ?? []) {
+      await this.deleteMatches(pattern, bindings, remove, withGraph);
     }
     for (const binding of bindings) {
       const bnodeMap = new Map<string, rdfjs.BlankNode>();
-      for (const pattern of operation.insert) {
+      for (const pattern of operation.insert ?? []) {
         for (
           const item of this.instantiateInsertPattern(
             pattern,
             binding,
             bnodeMap,
+            withGraph,
           )
         ) {
           add(item);
@@ -230,12 +385,12 @@ export class UpdateEvaluator {
    * template is also the WHERE pattern.
    */
   private async applyDeleteWhere(
-    operation: Extract<UpdateOperation, { updateType: "deletewhere" }>,
+    operation: InsertDeleteOperation,
     remove: (item: rdfjs.Quad) => unknown,
   ): Promise<void> {
-    const wherePatterns = operation.delete as unknown as Pattern[];
+    const wherePatterns = (operation.delete ?? []) as Pattern[];
     const bindings = await this.bgpEvaluator.evaluateBgp(wherePatterns);
-    for (const pattern of operation.delete) {
+    for (const pattern of operation.delete ?? []) {
       await this.deleteMatches(pattern, bindings, remove);
     }
   }
@@ -249,17 +404,23 @@ export class UpdateEvaluator {
    * blank nodes act as wildcards.
    */
   private async deleteMatches(
-    pattern: Quads,
+    pattern: Pattern,
     bindings: TermBinding[],
     remove: (item: rdfjs.Quad) => unknown,
+    withGraph: rdfjs.Term | null = null,
   ): Promise<void> {
     if (bindings.length === 0) {
       return;
     }
     const graph = pattern.type === "graph"
       ? this.convertTerm(pattern.name, null)
-      : defaultGraph();
-    for (const triple of pattern.triples) {
+      : (withGraph ?? defaultGraph());
+    const triples: Triple[] =
+      (pattern as unknown as { triples?: Triple[] }).triples ??
+        (pattern as unknown as { patterns?: { triples?: Triple[] }[] }).patterns
+          ?.flatMap((p) => p.triples ?? []) ??
+        [];
+    for (const triple of triples) {
       const scan = this.deleteScanPositions(triple);
       const candidates = await matchQuads(
         this.options.store,
@@ -335,15 +496,21 @@ export class UpdateEvaluator {
    * consistent across the templates of that solution.
    */
   private instantiateInsertPattern(
-    pattern: Quads,
+    pattern: Pattern,
     binding: TermBinding,
     bnodeMap: Map<string, rdfjs.BlankNode>,
+    withGraph: rdfjs.Term | null = null,
   ): rdfjs.Quad[] {
     const graph = pattern.type === "graph"
       ? this.convertTerm(pattern.name, null)
-      : defaultGraph();
+      : (withGraph ?? defaultGraph());
     const quads: rdfjs.Quad[] = [];
-    for (const triple of pattern.triples) {
+    const triples: Triple[] =
+      (pattern as unknown as { triples?: Triple[] }).triples ??
+        (pattern as unknown as { patterns?: { triples?: Triple[] }[] }).patterns
+          ?.flatMap((p) => p.triples ?? []) ??
+        [];
+    for (const triple of triples) {
       const subject = this.resolveInsertTerm(triple.subject, binding, bnodeMap);
       const predicate = this.resolveInsertTerm(
         simplePredicate(triple.predicate),
@@ -433,16 +600,19 @@ export class UpdateEvaluator {
    * parser already rejects blank nodes).
    */
   private patternQuads(
-    pattern: Quads,
+    pattern: Pattern,
     bnodeMap: Map<string, rdfjs.BlankNode> | null,
   ): rdfjs.Quad[] {
+    const triples: Triple[] =
+      (pattern as unknown as { triples?: Triple[] }).triples ??
+        (pattern as unknown as { patterns?: { triples?: Triple[] }[] }).patterns
+          ?.flatMap((p) => p.triples ?? []) ??
+        [];
     if (pattern.type === "graph") {
       const graph = this.convertTerm(pattern.name, bnodeMap);
-      return pattern.triples.map((item) =>
-        this.convertTriple(item, graph, bnodeMap)
-      );
+      return triples.map((item) => this.convertTriple(item, graph, bnodeMap));
     }
-    return pattern.triples.map((item) =>
+    return triples.map((item) =>
       this.convertTriple(item, defaultGraph(), bnodeMap)
     );
   }

@@ -17,7 +17,10 @@ export interface SparqlEngineInterface {
  */
 export interface SparqlRequest {
   /** The raw SPARQL query string. */
-  query: string;
+  query?: string;
+
+  /** The raw SPARQL update string. */
+  update?: string;
 
   /** Base IRI for the query execution. */
   baseIri?: string;
@@ -38,17 +41,17 @@ export type SparqlResponse =
 /**
  * SparqlAskResults is the specific format for an ASK boolean query.
  */
-export type SparqlAskResults = {
+export interface SparqlAskResults {
   head: {
     link?: Array<string> | null;
   };
   boolean: boolean;
-};
+}
 
 /**
  * SparqlSelectResults is the tabular format returned by SELECT queries.
  */
-export type SparqlSelectResults = {
+export interface SparqlSelectResults {
   head: {
     vars: Array<string>;
     link?: Array<string> | null;
@@ -56,17 +59,18 @@ export type SparqlSelectResults = {
   results: {
     bindings: Array<SparqlBinding>;
   };
-};
+}
 
 /**
  * SparqlConstructResults is the quad stream returned by CONSTRUCT/DESCRIBE queries.
  */
-export type SparqlConstructResults = {
+export interface SparqlConstructResults {
   quads: Array<rdfjs.Quad>;
-};
+}
 
 /**
- * A specific value bound to a variable within a SPARQL result binding.
+ * SparqlValue is a specific value bound to a variable within a SPARQL result
+ * binding.
  */
 export type SparqlValue =
   | { type: "uri"; value: string }
