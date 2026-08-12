@@ -158,6 +158,7 @@ export interface SelectQuery {
   type: "query";
   queryType: "SELECT";
   prefixes?: Record<string, string>;
+  base?: string;
   variables: Array<VariableTerm | Wildcard | VariableExpression>;
   where?: Pattern[];
   group?: Grouping[];
@@ -175,6 +176,7 @@ export interface AskQuery {
   type: "query";
   queryType: "ASK";
   prefixes?: Record<string, string>;
+  base?: string;
   where?: Pattern[];
   from?: FromClause;
 }
@@ -183,6 +185,7 @@ export interface ConstructQuery {
   type: "query";
   queryType: "CONSTRUCT";
   prefixes?: Record<string, string>;
+  base?: string;
   template?: Triple[];
   where?: Pattern[];
   from?: FromClause;
@@ -192,6 +195,7 @@ export interface DescribeQuery {
   type: "query";
   queryType: "DESCRIBE";
   prefixes?: Record<string, string>;
+  base?: string;
   variables: Array<VariableTerm | Wildcard>;
   where?: Pattern[];
   from?: FromClause;
