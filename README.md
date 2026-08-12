@@ -48,13 +48,26 @@ comparing (see `test/parity/parity-harness.ts`). A test in
 `test/parity/parity.test.ts` locks in this known difference against real
 Comunica output, so the normalization stays verified rather than assumed.
 
+SPARQL updates are covered the same way in `test/parity/parity-update.test.ts`:
+INSERT DATA, DELETE DATA, INSERT WHERE, DELETE WHERE, and DELETE/INSERT (plain,
+typed, and language-tagged literals, fresh blank nodes per solution, named graph
+templates, joins in WHERE, and composite requests) run against both engines on
+identical seed stores, and the final store contents are compared. Because INSERT
+DATA mints fresh blank node labels per execution (`e_<label>NN` under Comunica,
+`u<N>` natively), the harness canonicalizes store contents up to blank node
+relabeling — two stores pass when they agree exactly modulo label identity,
+which is the SPARQL contract.
+
 ## Benchmarking
 
-`bench/engine_bench.ts` compares query execution against both
+`bench/engine_bench.ts` compares query and update execution against both
 `@comunica/query-sparql-rdfjs-lite` and the Oxigraph WASM engine (`oxigraph`)
 over an identical generated graph. Before timing, every run asserts that all
-three engines return identical results for each query, so the numbers always
-compare equivalent work. The reorder-chain group demonstrates the dynamic join
+three engines return identical results for each query, and for updates asserts
+that they produce identical final store contents after mutating fresh stores (a
+move update, which a broken engine that ignores updates cannot pass). The timed
+update is a self-restoring delete+insert rewrite, so iterations never drift the
+benchmark stores. The reorder-chain group demonstrates the dynamic join
 ordering: a three-pattern chain written in worst-case order runs ~32x faster
 with reordering enabled (and at parity with Oxigraph), because the planner scans
 each pattern once and joins in order of estimated cost, preferring patterns

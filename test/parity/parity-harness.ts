@@ -366,3 +366,103 @@ export async function assertQueryParity(
     fail(`${mismatch}\n\nQuery: ${testCase.query}`);
   }
 }
+
+/**
+ * ParityUpdateCase describes a single differential SPARQL update comparison.
+ * The update is run against both engines on identical seed data, and the
+ * final store contents are compared.
+ */
+export interface ParityUpdateCase {
+  /** name identifies the test case in failure output. */
+  name: string;
+
+  /** update is the identical SPARQL update string sent to both engines. */
+  update: string;
+
+  /** quads seeds both stores with the same RDF data before the update. */
+  quads: rdfjs.Quad[];
+}
+
+/**
+ * canonicalStoreQuads renders a store's full contents as a deterministic
+ * multiset of canonical quad strings, normalizing blank node labels by
+ * position. Blank node labels are opaque: INSERT DATA mints fresh labels per
+ * execution (Comunica emits e_<label>NN, the native engine u<N>), so the
+ * comparison must treat two stores as equal when they agree up to blank node
+ * relabeling. Quads are sorted by their label-independent structural form
+ * first, then labels are canonicalized in order of first appearance, which
+ * makes the canonical strings identical exactly when the stores are
+ * isomorphic.
+ */
+export function canonicalStoreQuads(store: Store): string[] {
+  const quads: rdfjs.Quad[] = store.getQuads(null, null, null, null);
+  const rendered = quads.map((item) => {
+    const bnodeLabels: string[] = [];
+    const structural = [item.subject, item.predicate, item.object, item.graph]
+      .map((term) => {
+        if (term.termType === "BlankNode") {
+          let index = bnodeLabels.indexOf(term.value);
+          if (index === -1) {
+            index = bnodeLabels.length;
+            bnodeLabels.push(term.value);
+          }
+          return `_:b${index}`;
+        }
+        return JSON.stringify(canonicalizeRdfTerm(term));
+      })
+      .join(" ");
+    return { structural, bnodeLabels };
+  });
+  rendered.sort((a, b) => a.structural.localeCompare(b.structural));
+  const canonicalIds = new Map<string, string>();
+  let nextId = 0;
+  return rendered.map(({ structural, bnodeLabels }) => {
+    let canonical = structural;
+    for (let index = 0; index < bnodeLabels.length; index++) {
+      const label = bnodeLabels[index];
+      let id = canonicalIds.get(label);
+      if (id === undefined) {
+        id = `_:c${nextId++}`;
+        canonicalIds.set(label, id);
+      }
+      canonical = canonical.replace(`_:b${index}`, id);
+    }
+    return canonical;
+  });
+}
+
+/**
+ * assertUpdateParity runs the given update through both engines on identical
+ * seed data and fails with a detailed diff when the resulting store contents
+ * diverge.
+ */
+export async function assertUpdateParity(
+  testCase: ParityUpdateCase,
+): Promise<void> {
+  const comunicaEngine = getComunicaEngine();
+  const comunicaStore = createQuadStore(testCase.quads);
+  const nativeStore = createQuadStore(testCase.quads);
+  const nativeEngine = new NativeSparqlEngine({ store: nativeStore });
+
+  const nativeResult = await nativeEngine.execute({ query: testCase.update });
+  if (nativeResult.kind !== "void") {
+    fail(
+      `${testCase.name}: native engine returned ${nativeResult.kind} ` +
+        `instead of void for update`,
+    );
+  }
+  await comunicaEngine.queryVoid(testCase.update, {
+    sources: [comunicaStore],
+  });
+
+  const mismatch = compareMultisets(
+    canonicalStoreQuads(comunicaStore),
+    canonicalStoreQuads(nativeStore),
+    "final store quads",
+  );
+  if (mismatch !== null) {
+    fail(`${mismatch}
+
+Update: ${testCase.update}`);
+  }
+}

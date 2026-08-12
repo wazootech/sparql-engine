@@ -132,6 +132,22 @@ const chainQuery =
   "SELECT ?s ?grand ?n WHERE { ?s <http://xmlns.com/foaf/0.1/knows> ?friend . " +
   "?grand <http://xmlns.com/foaf/0.1/name> ?n . " +
   "?friend <http://xmlns.com/foaf/0.1/knows> ?grand }";
+// Mutating update: moves every name quad to a new predicate. Used for the
+// cross-engine verification, which runs on fresh throwaway stores so a
+// broken engine that silently ignores updates is caught (its store would
+// still contain name quads, not displayName quads).
+const moveUpdateQuery =
+  "DELETE { ?person <http://xmlns.com/foaf/0.1/name> ?name } " +
+  "INSERT { ?person <http://example.org/displayName> ?name } " +
+  "WHERE { ?person <http://xmlns.com/foaf/0.1/name> ?name }";
+// Self-restoring update: deletes every name quad and re-inserts it, netting
+// to zero per iteration, so the persistent benchmark stores never drift and
+// every bench iteration times the same work (WHERE evaluation, matching,
+// deletes, inserts).
+const rewriteUpdateQuery =
+  "DELETE { ?person <http://xmlns.com/foaf/0.1/name> ?name } " +
+  "INSERT { ?person <http://xmlns.com/foaf/0.1/name> ?name } " +
+  "WHERE { ?person <http://xmlns.com/foaf/0.1/name> ?name }";
 const constructQuery =
   "CONSTRUCT { ?person <http://example.org/displayName> ?name } " +
   "WHERE { ?person <http://xmlns.com/foaf/0.1/name> ?name }";
@@ -306,6 +322,67 @@ async function verifyConstructEquality(
   );
 }
 
+/**
+ * storeQuadStrings renders a store's full contents as a sorted list of
+ * canonical quad strings.
+ */
+function storeQuadStrings(store: Store): string[] {
+  const quads: rdfjs.Quad[] = store.getQuads(null, null, null, null);
+  return quads.map((item) => quadRecord(item, canonicalizeRdfTerm)).sort();
+}
+
+/**
+ * verifyUpdateEquality asserts all three engines produce identical final
+ * store contents after running the given update. Each engine mutates its own
+ * freshly seeded store, so the update is genuinely executed rather than
+ * compared against pre-existing state.
+ */
+async function verifyUpdateEquality(
+  query: string,
+  label: string,
+): Promise<void> {
+  const nativeStore = new Store();
+  for (const item of dataset) {
+    nativeStore.addQuad(item);
+  }
+  const nativeUpdateEngine = new NativeSparqlEngine({ store: nativeStore });
+  const nativeResult = await nativeUpdateEngine.execute({ query });
+  if (nativeResult.kind !== "void") {
+    throw new Error(`${label}: native engine returned ${nativeResult.kind}`);
+  }
+  const nativeSet = storeQuadStrings(nativeStore);
+
+  const comunicaStore = new Store();
+  for (const item of dataset) {
+    comunicaStore.addQuad(item);
+  }
+  await comunicaEngine.queryVoid(query, { sources: [comunicaStore] });
+  const comunicaSet = storeQuadStrings(comunicaStore);
+
+  const oxigraphUpdateStore = new OxigraphStore();
+  for (const item of dataset) {
+    oxigraphUpdateStore.add(toOxigraphQuad(item));
+  }
+  await oxigraphUpdateStore.update(query);
+  const oxigraphQuads = oxigraphUpdateStore.query(
+    "CONSTRUCT { ?s ?p ?o } WHERE { ?s ?p ?o }",
+  ) as unknown as rdfjs.Quad[];
+  const oxigraphSet = oxigraphQuads
+    .map((item) => quadRecord(item, canonicalizeRdfTerm))
+    .sort();
+
+  assertEquals(
+    nativeSet,
+    comunicaSet,
+    `${label}: native and comunica disagree`,
+  );
+  assertEquals(
+    nativeSet,
+    oxigraphSet,
+    `${label}: native and oxigraph disagree`,
+  );
+}
+
 // Fail the whole benchmark run loudly if the engines do not agree, so the
 // timings below always compare equivalent work.
 await verifySelectEquality(scanQuery, "scan");
@@ -313,6 +390,8 @@ await verifySelectEquality(joinQuery, "join");
 await verifySelectEquality(asymJoinQuery, "asym-join");
 await verifyAskEquality(askQuery, "ask");
 await verifyConstructEquality(constructQuery, "construct");
+await verifyUpdateEquality(moveUpdateQuery, "update-move");
+await verifyUpdateEquality(rewriteUpdateQuery, "update-rewrite");
 await verifySelectEquality(chainQuery, "reorder-chain");
 
 Deno.bench(
@@ -506,4 +585,24 @@ Deno.bench({ name: "oxigraph - construct", group: "construct" }, () => {
   if (result.length === 0) {
     throw new Error("oxigraph construct returned no quads");
   }
+});
+
+Deno.bench(
+  { name: "native - update", group: "update", baseline: true },
+  async () => {
+    const result = await nativeEngine.execute({ query: rewriteUpdateQuery });
+    if (result.kind !== "void") {
+      throw new Error("native update returned a non-void result");
+    }
+  },
+);
+
+Deno.bench({ name: "comunica - update", group: "update" }, async () => {
+  await comunicaEngine.queryVoid(rewriteUpdateQuery, {
+    sources: [n3Store],
+  });
+});
+
+Deno.bench({ name: "oxigraph - update", group: "update" }, async () => {
+  await oxigraphStore.update(rewriteUpdateQuery);
 });

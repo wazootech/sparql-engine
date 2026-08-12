@@ -1,0 +1,470 @@
+import type * as rdfjs from "@rdfjs/types";
+import type {
+  Pattern,
+  Quads,
+  Term as SparqlTerm,
+  Triple,
+  Update,
+  UpdateOperation,
+} from "sparqljs";
+import type { NativeSparqlTransaction } from "@/native-sparql-engine.ts";
+import type { SparqlBinding } from "@/sparql-engine-interface.ts";
+import { BgpEvaluator } from "@/evaluator/bgp-evaluator.ts";
+import { sparqlTermToRdfTerm, sparqlValueToRdfTerm } from "@/term/mod.ts";
+import { DataFactory } from "n3";
+
+const { blankNode, quad, defaultGraph } = DataFactory;
+
+/**
+ * QuadWriteStore is the minimal write surface an update-capable store must
+ * expose beyond rdfjs.Store's read-only interface. N3.Store and the durable
+ * Wazoo backends (LibsqlRdfjsStore, DenokvRdfjsStore) both satisfy it.
+ */
+export type QuadWriteStore = rdfjs.Store & {
+  addQuad(item: rdfjs.Quad): unknown;
+  removeQuad(item: rdfjs.Quad): unknown;
+};
+
+/**
+ * UpdateEvaluatorOptions configures UpdateEvaluator.
+ */
+export interface UpdateEvaluatorOptions {
+  /** store is the RDFJS store to apply updates to. */
+  store: rdfjs.Store;
+
+  /**
+   * createTransaction is an optional factory for durable backends that need
+   * their writes buffered and committed atomically. When provided, every
+   * update runs through one transaction. When omitted, updates are applied
+   * directly to the store, which must support addQuad/removeQuad.
+   */
+  createTransaction?: () => NativeSparqlTransaction;
+
+  /**
+   * reorderPatterns forwards the engine's BGP pattern reordering policy to
+   * the WHERE evaluation of update forms. Defaults to true.
+   */
+  reorderPatterns?: boolean;
+}
+
+/**
+ * ResolvedTemplateTerm is the result of resolving one template position
+ * against a solution binding.
+ */
+type ResolvedTemplateTerm =
+  | { kind: "wildcard" } // DELETE template blank node: matches any term
+  | { kind: "value"; term: rdfjs.Term }
+  | { kind: "skip" }; // unbound template variable: triple not instantiated
+
+/**
+ * UpdateEvaluator executes SPARQL 1.1 Update operations against an RDFJS
+ * store. It supports INSERT DATA and DELETE DATA (including named graph
+ * templates and composite updates), plus the WHERE forms — INSERT WHERE,
+ * DELETE WHERE, and DELETE/INSERT — whose patterns are evaluated with the
+ * BgpEvaluator and whose templates are instantiated per solution.
+ *
+ * Template semantics follow SPARQL 1.1 Update: variables in templates bind to
+ * the WHERE solution (an unbound variable skips that triple), blank nodes in
+ * INSERT templates are fresh per solution, and blank nodes in DELETE
+ * templates match any term. (Comunica rejects DELETE-template blank nodes at
+ * parse time, so that last behavior is spec-driven rather than parity-tested.)
+ */
+export class UpdateEvaluator {
+  /**
+   * Monotonic counter for fresh blank nodes minted by INSERT DATA and INSERT
+   * templates. Blank nodes in INSERT templates must be fresh per execution
+   * per SPARQL semantics, so each insert gets a new label and labels are
+   * never reused.
+   */
+  private nextBnodeId = 0;
+
+  private readonly bgpEvaluator: BgpEvaluator;
+
+  public constructor(private readonly options: UpdateEvaluatorOptions) {
+    this.bgpEvaluator = new BgpEvaluator(options.store, {
+      reorderPatterns: options.reorderPatterns,
+    });
+  }
+
+  /**
+   * executeUpdate applies a parsed SPARQL update request to the store.
+   */
+  public async executeUpdate(update: Update): Promise<void> {
+    const transaction = this.options.createTransaction?.();
+    if (transaction) {
+      try {
+        for (const operation of update.updates) {
+          await this.applyOperation(
+            operation,
+            (item) => transaction.add(item),
+            (item) => transaction.delete(item),
+          );
+        }
+        await transaction.commit();
+      } catch (error) {
+        transaction.rollback();
+        throw error;
+      }
+      return;
+    }
+
+    const writeStore = this.options.store as QuadWriteStore;
+    if (
+      typeof writeStore.addQuad !== "function" ||
+      typeof writeStore.removeQuad !== "function"
+    ) {
+      throw new Error(
+        "This store does not support SPARQL updates: pass a store with " +
+          "addQuad/removeQuad or provide createTransaction",
+      );
+    }
+    for (const operation of update.updates) {
+      await this.applyOperation(
+        operation,
+        (item) => writeStore.addQuad(item),
+        (item) => writeStore.removeQuad(item),
+      );
+    }
+  }
+
+  /**
+   * applyOperation routes one update operation to the given add/remove sinks.
+   */
+  private async applyOperation(
+    operation: UpdateOperation,
+    add: (item: rdfjs.Quad) => unknown,
+    remove: (item: rdfjs.Quad) => unknown,
+  ): Promise<void> {
+    if (!("updateType" in operation)) {
+      throw new Error(
+        `Unsupported SPARQL update operation: ${
+          (operation as { type: string }).type
+        }`,
+      );
+    }
+    switch (operation.updateType) {
+      case "insert": {
+        const bnodeMap = new Map<string, rdfjs.BlankNode>();
+        for (const pattern of operation.insert) {
+          for (const item of this.patternQuads(pattern, bnodeMap)) {
+            add(item);
+          }
+        }
+        return;
+      }
+      case "delete": {
+        for (const pattern of operation.delete) {
+          for (const item of this.patternQuads(pattern, null)) {
+            remove(item);
+          }
+        }
+        return;
+      }
+      case "insertdelete": {
+        await this.applyDeleteInsert(operation, add, remove);
+        return;
+      }
+      case "deletewhere": {
+        await this.applyDeleteWhere(operation, remove);
+        return;
+      }
+      default:
+        throw new Error(
+          `Unsupported SPARQL update operation: ${
+            (operation as { updateType: string }).updateType
+          }`,
+        );
+    }
+  }
+
+  /**
+   * applyDeleteInsert handles INSERT WHERE, DELETE WHERE, and DELETE/INSERT
+   * (sparqljs normalizes all three to "insertdelete", with empty insert or
+   * delete arrays as appropriate). The WHERE clause is evaluated once, then
+   * all deletions are applied, then all insertions, per SPARQL semantics.
+   */
+  private async applyDeleteInsert(
+    operation: Extract<UpdateOperation, { updateType: "insertdelete" }>,
+    add: (item: rdfjs.Quad) => unknown,
+    remove: (item: rdfjs.Quad) => unknown,
+  ): Promise<void> {
+    if (operation.using) {
+      throw new Error(
+        "Unsupported SPARQL update feature: USING in DELETE/INSERT",
+      );
+    }
+    if (operation.graph) {
+      throw new Error(
+        "Unsupported SPARQL update feature: WITH in DELETE/INSERT",
+      );
+    }
+    const bindings = await this.bgpEvaluator.evaluateBgp(operation.where);
+
+    for (const binding of bindings) {
+      for (const pattern of operation.delete) {
+        await this.deleteMatches(pattern, binding, remove);
+      }
+    }
+    for (const binding of bindings) {
+      const bnodeMap = new Map<string, rdfjs.BlankNode>();
+      for (const pattern of operation.insert) {
+        for (
+          const item of this.instantiateInsertPattern(
+            pattern,
+            binding,
+            bnodeMap,
+          )
+        ) {
+          add(item);
+        }
+      }
+    }
+  }
+
+  /**
+   * applyDeleteWhere handles the DELETE WHERE shorthand, where the delete
+   * template is also the WHERE pattern.
+   */
+  private async applyDeleteWhere(
+    operation: Extract<UpdateOperation, { updateType: "deletewhere" }>,
+    remove: (item: rdfjs.Quad) => unknown,
+  ): Promise<void> {
+    const wherePatterns = operation.delete as unknown as Pattern[];
+    const bindings = await this.bgpEvaluator.evaluateBgp(wherePatterns);
+    for (const binding of bindings) {
+      for (const pattern of operation.delete) {
+        await this.deleteMatches(pattern, binding, remove);
+      }
+    }
+  }
+
+  /**
+   * deleteMatches removes every quad matching the instantiated template
+   * pattern for one solution. Unbound variables skip the triple; blank nodes
+   * act as wildcards.
+   */
+  private async deleteMatches(
+    pattern: Quads,
+    binding: SparqlBinding,
+    remove: (item: rdfjs.Quad) => unknown,
+  ): Promise<void> {
+    const graph = pattern.type === "graph"
+      ? this.convertTerm(pattern.name, null)
+      : defaultGraph();
+    for (const triple of pattern.triples) {
+      const subject = this.resolveDeleteTerm(triple.subject, binding);
+      const predicate = this.resolveDeleteTerm(
+        this.resolveTemplatePredicate(triple.predicate),
+        binding,
+      );
+      const object = this.resolveDeleteTerm(triple.object, binding);
+      if (
+        subject.kind === "skip" || predicate.kind === "skip" ||
+        object.kind === "skip"
+      ) {
+        continue;
+      }
+      const matches = await this.matchStore(
+        subject.kind === "wildcard" ? null : subject.term,
+        predicate.kind === "wildcard" ? null : predicate.term,
+        object.kind === "wildcard" ? null : object.term,
+        graph,
+      );
+      for (const item of matches) {
+        remove(item);
+      }
+    }
+  }
+
+  /**
+   * instantiateInsertPattern builds the quads to insert for one solution.
+   * Unbound variables skip the triple; blank nodes are fresh per solution but
+   * consistent across the templates of that solution.
+   */
+  private instantiateInsertPattern(
+    pattern: Quads,
+    binding: SparqlBinding,
+    bnodeMap: Map<string, rdfjs.BlankNode>,
+  ): rdfjs.Quad[] {
+    const graph = pattern.type === "graph"
+      ? this.convertTerm(pattern.name, null)
+      : defaultGraph();
+    const quads: rdfjs.Quad[] = [];
+    for (const triple of pattern.triples) {
+      const subject = this.resolveInsertTerm(triple.subject, binding, bnodeMap);
+      const predicate = this.resolveInsertTerm(
+        this.resolveTemplatePredicate(triple.predicate),
+        binding,
+        bnodeMap,
+      );
+      const object = this.resolveInsertTerm(triple.object, binding, bnodeMap);
+      if (
+        subject.kind !== "value" || predicate.kind !== "value" ||
+        object.kind !== "value"
+      ) {
+        continue;
+      }
+      quads.push(
+        quad(
+          subject.term as rdfjs.Quad_Subject,
+          predicate.term as rdfjs.Quad_Predicate,
+          object.term as rdfjs.Quad_Object,
+          graph as rdfjs.Quad_Graph,
+        ),
+      );
+    }
+    return quads;
+  }
+
+  /**
+   * resolveDeleteTerm resolves one template position for deletion. Variables
+   * come from the binding (unbound skips the triple); blank nodes match any
+   * term; constants resolve to their term.
+   */
+  private resolveDeleteTerm(
+    term: SparqlTerm,
+    binding: SparqlBinding,
+  ): ResolvedTemplateTerm {
+    if (term.termType === "Variable") {
+      const bound = binding[term.value];
+      if (!bound) {
+        return { kind: "skip" };
+      }
+      return {
+        kind: "value",
+        term: sparqlValueToRdfTerm(bound),
+      };
+    }
+    if (term.termType === "BlankNode") {
+      return { kind: "wildcard" };
+    }
+    return { kind: "value", term: this.convertTerm(term, null) };
+  }
+
+  /**
+   * resolveInsertTerm resolves one template position for insertion. Variables
+   * come from the binding (unbound skips the triple); blank nodes mint a
+   * fresh term per solution; constants resolve to their term.
+   */
+  private resolveInsertTerm(
+    term: SparqlTerm,
+    binding: SparqlBinding,
+    bnodeMap: Map<string, rdfjs.BlankNode>,
+  ): ResolvedTemplateTerm {
+    if (term.termType === "Variable") {
+      const bound = binding[term.value];
+      if (!bound) {
+        return { kind: "skip" };
+      }
+      return {
+        kind: "value",
+        term: sparqlValueToRdfTerm(bound),
+      };
+    }
+    if (term.termType === "BlankNode") {
+      const existing = bnodeMap.get(term.value);
+      if (existing !== undefined) {
+        return { kind: "value", term: existing };
+      }
+      const fresh = blankNode(`u${this.nextBnodeId++}`);
+      bnodeMap.set(term.value, fresh);
+      return { kind: "value", term: fresh };
+    }
+    return { kind: "value", term: this.convertTerm(term, null) };
+  }
+
+  /**
+   * patternQuads converts a BGP or named-graph quad template into RDF/JS
+   * quads. bnodeMap mints fresh blank nodes for INSERT DATA templates; when
+   * null, blank node labels are kept as written (DELETE DATA, where the
+   * parser already rejects blank nodes).
+   */
+  private patternQuads(
+    pattern: Quads,
+    bnodeMap: Map<string, rdfjs.BlankNode> | null,
+  ): rdfjs.Quad[] {
+    if (pattern.type === "graph") {
+      const graph = this.convertTerm(pattern.name, bnodeMap);
+      return pattern.triples.map((item) =>
+        this.convertTriple(item, graph, bnodeMap)
+      );
+    }
+    return pattern.triples.map((item) =>
+      this.convertTriple(item, defaultGraph(), bnodeMap)
+    );
+  }
+
+  /**
+   * convertTriple converts one template triple into an RDF/JS quad.
+   */
+  private convertTriple(
+    triple: Triple,
+    graph: rdfjs.Term,
+    bnodeMap: Map<string, rdfjs.BlankNode> | null,
+  ): rdfjs.Quad {
+    return quad(
+      this.convertTerm(triple.subject, bnodeMap) as rdfjs.Quad_Subject,
+      this.convertTerm(
+        this.resolveTemplatePredicate(triple.predicate),
+        bnodeMap,
+      ) as rdfjs.Quad_Predicate,
+      this.convertTerm(triple.object, bnodeMap) as rdfjs.Quad_Object,
+      graph as rdfjs.Quad_Graph,
+    );
+  }
+
+  /**
+   * convertTerm maps a constant template term to an RDF/JS term. Update
+   * templates cannot contain variables; anything else is a parse error
+   * upstream.
+   */
+  private convertTerm(
+    term: SparqlTerm,
+    bnodeMap: Map<string, rdfjs.BlankNode> | null,
+  ): rdfjs.Term {
+    if (term.termType === "BlankNode") {
+      if (bnodeMap === null) {
+        return blankNode(term.value);
+      }
+      const existing = bnodeMap.get(term.value);
+      if (existing !== undefined) {
+        return existing;
+      }
+      const fresh = blankNode(`u${this.nextBnodeId++}`);
+      bnodeMap.set(term.value, fresh);
+      return fresh;
+    }
+    // Constants resolve through the shared term conversion; only the blank
+    // node handling is update-specific (fresh labels per execution).
+    return sparqlTermToRdfTerm(term);
+  }
+
+  /**
+   * matchStore collects all quads matching the given pattern from the store.
+   */
+  private matchStore(
+    s: rdfjs.Term | null,
+    p: rdfjs.Term | null,
+    o: rdfjs.Term | null,
+    g: rdfjs.Term | null,
+  ): Promise<rdfjs.Quad[]> {
+    return new Promise<rdfjs.Quad[]>((resolve, reject) => {
+      const quads: rdfjs.Quad[] = [];
+      const stream = this.options.store.match(s, p, o, g);
+      stream.on("data", (q: rdfjs.Quad) => quads.push(q));
+      stream.on("end", () => resolve(quads));
+      stream.on("error", reject);
+    });
+  }
+
+  private resolveTemplatePredicate(
+    predicate: Triple["predicate"],
+  ): SparqlTerm {
+    if ("termType" in predicate) {
+      return predicate;
+    }
+    throw new Error(
+      `Unsupported property path predicate in update template`,
+    );
+  }
+}

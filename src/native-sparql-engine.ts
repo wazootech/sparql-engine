@@ -6,6 +6,7 @@ import type {
 } from "@/sparql-engine-interface.ts";
 import { SparqlParser } from "@/parser/sparql-parser.ts";
 import { SparqlEvaluator } from "@/evaluator/sparql-evaluator.ts";
+import { UpdateEvaluator } from "@/evaluator/update-evaluator.ts";
 
 /**
  * NativeSparqlTransaction is the minimal write contract the engine uses for updates.
@@ -34,17 +35,19 @@ export interface NativeSparqlEngineOptions {
   store: rdfjs.Store;
 
   /**
-   * reorderPatterns dynamically reorders BGP triple patterns by estimated
-   * join cost before joining. Defaults to true. Disabling it preserves
-   * written order exactly.
-   */
-  reorderPatterns?: boolean;
-
-  /**
    * createTransaction is an optional factory to create a transaction for SPARQL
-   * UPDATEs. When omitted, updates are unsupported and rejected.
+   * UPDATEs. When provided, every update runs through one atomic transaction.
+   * When omitted, updates are applied directly to the store, which must then
+   * implement addQuad/removeQuad (as N3.Store does).
    */
   createTransaction?: () => NativeSparqlTransaction;
+
+  /**
+   * reorderPatterns statically sorts BGP triple patterns by selectivity
+   * (constant count) before joining, so the most selective pattern runs
+   * first. Defaults to true. Disabling it preserves written order exactly.
+   */
+  reorderPatterns?: boolean;
 }
 
 /**
@@ -53,6 +56,7 @@ export interface NativeSparqlEngineOptions {
 export class NativeSparqlEngine implements SparqlEngineInterface {
   private readonly parser: SparqlParser;
   private readonly evaluator: SparqlEvaluator;
+  private readonly updateEvaluator: UpdateEvaluator;
 
   public constructor(
     private readonly options: NativeSparqlEngineOptions,
@@ -61,11 +65,20 @@ export class NativeSparqlEngine implements SparqlEngineInterface {
     this.evaluator = new SparqlEvaluator(options.store, {
       reorderPatterns: options.reorderPatterns,
     });
+    this.updateEvaluator = new UpdateEvaluator({
+      store: options.store,
+      createTransaction: options.createTransaction,
+      reorderPatterns: options.reorderPatterns,
+    });
   }
 
   /** execute runs a SPARQL query/update against the configured store. */
   public async execute(request: SparqlRequest): Promise<SparqlResponse> {
     const ast = this.parser.parse(request.query);
+    if (ast.type === "update") {
+      await this.updateEvaluator.executeUpdate(ast);
+      return { kind: "void" };
+    }
     return await this.evaluator.evaluateQuery(ast);
   }
 }
