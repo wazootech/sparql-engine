@@ -501,6 +501,23 @@ export class ExpressionEvaluator {
           binding,
           aggregates,
         );
+      case "datatype": {
+        const val = this.evaluateWith(arg(0), binding, aggregates, context);
+        if (val === undefined || val.termType !== "Literal") {
+          return undefined;
+        }
+        return val.datatype;
+      }
+      case "isnumeric":
+      case "isNumeric": {
+        const val = this.evaluateWith(arg(0), binding, aggregates, context);
+        if (val === undefined) {
+          return undefined;
+        }
+        return booleanLiteral(
+          val.termType === "Literal" && numericValue(val) !== null,
+        );
+      }
       default:
         throw new Error(
           `Unsupported SPARQL expression operator: ${operation.operator}`,

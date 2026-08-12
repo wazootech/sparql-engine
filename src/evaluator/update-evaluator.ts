@@ -259,7 +259,11 @@ export class UpdateEvaluator {
     const graph = pattern.type === "graph"
       ? this.convertTerm(pattern.name, null)
       : defaultGraph();
-    for (const triple of pattern.triples) {
+    const triples: Triple[] = pattern.triples ??
+      (pattern as unknown as { patterns?: { triples?: Triple[] }[] }).patterns
+        ?.flatMap((p) => p.triples ?? []) ??
+      [];
+    for (const triple of triples) {
       const scan = this.deleteScanPositions(triple);
       const candidates = await matchQuads(
         this.options.store,
@@ -343,7 +347,11 @@ export class UpdateEvaluator {
       ? this.convertTerm(pattern.name, null)
       : defaultGraph();
     const quads: rdfjs.Quad[] = [];
-    for (const triple of pattern.triples) {
+    const triples: Triple[] = pattern.triples ??
+      (pattern as unknown as { patterns?: { triples?: Triple[] }[] }).patterns
+        ?.flatMap((p) => p.triples ?? []) ??
+      [];
+    for (const triple of triples) {
       const subject = this.resolveInsertTerm(triple.subject, binding, bnodeMap);
       const predicate = this.resolveInsertTerm(
         simplePredicate(triple.predicate),
@@ -436,13 +444,15 @@ export class UpdateEvaluator {
     pattern: Quads,
     bnodeMap: Map<string, rdfjs.BlankNode> | null,
   ): rdfjs.Quad[] {
+    const triples: Triple[] = pattern.triples ??
+      (pattern as unknown as { patterns?: { triples?: Triple[] }[] }).patterns
+        ?.flatMap((p) => p.triples ?? []) ??
+      [];
     if (pattern.type === "graph") {
       const graph = this.convertTerm(pattern.name, bnodeMap);
-      return pattern.triples.map((item) =>
-        this.convertTriple(item, graph, bnodeMap)
-      );
+      return triples.map((item) => this.convertTriple(item, graph, bnodeMap));
     }
-    return pattern.triples.map((item) =>
+    return triples.map((item) =>
       this.convertTriple(item, defaultGraph(), bnodeMap)
     );
   }

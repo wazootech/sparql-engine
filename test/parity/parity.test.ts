@@ -1284,3 +1284,76 @@ Deno.test(
     }
   },
 );
+
+Deno.test("parity - BIND filter scoping", async () => {
+  const query = `PREFIX : <http://example.org/>
+SELECT ?s ?p ?o ?z WHERE {
+  ?s ?p ?o .
+  FILTER(?z = 3)
+  BIND(?o + 1 AS ?z)
+}`;
+  const quads = [
+    quad(
+      namedNode("http://example.org/s"),
+      namedNode("http://example.org/p"),
+      literal("2", namedNode("http://www.w3.org/2001/XMLSchema#integer")),
+    ),
+  ];
+  await assertQueryParity({
+    name: "BIND filter scoping",
+    kind: "select",
+    query,
+    quads,
+  });
+});
+
+Deno.test("parity - GROUP BY function expression", async () => {
+  const query = `PREFIX : <http://example.org/>
+SELECT ?g (COUNT(?p) AS ?cnt) WHERE {
+  ?s :p ?p .
+} GROUP BY (DATATYPE(?p) AS ?g)`;
+  const quads = [
+    quad(
+      namedNode("http://example.org/s1"),
+      namedNode("http://example.org/p"),
+      literal("123", namedNode("http://www.w3.org/2001/XMLSchema#integer")),
+    ),
+    quad(
+      namedNode("http://example.org/s2"),
+      namedNode("http://example.org/p"),
+      literal("hello"),
+    ),
+  ];
+  await assertQueryParity({
+    name: "GROUP BY function expression",
+    kind: "select",
+    query,
+    quads,
+  });
+});
+
+Deno.test("parity - ISNUMERIC built-in function", async () => {
+  const query = `PREFIX : <http://example.org/>
+SELECT ?s ?p ?isNum WHERE {
+  ?s :p ?p .
+  BIND(isNumeric(?p) AS ?isNum)
+}`;
+  const quads = [
+    quad(
+      namedNode("http://example.org/s1"),
+      namedNode("http://example.org/p"),
+      literal("123", namedNode("http://www.w3.org/2001/XMLSchema#integer")),
+    ),
+    quad(
+      namedNode("http://example.org/s2"),
+      namedNode("http://example.org/p"),
+      literal("hello"),
+    ),
+  ];
+  await assertQueryParity({
+    name: "ISNUMERIC parity",
+    kind: "select",
+    query,
+    quads,
+  });
+});

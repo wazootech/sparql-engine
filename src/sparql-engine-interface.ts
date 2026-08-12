@@ -17,7 +17,10 @@ export interface SparqlEngineInterface {
  */
 export interface SparqlRequest {
   /** The raw SPARQL query string. */
-  query: string;
+  query?: string;
+
+  /** The raw SPARQL update string. */
+  update?: string;
 
   /** Base IRI for the query execution. */
   baseIri?: string;

@@ -74,7 +74,11 @@ export class NativeSparqlEngine implements SparqlEngineInterface {
 
   /** execute runs a SPARQL query/update against the configured store. */
   public async execute(request: SparqlRequest): Promise<SparqlResponse> {
-    const ast = this.parser.parse(request.query);
+    const raw = request.query ?? request.update;
+    if (!raw) {
+      throw new Error("SparqlRequest must specify either query or update");
+    }
+    const ast = this.parser.parse(raw);
     if (ast.type === "update") {
       await this.updateEvaluator.executeUpdate(ast);
       return { kind: "void" };
