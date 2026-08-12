@@ -17,6 +17,7 @@ import type {
   SparqlSelectResults,
 } from "@/sparql-engine-interface.ts";
 import { aggregateValue, groupSolutions } from "@/evaluator/aggregate.ts";
+import { innerJoin } from "@/evaluator/join.ts";
 import { BgpEvaluator } from "@/evaluator/bgp-evaluator.ts";
 import type { TermBinding } from "@/evaluator/bgp-evaluator.ts";
 import { buildDatasetStore, simplePredicate } from "@/quad-store.ts";
@@ -122,8 +123,26 @@ export class SparqlEvaluator {
   private async evaluateSelect(
     query: SelectQuery,
   ): Promise<SparqlSelectResults> {
-    const rawBindings = await (await this.bgpEvaluatorFor(query.from))
+    let rawBindings = await (await this.bgpEvaluatorFor(query.from))
       .evaluateBgp(query.where || []);
+
+    // A post-query VALUES clause joins the WHERE result with its rows
+    // (SPARQL 1.1 §18.2.5: Join(G, ToMultiSet(VALUES))): a solution survives
+    // exactly when some row is compatible with it on the shared variables,
+    // and the row's bindings extend it.
+    if (query.values !== undefined && query.values.length > 0) {
+      const rows: TermBinding[] = query.values.map((row) => {
+        const binding: TermBinding = {};
+        for (const name of Object.keys(row)) {
+          const term = row[name];
+          if (term !== undefined) {
+            binding[name.slice(1)] = sparqlTermToRdfTerm(term);
+          }
+        }
+        return binding;
+      });
+      rawBindings = innerJoin(rawBindings, rows);
+    }
     const vars: string[] = [];
     const projections = new Map<string, Expression>();
     let wildcard = false;

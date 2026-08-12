@@ -361,6 +361,55 @@ const selectCases: ParityTestCase[] = [
       `WHERE { ${exampleAlice} ${foafName} ?name }`,
     quads: basicKnowledgeGraphQuads,
   },
+  {
+    name: "VALUES - post-query VALUES restricts solutions (values01)",
+    kind: "select",
+    query: `SELECT ?book ?title WHERE { ?book ${foafName} ?title } ` +
+      `VALUES (?book) { (<http://example.org/book/book1>) }`,
+    quads: [
+      quad(
+        namedNode("http://example.org/book/book1"),
+        namedNode("http://example.org/name"),
+        literal("SPARQL Tutorial"),
+      ),
+      quad(
+        namedNode("http://example.org/book/book2"),
+        namedNode("http://example.org/name"),
+        literal("The Semantic Web"),
+      ),
+    ],
+  },
+  {
+    name: "VALUES - post-query VALUES with UNDEF row keeps all solutions",
+    kind: "select",
+    query: `SELECT ?book ?title WHERE { ?book ${foafName} ?title } ` +
+      `VALUES (?book) { (UNDEF) }`,
+    quads: [
+      quad(
+        namedNode("http://example.org/book/book1"),
+        namedNode("http://example.org/name"),
+        literal("SPARQL Tutorial"),
+      ),
+      quad(
+        namedNode("http://example.org/book/book2"),
+        namedNode("http://example.org/name"),
+        literal("The Semantic Web"),
+      ),
+    ],
+  },
+  {
+    name: "VALUES - post-query VALUES extends solutions with a fresh variable",
+    kind: "select",
+    query: `SELECT ?book ?tag WHERE { ?book ${foafName} ?title } ` +
+      `VALUES (?tag) { (<http://example.org/tag/new>) }`,
+    quads: [
+      quad(
+        namedNode("http://example.org/book/book1"),
+        namedNode("http://example.org/name"),
+        literal("SPARQL Tutorial"),
+      ),
+    ],
+  },
 ];
 
 const askCases: ParityTestCase[] = [
@@ -654,6 +703,61 @@ const aggregateCases: ParityTestCase[] = [
         namedNode("http://example.org/a"),
         namedNode("http://example.org/p"),
         literal("7"),
+      ),
+    ],
+  },
+  {
+    name: "aggregate - SUM of decimals is exact, no float noise (11.1)",
+    kind: "select",
+    query: `SELECT (SUM(?o) AS ?su) WHERE { ?s <http://example.org/dec> ?o }`,
+    quads: [1.0, 2.2, 3.5, 2.2, 2.2].map((value) =>
+      quad(
+        namedNode(`http://example.org/d${value}`),
+        namedNode("http://example.org/dec"),
+        literal(
+          String(value),
+          namedNode("http://www.w3.org/2001/XMLSchema#decimal"),
+        ),
+      )
+    ),
+  },
+  {
+    name: "aggregate - SUM of decimals strips trailing zeros (1.0 + 2.0)",
+    kind: "select",
+    query: `SELECT (SUM(?o) AS ?su) WHERE { VALUES ?o { 1.0 2.0 } }`,
+    quads: [],
+  },
+  {
+    name: "aggregate - MIN/MAX across mixed numeric datatypes order by value",
+    kind: "select",
+    query: `SELECT (MIN(?o) AS ?mn) (MAX(?o) AS ?mx) WHERE { ?s ${pPred} ?o }`,
+    quads: [
+      quad(
+        namedNode("http://example.org/m"),
+        namedNode("http://example.org/p"),
+        literal("1", namedNode("http://www.w3.org/2001/XMLSchema#integer")),
+      ),
+      quad(
+        namedNode("http://example.org/m"),
+        namedNode("http://example.org/p"),
+        literal("2.2", namedNode("http://www.w3.org/2001/XMLSchema#decimal")),
+      ),
+    ],
+  },
+  {
+    name: "aggregate - MIN/MAX tie on numerically equal literals",
+    kind: "select",
+    query: `SELECT (MIN(?o) AS ?mn) (MAX(?o) AS ?mx) WHERE { ?s ${pPred} ?o }`,
+    quads: [
+      quad(
+        namedNode("http://example.org/m"),
+        namedNode("http://example.org/p"),
+        literal("2E-1", namedNode("http://www.w3.org/2001/XMLSchema#double")),
+      ),
+      quad(
+        namedNode("http://example.org/m"),
+        namedNode("http://example.org/p"),
+        literal("0.2", namedNode("http://www.w3.org/2001/XMLSchema#decimal")),
       ),
     ],
   },

@@ -24,27 +24,27 @@ function literalDatatype(literal: rdfjs.Literal): string {
 }
 
 /**
- * compareLiterals orders two literals: first by datatype IRI (plain literals
- * counting as xsd:string), then numerically for literals of the same numeric
- * datatype, then by codepoint comparison of the lexical forms. This matches
- * the SPARQL 1.1 §12.4 ordering rules as implemented by the reference
- * engines, including the lang-tagged (rdf:langString) case.
+ * compareLiterals orders two literals: numerically for literals of any
+ * numeric datatype in the XSD hierarchy (integer/decimal/float/double —
+ * MIN(1, 2.2) is 1), then by datatype IRI (plain literals counting as
+ * xsd:string), then by codepoint comparison of the lexical forms. This
+ * matches the SPARQL 1.1 §12.4 ordering rules as implemented by the
+ * reference engines, including the lang-tagged (rdf:langString) case.
  */
 function compareLiterals(a: rdfjs.Literal, b: rdfjs.Literal): number {
   const da = literalDatatype(a);
   const db = literalDatatype(b);
+  const an = NUMERIC_DATATYPES.has(da) ? numericValue(a) : null;
+  const bn = NUMERIC_DATATYPES.has(db) ? numericValue(b) : null;
+  // Numeric literals order by value across the whole XSD numeric hierarchy
+  // (MIN(1, 2.2) is 1), and numerically equal literals compare equal (0)
+  // regardless of datatype — matching Comunica's equality-first comparator,
+  // so ORDER BY ties and MIN/MAX ties keep the first-seen term.
+  if (an !== null && bn !== null) {
+    return compareNumericValues(an, bn);
+  }
   if (da !== db) {
     return compareStrings(da, db);
-  }
-  if (NUMERIC_DATATYPES.has(da)) {
-    const an = numericValue(a);
-    const bn = numericValue(b);
-    if (an !== null && bn !== null) {
-      const numeric = compareNumericValues(an, bn);
-      if (numeric !== 0) {
-        return numeric;
-      }
-    }
   }
   return compareStrings(a.value, b.value);
 }
