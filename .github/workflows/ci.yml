@@ -18,8 +18,8 @@ jobs:
       - run: deno task publish:dry
   # W3C differential gate: native must agree with comunica on the vendored
   # SPARQL 1.1 evaluation-core suite. The pass rate is the tracked progress
-  # metric — this job goes green once >= 90% of the suite agrees and turns
-  # fully green when native converges with comunica everywhere.
+  # metric — this job goes green once >= 95% (>= 320/336) of the suite agrees
+  # and turns fully green when native converges with comunica everywhere.
   w3c-parity:
     runs-on: ubuntu-latest
     steps:
