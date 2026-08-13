@@ -526,6 +526,11 @@ export class SparqlEvaluator {
       bnodeMap.set(term.value, fresh);
       return fresh;
     }
+    if (term.termType === "Quad") {
+      throw new Error(
+        "Reified-triple CONSTRUCT templates are not yet supported",
+      );
+    }
     return sparqlTermToRdfTerm(term);
   }
 }

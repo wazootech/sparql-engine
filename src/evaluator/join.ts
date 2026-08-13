@@ -10,6 +10,7 @@ import {
   probeQuadIndex,
   simplePredicate,
 } from "@/quad-store.ts";
+import { isReifiesPattern } from "@/evaluator/reified.ts";
 import { sameRdfTerm, sparqlTermToRdfTerm, termKey } from "@/term/mod.ts";
 
 /**
@@ -29,6 +30,12 @@ export interface ScanEntry {
   predicate: SparqlTerm;
   object: SparqlTerm;
   candidates: rdfjs.Quad[];
+  /**
+   * reifies marks a `?r rdf:reifies <<( s p o )>>` pattern, which joins by
+   * decomposing each candidate's quoted-triple-term object instead of
+   * matching the object position directly.
+   */
+  reifies?: boolean;
 }
 
 /**
@@ -149,12 +156,24 @@ export function scanEntry(
   const subject = pattern.subject;
   const predicate = simplePredicate(pattern.predicate);
   const object = pattern.object;
-  return matchQuads(
-    store,
-    patternConstant(subject),
-    patternConstant(predicate),
-    patternConstant(object),
-  ).then((candidates) => ({ subject, predicate, object, candidates }));
+  const reifies = isReifiesPattern(predicate, object);
+  // Reifies patterns scan every `rdf:reifies` statement; the join decomposes
+  // each candidate's quoted triple term. Everything else matches positionally.
+  const candidates = reifies
+    ? matchQuads(store, null, predicate, null)
+    : matchQuads(
+      store,
+      patternConstant(subject),
+      patternConstant(predicate),
+      patternConstant(object),
+    );
+  return candidates.then((cs) => ({
+    subject,
+    predicate,
+    object,
+    candidates: cs,
+    reifies,
+  }));
 }
 
 function isQueryVar(term: SparqlTerm): boolean {
@@ -178,6 +197,9 @@ export function joinTriplePattern(
   currentBindings: TermBinding[],
   entry: ScanEntry,
 ): TermBinding[] {
+  if (entry.reifies) {
+    return joinReifiesPattern(currentBindings, entry);
+  }
   const subject = entry.subject;
   const predicate = entry.predicate;
   const object = entry.object;
@@ -261,6 +283,79 @@ export function joinTriplePattern(
   }
 
   return nextBindings;
+}
+
+/**
+ * matchReifierPosition matches one position of a quoted triple term against a
+ * concrete term: a variable position binds (or must agree with an existing
+ * binding), and a constant position must be the same RDF term.
+ */
+function matchReifierPosition(
+  term: SparqlTerm,
+  value: rdfjs.Term,
+  binding: TermBinding,
+): TermBinding | null {
+  if (isQueryVar(term)) {
+    const name = getQueryVarName(term);
+    const existing = binding[name];
+    if (existing !== undefined) {
+      return sameRdfTerm(existing, value) ? binding : null;
+    }
+    return { ...binding, [name]: value };
+  }
+  return sameRdfTerm(sparqlTermToRdfTerm(term), value) ? binding : null;
+}
+
+/**
+ * joinReifiesPattern joins solutions against a `?r rdf:reifies <<( s p o )>>`
+ * pattern. Each candidate `X rdf:reifies TT` decomposes its quoted triple term
+ * TT and matches its subject/predicate/object against the pattern's three
+ * positions (binding variables), then binds the reifier variable to X.
+ */
+function joinReifiesPattern(
+  currentBindings: TermBinding[],
+  entry: ScanEntry,
+): TermBinding[] {
+  const reifier = entry.subject;
+  const tripleTerm = entry.object as rdfjs.Quad;
+  const result: TermBinding[] = [];
+  for (const binding of currentBindings) {
+    for (const candidate of entry.candidates) {
+      if (candidate.object.termType !== "Quad") {
+        continue;
+      }
+      const quoted = candidate.object as rdfjs.Quad;
+      let extended = matchReifierPosition(
+        tripleTerm.subject,
+        quoted.subject,
+        binding,
+      );
+      if (extended === null) {
+        continue;
+      }
+      extended = matchReifierPosition(
+        tripleTerm.predicate,
+        quoted.predicate,
+        extended,
+      );
+      if (extended === null) {
+        continue;
+      }
+      extended = matchReifierPosition(
+        tripleTerm.object,
+        quoted.object,
+        extended,
+      );
+      if (extended === null) {
+        continue;
+      }
+      const bound = matchReifierPosition(reifier, candidate.subject, extended);
+      if (bound !== null) {
+        result.push(bound);
+      }
+    }
+  }
+  return result;
 }
 
 /**

@@ -687,6 +687,11 @@ export class UpdateEvaluator {
       bnodeMap.set(term.value, fresh);
       return fresh;
     }
+    if (term.termType === "Quad") {
+      throw new Error(
+        "Reified-triple update templates are not yet supported",
+      );
+    }
     // Constants resolve through the shared term conversion; only the blank
     // node handling is update-specific (fresh labels per execution).
     return sparqlTermToRdfTerm(term);
