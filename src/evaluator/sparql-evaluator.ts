@@ -3,6 +3,7 @@ import type {
   AggregateExpression,
   AskQuery,
   ConstructQuery,
+  DescribeQuery,
   Expression,
   Pattern,
   SelectQuery,
@@ -24,7 +25,11 @@ import {
   expressionContainsExists,
 } from "@/evaluator/bgp-evaluator.ts";
 import type { TermBinding } from "@/evaluator/bgp-evaluator.ts";
-import { buildDatasetStore, simplePredicate } from "@/quad-store.ts";
+import {
+  buildDatasetStore,
+  matchQuads,
+  simplePredicate,
+} from "@/quad-store.ts";
 import { ExpressionEvaluator } from "@/evaluator/expression-evaluator.ts";
 import type { ExpressionEvaluationContext } from "@/evaluator/expression-evaluator.ts";
 import {
@@ -123,8 +128,17 @@ export class SparqlEvaluator {
               kind: "construct",
               data: await this.evaluateConstruct(query),
             };
+          case "DESCRIBE":
+            return {
+              kind: "construct",
+              data: await this.evaluateDescribe(query),
+            };
           default:
-            throw new Error(`Unsupported query type: ${query.queryType}`);
+            throw new Error(
+              `Unsupported query type: ${
+                (query as { queryType?: string }).queryType
+              }`,
+            );
         }
       default:
         throw new Error(`Unsupported SPARQL operation type: ${query.type}`);
@@ -415,6 +429,89 @@ export class SparqlEvaluator {
       head: { link: null },
       boolean: bindings.length > 0,
     };
+  }
+
+  /**
+   * describeStoreFor returns the RDF/JS source to describe against: the
+   * shared store, or the materialized active dataset for a query with
+   * FROM / FROM NAMED clauses (mirrors bgpEvaluatorFor).
+   */
+  private async describeStoreFor(
+    from: { default: SparqlTerm[]; named: SparqlTerm[] } | undefined,
+  ): Promise<rdfjs.Source<rdfjs.Quad>> {
+    if (
+      from === undefined ||
+      (from.default.length === 0 && from.named.length === 0)
+    ) {
+      return this.store;
+    }
+    return await buildDatasetStore(
+      this.store,
+      from.default.map((term) => sparqlTermToRdfTerm(term)),
+      from.named.map((term) => sparqlTermToRdfTerm(term)),
+    );
+  }
+
+  /**
+   * evaluateDescribe implements DESCRIBE (SPARQL 1.1 §16.4). The described
+   * resources are the explicit IRIs from the DESCRIBE list plus, per
+   * solution, the IRI/blank-node bindings of the listed variables — or of
+   * every variable for DESCRIBE * — from the optional WHERE clause.
+   * Literals are not describable. Each resource's description is its
+   * outgoing arcs, the shape the Comunica parity oracle produces (the spec
+   * leaves the description shape to the implementation); the result is an
+   * RDF graph, so duplicates collapse.
+   */
+  private async evaluateDescribe(
+    query: DescribeQuery,
+  ): Promise<SparqlConstructResults> {
+    const bindings = query.where?.length
+      ? await (await this.bgpEvaluatorFor(query.from)).evaluateBgp(query.where)
+      : [];
+
+    const resources = new Set<rdfjs.Term>();
+    const collect = (term: rdfjs.Term | undefined): void => {
+      if (
+        term !== undefined &&
+        (term.termType === "NamedNode" || term.termType === "BlankNode")
+      ) {
+        resources.add(term);
+      }
+    };
+    for (const variable of query.variables) {
+      const termType = (variable as { termType?: string }).termType;
+      if (termType === "NamedNode") {
+        // DESCRIBE <iri> — the WHERE clause does not add resources.
+        resources.add(variable as unknown as rdfjs.Term);
+      } else if (termType === "Variable") {
+        const name = (variable as { value: string }).value;
+        for (const binding of bindings) {
+          collect(binding[name]);
+        }
+      } else if (termType === "Wildcard") {
+        for (const binding of bindings) {
+          for (const name of Object.keys(binding)) {
+            collect(binding[name]);
+          }
+        }
+      }
+    }
+
+    const source = await this.describeStoreFor(query.from);
+    const quads: rdfjs.Quad[] = [];
+    for (const resource of resources) {
+      quads.push(...(await matchQuads(source, resource, null, null)));
+    }
+    const seen = new Set<string>();
+    const graph: rdfjs.Quad[] = [];
+    for (const quad of quads) {
+      const key = termKey(quad);
+      if (!seen.has(key)) {
+        seen.add(key);
+        graph.push(quad);
+      }
+    }
+    return { quads: graph };
   }
 
   private async evaluateConstruct(

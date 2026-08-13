@@ -23,7 +23,6 @@
  */
 import jison from "npm:jison@0.4.18";
 import { parse as parseGrammar } from "npm:ebnf-parser@0.1.10";
-import { fileURLToPath } from "node:url";
 
 const GRAMMAR_PATH = new URL("./sparql.jison", import.meta.url);
 const OUTPUT_PATH = new URL("./parser.ts", import.meta.url);
@@ -108,12 +107,14 @@ export function generateParserSource(rawGrammar: string): string {
  * fmt-stable and regeneration reproduces it byte-for-byte.
  */
 async function formatWithDenoFmt(source: string): Promise<string> {
-  // fileURLToPath yields a platform-native path (URL.pathname is a POSIX-style
-  // `/C:/...` string that the Windows CLI mangles), so the `deno fmt`
-  // subprocess sees a valid target.
-  const tempPath = fileURLToPath(
-    new URL("./.parser-fmt.tmp.ts", import.meta.url),
-  );
+  // The temp file lives in the OS temp dir (not the repo, where a crashed run
+  // would leak it into fmt:check and git status), and fileURLToPath is unused:
+  // Deno.makeTempFile already returns a platform-native path (URL.pathname is
+  // a POSIX-style `/C:/...` string that the Windows CLI mangles).
+  const tempPath = await Deno.makeTempFile({
+    prefix: "parser-fmt-",
+    suffix: ".ts",
+  });
   await Deno.writeTextFile(tempPath, source);
   try {
     const cmd = new Deno.Command(Deno.execPath(), {

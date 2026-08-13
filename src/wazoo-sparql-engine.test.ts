@@ -880,6 +880,116 @@ Deno.test("WazooSparqlEngine - ASK query evaluation", async () => {
   }
 });
 
+Deno.test("WazooSparqlEngine - DESCRIBE IRI returns outgoing arcs", async () => {
+  const store = new Store();
+  store.addQuad(
+    quad(
+      namedNode("http://example.org/alice"),
+      namedNode("http://example.org/name"),
+      literal("Ethan"),
+    ),
+  );
+  store.addQuad(
+    quad(
+      namedNode("http://example.org/bob"),
+      namedNode("http://example.org/knows"),
+      namedNode("http://example.org/alice"),
+    ),
+  );
+  const engine = new WazooSparqlEngine({ store });
+  const result = await engine.execute({
+    query: "DESCRIBE <http://example.org/alice>",
+  });
+  assertEquals(result.kind, "construct");
+  if (result.kind === "construct") {
+    // Outgoing arcs only: bob knows alice is incoming and must be excluded.
+    assertEquals(result.data.quads.length, 1);
+    assertEquals(
+      result.data.quads[0].predicate.value,
+      "http://example.org/name",
+    );
+  }
+});
+
+Deno.test("WazooSparqlEngine - DESCRIBE variable describes bindings, skips literals", async () => {
+  const store = new Store();
+  store.addQuad(
+    quad(
+      namedNode("http://example.org/a"),
+      namedNode("http://example.org/p"),
+      literal("hello"),
+    ),
+  );
+  store.addQuad(
+    quad(
+      namedNode("http://example.org/a"),
+      namedNode("http://example.org/q"),
+      namedNode("http://example.org/b"),
+    ),
+  );
+  store.addQuad(
+    quad(
+      namedNode("http://example.org/b"),
+      namedNode("http://example.org/r"),
+      namedNode("http://example.org/c"),
+    ),
+  );
+  const engine = new WazooSparqlEngine({ store });
+  const result = await engine.execute({
+    query: "DESCRIBE ?o WHERE { <http://example.org/a> ?p ?o }",
+  });
+  assertEquals(result.kind, "construct");
+  if (result.kind === "construct") {
+    // ?o binds the literal (not describable) and :b; only :b is described.
+    const contents = result.data.quads.map((q) =>
+      `${q.subject.value} ${q.predicate.value} ${q.object.value}`
+    );
+    assertEquals(contents, [
+      "http://example.org/b http://example.org/r http://example.org/c",
+    ]);
+  }
+});
+Deno.test("WazooSparqlEngine - DESCRIBE star describes the bound variables only", async () => {
+  const store = new Store();
+  store.addQuad(
+    quad(
+      namedNode("http://example.org/a"),
+      namedNode("http://example.org/p"),
+      namedNode("http://example.org/b"),
+    ),
+  );
+  store.addQuad(
+    quad(
+      namedNode("http://example.org/b"),
+      namedNode("http://example.org/p"),
+      namedNode("http://example.org/c"),
+    ),
+  );
+  store.addQuad(
+    quad(
+      namedNode("http://example.org/a"),
+      namedNode("http://example.org/p"),
+      namedNode("http://example.org/c"),
+    ),
+  );
+  const engine = new WazooSparqlEngine({ store });
+  const result = await engine.execute({
+    query: "PREFIX : <http://example.org/> DESCRIBE * WHERE { :a :p ?o }",
+  });
+  assertEquals(result.kind, "construct");
+  if (result.kind === "construct") {
+    // DESCRIBE * describes the variables bound in the WHERE (?o → :b, :c),
+    // not the constant :a; only :b has an outgoing arc. The result is a
+    // deduped graph set.
+    const contents = result.data.quads.map((q) =>
+      `${q.subject.value} ${q.predicate.value} ${q.object.value}`
+    );
+    assertEquals(contents, [
+      "http://example.org/b http://example.org/p http://example.org/c",
+    ]);
+  }
+});
+
 Deno.test("WazooSparqlEngine - CONSTRUCT query evaluation", async () => {
   const store = new Store();
   store.addQuad(
