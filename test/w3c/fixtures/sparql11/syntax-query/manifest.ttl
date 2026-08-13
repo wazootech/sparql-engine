@@ -1,0 +1,21 @@
+@prefix mf: <http://www.w3.org/2001/sw/DataAccess/tests/test-manifest#> .
+@prefix qt: <http://www.w3.org/2001/sw/DataAccess/tests/test-query#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix dawgt: <http://www.w3.org/2001/sw/DataAccess/tests/test-dawg#> .
+
+<> a mf:Manifest ;
+  rdfs:label "Syntax Query Negative" ;
+  mf:entries (
+    <#syn-bad-01>
+    <#syn-bad-02>
+  ) .
+
+<#syn-bad-01> a mf:NegativeSyntaxTest11 ;
+  mf:name "Malformed query - missing object" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <syn-bad-01.rq> .
+
+<#syn-bad-02> a mf:NegativeSyntaxTest11 ;
+  mf:name "Malformed query - unclosed block" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <syn-bad-02.rq> .

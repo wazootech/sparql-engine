@@ -1,0 +1,4 @@
+PREFIX ex: <http://example.org/>
+SELECT DISTINCT ?o WHERE {
+  ?s ex:p ?o
+}

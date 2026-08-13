@@ -1,0 +1,18 @@
+@prefix mf: <http://www.w3.org/2001/sw/DataAccess/tests/test-manifest#> .
+@prefix qt: <http://www.w3.org/2001/sw/DataAccess/tests/test-query#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix dawgt: <http://www.w3.org/2001/sw/DataAccess/tests/test-dawg#> .
+
+<> a mf:Manifest ;
+  rdfs:label "Optional" ;
+  mf:entries (
+    <#opt-01>
+  ) .
+
+<#opt-01> a mf:QueryEvaluationTest ;
+  mf:name "OPTIONAL pattern match" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action [
+    qt:query <q-opt-1.rq> ;
+    qt:data <data-1.ttl>
+  ] .

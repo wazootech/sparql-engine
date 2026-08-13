@@ -18,13 +18,20 @@ const CATEGORIES = [
   "bindings",
   "cast",
   "construct",
+  "distinct",
   "exists",
   "functions",
   "grouping",
   "negation",
+  "optional",
+  "order",
   "project-expression",
   "property-path",
+  "reduced",
   "subquery",
+  "syntax-query",
+  "union",
+  "values",
   // Update evaluation core.
   "add",
   "basic-update",
@@ -36,6 +43,7 @@ const CATEGORIES = [
   "delete-where",
   "drop",
   "move",
+  "syntax-update",
   "update-silent",
 ];
 
