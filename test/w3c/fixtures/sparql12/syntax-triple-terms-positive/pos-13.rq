@@ -1,0 +1,1 @@
+SELECT (TRIPLE(:s, :p, :o) AS ?t) WHERE {} # test 13

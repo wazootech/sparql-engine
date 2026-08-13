@@ -662,6 +662,47 @@ export class ExpressionEvaluator {
           val.termType === "Literal" && numericValue(val) !== null,
         );
       }
+      case "haslang": {
+        const val = this.evaluateWith(arg(0), binding, aggregates, context);
+        if (val === undefined || val.termType !== "Literal") {
+          return booleanLiteral(false);
+        }
+        if (operation.args.length > 1) {
+          const lang = this.evaluateWith(arg(1), binding, aggregates, context);
+          if (lang === undefined || lang.termType !== "Literal") {
+            return booleanLiteral(false);
+          }
+          return booleanLiteral(
+            val.language.toLowerCase() === lang.value.toLowerCase(),
+          );
+        }
+        return booleanLiteral(val.language !== "");
+      }
+      case "langdir": {
+        const val = this.evaluateWith(arg(0), binding, aggregates, context);
+        if (val === undefined || val.termType !== "Literal") {
+          return undefined;
+        }
+        return DataFactory.literal(val.language ? "ltr" : "");
+      }
+      case "strlangdir": {
+        const val = this.evaluateWith(arg(0), binding, aggregates, context);
+        const lang = this.evaluateWith(arg(1), binding, aggregates, context);
+        if (
+          val === undefined || val.termType !== "Literal" ||
+          lang === undefined || lang.termType !== "Literal"
+        ) {
+          return undefined;
+        }
+        return DataFactory.literal(val.value, lang.value);
+      }
+      case "haslangdir": {
+        const val = this.evaluateWith(arg(0), binding, aggregates, context);
+        if (val === undefined || val.termType !== "Literal") {
+          return booleanLiteral(false);
+        }
+        return booleanLiteral(Boolean(val.language));
+      }
       default:
         throw new Error(
           `Unsupported SPARQL expression operator: ${operation.operator}`,

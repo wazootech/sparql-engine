@@ -1,0 +1,1 @@
+SELECT (hasLangDir("hello", "en", "ltr") AS ?has) WHERE {}

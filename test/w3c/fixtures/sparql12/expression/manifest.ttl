@@ -1,0 +1,37 @@
+@prefix mf: <http://www.w3.org/2001/sw/DataAccess/tests/test-manifest#> .
+@prefix dawgt: <http://www.w3.org/2001/sw/DataAccess/tests/test-dawg#> .
+
+<> a mf:Manifest ;
+  mf:entries (
+    <#expr-01>
+    <#expr-02>
+    <#expr-03>
+    <#expr-04>
+    <#expr-05>
+  ) .
+
+<#expr-01> a mf:PositiveSyntaxTest11 ;
+  mf:name "Expression expr-01" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <expr-01.rq> .
+
+<#expr-02> a mf:PositiveSyntaxTest11 ;
+  mf:name "Expression expr-02" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <expr-02.rq> .
+
+<#expr-03> a mf:PositiveSyntaxTest11 ;
+  mf:name "Expression expr-03" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <expr-03.rq> .
+
+<#expr-04> a mf:PositiveSyntaxTest11 ;
+  mf:name "Expression expr-04" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <expr-04.rq> .
+
+<#expr-05> a mf:PositiveSyntaxTest11 ;
+  mf:name "Expression expr-05" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <expr-05.rq> .
+

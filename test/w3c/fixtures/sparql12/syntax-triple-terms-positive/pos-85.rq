@@ -1,0 +1,1 @@
+CONSTRUCT { :s :p :o {| :p2 :o2 |} } WHERE { :s :p :o } # test 85

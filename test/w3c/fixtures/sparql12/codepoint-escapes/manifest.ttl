@@ -1,0 +1,91 @@
+@prefix mf: <http://www.w3.org/2001/sw/DataAccess/tests/test-manifest#> .
+@prefix dawgt: <http://www.w3.org/2001/sw/DataAccess/tests/test-dawg#> .
+
+<> a mf:Manifest ;
+  mf:entries (
+    <#esc-01>
+    <#esc-02>
+    <#esc-03>
+    <#esc-04>
+    <#esc-05>
+    <#esc-06>
+    <#esc-07>
+    <#esc-08>
+    <#esc-09>
+    <#esc-10>
+    <#esc-11>
+    <#esc-12>
+    <#esc-13>
+    <#esc-14>
+  ) .
+
+<#esc-01> a mf:PositiveSyntaxTest11 ;
+  mf:name "Codepoint escape esc-01" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <esc-01.rq> .
+
+<#esc-02> a mf:PositiveSyntaxTest11 ;
+  mf:name "Codepoint escape esc-02" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <esc-02.rq> .
+
+<#esc-03> a mf:PositiveSyntaxTest11 ;
+  mf:name "Codepoint escape esc-03" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <esc-03.rq> .
+
+<#esc-04> a mf:PositiveSyntaxTest11 ;
+  mf:name "Codepoint escape esc-04" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <esc-04.rq> .
+
+<#esc-05> a mf:PositiveSyntaxTest11 ;
+  mf:name "Codepoint escape esc-05" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <esc-05.rq> .
+
+<#esc-06> a mf:PositiveSyntaxTest11 ;
+  mf:name "Codepoint escape esc-06" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <esc-06.rq> .
+
+<#esc-07> a mf:PositiveSyntaxTest11 ;
+  mf:name "Codepoint escape esc-07" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <esc-07.rq> .
+
+<#esc-08> a mf:PositiveSyntaxTest11 ;
+  mf:name "Codepoint escape esc-08" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <esc-08.rq> .
+
+<#esc-09> a mf:PositiveSyntaxTest11 ;
+  mf:name "Codepoint escape esc-09" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <esc-09.rq> .
+
+<#esc-10> a mf:PositiveSyntaxTest11 ;
+  mf:name "Codepoint escape esc-10" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <esc-10.rq> .
+
+<#esc-11> a mf:PositiveSyntaxTest11 ;
+  mf:name "Codepoint escape esc-11" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <esc-11.rq> .
+
+<#esc-12> a mf:PositiveSyntaxTest11 ;
+  mf:name "Codepoint escape esc-12" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <esc-12.rq> .
+
+<#esc-13> a mf:PositiveSyntaxTest11 ;
+  mf:name "Codepoint escape esc-13" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <esc-13.rq> .
+
+<#esc-14> a mf:PositiveSyntaxTest11 ;
+  mf:name "Codepoint escape esc-14" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <esc-14.rq> .
+

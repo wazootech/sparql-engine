@@ -1,0 +1,577 @@
+@prefix mf: <http://www.w3.org/2001/sw/DataAccess/tests/test-manifest#> .
+@prefix dawgt: <http://www.w3.org/2001/sw/DataAccess/tests/test-dawg#> .
+
+<> a mf:Manifest ;
+  mf:entries (
+    <#pos-01>
+    <#pos-02>
+    <#pos-03>
+    <#pos-04>
+    <#pos-05>
+    <#pos-06>
+    <#pos-07>
+    <#pos-08>
+    <#pos-09>
+    <#pos-10>
+    <#pos-11>
+    <#pos-12>
+    <#pos-13>
+    <#pos-14>
+    <#pos-15>
+    <#pos-16>
+    <#pos-17>
+    <#pos-18>
+    <#pos-19>
+    <#pos-20>
+    <#pos-21>
+    <#pos-22>
+    <#pos-23>
+    <#pos-24>
+    <#pos-25>
+    <#pos-26>
+    <#pos-27>
+    <#pos-28>
+    <#pos-29>
+    <#pos-30>
+    <#pos-31>
+    <#pos-32>
+    <#pos-33>
+    <#pos-34>
+    <#pos-35>
+    <#pos-36>
+    <#pos-37>
+    <#pos-38>
+    <#pos-39>
+    <#pos-40>
+    <#pos-41>
+    <#pos-42>
+    <#pos-43>
+    <#pos-44>
+    <#pos-45>
+    <#pos-46>
+    <#pos-47>
+    <#pos-48>
+    <#pos-49>
+    <#pos-50>
+    <#pos-51>
+    <#pos-52>
+    <#pos-53>
+    <#pos-54>
+    <#pos-55>
+    <#pos-56>
+    <#pos-57>
+    <#pos-58>
+    <#pos-59>
+    <#pos-60>
+    <#pos-61>
+    <#pos-62>
+    <#pos-63>
+    <#pos-64>
+    <#pos-65>
+    <#pos-66>
+    <#pos-67>
+    <#pos-68>
+    <#pos-69>
+    <#pos-70>
+    <#pos-71>
+    <#pos-72>
+    <#pos-73>
+    <#pos-74>
+    <#pos-75>
+    <#pos-76>
+    <#pos-77>
+    <#pos-78>
+    <#pos-79>
+    <#pos-80>
+    <#pos-81>
+    <#pos-82>
+    <#pos-83>
+    <#pos-84>
+    <#pos-85>
+    <#pos-86>
+    <#pos-87>
+    <#pos-88>
+    <#pos-89>
+    <#pos-90>
+    <#pos-91>
+    <#pos-92>
+    <#pos-93>
+    <#pos-94>
+    <#pos-95>
+  ) .
+
+<#pos-01> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-01" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-01.rq> .
+
+<#pos-02> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-02" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-02.rq> .
+
+<#pos-03> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-03" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-03.rq> .
+
+<#pos-04> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-04" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-04.rq> .
+
+<#pos-05> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-05" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-05.rq> .
+
+<#pos-06> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-06" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-06.rq> .
+
+<#pos-07> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-07" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-07.rq> .
+
+<#pos-08> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-08" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-08.rq> .
+
+<#pos-09> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-09" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-09.rq> .
+
+<#pos-10> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-10" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-10.rq> .
+
+<#pos-11> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-11" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-11.rq> .
+
+<#pos-12> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-12" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-12.rq> .
+
+<#pos-13> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-13" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-13.rq> .
+
+<#pos-14> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-14" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-14.rq> .
+
+<#pos-15> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-15" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-15.rq> .
+
+<#pos-16> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-16" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-16.rq> .
+
+<#pos-17> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-17" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-17.rq> .
+
+<#pos-18> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-18" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-18.rq> .
+
+<#pos-19> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-19" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-19.rq> .
+
+<#pos-20> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-20" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-20.rq> .
+
+<#pos-21> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-21" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-21.rq> .
+
+<#pos-22> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-22" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-22.rq> .
+
+<#pos-23> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-23" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-23.rq> .
+
+<#pos-24> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-24" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-24.rq> .
+
+<#pos-25> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-25" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-25.rq> .
+
+<#pos-26> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-26" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-26.rq> .
+
+<#pos-27> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-27" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-27.rq> .
+
+<#pos-28> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-28" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-28.rq> .
+
+<#pos-29> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-29" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-29.rq> .
+
+<#pos-30> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-30" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-30.rq> .
+
+<#pos-31> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-31" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-31.rq> .
+
+<#pos-32> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-32" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-32.rq> .
+
+<#pos-33> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-33" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-33.rq> .
+
+<#pos-34> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-34" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-34.rq> .
+
+<#pos-35> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-35" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-35.rq> .
+
+<#pos-36> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-36" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-36.rq> .
+
+<#pos-37> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-37" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-37.rq> .
+
+<#pos-38> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-38" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-38.rq> .
+
+<#pos-39> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-39" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-39.rq> .
+
+<#pos-40> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-40" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-40.rq> .
+
+<#pos-41> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-41" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-41.rq> .
+
+<#pos-42> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-42" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-42.rq> .
+
+<#pos-43> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-43" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-43.rq> .
+
+<#pos-44> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-44" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-44.rq> .
+
+<#pos-45> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-45" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-45.rq> .
+
+<#pos-46> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-46" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-46.rq> .
+
+<#pos-47> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-47" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-47.rq> .
+
+<#pos-48> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-48" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-48.rq> .
+
+<#pos-49> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-49" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-49.rq> .
+
+<#pos-50> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-50" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-50.rq> .
+
+<#pos-51> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-51" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-51.rq> .
+
+<#pos-52> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-52" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-52.rq> .
+
+<#pos-53> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-53" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-53.rq> .
+
+<#pos-54> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-54" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-54.rq> .
+
+<#pos-55> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-55" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-55.rq> .
+
+<#pos-56> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-56" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-56.rq> .
+
+<#pos-57> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-57" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-57.rq> .
+
+<#pos-58> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-58" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-58.rq> .
+
+<#pos-59> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-59" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-59.rq> .
+
+<#pos-60> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-60" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-60.rq> .
+
+<#pos-61> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-61" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-61.rq> .
+
+<#pos-62> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-62" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-62.rq> .
+
+<#pos-63> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-63" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-63.rq> .
+
+<#pos-64> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-64" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-64.rq> .
+
+<#pos-65> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-65" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-65.rq> .
+
+<#pos-66> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-66" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-66.rq> .
+
+<#pos-67> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-67" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-67.rq> .
+
+<#pos-68> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-68" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-68.rq> .
+
+<#pos-69> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-69" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-69.rq> .
+
+<#pos-70> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-70" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-70.rq> .
+
+<#pos-71> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-71" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-71.rq> .
+
+<#pos-72> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-72" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-72.rq> .
+
+<#pos-73> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-73" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-73.rq> .
+
+<#pos-74> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-74" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-74.rq> .
+
+<#pos-75> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-75" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-75.rq> .
+
+<#pos-76> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-76" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-76.rq> .
+
+<#pos-77> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-77" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-77.rq> .
+
+<#pos-78> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-78" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-78.rq> .
+
+<#pos-79> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-79" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-79.rq> .
+
+<#pos-80> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-80" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-80.rq> .
+
+<#pos-81> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-81" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-81.rq> .
+
+<#pos-82> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-82" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-82.rq> .
+
+<#pos-83> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-83" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-83.rq> .
+
+<#pos-84> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-84" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-84.rq> .
+
+<#pos-85> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-85" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-85.rq> .
+
+<#pos-86> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-86" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-86.rq> .
+
+<#pos-87> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-87" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-87.rq> .
+
+<#pos-88> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-88" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-88.rq> .
+
+<#pos-89> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-89" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-89.rq> .
+
+<#pos-90> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-90" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-90.rq> .
+
+<#pos-91> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-91" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-91.rq> .
+
+<#pos-92> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-92" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-92.rq> .
+
+<#pos-93> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-93" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-93.rq> .
+
+<#pos-94> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-94" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-94.rq> .
+
+<#pos-95> a mf:PositiveSyntaxTest11 ;
+  mf:name "Positive syntax pos-95" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <pos-95.rq> .
+

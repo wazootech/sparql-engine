@@ -1,0 +1,385 @@
+@prefix mf: <http://www.w3.org/2001/sw/DataAccess/tests/test-manifest#> .
+@prefix dawgt: <http://www.w3.org/2001/sw/DataAccess/tests/test-dawg#> .
+
+<> a mf:Manifest ;
+  mf:entries (
+    <#neg-01>
+    <#neg-02>
+    <#neg-03>
+    <#neg-04>
+    <#neg-05>
+    <#neg-06>
+    <#neg-07>
+    <#neg-08>
+    <#neg-09>
+    <#neg-10>
+    <#neg-11>
+    <#neg-12>
+    <#neg-13>
+    <#neg-14>
+    <#neg-15>
+    <#neg-16>
+    <#neg-17>
+    <#neg-18>
+    <#neg-19>
+    <#neg-20>
+    <#neg-21>
+    <#neg-22>
+    <#neg-23>
+    <#neg-24>
+    <#neg-25>
+    <#neg-26>
+    <#neg-27>
+    <#neg-28>
+    <#neg-29>
+    <#neg-30>
+    <#neg-31>
+    <#neg-32>
+    <#neg-33>
+    <#neg-34>
+    <#neg-35>
+    <#neg-36>
+    <#neg-37>
+    <#neg-38>
+    <#neg-39>
+    <#neg-40>
+    <#neg-41>
+    <#neg-42>
+    <#neg-43>
+    <#neg-44>
+    <#neg-45>
+    <#neg-46>
+    <#neg-47>
+    <#neg-48>
+    <#neg-49>
+    <#neg-50>
+    <#neg-51>
+    <#neg-52>
+    <#neg-53>
+    <#neg-54>
+    <#neg-55>
+    <#neg-56>
+    <#neg-57>
+    <#neg-58>
+    <#neg-59>
+    <#neg-60>
+    <#neg-61>
+    <#neg-62>
+    <#neg-63>
+  ) .
+
+<#neg-01> a mf:NegativeSyntaxTest11 ;
+  mf:name "Negative syntax neg-01" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <neg-01.rq> .
+
+<#neg-02> a mf:NegativeSyntaxTest11 ;
+  mf:name "Negative syntax neg-02" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <neg-02.rq> .
+
+<#neg-03> a mf:NegativeSyntaxTest11 ;
+  mf:name "Negative syntax neg-03" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <neg-03.rq> .
+
+<#neg-04> a mf:NegativeSyntaxTest11 ;
+  mf:name "Negative syntax neg-04" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <neg-04.rq> .
+
+<#neg-05> a mf:NegativeSyntaxTest11 ;
+  mf:name "Negative syntax neg-05" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <neg-05.rq> .
+
+<#neg-06> a mf:NegativeSyntaxTest11 ;
+  mf:name "Negative syntax neg-06" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <neg-06.rq> .
+
+<#neg-07> a mf:NegativeSyntaxTest11 ;
+  mf:name "Negative syntax neg-07" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <neg-07.rq> .
+
+<#neg-08> a mf:NegativeSyntaxTest11 ;
+  mf:name "Negative syntax neg-08" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <neg-08.rq> .
+
+<#neg-09> a mf:NegativeSyntaxTest11 ;
+  mf:name "Negative syntax neg-09" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <neg-09.rq> .
+
+<#neg-10> a mf:NegativeSyntaxTest11 ;
+  mf:name "Negative syntax neg-10" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <neg-10.rq> .
+
+<#neg-11> a mf:NegativeSyntaxTest11 ;
+  mf:name "Negative syntax neg-11" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <neg-11.rq> .
+
+<#neg-12> a mf:NegativeSyntaxTest11 ;
+  mf:name "Negative syntax neg-12" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <neg-12.rq> .
+
+<#neg-13> a mf:NegativeSyntaxTest11 ;
+  mf:name "Negative syntax neg-13" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <neg-13.rq> .
+
+<#neg-14> a mf:NegativeSyntaxTest11 ;
+  mf:name "Negative syntax neg-14" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <neg-14.rq> .
+
+<#neg-15> a mf:NegativeSyntaxTest11 ;
+  mf:name "Negative syntax neg-15" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <neg-15.rq> .
+
+<#neg-16> a mf:NegativeSyntaxTest11 ;
+  mf:name "Negative syntax neg-16" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <neg-16.rq> .
+
+<#neg-17> a mf:NegativeSyntaxTest11 ;
+  mf:name "Negative syntax neg-17" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <neg-17.rq> .
+
+<#neg-18> a mf:NegativeSyntaxTest11 ;
+  mf:name "Negative syntax neg-18" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <neg-18.rq> .
+
+<#neg-19> a mf:NegativeSyntaxTest11 ;
+  mf:name "Negative syntax neg-19" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <neg-19.rq> .
+
+<#neg-20> a mf:NegativeSyntaxTest11 ;
+  mf:name "Negative syntax neg-20" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <neg-20.rq> .
+
+<#neg-21> a mf:NegativeSyntaxTest11 ;
+  mf:name "Negative syntax neg-21" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <neg-21.rq> .
+
+<#neg-22> a mf:NegativeSyntaxTest11 ;
+  mf:name "Negative syntax neg-22" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <neg-22.rq> .
+
+<#neg-23> a mf:NegativeSyntaxTest11 ;
+  mf:name "Negative syntax neg-23" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <neg-23.rq> .
+
+<#neg-24> a mf:NegativeSyntaxTest11 ;
+  mf:name "Negative syntax neg-24" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <neg-24.rq> .
+
+<#neg-25> a mf:NegativeSyntaxTest11 ;
+  mf:name "Negative syntax neg-25" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <neg-25.rq> .
+
+<#neg-26> a mf:NegativeSyntaxTest11 ;
+  mf:name "Negative syntax neg-26" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <neg-26.rq> .
+
+<#neg-27> a mf:NegativeSyntaxTest11 ;
+  mf:name "Negative syntax neg-27" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <neg-27.rq> .
+
+<#neg-28> a mf:NegativeSyntaxTest11 ;
+  mf:name "Negative syntax neg-28" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <neg-28.rq> .
+
+<#neg-29> a mf:NegativeSyntaxTest11 ;
+  mf:name "Negative syntax neg-29" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <neg-29.rq> .
+
+<#neg-30> a mf:NegativeSyntaxTest11 ;
+  mf:name "Negative syntax neg-30" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <neg-30.rq> .
+
+<#neg-31> a mf:NegativeSyntaxTest11 ;
+  mf:name "Negative syntax neg-31" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <neg-31.rq> .
+
+<#neg-32> a mf:NegativeSyntaxTest11 ;
+  mf:name "Negative syntax neg-32" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <neg-32.rq> .
+
+<#neg-33> a mf:NegativeSyntaxTest11 ;
+  mf:name "Negative syntax neg-33" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <neg-33.rq> .
+
+<#neg-34> a mf:NegativeSyntaxTest11 ;
+  mf:name "Negative syntax neg-34" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <neg-34.rq> .
+
+<#neg-35> a mf:NegativeSyntaxTest11 ;
+  mf:name "Negative syntax neg-35" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <neg-35.rq> .
+
+<#neg-36> a mf:NegativeSyntaxTest11 ;
+  mf:name "Negative syntax neg-36" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <neg-36.rq> .
+
+<#neg-37> a mf:NegativeSyntaxTest11 ;
+  mf:name "Negative syntax neg-37" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <neg-37.rq> .
+
+<#neg-38> a mf:NegativeSyntaxTest11 ;
+  mf:name "Negative syntax neg-38" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <neg-38.rq> .
+
+<#neg-39> a mf:NegativeSyntaxTest11 ;
+  mf:name "Negative syntax neg-39" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <neg-39.rq> .
+
+<#neg-40> a mf:NegativeSyntaxTest11 ;
+  mf:name "Negative syntax neg-40" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <neg-40.rq> .
+
+<#neg-41> a mf:NegativeSyntaxTest11 ;
+  mf:name "Negative syntax neg-41" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <neg-41.rq> .
+
+<#neg-42> a mf:NegativeSyntaxTest11 ;
+  mf:name "Negative syntax neg-42" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <neg-42.rq> .
+
+<#neg-43> a mf:NegativeSyntaxTest11 ;
+  mf:name "Negative syntax neg-43" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <neg-43.rq> .
+
+<#neg-44> a mf:NegativeSyntaxTest11 ;
+  mf:name "Negative syntax neg-44" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <neg-44.rq> .
+
+<#neg-45> a mf:NegativeSyntaxTest11 ;
+  mf:name "Negative syntax neg-45" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <neg-45.rq> .
+
+<#neg-46> a mf:NegativeSyntaxTest11 ;
+  mf:name "Negative syntax neg-46" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <neg-46.rq> .
+
+<#neg-47> a mf:NegativeSyntaxTest11 ;
+  mf:name "Negative syntax neg-47" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <neg-47.rq> .
+
+<#neg-48> a mf:NegativeSyntaxTest11 ;
+  mf:name "Negative syntax neg-48" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <neg-48.rq> .
+
+<#neg-49> a mf:NegativeSyntaxTest11 ;
+  mf:name "Negative syntax neg-49" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <neg-49.rq> .
+
+<#neg-50> a mf:NegativeSyntaxTest11 ;
+  mf:name "Negative syntax neg-50" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <neg-50.rq> .
+
+<#neg-51> a mf:NegativeSyntaxTest11 ;
+  mf:name "Negative syntax neg-51" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <neg-51.rq> .
+
+<#neg-52> a mf:NegativeSyntaxTest11 ;
+  mf:name "Negative syntax neg-52" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <neg-52.rq> .
+
+<#neg-53> a mf:NegativeSyntaxTest11 ;
+  mf:name "Negative syntax neg-53" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <neg-53.rq> .
+
+<#neg-54> a mf:NegativeSyntaxTest11 ;
+  mf:name "Negative syntax neg-54" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <neg-54.rq> .
+
+<#neg-55> a mf:NegativeSyntaxTest11 ;
+  mf:name "Negative syntax neg-55" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <neg-55.rq> .
+
+<#neg-56> a mf:NegativeSyntaxTest11 ;
+  mf:name "Negative syntax neg-56" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <neg-56.rq> .
+
+<#neg-57> a mf:NegativeSyntaxTest11 ;
+  mf:name "Negative syntax neg-57" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <neg-57.rq> .
+
+<#neg-58> a mf:NegativeSyntaxTest11 ;
+  mf:name "Negative syntax neg-58" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <neg-58.rq> .
+
+<#neg-59> a mf:NegativeSyntaxTest11 ;
+  mf:name "Negative syntax neg-59" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <neg-59.rq> .
+
+<#neg-60> a mf:NegativeSyntaxTest11 ;
+  mf:name "Negative syntax neg-60" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <neg-60.rq> .
+
+<#neg-61> a mf:NegativeSyntaxTest11 ;
+  mf:name "Negative syntax neg-61" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <neg-61.rq> .
+
+<#neg-62> a mf:NegativeSyntaxTest11 ;
+  mf:name "Negative syntax neg-62" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <neg-62.rq> .
+
+<#neg-63> a mf:NegativeSyntaxTest11 ;
+  mf:name "Negative syntax neg-63" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <neg-63.rq> .
+

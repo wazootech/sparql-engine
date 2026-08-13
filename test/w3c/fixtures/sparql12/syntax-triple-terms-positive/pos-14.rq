@@ -1,0 +1,1 @@
+SELECT * WHERE { FILTER(isTRIPLE(<<( :s :p :o )>>)) } # test 14

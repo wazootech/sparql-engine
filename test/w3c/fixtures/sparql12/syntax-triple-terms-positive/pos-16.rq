@@ -1,0 +1,1 @@
+SELECT * WHERE { FILTER(PREDICATE(<<( :s :p :o )>>) = :p) } # test 16

@@ -1,0 +1,1 @@
+SELECT * WHERE { <http://example.org/s_esc_11> ?p ?o }

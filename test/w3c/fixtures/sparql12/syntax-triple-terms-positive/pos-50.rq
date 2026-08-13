@@ -1,0 +1,1 @@
+SELECT * WHERE { :s :p <<( :s2 :p2 <<( :s3 :p3 :o3 )>> )>> } # test 50

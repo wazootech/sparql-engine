@@ -1,0 +1,73 @@
+@prefix mf: <http://www.w3.org/2001/sw/DataAccess/tests/test-manifest#> .
+@prefix dawgt: <http://www.w3.org/2001/sw/DataAccess/tests/test-dawg#> .
+
+<> a mf:Manifest ;
+  mf:entries (
+    <#lang-01>
+    <#lang-02>
+    <#lang-03>
+    <#lang-04>
+    <#lang-05>
+    <#lang-06>
+    <#lang-07>
+    <#lang-08>
+    <#lang-09>
+    <#lang-10>
+    <#lang-11>
+  ) .
+
+<#lang-01> a mf:PositiveSyntaxTest11 ;
+  mf:name "Lang basedir lang-01" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <lang-01.rq> .
+
+<#lang-02> a mf:PositiveSyntaxTest11 ;
+  mf:name "Lang basedir lang-02" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <lang-02.rq> .
+
+<#lang-03> a mf:PositiveSyntaxTest11 ;
+  mf:name "Lang basedir lang-03" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <lang-03.rq> .
+
+<#lang-04> a mf:PositiveSyntaxTest11 ;
+  mf:name "Lang basedir lang-04" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <lang-04.rq> .
+
+<#lang-05> a mf:PositiveSyntaxTest11 ;
+  mf:name "Lang basedir lang-05" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <lang-05.rq> .
+
+<#lang-06> a mf:PositiveSyntaxTest11 ;
+  mf:name "Lang basedir lang-06" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <lang-06.rq> .
+
+<#lang-07> a mf:PositiveSyntaxTest11 ;
+  mf:name "Lang basedir lang-07" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <lang-07.rq> .
+
+<#lang-08> a mf:PositiveSyntaxTest11 ;
+  mf:name "Lang basedir lang-08" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <lang-08.rq> .
+
+<#lang-09> a mf:PositiveSyntaxTest11 ;
+  mf:name "Lang basedir lang-09" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <lang-09.rq> .
+
+<#lang-10> a mf:PositiveSyntaxTest11 ;
+  mf:name "Lang basedir lang-10" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <lang-10.rq> .
+
+<#lang-11> a mf:PositiveSyntaxTest11 ;
+  mf:name "Lang basedir lang-11" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <lang-11.rq> .
+

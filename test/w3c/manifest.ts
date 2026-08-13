@@ -31,6 +31,8 @@ const TYPE_QUERY_EVAL = MF + "QueryEvaluationTest";
 const TYPE_UPDATE_EVAL = MF + "UpdateEvaluationTest";
 const TYPE_NEG_SYNTAX = MF + "NegativeSyntaxTest11";
 const TYPE_NEG_SYNTAX_LEGACY = MF + "NegativeSyntaxTest";
+const TYPE_POS_SYNTAX = MF + "PositiveSyntaxTest11";
+const TYPE_POS_SYNTAX_LEGACY = MF + "PositiveSyntaxTest";
 
 /**
  * W3cGraphData describes one named-graph data entry: the data file and the
@@ -148,10 +150,12 @@ function parseTestCase(
   const isUpdateEval = types.includes(TYPE_UPDATE_EVAL);
   const negativeSyntax = types.includes(TYPE_NEG_SYNTAX) ||
     types.includes(TYPE_NEG_SYNTAX_LEGACY);
+  const positiveSyntax = types.includes(TYPE_POS_SYNTAX) ||
+    types.includes(TYPE_POS_SYNTAX_LEGACY);
 
-  // NegativeSyntaxTest11 entries are query-rejection tests and are not typed
-  // as mf:QueryEvaluationTest — treat them as query-kind tests.
-  if (!isQueryEval && !isUpdateEval && !negativeSyntax) {
+  // NegativeSyntaxTest11 and PositiveSyntaxTest11 entries are query syntax tests;
+  // treat them as query-kind tests.
+  if (!isQueryEval && !isUpdateEval && !negativeSyntax && !positiveSyntax) {
     return null;
   }
 

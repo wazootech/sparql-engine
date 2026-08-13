@@ -1,0 +1,25 @@
+@prefix mf: <http://www.w3.org/2001/sw/DataAccess/tests/test-manifest#> .
+@prefix dawgt: <http://www.w3.org/2001/sw/DataAccess/tests/test-dawg#> .
+
+<> a mf:Manifest ;
+  mf:entries (
+    <#rdf11-01>
+    <#rdf11-02>
+    <#rdf11-03>
+  ) .
+
+<#rdf11-01> a mf:PositiveSyntaxTest11 ;
+  mf:name "RDF11 rdf11-01" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <rdf11-01.rq> .
+
+<#rdf11-02> a mf:PositiveSyntaxTest11 ;
+  mf:name "RDF11 rdf11-02" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <rdf11-02.rq> .
+
+<#rdf11-03> a mf:PositiveSyntaxTest11 ;
+  mf:name "RDF11 rdf11-03" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <rdf11-03.rq> .
+

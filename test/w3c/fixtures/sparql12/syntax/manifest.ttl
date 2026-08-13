@@ -1,0 +1,43 @@
+@prefix mf: <http://www.w3.org/2001/sw/DataAccess/tests/test-manifest#> .
+@prefix dawgt: <http://www.w3.org/2001/sw/DataAccess/tests/test-dawg#> .
+
+<> a mf:Manifest ;
+  mf:entries (
+    <#syn-01>
+    <#syn-02>
+    <#syn-03>
+    <#syn-04>
+    <#syn-05>
+    <#syn-06>
+  ) .
+
+<#syn-01> a mf:PositiveSyntaxTest11 ;
+  mf:name "Syntax syn-01" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <syn-01.rq> .
+
+<#syn-02> a mf:PositiveSyntaxTest11 ;
+  mf:name "Syntax syn-02" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <syn-02.rq> .
+
+<#syn-03> a mf:PositiveSyntaxTest11 ;
+  mf:name "Syntax syn-03" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <syn-03.rq> .
+
+<#syn-04> a mf:PositiveSyntaxTest11 ;
+  mf:name "Syntax syn-04" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <syn-04.rq> .
+
+<#syn-05> a mf:PositiveSyntaxTest11 ;
+  mf:name "Syntax syn-05" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <syn-05.rq> .
+
+<#syn-06> a mf:PositiveSyntaxTest11 ;
+  mf:name "Syntax syn-06" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <syn-06.rq> .
+
