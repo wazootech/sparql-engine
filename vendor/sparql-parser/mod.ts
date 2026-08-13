@@ -20,7 +20,7 @@
  * upstream sparqljs — this module is a drop-in replacement for the `sparqljs`
  * `Parser` export.
  */
-import { DataFactory } from "n3";
+import { DataFactory } from "@/term/data-factory.ts";
 import type { SparqlQuery } from "./ast.ts";
 export type * from "./ast.ts";
 

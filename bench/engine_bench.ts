@@ -1,6 +1,7 @@
 import type * as rdfjs from "@rdfjs/types";
 import { assertEquals } from "@std/assert";
-import { DataFactory, Store } from "n3";
+import { DataFactory } from "@/term/mod.ts";
+import { MemoryStore as Store } from "@/store/memory-store.ts";
 import {
   blankNode as oxigraphBlankNode,
   defaultGraph as oxigraphDefaultGraph,

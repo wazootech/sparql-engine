@@ -8,8 +8,10 @@ Wazoo-native SPARQL 1.1 Query & Update Engine over RDF/JS Quad Stores.
   `CONSTRUCT`, and `DESCRIBE` queries over `rdfjs.Store` sources.
 - **SPARQL 1.1 Update Engine**: Support for `INSERT DATA`, `DELETE DATA`,
   `DELETE/INSERT`, and atomic patch transactions.
-- **Zero Heavy Dependencies**: Lightweight AST parsing via `sparqljs` without
-  Comunica framework overhead.
+- **Zero Runtime Dependencies**: Lightweight AST parsing via the vendored,
+  in-repo SPARQL parser (a maintained sparqljs 3.7.4 grammar), zero runtime
+  dependencies (only type-only `@rdfjs/types`), and no Comunica framework
+  overhead — browser-friendly and JSR-ready without transitive npm baggage.
 - **JSR & Deno Native**: Published on JSR as `@wazoo/sparql-engine` for Deno,
   Node.js, and browser environments.
 - **Drop-in for `@worlds/client`**: Implements the same `SparqlEngineInterface`
@@ -19,10 +21,22 @@ Wazoo-native SPARQL 1.1 Query & Update Engine over RDF/JS Quad Stores.
 ## Usage
 
 ```typescript
-import { WazooSparqlEngine } from "@wazoo/sparql-engine";
-import { DataFactory, Store } from "n3";
+import {
+  DataFactory,
+  MemoryStore,
+  WazooSparqlEngine,
+} from "@wazoo/sparql-engine";
 
-const store = new Store();
+const { namedNode, literal, quad } = DataFactory;
+const store = new MemoryStore();
+store.addQuad(
+  quad(
+    namedNode("https://example.org/alice"),
+    namedNode("https://xmlns.com/foaf/0.1/name"),
+    literal("Alice"),
+  ),
+);
+
 const engine = new WazooSparqlEngine({ store });
 
 const result = await engine.execute({

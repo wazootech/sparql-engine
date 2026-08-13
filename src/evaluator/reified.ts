@@ -1,5 +1,5 @@
 import type * as rdfjs from "@rdfjs/types";
-import { DataFactory } from "n3";
+import { DataFactory } from "@/term/mod.ts";
 import type {
   ReifiedQuad,
   Term as SparqlTerm,

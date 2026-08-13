@@ -21,7 +21,8 @@ import {
 } from "@/quad-store.ts";
 import { sameRdfTerm, sparqlTermToRdfTerm, termKey } from "@/term/mod.ts";
 import { expandReifiedTriples } from "@/evaluator/reified.ts";
-import { DataFactory } from "n3";
+import { DataFactory } from "@/term/mod.ts";
+import { parseTurtleQuads } from "@/parser/turtle-parser.ts";
 
 const { blankNode, quad, defaultGraph } = DataFactory;
 
@@ -371,9 +372,7 @@ export class UpdateEvaluator {
         text = await Deno.readTextFile(cleanPath);
       }
 
-      const { Parser } = await import("n3");
-      const parser = new Parser({ baseIRI: sourceIri });
-      const parsedQuads = parser.parse(text);
+      const parsedQuads = parseTurtleQuads(text, sourceIri);
 
       const destRef = op.destination as GraphRef;
       const destGraphTerm = (!destRef || destRef.default)

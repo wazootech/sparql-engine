@@ -7,7 +7,7 @@ import type {
   Pattern,
   Term as SparqlTerm,
 } from "@/parser/sparql-parser.ts";
-import { DataFactory } from "n3";
+import { DataFactory } from "@/term/mod.ts";
 import {
   md5Hex,
   parseDateTime,

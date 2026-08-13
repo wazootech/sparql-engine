@@ -1,7 +1,7 @@
 import { QueryEngine } from "@comunica/query-sparql-rdfjs-lite";
 import type * as rdfjs from "@rdfjs/types";
 import { fail } from "@std/assert";
-import type { Store } from "n3";
+import type { MemoryStore as Store } from "@/store/memory-store.ts";
 import { SparqlParser as SparqlJsParser } from "@/parser/sparql-parser.ts";
 import { WazooSparqlEngine } from "@/wazoo-sparql-engine.ts";
 import type { SparqlResponse } from "@/sparql-engine-interface.ts";

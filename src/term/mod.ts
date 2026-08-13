@@ -1,4 +1,5 @@
 export { sameRdfTerm, termKey } from "@/term/identity.ts";
+export { DataFactory, dataFactory } from "@/term/data-factory.ts";
 export { rdfTermToSparqlValue, sparqlTermToRdfTerm } from "@/term/convert.ts";
 export {
   canonicalizeRdfTerm,

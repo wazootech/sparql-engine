@@ -1,5 +1,6 @@
 import { assertEquals, assertRejects } from "@std/assert";
-import { DataFactory, Store } from "n3";
+import { DataFactory } from "@/term/mod.ts";
+import { MemoryStore as Store } from "@/store/memory-store.ts";
 import { WazooSparqlEngine } from "@/wazoo-sparql-engine.ts";
 
 const { namedNode, literal, quad } = DataFactory;

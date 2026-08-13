@@ -1,5 +1,8 @@
 import type * as rdfjs from "@rdfjs/types";
-import { DataFactory, Parser as N3Parser, Store as N3Store } from "n3";
+// deno-lint-ignore no-import-prefix
+import { Parser as N3Parser } from "npm:n3@2.2.0";
+import { DataFactory } from "@/term/mod.ts";
+import { MemoryStore as N3Store } from "@/store/memory-store.ts";
 
 const MF = "http://www.w3.org/2001/sw/DataAccess/tests/test-manifest#";
 const QT = "http://www.w3.org/2001/sw/DataAccess/tests/test-query#";

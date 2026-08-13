@@ -1,7 +1,7 @@
 import { assertUpdateParity } from "./parity-harness.ts";
 import type { ParityUpdateCase } from "./parity-harness.ts";
 import { basicKnowledgeGraphQuads } from "./parity-fixtures.ts";
-import { DataFactory } from "n3";
+import { DataFactory } from "@/term/mod.ts";
 
 const { literal, namedNode, quad } = DataFactory;
 

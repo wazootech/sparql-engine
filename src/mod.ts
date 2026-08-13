@@ -14,6 +14,9 @@ export type {
   WazooSparqlTransaction,
 } from "@/wazoo-sparql-engine.ts";
 
+export { MemoryStore, MemoryStream } from "@/store/memory-store.ts";
+export { DataFactory, dataFactory } from "@/term/mod.ts";
+
 export {
   canonicalizeRdfTerm,
   canonicalizeSparqlValue,
