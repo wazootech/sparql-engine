@@ -61,6 +61,7 @@ export function parseTurtleQuads(
     tripleTerm: undefined,
     bnodeCounter: 0,
     saveStack: [],
+    reifierStack: [],
     collectionStack: [],
     pending: [],
     savedSubject: undefined,

@@ -1,4 +1,4 @@
-import { assertEquals, assertThrows } from "@std/assert";
+import { assertEquals, assertNotEquals, assertThrows } from "@std/assert";
 import type * as rdfjs from "@rdfjs/types";
 import { DataFactory } from "@/term/mod.ts";
 import { parseTurtleQuads } from "@/parser/turtle-parser.ts";
@@ -159,4 +159,74 @@ Deno.test("turtle-parser: malformed input fails loudly instead of hanging", () =
   // A missing object can never parse; it must reject, never hang.
   assertThrows(() => parseTurtleQuads(":s :p ."));
   assertThrows(() => parseTurtleQuads("<<( :a :b"));
+});
+
+const RDF_REIFIES = "http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies";
+
+Deno.test("turtle-parser: triple term in object position keeps the outer predicate", () => {
+  // Regression: the triple term's inner `verb` used to clobber the enclosing
+  // statement's predicate, so `rdf:reifies <<( a b c )>>` emitted `b` as the
+  // predicate instead of rdf:reifies.
+  const quads = parseTurtleQuads(
+    "@prefix : <http://ex/> . :s <" + RDF_REIFIES + "> <<( :a :b :c )>> .",
+  );
+  assertEquals(quads.length, 1);
+  assertEquals(quads[0].predicate, namedNode(RDF_REIFIES));
+  assertEquals(quads[0].object.termType, "Quad");
+});
+
+Deno.test("turtle-parser: sibling annotation blocks each reify the base triple", () => {
+  // Regression: the first block's inner object clobbered the shared tripleTerm,
+  // so the second block reified `<<( reifier r1 z1 )>>` instead of `<<( s p o )>>`.
+  const quads = parseTurtleQuads(
+    "@prefix : <http://ex/> . :s :p :o {| :r1 :z1 |} {| :r2 :z2 |} .",
+  );
+  assertEquals(quads.length, 5);
+  const reifies = quads.filter((q) => q.predicate.value === RDF_REIFIES);
+  assertEquals(reifies.length, 2);
+  for (const q of reifies) {
+    const tt = q.object as rdfjs.Quad;
+    assertEquals(tt.subject.value, "http://ex/s");
+    assertEquals(tt.predicate.value, "http://ex/p");
+    assertEquals(tt.object.value, "http://ex/o");
+  }
+  assertNotEquals(reifies[0].subject.value, reifies[1].subject.value);
+});
+
+Deno.test("turtle-parser: reified triple inside an annotation block gets its own reifier", () => {
+  // Regression: the nested reified triple reused the annotation block's
+  // reifier, dropping the nested reifier's rdf:reifies triple and emitting
+  // `reifier :r reifier`.
+  const quads = parseTurtleQuads(
+    "@prefix : <http://ex/> . :s :p :o {| :r << :s1 :p1 :o1 >> |} .",
+  );
+  assertEquals(quads.length, 4);
+  const reifies = quads.filter((q) => q.predicate.value === RDF_REIFIES);
+  assertEquals(reifies.length, 2);
+  const nested = reifies.find((q) =>
+    (q.object as rdfjs.Quad).subject.value === "http://ex/s1"
+  );
+  assertNotEquals(nested, undefined);
+  assertEquals((nested!.object as rdfjs.Quad).predicate.value, "http://ex/p1");
+});
+
+Deno.test("turtle-parser: RFC 3986 IRI resolution edge cases", () => {
+  const base = "http://a/bb/ccc/d;p?q";
+  const objectOf = (ref: string): string => {
+    const quads = parseTurtleQuads(`<urn:x:s> <urn:x:p> <${ref}> .`, base);
+    return quads[0].object.value;
+  };
+  // Network-path reference with an empty path: RFC 3986 §5.3 recomposes to
+  // `http://g` (WHATWG URL normalization would add a trailing slash).
+  assertEquals(objectOf("//g"), "http://g");
+  assertEquals(objectOf("//g/"), "http://g/");
+  assertEquals(objectOf("//g?y"), "http://g?y");
+  // Dot-segment removal (RFC 3986 §5.2.4).
+  assertEquals(objectOf("g/../h"), "http://a/bb/ccc/h");
+  assertEquals(objectOf("g/./h"), "http://a/bb/ccc/g/h");
+  assertEquals(objectOf("../../../g"), "http://a/g");
+  // Same-document and query/fragment references (§5.2.2).
+  assertEquals(objectOf(""), "http://a/bb/ccc/d;p?q");
+  assertEquals(objectOf("?y"), "http://a/bb/ccc/d;p?y");
+  assertEquals(objectOf("#s"), "http://a/bb/ccc/d;p?q#s");
 });

@@ -60,11 +60,117 @@
     return Parser.factory.blankNode('b' + (++state().bnodeCounter));
   }
 
+  // --- RFC 3986 §5.2-5.3 relative-reference resolution ---
+  // RDF 1.1 Turtle §6.3 (and RDF 1.2 Concepts) resolve relative IRIs with
+  // the RFC 3986 algorithm, not WHATWG URL normalization. The two disagree on
+  // edge cases such as a network-path reference with an empty path (`//host`,
+  // which RFC 3986 recomposes to `scheme://host` with no trailing slash while
+  // WHATWG appends "/"), so resolution is implemented from the RFC directly.
+
+  // Splits a URI reference into its five RFC 3986 components.
+  function parseUri3986(uri) {
+    var m = /^(?:([^:\/?#]+):)?(?:\/\/([^\/?#]*))?([^?#]*)(?:\?([^#]*))?(?:#([\s\S]*))?$/.exec(uri);
+    return {
+      scheme: m[1],
+      authority: m[2],
+      path: m[3] || '',
+      query: m[4],
+      fragment: m[5],
+    };
+  }
+
+  // RFC 3986 §5.2.4 remove_dot_segments.
+  function removeDotSegments3986(path) {
+    var input = path;
+    var output = '';
+    while (input.length > 0) {
+      if (input.indexOf('../') === 0) {
+        input = input.slice(3);
+      } else if (input.indexOf('./') === 0) {
+        input = input.slice(2);
+      } else if (input.indexOf('/./') === 0) {
+        input = '/' + input.slice(3);
+      } else if (input === '/.') {
+        input = '/';
+      } else if (input.indexOf('/../') === 0) {
+        input = '/' + input.slice(4);
+        output = output.replace(/\/?[^\/]*$/, '');
+      } else if (input === '/..') {
+        input = '/';
+        output = output.replace(/\/?[^\/]*$/, '');
+      } else if (input === '.' || input === '..') {
+        input = '';
+      } else {
+        var seg = /^\/?[^\/]*/.exec(input)[0];
+        output += seg;
+        input = input.slice(seg.length);
+      }
+    }
+    return output;
+  }
+
+  // RFC 3986 §5.2.3 merge (base path with a relative reference path).
+  function mergePaths3986(base, refPath) {
+    if (base.authority !== undefined && base.path === '') {
+      return '/' + refPath;
+    }
+    return base.path.slice(0, base.path.lastIndexOf('/') + 1) + refPath;
+  }
+
+  // RFC 3986 §5.2.2 transform + §5.3 recomposition.
+  function resolveRfc3986(base, ref) {
+    var B = parseUri3986(base);
+    var R = parseUri3986(ref);
+    var T = {
+      scheme: undefined,
+      authority: undefined,
+      path: '',
+      query: undefined,
+      fragment: undefined,
+    };
+
+    if (R.scheme !== undefined) {
+      T.scheme = R.scheme;
+      T.authority = R.authority;
+      T.path = removeDotSegments3986(R.path);
+      T.query = R.query;
+    } else {
+      if (R.authority !== undefined) {
+        T.authority = R.authority;
+        T.path = removeDotSegments3986(R.path);
+        T.query = R.query;
+      } else {
+        if (R.path === '') {
+          T.path = B.path;
+          T.query = R.query !== undefined ? R.query : B.query;
+        } else {
+          T.path = R.path.charAt(0) === '/'
+            ? removeDotSegments3986(R.path)
+            : removeDotSegments3986(mergePaths3986(B, R.path));
+          T.query = R.query;
+        }
+        T.authority = B.authority;
+      }
+      T.scheme = B.scheme;
+    }
+    T.fragment = R.fragment;
+
+    var result = '';
+    if (T.scheme !== undefined) result += T.scheme + ':';
+    if (T.authority !== undefined) result += '//' + T.authority;
+    result += T.path;
+    if (T.query !== undefined) result += '?' + T.query;
+    if (T.fragment !== undefined) result += '#' + T.fragment;
+    return result;
+  }
+
   function resolveIri(iri) {
+    // An IRI that already has a scheme is already resolved (this also keeps
+    // opaque-scheme IRIs such as urn: untouched).
     if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(iri)) return iri;
     if (!Parser.base) return iri;
     try {
-      return new URL(iri, Parser.base).href;
+      return resolveRfc3986(Parser.base, iri);
     } catch (e) {
       return Parser.base + iri;
     }
@@ -119,7 +225,12 @@
 
   function startAnnotation() {
     var st = state();
-    st.saveStack.push({ subject: st.subject, predicate: st.predicate });
+    st.saveStack.push({
+      subject: st.subject,
+      predicate: st.predicate,
+      tripleTerm: st.tripleTerm,
+      reifier: st.reifier,
+    });
     st.tripleTerm = Parser.factory.quad(st.subject, st.predicate, st.object);
     st.reifier = undefined;
   }
@@ -129,6 +240,8 @@
     var saved = st.saveStack.pop();
     st.subject = saved.subject;
     st.predicate = saved.predicate;
+    st.tripleTerm = saved.tripleTerm;
+    st.reifier = saved.reifier;
   }
 
   function startAnnotationBlock() {
@@ -156,6 +269,12 @@
   // production is the reifier.
   function nn(value) { return Parser.factory.namedNode(value); }
 
+  function startReifiedTriple() {
+    var st = state();
+    st.reifierStack.push({ reifier: st.reifier, tripleTerm: st.tripleTerm });
+    st.reifier = undefined;
+  }
+
   function finishReifiedTriple() {
     var st = state();
     if (!st.reifier) {
@@ -163,7 +282,9 @@
       emitQuad(st.reifier, nn(RDF_REIFIES), st.tripleTerm);
     }
     var node = st.reifier;
-    st.reifier = undefined;
+    var saved = st.reifierStack.pop();
+    st.reifier = saved.reifier;
+    st.tripleTerm = saved.tripleTerm;
     return node;
   }
 
@@ -432,6 +553,15 @@ verb
   | "a" -> (state().predicate = Parser.factory.namedNode(RDF_TYPE))
   ;
 
+// A verb inside a triple term or reified-triple body must not clobber the
+// enclosing statement's predicate (TriG 5.3.4): return the predicate term
+// without the state().predicate side effect that the statement-level `verb`
+// production performs.
+ttVerb
+  : predicate -> $1
+  | "a" -> Parser.factory.namedNode(RDF_TYPE)
+  ;
+
 predicate
   : iri -> $1
   ;
@@ -510,7 +640,7 @@ BlankNode
   ;
 
 tripleTerm
-  : "<<(" ttSubject verb ttObject ")>>" -> Parser.factory.quad($2, $3, $4)
+  : "<<(" ttSubject ttVerb ttObject ")>>" -> Parser.factory.quad($2, $3, $4)
   ;
 
 ttSubject
@@ -529,11 +659,15 @@ ttObject
 // before the optional reifier so `~ r` can emit the reifying triple
 // (TriG 5.3.4).
 reifiedTripleBody
-  : rtSubject verb rtObject -> (state().tripleTerm = Parser.factory.quad($1, $2, $3))
+  : rtSubject ttVerb rtObject -> (state().tripleTerm = Parser.factory.quad($1, $2, $3))
+  ;
+
+reifiedTripleStart
+  : "<<" -> startReifiedTriple()
   ;
 
 reifiedTriple
-  : "<<" reifiedTripleBody reifier? ">>" -> finishReifiedTriple()
+  : reifiedTripleStart reifiedTripleBody reifier? ">>" -> finishReifiedTriple()
   ;
 
 rtSubject

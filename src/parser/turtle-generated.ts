@@ -79,28 +79,28 @@ var TurtleParser = (function () {
       for (o = o || {}, l = k.length; l--; o[k[l]] = v);
       return o;
     },
-    $V0 = [1, 6, 7, 8, 10, 11, 12, 13, 15, 20, 26, 36, 69, 72, 75, 77, 85],
+    $V0 = [1, 6, 7, 8, 10, 11, 12, 13, 15, 20, 26, 36, 70, 73, 76, 78, 87],
     $V1 = [1, 33],
     $V2 = [1, 31],
     $V3 = [1, 34],
     $V4 = [1, 19],
-    $V5 = [1, 36],
-    $V6 = [1, 37],
+    $V5 = [1, 37],
+    $V6 = [1, 38],
     $V7 = [1, 32],
     $V8 = [1, 35],
-    $V9 = [1, 28],
-    $Va = [1, 50],
-    $Vb = [7, 8, 55, 75],
+    $V9 = [1, 36],
+    $Va = [1, 51],
+    $Vb = [7, 8, 55, 76],
     $Vc = [2, 13],
-    $Vd = [7, 8, 9, 38, 55, 75],
-    $Ve = [7, 8, 36, 55, 75],
-    $Vf = [1, 87],
-    $Vg = [1, 88],
-    $Vh = [1, 89],
-    $Vi = [1, 90],
-    $Vj = [1, 91],
-    $Vk = [1, 92],
-    $Vl = [1, 86],
+    $Vd = [7, 8, 9, 38, 55, 76],
+    $Ve = [7, 8, 36, 55, 76],
+    $Vf = [1, 88],
+    $Vg = [1, 89],
+    $Vh = [1, 90],
+    $Vi = [1, 91],
+    $Vj = [1, 92],
+    $Vk = [1, 93],
+    $Vl = [1, 87],
     $Vm = [
       7,
       8,
@@ -112,57 +112,31 @@ var TurtleParser = (function () {
       49,
       52,
       55,
-      61,
-      64,
+      62,
       65,
       66,
       67,
-      69,
+      68,
       70,
-      72,
+      71,
       73,
-      75,
-      77,
+      74,
+      76,
       78,
-      81,
-      85,
+      79,
+      82,
       87,
       89,
-      94,
-      95,
+      91,
+      96,
+      97,
     ],
-    $Vn = [7, 8, 14, 26, 61, 64, 65, 66, 67, 69, 72, 73, 75, 77, 78, 85],
-    $Vo = [1, 100],
-    $Vp = [7, 8, 14, 26, 61, 64, 65, 66, 67, 69, 72, 75, 77, 78, 85],
+    $Vn = [7, 8, 14, 26, 62, 65, 66, 67, 68, 70, 73, 74, 76, 78, 79, 87],
+    $Vo = [1, 101],
+    $Vp = [7, 8, 14, 26, 62, 65, 66, 67, 68, 70, 73, 76, 78, 79, 87],
     $Vq = [9, 38],
-    $Vr = [1, 119],
-    $Vs = [
-      7,
-      8,
-      9,
-      14,
-      26,
-      38,
-      49,
-      52,
-      55,
-      61,
-      64,
-      65,
-      66,
-      67,
-      69,
-      70,
-      72,
-      73,
-      75,
-      77,
-      78,
-      85,
-      89,
-      94,
-      95,
-    ],
+    $Vr = [1, 120],
+    $Vs = [1, 123],
     $Vt = [
       7,
       8,
@@ -172,22 +146,23 @@ var TurtleParser = (function () {
       38,
       49,
       52,
-      61,
-      64,
+      55,
+      62,
       65,
       66,
       67,
-      69,
+      68,
       70,
-      72,
+      71,
       73,
-      75,
-      77,
+      74,
+      76,
       78,
-      85,
-      89,
-      94,
-      95,
+      79,
+      87,
+      91,
+      96,
+      97,
     ],
     $Vu = [
       7,
@@ -198,32 +173,59 @@ var TurtleParser = (function () {
       38,
       49,
       52,
-      61,
-      64,
+      62,
       65,
       66,
       67,
-      69,
+      68,
       70,
-      72,
+      71,
       73,
-      75,
-      77,
+      74,
+      76,
       78,
-      81,
-      85,
+      79,
+      87,
+      91,
+      96,
+      97,
+    ],
+    $Vv = [
+      7,
+      8,
+      9,
+      14,
+      26,
+      38,
+      49,
+      52,
+      62,
+      65,
+      66,
+      67,
+      68,
+      70,
+      71,
+      73,
+      74,
+      76,
+      78,
+      79,
+      82,
       87,
       89,
-      94,
-      95,
+      91,
+      96,
+      97,
     ],
-    $Vv = [7, 8, 9, 26, 38, 49, 70, 75, 95],
-    $Vw = [1, 134],
-    $Vx = [7, 8, 9, 26, 38, 49, 52, 70, 75, 89, 94, 95],
-    $Vy = [2, 124],
-    $Vz = [7, 8, 9, 26, 38, 49, 52, 70, 75, 95],
-    $VA = [7, 8, 9, 26, 38, 49, 52, 70, 75, 87, 89, 94, 95],
-    $VB = [87, 89];
+    $Vw = [7, 8, 9, 26, 38, 49, 71, 76, 97],
+    $Vx = [1, 137],
+    $Vy = [7, 8, 9, 26, 38, 49, 52, 71, 76, 91, 96, 97],
+    $Vz = [2, 127],
+    $VA = [7, 8, 14, 26, 62, 65, 66, 67, 68, 76, 78, 79, 87],
+    $VB = [7, 8, 9, 26, 38, 49, 52, 71, 76, 97],
+    $VC = [7, 8, 9, 26, 38, 49, 52, 71, 76, 89, 91, 96, 97],
+    $VD = [89, 91];
   var parser = {
     trace: function trace() {},
     yy: {},
@@ -282,48 +284,50 @@ var TurtleParser = (function () {
       "object": 53,
       "predicate": 54,
       "a": 55,
-      "literal": 56,
-      "tripleTerm": 57,
-      "RDFLiteral": 58,
-      "NumericLiteral": 59,
-      "BooleanLiteral": 60,
-      "STRING_LONG": 61,
-      "LANG_DIR": 62,
-      "^^": 63,
-      "INTEGER": 64,
-      "DECIMAL": 65,
-      "DOUBLE": 66,
-      "BOOLEAN": 67,
-      "bnplStart": 68,
-      "[": 69,
-      "]": 70,
-      "collectionStart": 71,
-      "(": 72,
-      ")": 73,
-      "collectionItems": 74,
-      "PNAME_LN": 75,
-      "PrefixedName": 76,
-      "ANON": 77,
-      "<<(": 78,
-      "ttSubject": 79,
-      "ttObject": 80,
-      ")>>": 81,
-      "reifiedTripleBody": 82,
-      "rtSubject": 83,
-      "rtObject": 84,
-      "<<": 85,
-      "reifiedTriple_option0": 86,
-      ">>": 87,
-      "reifier": 88,
-      "~": 89,
-      "annotation_repetition0": 90,
-      "annotationPart": 91,
-      "annotationBlock": 92,
-      "annotationBlockStart": 93,
-      "{|": 94,
-      "|}": 95,
-      "document_repetition0_group0": 96,
-      "triplesBlock_option0_option0": 97,
+      "ttVerb": 56,
+      "literal": 57,
+      "tripleTerm": 58,
+      "RDFLiteral": 59,
+      "NumericLiteral": 60,
+      "BooleanLiteral": 61,
+      "STRING_LONG": 62,
+      "LANG_DIR": 63,
+      "^^": 64,
+      "INTEGER": 65,
+      "DECIMAL": 66,
+      "DOUBLE": 67,
+      "BOOLEAN": 68,
+      "bnplStart": 69,
+      "[": 70,
+      "]": 71,
+      "collectionStart": 72,
+      "(": 73,
+      ")": 74,
+      "collectionItems": 75,
+      "PNAME_LN": 76,
+      "PrefixedName": 77,
+      "ANON": 78,
+      "<<(": 79,
+      "ttSubject": 80,
+      "ttObject": 81,
+      ")>>": 82,
+      "reifiedTripleBody": 83,
+      "rtSubject": 84,
+      "rtObject": 85,
+      "reifiedTripleStart": 86,
+      "<<": 87,
+      "reifiedTriple_option0": 88,
+      ">>": 89,
+      "reifier": 90,
+      "~": 91,
+      "annotation_repetition0": 92,
+      "annotationPart": 93,
+      "annotationBlock": 94,
+      "annotationBlockStart": 95,
+      "{|": 96,
+      "|}": 97,
+      "document_repetition0_group0": 98,
+      "triplesBlock_option0_option0": 99,
       "$accept": 0,
       "$end": 1,
     },
@@ -346,26 +350,26 @@ var TurtleParser = (function () {
       49: ";",
       52: ",",
       55: "a",
-      61: "STRING_LONG",
-      62: "LANG_DIR",
-      63: "^^",
-      64: "INTEGER",
-      65: "DECIMAL",
-      66: "DOUBLE",
-      67: "BOOLEAN",
-      69: "[",
-      70: "]",
-      72: "(",
-      73: ")",
-      75: "PNAME_LN",
-      77: "ANON",
-      78: "<<(",
-      81: ")>>",
-      85: "<<",
-      87: ">>",
-      89: "~",
-      94: "{|",
-      95: "|}",
+      62: "STRING_LONG",
+      63: "LANG_DIR",
+      64: "^^",
+      65: "INTEGER",
+      66: "DECIMAL",
+      67: "DOUBLE",
+      68: "BOOLEAN",
+      70: "[",
+      71: "]",
+      73: "(",
+      74: ")",
+      76: "PNAME_LN",
+      78: "ANON",
+      79: "<<(",
+      82: ")>>",
+      87: "<<",
+      89: ">>",
+      91: "~",
+      96: "{|",
+      97: "|}",
     },
     productions_: [
       0,
@@ -412,6 +416,8 @@ var TurtleParser = (function () {
       [50, 1],
       [47, 1],
       [47, 1],
+      [56, 1],
+      [56, 1],
       [54, 1],
       [53, 1],
       [53, 1],
@@ -420,60 +426,61 @@ var TurtleParser = (function () {
       [53, 1],
       [53, 1],
       [53, 1],
-      [56, 1],
-      [56, 1],
-      [56, 1],
-      [58, 1],
-      [58, 1],
-      [58, 2],
-      [58, 2],
-      [58, 3],
-      [58, 3],
+      [57, 1],
+      [57, 1],
+      [57, 1],
       [59, 1],
       [59, 1],
-      [59, 1],
+      [59, 2],
+      [59, 2],
+      [59, 3],
+      [59, 3],
       [60, 1],
-      [68, 1],
+      [60, 1],
+      [60, 1],
+      [61, 1],
+      [69, 1],
       [30, 3],
-      [71, 1],
+      [72, 1],
       [35, 2],
       [35, 3],
-      [74, 1],
-      [74, 2],
+      [75, 1],
+      [75, 2],
       [25, 1],
       [25, 1],
       [25, 1],
-      [76, 1],
-      [76, 1],
+      [77, 1],
+      [77, 1],
       [43, 1],
       [43, 1],
-      [57, 5],
-      [79, 1],
-      [79, 1],
+      [58, 5],
       [80, 1],
       [80, 1],
-      [80, 1],
-      [80, 1],
-      [82, 3],
+      [81, 1],
+      [81, 1],
+      [81, 1],
+      [81, 1],
+      [83, 3],
+      [86, 1],
       [28, 4],
-      [83, 1],
-      [83, 1],
-      [83, 1],
       [84, 1],
       [84, 1],
       [84, 1],
-      [84, 1],
-      [84, 1],
-      [88, 1],
-      [88, 2],
-      [88, 2],
+      [85, 1],
+      [85, 1],
+      [85, 1],
+      [85, 1],
+      [85, 1],
+      [90, 1],
+      [90, 2],
+      [90, 2],
       [51, 1],
-      [91, 1],
-      [91, 1],
       [93, 1],
-      [92, 3],
-      [96, 1],
-      [96, 1],
+      [93, 1],
+      [95, 1],
+      [94, 3],
+      [98, 1],
+      [98, 1],
       [4, 0],
       [4, 2],
       [32, 0],
@@ -482,18 +489,18 @@ var TurtleParser = (function () {
       [33, 1],
       [37, 0],
       [37, 1],
-      [97, 0],
-      [97, 1],
+      [99, 0],
+      [99, 1],
       [42, 0],
       [42, 2],
       [45, 0],
       [45, 1],
       [46, 0],
       [46, 1],
-      [86, 0],
-      [86, 1],
-      [90, 0],
-      [90, 2],
+      [88, 0],
+      [88, 1],
+      [92, 0],
+      [92, 2],
     ],
     performAction: function anonymous(
       yytext,
@@ -555,7 +562,6 @@ var TurtleParser = (function () {
         case 28:
         case 29:
         case 44:
-        case 45:
         case 46:
         case 47:
         case 48:
@@ -565,22 +571,24 @@ var TurtleParser = (function () {
         case 52:
         case 53:
         case 54:
-        case 75:
-        case 76:
-        case 80:
-        case 81:
+        case 55:
+        case 56:
+        case 77:
+        case 78:
         case 82:
         case 83:
         case 84:
         case 85:
-        case 88:
-        case 89:
-        case 90:
+        case 86:
+        case 87:
         case 91:
         case 92:
         case 93:
         case 94:
         case 95:
+        case 96:
+        case 97:
+        case 98:
           this.$ = $$[$0];
           break;
         case 39:
@@ -596,115 +604,121 @@ var TurtleParser = (function () {
         case 43:
           this.$ = state().predicate = Parser.factory.namedNode(RDF_TYPE);
           break;
-        case 55:
-        case 56:
-          this.$ = Parser.factory.literal(unescapeString($$[$0]));
+        case 45:
+          this.$ = Parser.factory.namedNode(RDF_TYPE);
           break;
         case 57:
         case 58:
+          this.$ = Parser.factory.literal(unescapeString($$[$0]));
+          break;
+        case 59:
+        case 60:
           this.$ = Parser.factory.literal(
             unescapeString($$[$0 - 1]),
             $$[$0].slice(1),
           );
           break;
-        case 59:
-        case 60:
+        case 61:
+        case 62:
           this.$ = Parser.factory.literal(unescapeString($$[$0 - 2]), $$[$0]);
           break;
-        case 61:
+        case 63:
           this.$ = Parser.factory.literal(
             $$[$0],
             Parser.factory.namedNode(XSD_INTEGER),
           );
           break;
-        case 62:
+        case 64:
           this.$ = Parser.factory.literal(
             $$[$0],
             Parser.factory.namedNode(XSD_DECIMAL),
           );
           break;
-        case 63:
+        case 65:
           this.$ = Parser.factory.literal(
             $$[$0],
             Parser.factory.namedNode(XSD_DOUBLE),
           );
           break;
-        case 64:
+        case 66:
           this.$ = Parser.factory.literal(
             $$[$0],
             Parser.factory.namedNode(XSD_BOOLEAN),
           );
           break;
-        case 65:
+        case 67:
           this.$ = startBnpl();
           break;
-        case 66:
+        case 68:
           this.$ = endBnpl();
           break;
-        case 67:
-          this.$ = startCollection();
-          break;
-        case 68:
         case 69:
-          this.$ = endCollection();
+          this.$ = startCollection();
           break;
         case 70:
         case 71:
-          this.$ = collectionAdd($$[$0]);
+          this.$ = endCollection();
           break;
         case 72:
+        case 73:
+          this.$ = collectionAdd($$[$0]);
+          break;
+        case 74:
           this.$ = Parser.factory.namedNode(
             resolveIri(unescapeIri($$[$0].slice(1, -1))),
           );
           break;
-        case 73:
-        case 74:
+        case 75:
+        case 76:
           this.$ = Parser.factory.namedNode(resolvePrefixed($$[$0]));
           break;
-        case 77:
+        case 79:
           this.$ = Parser.factory.blankNode($$[$0].slice(2));
           break;
-        case 78:
+        case 80:
           this.$ = freshBnode();
           break;
-        case 79:
+        case 81:
           this.$ = Parser.factory.quad($$[$0 - 3], $$[$0 - 2], $$[$0 - 1]);
           break;
-        case 86:
+        case 88:
           this.$ = state().tripleTerm = Parser.factory.quad(
             $$[$0 - 2],
             $$[$0 - 1],
             $$[$0],
           );
           break;
-        case 87:
+        case 89:
+          this.$ = startReifiedTriple();
+          break;
+        case 90:
           this.$ = finishReifiedTriple();
           break;
-        case 96:
+        case 99:
           this.$ = applyReifier(undefined);
           break;
-        case 97:
-        case 98:
+        case 100:
+        case 101:
           this.$ = applyReifier($$[$0]);
           break;
-        case 102:
+        case 105:
           this.$ = startAnnotationBlock();
           break;
-        case 103:
+        case 106:
           this.$ = endAnnotationBlock();
           break;
-        case 106:
-        case 124:
+        case 109:
+        case 127:
           this.$ = [];
           break;
-        case 107:
-        case 125:
+        case 110:
+        case 128:
           $$[$0 - 1].push($$[$0]);
           break;
       }
     },
     table: [
-      o($V0, [2, 106], { 3: 1, 4: 2 }),
+      o($V0, [2, 109], { 3: 1, 4: 2 }),
       { 1: [3] },
       {
         1: [2, 1],
@@ -735,90 +749,92 @@ var TurtleParser = (function () {
         35: 25,
         36: $V4,
         43: 27,
-        68: 29,
-        69: $V5,
-        71: 30,
-        72: $V6,
-        75: $V7,
-        77: $V8,
-        85: $V9,
-        96: 3,
+        69: 29,
+        70: $V5,
+        72: 30,
+        73: $V6,
+        76: $V7,
+        78: $V8,
+        86: 28,
+        87: $V9,
+        98: 3,
       },
+      o($V0, [2, 110]),
       o($V0, [2, 107]),
-      o($V0, [2, 104]),
-      o($V0, [2, 105]),
-      { 7: [1, 38] },
+      o($V0, [2, 108]),
       { 7: [1, 39] },
-      { 8: [1, 40] },
+      { 7: [1, 40] },
       { 8: [1, 41] },
-      { 14: [1, 42] },
+      { 8: [1, 42] },
       { 14: [1, 43] },
+      { 14: [1, 44] },
       o($V0, [2, 8]),
       o($V0, [2, 9]),
       o($V0, [2, 10]),
       {
         7: $V1,
         8: $V2,
-        21: 44,
-        23: 45,
+        21: 45,
+        23: 46,
         25: 26,
         26: $V3,
         43: 27,
-        75: $V7,
-        77: $V8,
+        76: $V7,
+        78: $V8,
       },
-      { 18: 46, 36: $V4 },
-      { 7: $V1, 8: $V2, 25: 51, 31: 47, 47: 48, 54: 49, 55: $Va, 75: $V7 },
+      { 18: 47, 36: $V4 },
+      { 7: $V1, 8: $V2, 25: 52, 31: 48, 47: 49, 54: 50, 55: $Va, 76: $V7 },
       {
         7: $V1,
         8: $V2,
-        9: [2, 108],
-        25: 51,
-        31: 53,
-        32: 52,
-        47: 48,
-        54: 49,
+        9: [2, 111],
+        25: 52,
+        31: 54,
+        32: 53,
+        47: 49,
+        54: 50,
         55: $Va,
-        75: $V7,
+        76: $V7,
       },
       {
         7: $V1,
         8: $V2,
-        25: 61,
+        25: 62,
         26: $V3,
-        27: 60,
+        27: 61,
         28: 23,
-        29: 59,
+        29: 60,
         30: 24,
-        35: 63,
-        37: 54,
-        38: [2, 112],
-        39: 56,
-        40: 57,
-        41: 55,
-        43: 62,
-        44: 58,
-        68: 29,
-        69: $V5,
-        71: 30,
-        72: $V6,
-        75: $V7,
-        77: $V8,
-        85: $V9,
+        35: 64,
+        37: 55,
+        38: [2, 115],
+        39: 57,
+        40: 58,
+        41: 56,
+        43: 63,
+        44: 59,
+        69: 29,
+        70: $V5,
+        72: 30,
+        73: $V6,
+        76: $V7,
+        78: $V8,
+        86: 28,
+        87: $V9,
       },
       {
         7: $V1,
         8: $V2,
-        9: [2, 110],
-        25: 51,
-        31: 65,
-        33: 64,
-        47: 48,
-        54: 49,
+        9: [2, 113],
+        25: 52,
+        31: 66,
+        33: 65,
+        47: 49,
+        54: 50,
         55: $Va,
-        75: $V7,
+        76: $V7,
       },
-      { 7: $V1, 8: $V2, 25: 51, 31: 66, 47: 48, 54: 49, 55: $Va, 75: $V7 },
+      { 7: $V1, 8: $V2, 25: 52, 31: 67, 47: 49, 54: 50, 55: $Va, 76: $V7 },
       o($Vb, [2, 12], { 36: $Vc }),
       o($Vd, [2, 16]),
       o($Vd, [2, 17]),
@@ -828,378 +844,389 @@ var TurtleParser = (function () {
       {
         7: $V1,
         8: $V2,
-        25: 69,
+        25: 70,
         26: $V3,
-        28: 71,
-        43: 70,
-        75: $V7,
-        77: $V8,
-        82: 67,
+        28: 72,
+        43: 71,
+        76: $V7,
+        78: $V8,
         83: 68,
-        85: $V9,
+        84: 69,
+        86: 28,
+        87: $V9,
       },
-      { 7: $V1, 8: $V2, 25: 51, 31: 72, 47: 48, 54: 49, 55: $Va, 75: $V7 },
+      { 7: $V1, 8: $V2, 25: 52, 31: 73, 47: 49, 54: 50, 55: $Va, 76: $V7 },
       {
         7: $V1,
         8: $V2,
         14: $Vf,
-        25: 76,
+        25: 77,
         26: $V3,
-        28: 82,
-        30: 79,
-        35: 78,
-        43: 77,
-        53: 75,
-        56: 80,
+        28: 83,
+        30: 80,
+        35: 79,
+        43: 78,
+        53: 76,
         57: 81,
-        58: 83,
+        58: 82,
         59: 84,
         60: 85,
-        61: $Vg,
-        64: $Vh,
-        65: $Vi,
-        66: $Vj,
-        67: $Vk,
-        68: 29,
-        69: $V5,
-        71: 30,
-        72: $V6,
-        73: [1, 73],
-        74: 74,
-        75: $V7,
-        77: $V8,
-        78: $Vl,
-        85: $V9,
+        61: 86,
+        62: $Vg,
+        65: $Vh,
+        66: $Vi,
+        67: $Vj,
+        68: $Vk,
+        69: 29,
+        70: $V5,
+        72: 30,
+        73: $V6,
+        74: [1, 74],
+        75: 75,
+        76: $V7,
+        78: $V8,
+        79: $Vl,
+        86: 28,
+        87: $V9,
       },
-      o($Vm, [2, 72]),
-      o($Vm, [2, 73]),
       o($Vm, [2, 74]),
-      o($Vm, [2, 77]),
-      o($Vm, [2, 78]),
-      o($Vb, [2, 65]),
-      o($Vn, [2, 67]),
-      { 8: [1, 93] },
+      o($Vm, [2, 75]),
+      o($Vm, [2, 76]),
+      o($Vm, [2, 79]),
+      o($Vm, [2, 80]),
+      o([7, 8, 26, 76, 78, 87], [2, 89]),
+      o($Vb, [2, 67]),
+      o($Vn, [2, 69]),
       { 8: [1, 94] },
-      { 9: [1, 95] },
-      o($V0, [2, 5]),
+      { 8: [1, 95] },
       { 9: [1, 96] },
+      o($V0, [2, 5]),
+      { 9: [1, 97] },
       o($V0, [2, 7]),
-      { 18: 97, 36: $V4 },
+      { 18: 98, 36: $V4 },
       { 36: $Vc },
       o($V0, [2, 18]),
       {
         7: $V1,
         8: $V2,
-        9: [1, 98],
-        24: 99,
-        25: 101,
-        26: [1, 102],
+        9: [1, 99],
+        24: 100,
+        25: 102,
+        26: [1, 103],
         49: $Vo,
-        75: $V7,
+        76: $V7,
       },
       {
         7: $V1,
         8: $V2,
         14: $Vf,
-        25: 76,
+        25: 77,
         26: $V3,
-        28: 82,
-        30: 79,
-        35: 78,
-        43: 77,
-        48: 103,
-        50: 104,
-        53: 105,
-        56: 80,
+        28: 83,
+        30: 80,
+        35: 79,
+        43: 78,
+        48: 104,
+        50: 105,
+        53: 106,
         57: 81,
-        58: 83,
+        58: 82,
         59: 84,
         60: 85,
-        61: $Vg,
-        64: $Vh,
-        65: $Vi,
-        66: $Vj,
-        67: $Vk,
-        68: 29,
-        69: $V5,
-        71: 30,
-        72: $V6,
-        75: $V7,
-        77: $V8,
-        78: $Vl,
-        85: $V9,
+        61: 86,
+        62: $Vg,
+        65: $Vh,
+        66: $Vi,
+        67: $Vj,
+        68: $Vk,
+        69: 29,
+        70: $V5,
+        72: 30,
+        73: $V6,
+        76: $V7,
+        78: $V8,
+        79: $Vl,
+        86: 28,
+        87: $V9,
       },
       o($Vp, [2, 42]),
       o($Vp, [2, 43]),
-      o($Vp, [2, 44]),
-      { 9: [1, 106] },
-      { 9: [2, 109], 49: $Vo },
-      { 38: [1, 107] },
-      { 38: [2, 113] },
-      { 9: [1, 109], 38: [2, 116], 42: 108 },
+      o($Vp, [2, 46]),
+      { 9: [1, 107] },
+      { 9: [2, 112], 49: $Vo },
+      { 38: [1, 108] },
+      { 38: [2, 116] },
+      { 9: [1, 110], 38: [2, 119], 42: 109 },
       o($Vq, [2, 26]),
-      { 7: $V1, 8: $V2, 25: 51, 31: 110, 47: 48, 54: 49, 55: $Va, 75: $V7 },
-      o($Vq, [2, 118], {
-        47: 48,
-        54: 49,
-        25: 51,
-        45: 111,
-        31: 112,
+      { 7: $V1, 8: $V2, 25: 52, 31: 111, 47: 49, 54: 50, 55: $Va, 76: $V7 },
+      o($Vq, [2, 121], {
+        47: 49,
+        54: 50,
+        25: 52,
+        45: 112,
+        31: 113,
         7: $V1,
         8: $V2,
         55: $Va,
-        75: $V7,
+        76: $V7,
       }),
-      o($Vq, [2, 120], {
-        47: 48,
-        54: 49,
-        25: 51,
-        46: 113,
-        31: 114,
+      o($Vq, [2, 123], {
+        47: 49,
+        54: 50,
+        25: 52,
+        46: 114,
+        31: 115,
         7: $V1,
         8: $V2,
         55: $Va,
-        75: $V7,
+        76: $V7,
       }),
       o($Vb, [2, 33]),
       o($Vb, [2, 34]),
       o($Vb, [2, 35]),
-      { 9: [1, 115] },
-      { 9: [2, 111], 49: $Vo },
-      { 9: [1, 116], 49: $Vo },
-      { 86: 117, 87: [2, 122], 88: 118, 89: $Vr },
-      { 7: $V1, 8: $V2, 25: 51, 47: 120, 54: 49, 55: $Va, 75: $V7 },
-      o($Vb, [2, 88]),
-      o($Vb, [2, 89]),
-      o($Vb, [2, 90]),
-      { 49: $Vo, 70: [1, 121] },
-      o($Vs, [2, 68]),
+      { 9: [1, 116] },
+      { 9: [2, 114], 49: $Vo },
+      { 9: [1, 117], 49: $Vo },
+      { 88: 118, 89: [2, 125], 90: 119, 91: $Vr },
+      { 7: $V1, 8: $V2, 25: 52, 54: 122, 55: $Vs, 56: 121, 76: $V7 },
+      o($Vb, [2, 91]),
+      o($Vb, [2, 92]),
+      o($Vb, [2, 93]),
+      { 49: $Vo, 71: [1, 124] },
+      o($Vt, [2, 70]),
       {
         7: $V1,
         8: $V2,
         14: $Vf,
-        25: 76,
+        25: 77,
         26: $V3,
-        28: 82,
-        30: 79,
-        35: 78,
-        43: 77,
-        53: 123,
-        56: 80,
+        28: 83,
+        30: 80,
+        35: 79,
+        43: 78,
+        53: 126,
         57: 81,
-        58: 83,
+        58: 82,
         59: 84,
         60: 85,
-        61: $Vg,
-        64: $Vh,
-        65: $Vi,
-        66: $Vj,
-        67: $Vk,
-        68: 29,
-        69: $V5,
-        71: 30,
-        72: $V6,
-        73: [1, 122],
-        75: $V7,
-        77: $V8,
-        78: $Vl,
-        85: $V9,
+        61: 86,
+        62: $Vg,
+        65: $Vh,
+        66: $Vi,
+        67: $Vj,
+        68: $Vk,
+        69: 29,
+        70: $V5,
+        72: 30,
+        73: $V6,
+        74: [1, 125],
+        76: $V7,
+        78: $V8,
+        79: $Vl,
+        86: 28,
+        87: $V9,
       },
-      o($Vn, [2, 70]),
-      o($Vt, [2, 45]),
-      o($Vt, [2, 46]),
-      o($Vt, [2, 47]),
-      o($Vt, [2, 48]),
-      o($Vt, [2, 49]),
-      o($Vt, [2, 50]),
-      o($Vt, [2, 51]),
+      o($Vn, [2, 72]),
+      o($Vu, [2, 47]),
+      o($Vu, [2, 48]),
+      o($Vu, [2, 49]),
+      o($Vu, [2, 50]),
+      o($Vu, [2, 51]),
       o($Vu, [2, 52]),
       o($Vu, [2, 53]),
-      o($Vu, [2, 54]),
-      { 7: $V1, 8: $V2, 25: 125, 26: $V3, 43: 126, 75: $V7, 77: $V8, 79: 124 },
-      o($Vu, [2, 55], { 62: [1, 127], 63: [1, 128] }),
-      o($Vu, [2, 56], { 62: [1, 129], 63: [1, 130] }),
-      o($Vu, [2, 61]),
-      o($Vu, [2, 62]),
-      o($Vu, [2, 63]),
-      o($Vu, [2, 64]),
-      { 9: [1, 131] },
+      o($Vv, [2, 54]),
+      o($Vv, [2, 55]),
+      o($Vv, [2, 56]),
+      { 7: $V1, 8: $V2, 25: 128, 26: $V3, 43: 129, 76: $V7, 78: $V8, 80: 127 },
+      o($Vv, [2, 57], { 63: [1, 130], 64: [1, 131] }),
+      o($Vv, [2, 58], { 63: [1, 132], 64: [1, 133] }),
+      o($Vv, [2, 63]),
+      o($Vv, [2, 64]),
+      o($Vv, [2, 65]),
+      o($Vv, [2, 66]),
+      { 9: [1, 134] },
       o($V0, [2, 3]),
       o($V0, [2, 4]),
       o($V0, [2, 6]),
       o($V0, [2, 11]),
       o($V0, [2, 19]),
-      { 9: [1, 132] },
-      o([9, 26, 38, 49, 70, 95], [2, 38], {
-        54: 49,
-        25: 51,
-        47: 133,
+      { 9: [1, 135] },
+      o([9, 26, 38, 49, 71, 97], [2, 38], {
+        54: 50,
+        25: 52,
+        47: 136,
         7: $V1,
         8: $V2,
         55: $Va,
-        75: $V7,
+        76: $V7,
       }),
       { 9: [2, 14] },
       { 9: [2, 15] },
-      o($Vv, [2, 36], { 52: $Vw }),
-      o($Vx, $Vy, { 51: 135, 90: 136 }),
-      o($Vx, [2, 41]),
+      o($Vw, [2, 36], { 52: $Vx }),
+      o($Vy, $Vz, { 51: 138, 92: 139 }),
+      o($Vy, [2, 41]),
       o($V0, [2, 21]),
       o($V0, [2, 25]),
       { 38: [2, 27] },
       {
         7: $V1,
         8: $V2,
-        25: 61,
+        25: 62,
         26: $V3,
-        27: 60,
+        27: 61,
         28: 23,
-        29: 59,
+        29: 60,
         30: 24,
-        35: 63,
-        38: [2, 114],
-        39: 56,
-        40: 57,
-        41: 138,
-        43: 62,
-        44: 58,
-        68: 29,
-        69: $V5,
-        71: 30,
-        72: $V6,
-        75: $V7,
-        77: $V8,
-        85: $V9,
-        97: 137,
+        35: 64,
+        38: [2, 117],
+        39: 57,
+        40: 58,
+        41: 141,
+        43: 63,
+        44: 59,
+        69: 29,
+        70: $V5,
+        72: 30,
+        73: $V6,
+        76: $V7,
+        78: $V8,
+        86: 28,
+        87: $V9,
+        99: 140,
       },
       o($Vq, [2, 30], { 49: $Vo }),
       o($Vq, [2, 31]),
-      o($Vq, [2, 119], { 49: $Vo }),
+      o($Vq, [2, 122], { 49: $Vo }),
       o($Vq, [2, 32]),
-      o($Vq, [2, 121], { 49: $Vo }),
+      o($Vq, [2, 124], { 49: $Vo }),
       o($V0, [2, 22]),
       o($V0, [2, 23]),
-      { 87: [1, 139] },
-      { 87: [2, 123] },
-      o([9, 38, 49, 52, 70, 87, 89, 94, 95], [2, 96], {
-        25: 140,
-        43: 141,
+      { 89: [1, 142] },
+      { 89: [2, 126] },
+      o([9, 38, 49, 52, 71, 89, 91, 96, 97], [2, 99], {
+        25: 143,
+        43: 144,
         7: $V1,
         8: $V2,
         26: $V3,
-        75: $V7,
-        77: $V8,
+        76: $V7,
+        78: $V8,
       }),
       {
         7: $V1,
         8: $V2,
         14: $Vf,
-        25: 143,
+        25: 146,
         26: $V3,
-        28: 147,
-        43: 144,
-        56: 145,
-        57: 146,
-        58: 83,
+        28: 150,
+        43: 147,
+        57: 148,
+        58: 149,
         59: 84,
         60: 85,
-        61: $Vg,
-        64: $Vh,
-        65: $Vi,
-        66: $Vj,
-        67: $Vk,
-        75: $V7,
-        77: $V8,
-        78: $Vl,
-        84: 142,
-        85: $V9,
+        61: 86,
+        62: $Vg,
+        65: $Vh,
+        66: $Vi,
+        67: $Vj,
+        68: $Vk,
+        76: $V7,
+        78: $V8,
+        79: $Vl,
+        85: 145,
+        86: 28,
+        87: $V9,
       },
-      o($Vs, [2, 66]),
-      o($Vs, [2, 69]),
-      o($Vn, [2, 71]),
-      { 7: $V1, 8: $V2, 25: 51, 47: 148, 54: 49, 55: $Va, 75: $V7 },
-      o($Vb, [2, 80]),
-      o($Vb, [2, 81]),
-      o($Vu, [2, 57]),
-      { 7: $V1, 8: $V2, 25: 149, 75: $V7 },
-      o($Vu, [2, 58]),
-      { 7: $V1, 8: $V2, 25: 150, 75: $V7 },
+      o($VA, [2, 44]),
+      o($VA, [2, 45]),
+      o($Vt, [2, 68]),
+      o($Vt, [2, 71]),
+      o($Vn, [2, 73]),
+      { 7: $V1, 8: $V2, 25: 52, 54: 122, 55: $Vs, 56: 151, 76: $V7 },
+      o($Vb, [2, 82]),
+      o($Vb, [2, 83]),
+      o($Vv, [2, 59]),
+      { 7: $V1, 8: $V2, 25: 152, 76: $V7 },
+      o($Vv, [2, 60]),
+      { 7: $V1, 8: $V2, 25: 153, 76: $V7 },
       o($V0, [2, 2]),
       o($V0, [2, 20]),
       {
         7: $V1,
         8: $V2,
         14: $Vf,
-        25: 76,
+        25: 77,
         26: $V3,
-        28: 82,
-        30: 79,
-        35: 78,
-        43: 77,
-        48: 151,
-        50: 104,
-        53: 105,
-        56: 80,
+        28: 83,
+        30: 80,
+        35: 79,
+        43: 78,
+        48: 154,
+        50: 105,
+        53: 106,
         57: 81,
-        58: 83,
+        58: 82,
         59: 84,
         60: 85,
-        61: $Vg,
-        64: $Vh,
-        65: $Vi,
-        66: $Vj,
-        67: $Vk,
-        68: 29,
-        69: $V5,
-        71: 30,
-        72: $V6,
-        75: $V7,
-        77: $V8,
-        78: $Vl,
-        85: $V9,
+        61: 86,
+        62: $Vg,
+        65: $Vh,
+        66: $Vi,
+        67: $Vj,
+        68: $Vk,
+        69: 29,
+        70: $V5,
+        72: 30,
+        73: $V6,
+        76: $V7,
+        78: $V8,
+        79: $Vl,
+        86: 28,
+        87: $V9,
       },
       {
         7: $V1,
         8: $V2,
         14: $Vf,
-        25: 76,
+        25: 77,
         26: $V3,
-        28: 82,
-        30: 79,
-        35: 78,
-        43: 77,
-        50: 152,
-        53: 105,
-        56: 80,
+        28: 83,
+        30: 80,
+        35: 79,
+        43: 78,
+        50: 155,
+        53: 106,
         57: 81,
-        58: 83,
+        58: 82,
         59: 84,
         60: 85,
-        61: $Vg,
-        64: $Vh,
-        65: $Vi,
-        66: $Vj,
-        67: $Vk,
-        68: 29,
-        69: $V5,
-        71: 30,
-        72: $V6,
-        75: $V7,
-        77: $V8,
-        78: $Vl,
-        85: $V9,
+        61: 86,
+        62: $Vg,
+        65: $Vh,
+        66: $Vi,
+        67: $Vj,
+        68: $Vk,
+        69: 29,
+        70: $V5,
+        72: 30,
+        73: $V6,
+        76: $V7,
+        78: $V8,
+        79: $Vl,
+        86: 28,
+        87: $V9,
       },
-      o($Vz, [2, 39]),
-      o($Vz, [2, 99], {
-        91: 153,
-        88: 154,
-        92: 155,
+      o($VB, [2, 39]),
+      o($VB, [2, 102], {
         93: 156,
-        89: $Vr,
-        94: [1, 157],
+        90: 157,
+        94: 158,
+        95: 159,
+        91: $Vr,
+        96: [1, 160],
       }),
-      { 38: [2, 117] },
-      { 38: [2, 115] },
+      { 38: [2, 120] },
+      { 38: [2, 118] },
       o([
         7,
         8,
@@ -1210,86 +1237,86 @@ var TurtleParser = (function () {
         49,
         52,
         55,
-        61,
-        64,
+        62,
         65,
         66,
         67,
-        69,
+        68,
         70,
-        72,
+        71,
         73,
-        75,
-        77,
+        74,
+        76,
         78,
-        85,
+        79,
         87,
         89,
-        94,
-        95,
-      ], [2, 87]),
-      o($VA, [2, 97]),
-      o($VA, [2, 98]),
-      o($VB, [2, 86]),
-      o($VB, [2, 91]),
-      o($VB, [2, 92]),
-      o($VB, [2, 93]),
-      o($VB, [2, 94]),
-      o($VB, [2, 95]),
+        91,
+        96,
+        97,
+      ], [2, 90]),
+      o($VC, [2, 100]),
+      o($VC, [2, 101]),
+      o($VD, [2, 88]),
+      o($VD, [2, 94]),
+      o($VD, [2, 95]),
+      o($VD, [2, 96]),
+      o($VD, [2, 97]),
+      o($VD, [2, 98]),
       {
         7: $V1,
         8: $V2,
         14: $Vf,
-        25: 159,
+        25: 162,
         26: $V3,
-        43: 160,
-        56: 161,
-        57: 162,
-        58: 83,
+        43: 163,
+        57: 164,
+        58: 165,
         59: 84,
         60: 85,
-        61: $Vg,
-        64: $Vh,
-        65: $Vi,
-        66: $Vj,
-        67: $Vk,
-        75: $V7,
-        77: $V8,
-        78: $Vl,
-        80: 158,
+        61: 86,
+        62: $Vg,
+        65: $Vh,
+        66: $Vi,
+        67: $Vj,
+        68: $Vk,
+        76: $V7,
+        78: $V8,
+        79: $Vl,
+        81: 161,
       },
-      o($Vu, [2, 59]),
-      o($Vu, [2, 60]),
-      o($Vv, [2, 37], { 52: $Vw }),
-      o($Vx, $Vy, { 90: 136, 51: 163 }),
-      o($Vx, [2, 125]),
-      o($Vx, [2, 100]),
-      o($Vx, [2, 101]),
-      { 7: $V1, 8: $V2, 25: 51, 31: 164, 47: 48, 54: 49, 55: $Va, 75: $V7 },
-      o($Vb, [2, 102]),
-      { 81: [1, 165] },
-      { 81: [2, 82] },
-      { 81: [2, 83] },
-      { 81: [2, 84] },
-      { 81: [2, 85] },
-      o($Vz, [2, 40]),
-      { 49: $Vo, 95: [1, 166] },
-      o($Vu, [2, 79]),
-      o($Vx, [2, 103]),
+      o($Vv, [2, 61]),
+      o($Vv, [2, 62]),
+      o($Vw, [2, 37], { 52: $Vx }),
+      o($Vy, $Vz, { 92: 139, 51: 166 }),
+      o($Vy, [2, 128]),
+      o($Vy, [2, 103]),
+      o($Vy, [2, 104]),
+      { 7: $V1, 8: $V2, 25: 52, 31: 167, 47: 49, 54: 50, 55: $Va, 76: $V7 },
+      o($Vb, [2, 105]),
+      { 82: [1, 168] },
+      { 82: [2, 84] },
+      { 82: [2, 85] },
+      { 82: [2, 86] },
+      { 82: [2, 87] },
+      o($VB, [2, 40]),
+      { 49: $Vo, 97: [1, 169] },
+      o($Vv, [2, 81]),
+      o($Vy, [2, 106]),
     ],
     defaultActions: {
-      45: [2, 13],
-      55: [2, 113],
-      101: [2, 14],
-      102: [2, 15],
-      108: [2, 27],
-      118: [2, 123],
-      137: [2, 117],
-      138: [2, 115],
-      159: [2, 82],
-      160: [2, 83],
-      161: [2, 84],
-      162: [2, 85],
+      46: [2, 13],
+      56: [2, 116],
+      102: [2, 14],
+      103: [2, 15],
+      109: [2, 27],
+      119: [2, 126],
+      140: [2, 120],
+      141: [2, 118],
+      162: [2, 84],
+      163: [2, 85],
+      164: [2, 86],
+      165: [2, 87],
     },
     parseError: function parseError(str, hash) {
       if (hash.recoverable) {
@@ -1538,11 +1565,119 @@ var TurtleParser = (function () {
     return Parser.factory.blankNode("b" + (++state().bnodeCounter));
   }
 
+  // --- RFC 3986 §5.2-5.3 relative-reference resolution ---
+  // RDF 1.1 Turtle §6.3 (and RDF 1.2 Concepts) resolve relative IRIs with
+  // the RFC 3986 algorithm, not WHATWG URL normalization. The two disagree on
+  // edge cases such as a network-path reference with an empty path (`//host`,
+  // which RFC 3986 recomposes to `scheme://host` with no trailing slash while
+  // WHATWG appends "/"), so resolution is implemented from the RFC directly.
+
+  // Splits a URI reference into its five RFC 3986 components.
+  function parseUri3986(uri) {
+    var m =
+      /^(?:([^:\/?#]+):)?(?:\/\/([^\/?#]*))?([^?#]*)(?:\?([^#]*))?(?:#([\s\S]*))?$/
+        .exec(uri);
+    return {
+      scheme: m[1],
+      authority: m[2],
+      path: m[3] || "",
+      query: m[4],
+      fragment: m[5],
+    };
+  }
+
+  // RFC 3986 §5.2.4 remove_dot_segments.
+  function removeDotSegments3986(path) {
+    var input = path;
+    var output = "";
+    while (input.length > 0) {
+      if (input.indexOf("../") === 0) {
+        input = input.slice(3);
+      } else if (input.indexOf("./") === 0) {
+        input = input.slice(2);
+      } else if (input.indexOf("/./") === 0) {
+        input = "/" + input.slice(3);
+      } else if (input === "/.") {
+        input = "/";
+      } else if (input.indexOf("/../") === 0) {
+        input = "/" + input.slice(4);
+        output = output.replace(/\/?[^\/]*$/, "");
+      } else if (input === "/..") {
+        input = "/";
+        output = output.replace(/\/?[^\/]*$/, "");
+      } else if (input === "." || input === "..") {
+        input = "";
+      } else {
+        var seg = /^\/?[^\/]*/.exec(input)[0];
+        output += seg;
+        input = input.slice(seg.length);
+      }
+    }
+    return output;
+  }
+
+  // RFC 3986 §5.2.3 merge (base path with a relative reference path).
+  function mergePaths3986(base, refPath) {
+    if (base.authority !== undefined && base.path === "") {
+      return "/" + refPath;
+    }
+    return base.path.slice(0, base.path.lastIndexOf("/") + 1) + refPath;
+  }
+
+  // RFC 3986 §5.2.2 transform + §5.3 recomposition.
+  function resolveRfc3986(base, ref) {
+    var B = parseUri3986(base);
+    var R = parseUri3986(ref);
+    var T = {
+      scheme: undefined,
+      authority: undefined,
+      path: "",
+      query: undefined,
+      fragment: undefined,
+    };
+
+    if (R.scheme !== undefined) {
+      T.scheme = R.scheme;
+      T.authority = R.authority;
+      T.path = removeDotSegments3986(R.path);
+      T.query = R.query;
+    } else {
+      if (R.authority !== undefined) {
+        T.authority = R.authority;
+        T.path = removeDotSegments3986(R.path);
+        T.query = R.query;
+      } else {
+        if (R.path === "") {
+          T.path = B.path;
+          T.query = R.query !== undefined ? R.query : B.query;
+        } else {
+          T.path = R.path.charAt(0) === "/"
+            ? removeDotSegments3986(R.path)
+            : removeDotSegments3986(mergePaths3986(B, R.path));
+          T.query = R.query;
+        }
+        T.authority = B.authority;
+      }
+      T.scheme = B.scheme;
+    }
+    T.fragment = R.fragment;
+
+    var result = "";
+    if (T.scheme !== undefined) result += T.scheme + ":";
+    if (T.authority !== undefined) result += "//" + T.authority;
+    result += T.path;
+    if (T.query !== undefined) result += "?" + T.query;
+    if (T.fragment !== undefined) result += "#" + T.fragment;
+    return result;
+  }
+
   function resolveIri(iri) {
+    // An IRI that already has a scheme is already resolved (this also keeps
+    // opaque-scheme IRIs such as urn: untouched).
     if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(iri)) return iri;
     if (!Parser.base) return iri;
     try {
-      return new URL(iri, Parser.base).href;
+      return resolveRfc3986(Parser.base, iri);
     } catch (e) {
       return Parser.base + iri;
     }
@@ -1609,7 +1744,12 @@ var TurtleParser = (function () {
 
   function startAnnotation() {
     var st = state();
-    st.saveStack.push({ subject: st.subject, predicate: st.predicate });
+    st.saveStack.push({
+      subject: st.subject,
+      predicate: st.predicate,
+      tripleTerm: st.tripleTerm,
+      reifier: st.reifier,
+    });
     st.tripleTerm = Parser.factory.quad(st.subject, st.predicate, st.object);
     st.reifier = undefined;
   }
@@ -1619,6 +1759,8 @@ var TurtleParser = (function () {
     var saved = st.saveStack.pop();
     st.subject = saved.subject;
     st.predicate = saved.predicate;
+    st.tripleTerm = saved.tripleTerm;
+    st.reifier = saved.reifier;
   }
 
   function startAnnotationBlock() {
@@ -1648,6 +1790,12 @@ var TurtleParser = (function () {
     return Parser.factory.namedNode(value);
   }
 
+  function startReifiedTriple() {
+    var st = state();
+    st.reifierStack.push({ reifier: st.reifier, tripleTerm: st.tripleTerm });
+    st.reifier = undefined;
+  }
+
   function finishReifiedTriple() {
     var st = state();
     if (!st.reifier) {
@@ -1655,7 +1803,9 @@ var TurtleParser = (function () {
       emitQuad(st.reifier, nn(RDF_REIFIES), st.tripleTerm);
     }
     var node = st.reifier;
-    st.reifier = undefined;
+    var saved = st.reifierStack.pop();
+    st.reifier = saved.reifier;
+    st.tripleTerm = saved.tripleTerm;
     return node;
   }
 
@@ -2111,31 +2261,31 @@ var TurtleParser = (function () {
             return 55;
             break;
           case 9:
-            return 67;
+            return 68;
             break;
           case 10:
-            return 63;
+            return 64;
             break;
           case 11:
-            return 78;
+            return 79;
             break;
           case 12:
-            return 81;
+            return 82;
             break;
           case 13:
-            return 85;
-            break;
-          case 14:
             return 87;
             break;
-          case 15:
+          case 14:
             return 89;
             break;
+          case 15:
+            return 91;
+            break;
           case 16:
-            return 94;
+            return 96;
             break;
           case 17:
-            return 95;
+            return 97;
             break;
           case 18:
             return 9;
@@ -2147,16 +2297,16 @@ var TurtleParser = (function () {
             return 52;
             break;
           case 21:
-            return 72;
-            break;
-          case 22:
             return 73;
             break;
+          case 22:
+            return 74;
+            break;
           case 23:
-            return 69;
+            return 70;
             break;
           case 24:
-            return 70;
+            return 71;
             break;
           case 25:
             return 36;
@@ -2165,13 +2315,13 @@ var TurtleParser = (function () {
             return 38;
             break;
           case 27:
-            return 77;
+            return 78;
             break;
           case 28:
             return 8;
             break;
           case 29:
-            return 75;
+            return 76;
             break;
           case 30:
             return 7;
@@ -2180,13 +2330,13 @@ var TurtleParser = (function () {
             return 26;
             break;
           case 32:
-            return 62;
+            return 63;
             break;
           case 33:
-            return 61;
+            return 62;
             break;
           case 34:
-            return 61;
+            return 62;
             break;
           case 35:
             return 14;
@@ -2195,13 +2345,13 @@ var TurtleParser = (function () {
             return 14;
             break;
           case 37:
-            return 66;
+            return 67;
             break;
           case 38:
-            return 65;
+            return 66;
             break;
           case 39:
-            return 64;
+            return 65;
             break;
           case 40:
             return "INVALID";
