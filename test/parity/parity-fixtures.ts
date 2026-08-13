@@ -128,7 +128,7 @@ export const fromDatasetQuads: rdfjs.Quad[] = [
 ];
 
 /**
- * createQuadStore builds a fresh N3 Store seeded with the given quads.
+ * createQuadStore builds a fresh MemoryStore seeded with the given quads.
  */
 export function createQuadStore(quads: rdfjs.Quad[]): Store {
   const store = new Store();

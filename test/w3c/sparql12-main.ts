@@ -1,7 +1,7 @@
 import type * as rdfjs from "@rdfjs/types";
 import { parseTurtleQuads } from "@/parser/turtle-parser.ts";
 import { DataFactory } from "@/term/mod.ts";
-import { MemoryStore as N3Store } from "@/store/memory-store.ts";
+import { MemoryStore } from "@/store/memory-store.ts";
 import { WazooSparqlEngine } from "@/wazoo-sparql-engine.ts";
 import type { SparqlResponse } from "@/sparql-engine-interface.ts";
 import { canonicalizeRdfTerm } from "@/term/mod.ts";
@@ -61,8 +61,8 @@ function canonicalUrl(category: string, file: string): string {
   return `${BASE}${category}/${file}`;
 }
 
-function loadStore(testCase: W3cTestCase): N3Store {
-  const store = new N3Store();
+function loadStore(testCase: W3cTestCase): MemoryStore {
+  const store = new MemoryStore();
   const load = (file: string, graph: string | null): void => {
     const text = fixtureText(testCase, file);
     const quads: rdfjs.Quad[] = parseTurtleQuads(

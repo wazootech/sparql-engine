@@ -1,7 +1,7 @@
 import type * as rdfjs from "@rdfjs/types";
 import { parseTurtleQuads } from "@/parser/turtle-parser.ts";
 import { DataFactory } from "@/term/mod.ts";
-import { MemoryStore as N3Store } from "@/store/memory-store.ts";
+import { MemoryStore } from "@/store/memory-store.ts";
 import { WazooSparqlEngine } from "@/wazoo-sparql-engine.ts";
 import type { SparqlResponse } from "@/sparql-engine-interface.ts";
 import { canonicalizeRdfTerm, canonicalizeSparqlValue } from "@/term/mod.ts";
@@ -49,12 +49,12 @@ function canonicalUrl(file: string): string {
 }
 
 /**
- * loadStore seeds a fresh N3 store for a test case. The vendored parser
+ * loadStore seeds a fresh MemoryStore for a test case. The vendored parser
  * handles triple terms (`<<( )>>`), reified triples (`<< >>`), Turtle, TriG,
  * and N-Quads.
  */
-function loadStore(testCase: W3cTestCase): N3Store {
-  const store = new N3Store();
+function loadStore(testCase: W3cTestCase): MemoryStore {
+  const store = new MemoryStore();
   const load = (file: string, graph: string | null): void => {
     const text = fixtureText(testCase, file);
     const quads: rdfjs.Quad[] = parseTurtleQuads(
@@ -337,7 +337,7 @@ function resultKind(testCase: W3cTestCase): Row["result"] {
 
 async function runNative(
   testCase: W3cTestCase,
-): Promise<{ store: N3Store; result: SparqlResponse }> {
+): Promise<{ store: MemoryStore; result: SparqlResponse }> {
   const store = loadStore(testCase);
   const native = new WazooSparqlEngine({ store });
   const result = await native.execute({ query: queryText(testCase) });
@@ -348,7 +348,7 @@ async function evaluate(testCase: W3cTestCase): Promise<Verdict> {
   const kind = resultKind(testCase);
   const resultFile = testCase.resultFile;
 
-  let native: { store: N3Store; result: SparqlResponse };
+  let native: { store: MemoryStore; result: SparqlResponse };
   try {
     native = await runNative(testCase);
   } catch (error) {

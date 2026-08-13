@@ -1,7 +1,7 @@
 import type * as rdfjs from "@rdfjs/types";
 import { parseTurtleQuads } from "@/parser/turtle-parser.ts";
 import { DataFactory } from "@/term/mod.ts";
-import { MemoryStore as N3Store } from "@/store/memory-store.ts";
+import { MemoryStore } from "@/store/memory-store.ts";
 
 const MF = "http://www.w3.org/2001/sw/DataAccess/tests/test-manifest#";
 const QT = "http://www.w3.org/2001/sw/DataAccess/tests/test-query#";
@@ -71,7 +71,7 @@ export interface W3cTestCase {
 /**
  * listTerms walks an RDF list (rdf:first/rdf:rest) collecting its terms.
  */
-function listTerms(store: N3Store, head: rdfjs.Term): rdfjs.Term[] {
+function listTerms(store: MemoryStore, head: rdfjs.Term): rdfjs.Term[] {
   const terms: rdfjs.Term[] = [];
   let node = head;
   const seen = new Set<string>();
@@ -102,7 +102,7 @@ function listTerms(store: N3Store, head: rdfjs.Term): rdfjs.Term[] {
  * qt:data <a> both resolve to the file list).
  */
 function collectValues(
-  store: N3Store,
+  store: MemoryStore,
   subject: rdfjs.Term,
   predicate: string,
 ): rdfjs.Term[] {
@@ -132,7 +132,7 @@ function rdfjsNamedNode(value: string): rdfjs.NamedNode {
  * All file references resolve against the category's fixtures directory.
  */
 function parseTestCase(
-  store: N3Store,
+  store: MemoryStore,
   category: string,
   subject: rdfjs.Term,
   action: rdfjs.Term | null,
@@ -291,7 +291,7 @@ function filePath(term: rdfjs.Term): string {
  * with a ut:graph file and an rdfs:label graph name.
  */
 function collectGraphData(
-  store: N3Store,
+  store: MemoryStore,
   subject: rdfjs.Term,
   predicate: string,
   filePredicate: string,
@@ -336,7 +336,7 @@ export function loadManifest(
   categoryDir: string,
   manifestText: string,
 ): ManifestLoad {
-  const store = new N3Store();
+  const store = new MemoryStore();
   const quads: rdfjs.Quad[] = parseTurtleQuads(manifestText);
   for (const quad of quads) {
     store.addQuad(quad);

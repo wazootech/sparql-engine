@@ -15,10 +15,10 @@
  * four names join existing `FUNC_ARITYn` alternations, so the generated
  * productions already construct `functionCall` nodes (name lowercased).
  *
- * Term construction uses N3's DataFactory (already a project dependency)
- * instead of upstream's `rdf-data-factory`. The AST shapes are identical to
- * upstream sparqljs — this module is a drop-in replacement for the `sparqljs`
- * `Parser` export.
+ * Term construction uses this project's internal zero-dependency DataFactory
+ * (`@/term/data-factory.ts`) instead of upstream's `rdf-data-factory`. The
+ * AST shapes are identical to upstream sparqljs — this module is a drop-in
+ * replacement for the `sparqljs` `Parser` export.
  */
 import { DataFactory } from "@/term/data-factory.ts";
 import type { SparqlQuery } from "./ast.ts";

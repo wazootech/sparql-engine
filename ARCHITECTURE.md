@@ -20,9 +20,14 @@ engine for RDF/JS Quad Stores (`rdfjs.Store`).
          │
          ▼
  ┌──────────────┐
- │ rdfjs.Store  │ (In-memory MemoryStore, LibsqlRdfjsStore, DenokvRdfjsStore)
+ │ rdfjs.Store  │ (MemoryStore, SqliteStore, or any external rdfjs.Store)
  └──────────────┘
 ```
+
+In-repo store implementations are `MemoryStore` (in-memory, the default) and
+`SqliteStore` (durable prototype over `node:sqlite`; deep-import only, not part
+of the public export graph). Any external `rdfjs.Store` also works — e.g.
+`@worlds/client`'s `LibsqlRdfjsStore` / `DenokvRdfjsStore`.
 
 ## Contracts
 

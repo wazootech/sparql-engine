@@ -32,9 +32,10 @@ new names with no grammar surgery.
 
 The generated parser's term construction needs an RDF/JS `DataFactory`
 (`blankNode`, `literal`, `namedNode`, `quad`, `variable`). Upstream uses
-`rdf-data-factory`; this module uses N3's `DataFactory` (already a project
-dependency). AST shapes are identical to upstream sparqljs — this module is a
-drop-in replacement for the `sparqljs` `Parser` export.
+`rdf-data-factory`; this module uses the project's internal zero-dependency
+`DataFactory` (`src/term/data-factory.ts`), which `mod.ts` injects into the
+generated parser. AST shapes are identical to upstream sparqljs — this module is
+a drop-in replacement for the `sparqljs` `Parser` export.
 
 ## The patch (SPARQL 1.2 direction functions)
 
