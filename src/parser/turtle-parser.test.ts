@@ -270,18 +270,26 @@ Deno.test("turtle-parser: rejects BCP47-ill-formed language tags", () => {
 });
 
 Deno.test("turtle-parser: accepts well-formed language tags", () => {
-  const cases: Array<[string, string]> = [
-    // [input language tag, expected language tag]
-    ["en", "en"],
-    ["en-us", "en-us"],
-    ["zh-Hant-CN", "zh-hant-cn"],
-    ["en--ltr", "en--ltr"],
-    ["x-foo", "x-foo"],
+  const RDF_LANG_STRING =
+    "http://www.w3.org/1999/02/22-rdf-syntax-ns#langString";
+  const RDF_DIR_LANG_STRING =
+    "http://www.w3.org/1999/02/22-rdf-syntax-ns#dirLangString";
+  const cases: Array<[string, string, string, string]> = [
+    // [input tag, language, direction, datatype]
+    ["en", "en", "", RDF_LANG_STRING],
+    ["en-us", "en-us", "", RDF_LANG_STRING],
+    ["zh-Hant-CN", "zh-hant-cn", "", RDF_LANG_STRING],
+    ["en--ltr", "en", "ltr", RDF_DIR_LANG_STRING],
+    ["en--rtl", "en", "rtl", RDF_DIR_LANG_STRING],
+    ["x-foo", "x-foo", "", RDF_LANG_STRING],
   ];
-  for (const [tag, expected] of cases) {
+  for (const [tag, language, direction, datatype] of cases) {
     const quads = parseTurtleQuads(
       `<http://a> <http://b> "hello"@${tag} .`,
     );
-    assertEquals((quads[0].object as rdfjs.Literal).language, expected);
+    const lit = quads[0].object as rdfjs.Literal;
+    assertEquals(lit.language, language);
+    assertEquals(lit.direction, direction);
+    assertEquals(lit.datatype.value, datatype);
   }
 });

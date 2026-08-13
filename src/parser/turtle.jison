@@ -324,13 +324,17 @@
   function langDirTag(langDir) {
     // langDir is the LANG_DIR token after its leading '@' (e.g. "en--ltr").
     // The optional "--ltr"/"--rtl" direction suffix is guaranteed by the
-    // LANG_DIR terminal; validate only the language-tag portion.
+    // LANG_DIR terminal; validate only the language-tag portion and return a
+    // directional-language pair so the factory can set the rdf:dirLangString
+    // datatype when a direction is present.
     var dash = langDir.indexOf('--');
     var tag = dash === -1 ? langDir : langDir.slice(0, dash);
     if (!isWellFormedBcp47(tag)) {
       throw new Error('Language tag is not well-formed per BCP47: ' + tag);
     }
-    return langDir;
+    return dash === -1
+      ? { language: tag }
+      : { language: tag, direction: langDir.slice(dash + 2) };
   }
 
   function datatypeIri(dt) {

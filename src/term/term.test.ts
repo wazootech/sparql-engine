@@ -1,4 +1,4 @@
-import { assertEquals } from "@std/assert";
+import { assertEquals, assertNotEquals } from "@std/assert";
 import type * as rdfjs from "@rdfjs/types";
 import { DataFactory } from "@/term/mod.ts";
 import {
@@ -136,5 +136,53 @@ Deno.test("fromTerm preserves the language of lang-tagged literals", () => {
   assertEquals(
     roundTripped.datatype.value,
     "http://www.w3.org/1999/02/22-rdf-syntax-ns#langString",
+  );
+});
+
+Deno.test("directional literals carry rdf:dirLangString and survive fromTerm", () => {
+  const RDF_DIR_LANG_STRING =
+    "http://www.w3.org/1999/02/22-rdf-syntax-ns#dirLangString";
+  const RDF_LANG_STRING =
+    "http://www.w3.org/1999/02/22-rdf-syntax-ns#langString";
+  const lit = literal("foo", { language: "en", direction: "ltr" });
+  assertEquals(lit.language, "en");
+  assertEquals(lit.direction, "ltr");
+  assertEquals(lit.datatype.value, RDF_DIR_LANG_STRING);
+  // A directional language without a direction is a plain rdf:langString.
+  assertEquals(
+    literal("foo", { language: "en" }).datatype.value,
+    RDF_LANG_STRING,
+  );
+  assertEquals(
+    literal("foo", { language: "en", direction: "" }).datatype.value,
+    RDF_LANG_STRING,
+  );
+  const roundTripped = DataFactory.fromTerm(lit);
+  assertEquals(roundTripped.direction, "ltr");
+  assertEquals(roundTripped.datatype.value, RDF_DIR_LANG_STRING);
+});
+
+Deno.test("term identity and canonicalization distinguish directions", () => {
+  const RDF_DIR_LANG_STRING =
+    "http://www.w3.org/1999/02/22-rdf-syntax-ns#dirLangString";
+  const ltr = literal("foo", { language: "en", direction: "ltr" });
+  const rtl = literal("foo", { language: "en", direction: "rtl" });
+  const plain = literal("foo", "en");
+  assertNotEquals(sameRdfTerm(ltr, rtl), true);
+  assertNotEquals(sameRdfTerm(ltr, plain), true);
+  assertNotEquals(termKey(ltr), termKey(rtl));
+  assertNotEquals(termKey(ltr), termKey(plain));
+  assertNotEquals(
+    JSON.stringify(canonicalizeRdfTerm(ltr)),
+    JSON.stringify(canonicalizeRdfTerm(rtl)),
+  );
+  // Same direction + language + datatype canonicalize identically.
+  assertEquals(
+    JSON.stringify(canonicalizeRdfTerm(ltr)),
+    JSON.stringify(canonicalizeRdfTerm(DataFactory.fromTerm(ltr))),
+  );
+  assertEquals(
+    JSON.stringify(canonicalizeRdfTerm(ltr)).includes(RDF_DIR_LANG_STRING),
+    false,
   );
 });

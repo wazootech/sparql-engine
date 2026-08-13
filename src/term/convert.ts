@@ -17,7 +17,10 @@ export function sparqlTermToRdfTerm(term: SparqlTerm): rdfjs.Term {
       return blankNode(term.value);
     case "Literal":
       if (term.language) {
-        return literal(term.value, term.language);
+        return literal(term.value, {
+          language: term.language,
+          direction: term.direction ?? undefined,
+        });
       }
       if (term.datatype) {
         return literal(term.value, namedNode(term.datatype.value));
