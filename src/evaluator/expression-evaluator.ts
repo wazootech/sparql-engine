@@ -630,6 +630,15 @@ export class ExpressionEvaluator {
    * everything else compares as RDF terms.
    */
   private valuesEqual(a: rdfjs.Term, b: rdfjs.Term): boolean {
+    if (a.termType === "Quad" && b.termType === "Quad") {
+      // RDFterm-equal recurses through triple terms on all three positions.
+      return this.valuesEqual(a.subject, b.subject) &&
+        this.valuesEqual(a.predicate, b.predicate) &&
+        this.valuesEqual(a.object, b.object);
+    }
+    if (a.termType === "Quad" || b.termType === "Quad") {
+      return false;
+    }
     if (a.termType !== "Literal" || b.termType !== "Literal") {
       return sameRdfTerm(a, b);
     }
