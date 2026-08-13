@@ -2,7 +2,11 @@ import type * as rdfjs from "@rdfjs/types";
 // deno-lint-ignore no-import-prefix
 import { Parser as N3Parser } from "npm:n3@2.2.0";
 import { parseTurtleQuads } from "@/parser/turtle-parser.ts";
-import { loadRdfManifest, quadSetsIsomorphic } from "./rdf-harness.ts";
+import {
+  loadRdfManifest,
+  quadSetsIsomorphic,
+  quadSetsIsomorphicAsSets,
+} from "./rdf-harness.ts";
 import type { RdfSyntaxCase } from "./rdf-harness.ts";
 
 /**
@@ -10,7 +14,9 @@ import type { RdfSyntaxCase } from "./rdf-harness.ts";
  * (parseTurtleQuads) must agree with n3@2.2.0 on every W3C RDF 1.1 syntax and
  * eval test — same accept/reject verdict, and isomorphic quads for the tests
  * both accept. Negative tests are additionally gated absolutely: native must
- * reject them even if n3 is lenient.
+ * reject them even if n3 is lenient. Eval tests are also gated against their
+ * W3C `.nt`/`.nq` reference result (parsed with the native grammar), so a
+ * native+n3 agreement on the wrong quads still fails.
  *
  * The only permitted mismatches are in `supersetDivergences`: negative tests
  * the native grammar accepts because it is a single Turtle + TriG + N-Quads
@@ -95,6 +101,10 @@ function parseN3(testCase: RdfSyntaxCase): rdfjs.Quad[] {
   return parser.parse(readFixture(testCase.action));
 }
 
+function parseReference(testCase: RdfSyntaxCase): rdfjs.Quad[] {
+  return parseTurtleQuads(readFixture(testCase.result!), testCase.actionUrl);
+}
+
 function describe(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
@@ -153,6 +163,39 @@ function evaluate(testCase: RdfSyntaxCase): Verdict {
   }
 
   if (quadSetsIsomorphic(nativeQuads!, n3Quads!)) {
+    // Eval tests must additionally reproduce the W3C reference result, so
+    // agreement with n3 is not enough on its own.
+    if (testCase.kind === "eval") {
+      if (testCase.result === null) {
+        return {
+          status: "gap",
+          detail: "eval test has no mf:result reference",
+          allowlisted: false,
+        };
+      }
+      let reference: rdfjs.Quad[] | null = null;
+      let referenceError: string | null = null;
+      try {
+        reference = parseReference(testCase);
+      } catch (err) {
+        referenceError = describe(err);
+      }
+      if (reference === null) {
+        return {
+          status: "gap",
+          detail: `native rejected the reference result: ${referenceError}`,
+          allowlisted: false,
+        };
+      }
+      if (!quadSetsIsomorphicAsSets(nativeQuads!, reference)) {
+        return {
+          status: "gap",
+          detail: `eval mismatch vs reference: native ${nativeQuads!.length} ` +
+            `quads vs reference ${reference.length} quads`,
+          allowlisted: false,
+        };
+      }
+    }
     return { status: "pass" };
   }
   return {
