@@ -39,7 +39,7 @@ export class LiteralImpl implements rdfjs.Literal {
     languageOrDatatype?: string | rdfjs.NamedNode,
   ) {
     if (typeof languageOrDatatype === "string") {
-      this.language = languageOrDatatype;
+      this.language = languageOrDatatype.toLowerCase();
       this.datatype = new NamedNodeImpl(RDF_LANG_STRING);
     } else if (
       languageOrDatatype && typeof languageOrDatatype === "object" &&
@@ -133,7 +133,10 @@ function fromTermImpl(original: rdfjs.Term): rdfjs.Term {
     case "BlankNode":
       return new BlankNodeImpl(original.value);
     case "Literal":
-      return new LiteralImpl(original.value, original.datatype);
+      return new LiteralImpl(
+        original.value,
+        original.language || original.datatype,
+      );
     case "Variable":
       return new VariableImpl(original.value);
     case "DefaultGraph":
