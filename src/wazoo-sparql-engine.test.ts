@@ -2199,6 +2199,26 @@ Deno.test("WazooSparqlEngine - property path joins with an incoming binding", as
   ]);
 });
 
+Deno.test("WazooSparqlEngine - property path works inside GRAPH scope", async () => {
+  const store = new Store();
+  const ex = (s: string) => namedNode(`http://example.org/${s}`);
+  const g1 = namedNode("http://example.org/g1");
+  store.addQuad(quad(ex("a"), ex("p"), ex("b"), g1));
+  store.addQuad(quad(ex("b"), ex("p"), ex("c"), g1));
+
+  const engine = new WazooSparqlEngine({ store });
+  const result = await engine.execute({
+    query:
+      `SELECT ?y WHERE { GRAPH <http://example.org/g1> { <http://example.org/a> <http://example.org/p>+ ?y } }`,
+  });
+
+  assertEquals(result.kind, "select");
+  if (result.kind === "select") {
+    const values = result.data.results.bindings.map((b) => b.y.value).sort();
+    assertEquals(values, ["http://example.org/b", "http://example.org/c"]);
+  }
+});
+
 const XSD = "http://www.w3.org/2001/XMLSchema#";
 
 /**
@@ -2753,5 +2773,28 @@ Deno.test("WazooSparqlEngine - FROM NAMED restricts GRAPH enumeration", async ()
   assertEquals(none.kind, "select");
   if (none.kind === "select") {
     assertEquals(none.data.results.bindings.length, 0);
+  }
+});
+
+Deno.test("WazooSparqlEngine - SERVICE pattern single-endpoint fallback", async () => {
+  const store = new Store();
+  store.addQuad(
+    quad(
+      namedNode("http://example.org/alice"),
+      namedNode("http://xmlns.com/foaf/0.1/name"),
+      literal("Ethan"),
+    ),
+  );
+  const engine = new WazooSparqlEngine({ store });
+
+  const result = await engine.execute({
+    query:
+      `SELECT ?name WHERE { SERVICE <http://example.org/sparql> { ?person <http://xmlns.com/foaf/0.1/name> ?name } }`,
+  });
+
+  assertEquals(result.kind, "select");
+  if (result.kind === "select") {
+    assertEquals(result.data.results.bindings.length, 1);
+    assertEquals(result.data.results.bindings[0].name.value, "Ethan");
   }
 });

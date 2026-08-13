@@ -875,7 +875,7 @@ export class W3cRunner {
     if (!testCase.resultFile) {
       return null;
     }
-    let expected: string[];
+    let expectedRecords: CanonicalTerm[][];
     try {
       const parser = new N3Parser({
         baseIRI: canonicalUrl(testCase.category, testCase.resultFile),
@@ -895,9 +895,9 @@ export class W3cRunner {
       ) {
         return null;
       }
-      expected = expectedQuads
-        .map((quad) => canonicalQuadString(quad, canonicalizeRdfTerm))
-        .sort();
+      expectedRecords = expectedQuads.map((quad) =>
+        this.quadRecords(quad, canonicalizeRdfTerm)
+      );
     } catch {
       return null; // XML/JSON result files are not parseable here.
     }
@@ -907,25 +907,44 @@ export class W3cRunner {
     ): Promise<boolean> => {
       try {
         const store = this.loadStore(testCase);
+        let actualQuads: rdfjs.Quad[] = [];
         if (engine === "native") {
-          await new WazooSparqlEngine({ store }).execute({
+          const res = await new WazooSparqlEngine({ store }).execute({
             query: this.queryText(testCase),
           });
+          if (res.kind === "construct") {
+            actualQuads = res.data.quads;
+          } else if (res.kind === "void") {
+            actualQuads = store.getQuads(
+              null,
+              null,
+              null,
+              DataFactory.defaultGraph(),
+            );
+          }
         } else {
           if (testCase.kind === "update") {
             await this.comunicaEngine.queryVoid(this.queryText(testCase), {
               sources: [store],
             });
+            actualQuads = store.getQuads(
+              null,
+              null,
+              null,
+              DataFactory.defaultGraph(),
+            );
           } else {
-            const stream = await this.comunicaEngine.queryBindings(
+            const stream = await this.comunicaEngine.queryQuads(
               this.queryText(testCase),
               { sources: [store] },
             );
-            await stream.toArray();
+            actualQuads = await stream.toArray();
           }
         }
-        const actual = this.storeQuadStrings(store).sort();
-        return multisetEqual(actual, expected);
+        const actualRecords = actualQuads.map((quad) =>
+          this.quadRecords(quad, canonicalizeRdfTerm)
+        );
+        return isomorphicMultiset(actualRecords, expectedRecords);
       } catch {
         return false;
       }

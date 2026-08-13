@@ -1,0 +1,15 @@
+@prefix mf: <http://www.w3.org/2001/sw/DataAccess/tests/test-manifest#> .
+@prefix qt: <http://www.w3.org/2001/sw/DataAccess/tests/test-query#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix dawgt: <http://www.w3.org/2001/sw/DataAccess/tests/test-dawg#> .
+
+<> a mf:Manifest ;
+  rdfs:label "Syntax Update Negative" ;
+  mf:entries (
+    <#syn-bad-update-01>
+  ) .
+
+<#syn-bad-update-01> a mf:NegativeSyntaxTest11 ;
+  mf:name "Malformed update - variable in INSERT DATA" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <syn-bad-update-01.ru> .

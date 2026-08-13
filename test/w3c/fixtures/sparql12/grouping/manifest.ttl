@@ -1,0 +1,19 @@
+@prefix mf: <http://www.w3.org/2001/sw/DataAccess/tests/test-manifest#> .
+@prefix dawgt: <http://www.w3.org/2001/sw/DataAccess/tests/test-dawg#> .
+
+<> a mf:Manifest ;
+  mf:entries (
+    <#group-01>
+    <#group-02>
+  ) .
+
+<#group-01> a mf:PositiveSyntaxTest11 ;
+  mf:name "Grouping group-01" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <group-01.rq> .
+
+<#group-02> a mf:PositiveSyntaxTest11 ;
+  mf:name "Grouping group-02" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <group-02.rq> .
+

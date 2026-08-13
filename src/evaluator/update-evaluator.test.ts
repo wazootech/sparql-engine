@@ -197,3 +197,36 @@ Deno.test("UpdateEvaluator - DELETE/INSERT through the transaction buffers delet
   assertEquals(store.countQuads(null, exampleP, null, null), 0);
   assertEquals(store.countQuads(null, exampleQ, null, null), 1);
 });
+
+Deno.test("UpdateEvaluator - CLEAR, DROP, CREATE operations work", async () => {
+  const store = new Store();
+  store.addQuad(quad(exampleA, exampleP, exampleV));
+  store.addQuad(
+    quad(exampleA, exampleP, exampleV, namedNode("http://example.org/g1")),
+  );
+
+  const engine = new WazooSparqlEngine({ store });
+
+  await engine.execute({
+    query: "CREATE SILENT GRAPH <http://example.org/g2>",
+  });
+
+  await engine.execute({ query: "CLEAR GRAPH <http://example.org/g1>" });
+  assertEquals(
+    store.countQuads(null, null, null, namedNode("http://example.org/g1")),
+    0,
+  );
+  assertEquals(store.countQuads(null, null, null, null), 1);
+
+  await engine.execute({ query: "DROP ALL" });
+  assertEquals(store.countQuads(null, null, null, null), 0);
+});
+
+Deno.test("UpdateEvaluator - LOAD operation with SILENT error handling", async () => {
+  const store = new Store();
+  const engine = new WazooSparqlEngine({ store });
+
+  // Non-existent file with SILENT does not throw
+  await engine.execute({ query: "LOAD SILENT <file:///nonexistent-file.ttl>" });
+  assertEquals(store.countQuads(null, null, null, null), 0);
+});

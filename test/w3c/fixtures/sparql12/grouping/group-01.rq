@@ -1,0 +1,1 @@
+SELECT ?g (COUNT(*) AS ?c) WHERE { ?s ?p ?o } GROUP BY (TRIPLE(?s, ?p, ?o) AS ?g)

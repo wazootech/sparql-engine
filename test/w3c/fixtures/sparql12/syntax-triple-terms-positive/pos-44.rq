@@ -1,0 +1,1 @@
+DELETE { <<( :s :p :o )>> :p2 :o2 } INSERT { <<( :s :p :o )>> :p3 :o3 } WHERE { ?s ?p ?o } # test 44

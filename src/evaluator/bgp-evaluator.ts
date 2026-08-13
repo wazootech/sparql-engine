@@ -560,6 +560,16 @@ export class BgpEvaluator {
         );
         return innerJoin(bindings, groupResult);
       }
+      case "service": {
+        const silent = Boolean(pattern.silent);
+        try {
+          const inner = await this.evaluateGroup(pattern.patterns, [{}], store);
+          return innerJoin(bindings, inner);
+        } catch (err) {
+          if (silent) return bindings;
+          throw err;
+        }
+      }
       case "query": {
         const { SparqlEvaluator } = await import(
           "@/evaluator/sparql-evaluator.ts"

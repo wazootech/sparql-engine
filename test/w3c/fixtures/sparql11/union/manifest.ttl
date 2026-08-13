@@ -1,0 +1,18 @@
+@prefix mf: <http://www.w3.org/2001/sw/DataAccess/tests/test-manifest#> .
+@prefix qt: <http://www.w3.org/2001/sw/DataAccess/tests/test-query#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix dawgt: <http://www.w3.org/2001/sw/DataAccess/tests/test-dawg#> .
+
+<> a mf:Manifest ;
+  rdfs:label "Union" ;
+  mf:entries (
+    <#union-01>
+  ) .
+
+<#union-01> a mf:QueryEvaluationTest ;
+  mf:name "UNION pattern match" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action [
+    qt:query <q-union-1.rq> ;
+    qt:data <data-1.ttl>
+  ] .

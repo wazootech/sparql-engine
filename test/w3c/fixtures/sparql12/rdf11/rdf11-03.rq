@@ -1,0 +1,1 @@
+SELECT (datatype("str") AS ?dt) WHERE {}

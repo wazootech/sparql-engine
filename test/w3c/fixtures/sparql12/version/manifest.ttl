@@ -1,0 +1,61 @@
+@prefix mf: <http://www.w3.org/2001/sw/DataAccess/tests/test-manifest#> .
+@prefix dawgt: <http://www.w3.org/2001/sw/DataAccess/tests/test-dawg#> .
+
+<> a mf:Manifest ;
+  mf:entries (
+    <#ver-01>
+    <#ver-02>
+    <#ver-03>
+    <#ver-04>
+    <#ver-05>
+    <#ver-06>
+    <#ver-07>
+    <#ver-08>
+    <#ver-09>
+  ) .
+
+<#ver-01> a mf:PositiveSyntaxTest11 ;
+  mf:name "Version ver-01" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <ver-01.rq> .
+
+<#ver-02> a mf:PositiveSyntaxTest11 ;
+  mf:name "Version ver-02" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <ver-02.rq> .
+
+<#ver-03> a mf:PositiveSyntaxTest11 ;
+  mf:name "Version ver-03" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <ver-03.rq> .
+
+<#ver-04> a mf:PositiveSyntaxTest11 ;
+  mf:name "Version ver-04" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <ver-04.rq> .
+
+<#ver-05> a mf:PositiveSyntaxTest11 ;
+  mf:name "Version ver-05" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <ver-05.rq> .
+
+<#ver-06> a mf:PositiveSyntaxTest11 ;
+  mf:name "Version ver-06" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <ver-06.rq> .
+
+<#ver-07> a mf:PositiveSyntaxTest11 ;
+  mf:name "Version ver-07" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <ver-07.rq> .
+
+<#ver-08> a mf:PositiveSyntaxTest11 ;
+  mf:name "Version ver-08" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <ver-08.rq> .
+
+<#ver-09> a mf:PositiveSyntaxTest11 ;
+  mf:name "Version ver-09" ;
+  dawgt:approval dawgt:Approved ;
+  mf:action <ver-09.rq> .
+

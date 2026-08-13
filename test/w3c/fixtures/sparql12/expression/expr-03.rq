@@ -1,0 +1,1 @@
+SELECT (LANGDIR("hello"@en) AS ?dir) WHERE {}

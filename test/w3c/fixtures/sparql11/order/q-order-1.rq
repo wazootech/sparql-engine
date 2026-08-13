@@ -1,0 +1,4 @@
+PREFIX ex: <http://example.org/>
+SELECT ?s ?v WHERE {
+  ?s ex:num ?v
+} ORDER BY ?v
