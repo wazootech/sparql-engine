@@ -36,6 +36,7 @@ const exCity = namedNode("http://example.org/city");
 const exSpouse = namedNode("http://example.org/spouse");
 const exG1Prop = namedNode("http://example.org/g1prop");
 const g1Graph = namedNode("http://example.org/g1");
+const g2Graph = namedNode("http://example.org/g2");
 
 /**
  * buildDataset generates the shared benchmark graph: a ring of people, each
@@ -86,6 +87,27 @@ function buildGraphDataset(): rdfjs.Quad[] {
         literal(`v${index % 10}`),
         g1Graph,
       ),
+    );
+  }
+  return quads;
+}
+
+/**
+ * buildGraphOpsDataset seeds the named-graph update benchmark: graph g1 as
+ * the source (200 quads) and graph g2 as a pre-seeded destination (50 quads),
+ * so ADD / COPY / MOVE / CLEAR / DROP produce distinct, observable store
+ * states rather than trivial ones.
+ */
+function buildGraphOpsDataset(): rdfjs.Quad[] {
+  const quads: rdfjs.Quad[] = [];
+  for (let index = 0; index < 200; index++) {
+    quads.push(
+      quad(examplePerson(index), exG1Prop, literal(`v${index % 10}`), g1Graph),
+    );
+  }
+  for (let index = 0; index < 50; index++) {
+    quads.push(
+      quad(examplePerson(index), exG1Prop, literal(`w${index}`), g2Graph),
     );
   }
   return quads;
@@ -171,6 +193,7 @@ const graphDataset = buildGraphDataset();
 const graphN3Store = seedN3Store(graphDataset);
 const graphOxigraphStore = seedOxigraphStore(graphDataset);
 const graphNativeEngine = new WazooSparqlEngine({ store: graphN3Store });
+const graphOpsDataset = buildGraphOpsDataset();
 
 const scanQuery = "SELECT ?s ?p ?o WHERE { ?s ?p ?o }";
 const joinQuery =
@@ -213,12 +236,12 @@ const constructQuery =
   "CONSTRUCT { ?person <http://example.org/displayName> ?name } " +
   "WHERE { ?person <http://xmlns.com/foaf/0.1/name> ?name }";
 
-// Feature groups landed since the last bench pass: OPTIONAL / MINUS / UNION,
-// property paths, GROUP BY + aggregates, expression FILTERs, ORDER BY + slice,
-// DISTINCT, VALUES + BIND, GRAPH, and FROM. (Subqueries in WHERE are a known
-// native gap — "Unsupported graph pattern type: query" — so they are not
-// benched yet.) Each group verifies all three engines agree on the result
-// *before* timings are taken.
+// Feature groups: OPTIONAL / MINUS / UNION, property paths, GROUP BY +
+// aggregates, expression FILTERs, ORDER BY + slice, DISTINCT, VALUES + BIND,
+// GRAPH, FROM, plus the 100%-era surface defined further down (subqueries,
+// EXISTS/NOT EXISTS, XSD casts, string functions, HAVING, CONSTRUCT lists,
+// REDUCED, and the remaining update ops). Each group verifies all three
+// engines agree on the result *before* timings are taken.
 const optionalQuery =
   "SELECT ?person ?spouse WHERE { ?person <http://xmlns.com/foaf/0.1/name> ?name " +
   "OPTIONAL { ?person <http://example.org/spouse> ?spouse } }";
@@ -256,6 +279,100 @@ const graphQuery = "SELECT ?s ?o WHERE { GRAPH <http://example.org/g1> { " +
 const fromQuery = "SELECT ?s ?o FROM <http://example.org/g1> WHERE { " +
   "?s <http://example.org/g1prop> ?o }";
 
+// --- 100%-era feature surface ---
+// Subqueries: a WHERE subquery joined with the outer pattern, an aggregate
+// subquery, and a nested subquery.
+const subqueryQuery = "SELECT ?s ?n WHERE { " +
+  "?s <http://xmlns.com/foaf/0.1/age> ?age . " +
+  "{ SELECT ?s ?n WHERE { ?s <http://xmlns.com/foaf/0.1/name> ?n } } }";
+const subqueryAggQuery = "SELECT ?city ?cnt WHERE { " +
+  "{ SELECT ?city (COUNT(?s) AS ?cnt) WHERE { ?s <http://example.org/city> ?city } " +
+  "GROUP BY ?city } }";
+const subqueryNestedQuery = "SELECT ?s WHERE { " +
+  "{ SELECT ?s WHERE { { SELECT ?s WHERE { ?s <http://xmlns.com/foaf/0.1/name> ?n } } " +
+  "?s <http://example.org/city> ?city } } }";
+
+// EXISTS / NOT EXISTS filters over the spouse edge (even-indexed people only).
+const existsQuery =
+  "SELECT ?s WHERE { ?s <http://xmlns.com/foaf/0.1/name> ?n " +
+  "FILTER EXISTS { ?s <http://example.org/spouse> ?spouse } }";
+const notExistsQuery =
+  "SELECT ?s WHERE { ?s <http://xmlns.com/foaf/0.1/name> ?n " +
+  "FILTER NOT EXISTS { ?s <http://example.org/spouse> ?spouse } }";
+
+// XSD cast constructors over the integer age literal, plus boolean and
+// dateTime casts from string constants (the shared dataset carries no
+// boolean/dateTime literals). The xsd prefix is declared explicitly because
+// Oxigraph requires it for cast-function syntax. xsd:double is omitted: native
+// and Comunica emit the canonical "2.0E1" lexical form while Oxigraph emits
+// "20", so a three-engine lexical comparison cannot cross-verify it.
+const castNumericQuery = "PREFIX xsd: <http://www.w3.org/2001/XMLSchema#> " +
+  "SELECT ?s (xsd:integer(?age) AS ?i) " +
+  "(xsd:decimal(?age) AS ?dec) " +
+  "(xsd:float(?age) AS ?flt) (xsd:string(?age) AS ?str) WHERE { " +
+  "?s <http://xmlns.com/foaf/0.1/age> ?age }";
+const castBooleanQuery = "PREFIX xsd: <http://www.w3.org/2001/XMLSchema#> " +
+  'SELECT ?s (xsd:boolean("true") AS ?b) WHERE { ' +
+  "?s <http://xmlns.com/foaf/0.1/name> ?n }";
+const castDateTimeQuery = "PREFIX xsd: <http://www.w3.org/2001/XMLSchema#> " +
+  'SELECT ?s (xsd:dateTime("2011-01-10T14:45:13Z") AS ?dt) ' +
+  "WHERE { ?s <http://xmlns.com/foaf/0.1/name> ?n }";
+
+// String/datatype functions. LANG/LANGMATCHES use a lang-tagged literal in the
+// query itself (the shared dataset carries no language tags).
+const stringConcatQuery = 'SELECT ?s (CONCAT(?name, "!") AS ?c) WHERE { ' +
+  "?s <http://xmlns.com/foaf/0.1/name> ?name }";
+const stringBeforeAfterQuery = 'SELECT ?s (STRBEFORE(?name, " ") AS ?b) ' +
+  '(STRAFTER(?name, " ") AS ?a) WHERE { ?s <http://xmlns.com/foaf/0.1/name> ?name }';
+const stringReplaceQuery = 'SELECT ?s (REPLACE(?name, "Person", "P") AS ?r) ' +
+  "WHERE { ?s <http://xmlns.com/foaf/0.1/name> ?name }";
+const stringEncodeUriQuery =
+  "SELECT ?s (ENCODE_FOR_URI(?name) AS ?e) WHERE { " +
+  "?s <http://xmlns.com/foaf/0.1/name> ?name }";
+const stringDatatypeQuery = "SELECT ?s (DATATYPE(?age) AS ?dt) WHERE { " +
+  "?s <http://xmlns.com/foaf/0.1/age> ?age }";
+const stringLangQuery = 'SELECT ?s (LANG("hello"@en) AS ?l) ' +
+  '(LANGMATCHES(LANG("hello"@en), "EN") AS ?m) WHERE { ' +
+  "?s <http://xmlns.com/foaf/0.1/name> ?name }";
+const stringIriQuery = 'SELECT ?s (IRI(CONCAT(STR(?s), "#frag")) AS ?iri) ' +
+  "WHERE { ?s <http://xmlns.com/foaf/0.1/name> ?name }";
+
+// HAVING alongside GROUP BY (city groups are uniformly 80, so HAVING > 60
+// keeps all five groups while exercising the filter path).
+const havingQuery = "SELECT ?city (COUNT(*) AS ?cnt) WHERE { " +
+  "?s <http://example.org/city> ?city } GROUP BY ?city HAVING (COUNT(*) > 60)";
+
+// REDUCED (≡ DISTINCT per the REDUCED decision).
+const reducedQuery =
+  "SELECT REDUCED ?city WHERE { ?s <http://example.org/city> ?city }";
+
+// CONSTRUCT with an RDF list: each solution mints a fresh blank node, the
+// fresh-per-solution blank-node path.
+const constructListQuery = "CONSTRUCT { " +
+  "?s <http://example.org/nameList> [ " +
+  "<http://www.w3.org/1999/02/22-rdf-syntax-ns#first> ?name ; " +
+  "<http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> <http://www.w3.org/1999/02/22-rdf-syntax-ns#nil> ] } " +
+  "WHERE { ?s <http://xmlns.com/foaf/0.1/name> ?name }";
+
+// Remaining update ops on named graphs (g1 = source, g2 = pre-seeded
+// destination), plain and SILENT forms.
+const clearGraphQuery = "CLEAR GRAPH <http://example.org/g1>";
+const clearGraphSilentQuery = "CLEAR SILENT GRAPH <http://example.org/g1>";
+const dropGraphQuery = "DROP GRAPH <http://example.org/g1>";
+const dropGraphSilentQuery = "DROP SILENT GRAPH <http://example.org/g1>";
+const addGraphQuery =
+  "ADD GRAPH <http://example.org/g1> TO GRAPH <http://example.org/g2>";
+const addGraphSilentQuery =
+  "ADD SILENT GRAPH <http://example.org/g1> TO GRAPH <http://example.org/g2>";
+const copyGraphQuery =
+  "COPY GRAPH <http://example.org/g1> TO GRAPH <http://example.org/g2>";
+const copyGraphSilentQuery =
+  "COPY SILENT GRAPH <http://example.org/g1> TO GRAPH <http://example.org/g2>";
+const moveGraphQuery =
+  "MOVE GRAPH <http://example.org/g1> TO GRAPH <http://example.org/g2>";
+const moveGraphSilentQuery =
+  "MOVE SILENT GRAPH <http://example.org/g1> TO GRAPH <http://example.org/g2>";
+
 /**
  * OxigraphBinding is the structural binding shape Oxigraph returns.
  */
@@ -285,6 +402,148 @@ function quadRecord(
   return [item.subject, item.predicate, item.object, item.graph]
     .map((term) => JSON.stringify(canonicalize(term)))
     .join(" ");
+}
+
+/**
+ * quadRecords projects quads into ordered [s, p, o, g] canonical term lists,
+ * the record shape the blank-node-isomorphic comparison operates on.
+ */
+function quadRecords(
+  quads: rdfjs.Quad[],
+  canonicalize: (term: rdfjs.Term) => CanonicalTerm,
+): CanonicalTerm[][] {
+  return quads.map((item) => [
+    canonicalize(item.subject),
+    canonicalize(item.predicate),
+    canonicalize(item.object),
+    canonicalize(item.graph),
+  ]);
+}
+
+/**
+ * isomorphicMultiset compares two record multisets (each record an ordered
+ * list of canonical terms) up to blank-node renaming. Blank-node labels are
+ * engine-local and unobservable, so CONSTRUCT templates that mint fresh blank
+ * nodes per solution agree exactly when a consistent relabeling makes them
+ * equal.
+ */
+function isomorphicMultiset(
+  a: CanonicalTerm[][],
+  b: CanonicalTerm[][],
+): boolean {
+  if (a.length !== b.length) {
+    return false;
+  }
+  const ac = canonicalizeBnodes(a).sort();
+  const bc = canonicalizeBnodes(b).sort();
+  for (let index = 0; index < ac.length; index++) {
+    if (ac[index] !== bc[index]) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * canonicalizeBnodes relabels the blank nodes of a record multiset with
+ * canonical `_:0, _:1, ...` labels derived from structure by iterative
+ * partition refinement (Weisfeiler-Lehman style), so structurally identical
+ * results carrying different engine-local labels canonicalize identically.
+ */
+function canonicalizeBnodes(records: CanonicalTerm[][]): string[] {
+  const labels = new Set<string>();
+  const visit = (term: CanonicalTerm): void => {
+    if (term.termType === "BlankNode") {
+      labels.add(term.value);
+    } else if (term.termType === "Quad") {
+      if (term.subject) visit(term.subject);
+      if (term.predicate) visit(term.predicate);
+      if (term.object) visit(term.object);
+    }
+  };
+  for (const record of records) {
+    for (const term of record) {
+      visit(term);
+    }
+  }
+
+  const renderValue = (
+    term: CanonicalTerm,
+    map: Map<string, string>,
+  ): unknown => {
+    if (term.termType === "BlankNode") {
+      return { termType: "BlankNode", value: map.get(term.value) ?? "_" };
+    }
+    if (term.termType === "Quad") {
+      return {
+        termType: "Quad",
+        value: "",
+        subject: term.subject ? renderValue(term.subject, map) : undefined,
+        predicate: term.predicate
+          ? renderValue(term.predicate, map)
+          : undefined,
+        object: term.object ? renderValue(term.object, map) : undefined,
+      };
+    }
+    return term;
+  };
+  const render = (term: CanonicalTerm, map: Map<string, string>): string =>
+    JSON.stringify(renderValue(term, map));
+
+  const refersTo = (term: CanonicalTerm, label: string): boolean => {
+    if (term.termType === "BlankNode") {
+      return term.value === label;
+    }
+    if (term.termType === "Quad") {
+      return (term.subject !== undefined && refersTo(term.subject, label)) ||
+        (term.predicate !== undefined && refersTo(term.predicate, label)) ||
+        (term.object !== undefined && refersTo(term.object, label));
+    }
+    return false;
+  };
+
+  let current = new Map<string, string>();
+  for (const label of labels) {
+    current.set(label, "s0");
+  }
+  for (let round = 0; round <= labels.size + 1; round++) {
+    const signature = new Map<string, string>();
+    for (const label of labels) {
+      const contexts: string[] = [];
+      for (const record of records) {
+        for (let slot = 0; slot < record.length; slot++) {
+          if (refersTo(record[slot], label)) {
+            const others = record
+              .filter((_, index) => index !== slot)
+              .map((term) => render(term, current));
+            contexts.push(JSON.stringify([slot, ...others]));
+          }
+        }
+      }
+      contexts.sort();
+      signature.set(label, JSON.stringify(contexts));
+    }
+    const distinct = [...new Set(signature.values())].sort();
+    const idOf = new Map(distinct.map((text, index) => [text, `s${index}`]));
+    current = new Map(
+      [...labels].map((label) => [label, idOf.get(signature.get(label)!)!]),
+    );
+  }
+
+  const ordered = [...labels].sort((a, b) => {
+    const aId = current.get(a)!;
+    const bId = current.get(b)!;
+    if (aId !== bId) {
+      return aId < bId ? -1 : 1;
+    }
+    return a < b ? -1 : 1;
+  });
+  const canonical = new Map<string, string>();
+  ordered.forEach((label, index) => canonical.set(label, `_:${index}`));
+
+  return records.map((record) =>
+    record.map((term) => render(term, canonical)).join("\u0000")
+  );
 }
 
 /**
@@ -445,6 +704,47 @@ async function verifyConstructEquality(
 }
 
 /**
+ * verifyConstructIsoEquality asserts all three engines produce isomorphic
+ * CONSTRUCT quad sets for the given query, comparing up to blank-node
+ * renaming (fresh blank nodes minted per solution carry engine-local labels).
+ */
+async function verifyConstructIsoEquality(
+  query: string,
+  label: string,
+): Promise<void> {
+  const nativeResult = await nativeEngine.execute({ query });
+  if (nativeResult.kind !== "construct") {
+    throw new Error(`${label}: native engine returned ${nativeResult.kind}`);
+  }
+  const nativeRecords = quadRecords(
+    nativeResult.data.quads,
+    canonicalizeRdfTerm,
+  );
+
+  const comunicaStream = await comunicaEngine.queryQuads(query, {
+    sources: [n3Store],
+  });
+  const comunicaQuads = await comunicaStream.toArray();
+  const comunicaRecords = quadRecords(comunicaQuads, canonicalizeComunicaTerm);
+
+  const oxigraphQuads = oxigraphStore.query(
+    query,
+  ) as unknown as rdfjs.Quad[];
+  const oxigraphRecords = quadRecords(oxigraphQuads, canonicalizeRdfTerm);
+
+  assertEquals(
+    isomorphicMultiset(nativeRecords, comunicaRecords),
+    true,
+    `${label}: native and comunica disagree up to blank-node isomorphism`,
+  );
+  assertEquals(
+    isomorphicMultiset(nativeRecords, oxigraphRecords),
+    true,
+    `${label}: native and oxigraph disagree up to blank-node isomorphism`,
+  );
+}
+
+/**
  * storeQuadStrings renders a store's full contents as a sorted list of
  * canonical quad strings.
  */
@@ -456,14 +756,17 @@ function storeQuadStrings(store: Store): string[] {
 /**
  * verifyUpdateEquality asserts all three engines produce identical final
  * store contents after running the given update. Each engine mutates its own
- * freshly seeded store, so the update is genuinely executed rather than
- * compared against pre-existing state.
+ * freshly seeded store (defaulting to the main dataset, or a named-graph seed
+ * for graph-management ops), so the update is genuinely executed rather than
+ * compared against pre-existing state. Oxigraph is dumped with match() so
+ * named-graph quads are included.
  */
 async function verifyUpdateEquality(
   query: string,
   label: string,
+  seed: rdfjs.Quad[] = dataset,
 ): Promise<void> {
-  const nativeStore = seedN3Store(dataset);
+  const nativeStore = seedN3Store(seed);
   const nativeUpdateEngine = new WazooSparqlEngine({ store: nativeStore });
   const nativeResult = await nativeUpdateEngine.execute({ query });
   if (nativeResult.kind !== "void") {
@@ -471,14 +774,17 @@ async function verifyUpdateEquality(
   }
   const nativeSet = storeQuadStrings(nativeStore);
 
-  const comunicaStore = seedN3Store(dataset);
+  const comunicaStore = seedN3Store(seed);
   await comunicaEngine.queryVoid(query, { sources: [comunicaStore] });
   const comunicaSet = storeQuadStrings(comunicaStore);
 
-  const oxigraphUpdateStore = seedOxigraphStore(dataset);
+  const oxigraphUpdateStore = seedOxigraphStore(seed);
   await oxigraphUpdateStore.update(query);
-  const oxigraphQuads = oxigraphUpdateStore.query(
-    "CONSTRUCT { ?s ?p ?o } WHERE { ?s ?p ?o }",
+  const oxigraphQuads = oxigraphUpdateStore.match(
+    null,
+    null,
+    null,
+    null,
   ) as unknown as rdfjs.Quad[];
   const oxigraphSet = oxigraphQuads
     .map((item) => quadRecord(item, canonicalizeRdfTerm))
@@ -518,6 +824,55 @@ await verifySelectEquality(distinctQuery, "distinct");
 await verifySelectEquality(valuesBindQuery, "values-bind");
 await verifySelectEquality(graphQuery, "graph", graphTrio);
 await verifySelectEquality(fromQuery, "from", graphTrio);
+// 100%-era surface.
+await verifySelectEquality(subqueryQuery, "subquery");
+await verifySelectEquality(subqueryAggQuery, "subquery-agg");
+await verifySelectEquality(subqueryNestedQuery, "subquery-nested");
+await verifySelectEquality(existsQuery, "exists");
+await verifySelectEquality(notExistsQuery, "not-exists");
+await verifySelectEquality(castNumericQuery, "cast-numeric");
+await verifySelectEquality(castBooleanQuery, "cast-boolean");
+await verifySelectEquality(castDateTimeQuery, "cast-dateTime");
+await verifySelectEquality(stringConcatQuery, "string-concat");
+await verifySelectEquality(stringBeforeAfterQuery, "string-before-after");
+await verifySelectEquality(stringReplaceQuery, "string-replace");
+await verifySelectEquality(stringEncodeUriQuery, "string-encode-uri");
+await verifySelectEquality(stringDatatypeQuery, "string-datatype");
+await verifySelectEquality(stringLangQuery, "string-lang");
+await verifySelectEquality(stringIriQuery, "string-iri");
+await verifySelectEquality(havingQuery, "having");
+await verifySelectEquality(reducedQuery, "reduced");
+await verifyConstructIsoEquality(constructListQuery, "construct-list");
+await verifyUpdateEquality(clearGraphQuery, "clear-graph", graphOpsDataset);
+await verifyUpdateEquality(
+  clearGraphSilentQuery,
+  "clear-graph-silent",
+  graphOpsDataset,
+);
+await verifyUpdateEquality(dropGraphQuery, "drop-graph", graphOpsDataset);
+await verifyUpdateEquality(
+  dropGraphSilentQuery,
+  "drop-graph-silent",
+  graphOpsDataset,
+);
+await verifyUpdateEquality(addGraphQuery, "add-graph", graphOpsDataset);
+await verifyUpdateEquality(
+  addGraphSilentQuery,
+  "add-graph-silent",
+  graphOpsDataset,
+);
+await verifyUpdateEquality(copyGraphQuery, "copy-graph", graphOpsDataset);
+await verifyUpdateEquality(
+  copyGraphSilentQuery,
+  "copy-graph-silent",
+  graphOpsDataset,
+);
+await verifyUpdateEquality(moveGraphQuery, "move-graph", graphOpsDataset);
+await verifyUpdateEquality(
+  moveGraphSilentQuery,
+  "move-graph-silent",
+  graphOpsDataset,
+);
 
 Deno.bench(
   { name: "native - scan", group: "scan", baseline: true },
@@ -774,6 +1129,79 @@ function benchSelectTrio(
   });
 }
 
+/**
+ * benchConstructTrio registers the native/comunica/oxigraph bench trio for
+ * one CONSTRUCT group. Native is the baseline; each body asserts a non-empty
+ * result so a silently-broken engine fails loudly mid-run.
+ */
+function benchConstructTrio(
+  group: string,
+  query: string,
+  label: string,
+): void {
+  Deno.bench(
+    { name: `native - ${label}`, group, baseline: true },
+    async () => {
+      const result = await nativeEngine.execute({ query });
+      if (result.kind !== "construct" || result.data.quads.length === 0) {
+        throw new Error(`native ${label} returned no quads`);
+      }
+    },
+  );
+
+  Deno.bench({ name: `comunica - ${label}`, group }, async () => {
+    const stream = await comunicaEngine.queryQuads(query, {
+      sources: [n3Store],
+    });
+    const quads = await stream.toArray();
+    if (quads.length === 0) {
+      throw new Error(`comunica ${label} returned no quads`);
+    }
+  });
+
+  Deno.bench({ name: `oxigraph - ${label}`, group }, () => {
+    const result = oxigraphStore.query(query) as unknown as rdfjs.Quad[];
+    if (result.length === 0) {
+      throw new Error(`oxigraph ${label} returned no quads`);
+    }
+  });
+}
+
+/**
+ * benchUpdateTrio registers the native/comunica/oxigraph bench trio for one
+ * update group. Each iteration seeds a fresh store (the graph-management ops
+ * are one-way mutations, unlike the self-restoring rewrite update), so the
+ * timings never observe a drifted store.
+ */
+function benchUpdateTrio(
+  group: string,
+  query: string,
+  label: string,
+  seed: rdfjs.Quad[],
+): void {
+  Deno.bench(
+    { name: `native - ${label}`, group, baseline: true },
+    async () => {
+      const store = seedN3Store(seed);
+      const engine = new WazooSparqlEngine({ store });
+      const result = await engine.execute({ query });
+      if (result.kind !== "void") {
+        throw new Error(`native ${label} returned a non-void result`);
+      }
+    },
+  );
+
+  Deno.bench({ name: `comunica - ${label}`, group }, async () => {
+    const store = seedN3Store(seed);
+    await comunicaEngine.queryVoid(query, { sources: [store] });
+  });
+
+  Deno.bench({ name: `oxigraph - ${label}`, group }, async () => {
+    const store = seedOxigraphStore(seed);
+    await store.update(query);
+  });
+}
+
 benchSelectTrio("optional", optionalQuery, "optional");
 benchSelectTrio("minus", minusQuery, "minus");
 benchSelectTrio("union", unionQuery, "union");
@@ -786,3 +1214,57 @@ benchSelectTrio("distinct", distinctQuery, "distinct");
 benchSelectTrio("values-bind", valuesBindQuery, "values-bind");
 benchSelectTrio("graph", graphQuery, "graph", graphTrio);
 benchSelectTrio("from", fromQuery, "from", graphTrio);
+// 100%-era surface.
+benchSelectTrio("subquery", subqueryQuery, "subquery");
+benchSelectTrio("subquery", subqueryAggQuery, "subquery-agg");
+benchSelectTrio("subquery", subqueryNestedQuery, "subquery-nested");
+benchSelectTrio("exists", existsQuery, "exists");
+benchSelectTrio("exists", notExistsQuery, "not-exists");
+benchSelectTrio("cast", castNumericQuery, "cast-numeric");
+benchSelectTrio("cast", castBooleanQuery, "cast-boolean");
+benchSelectTrio("cast", castDateTimeQuery, "cast-dateTime");
+benchSelectTrio("string-fn", stringConcatQuery, "string-concat");
+benchSelectTrio("string-fn", stringBeforeAfterQuery, "string-before-after");
+benchSelectTrio("string-fn", stringReplaceQuery, "string-replace");
+benchSelectTrio("string-fn", stringEncodeUriQuery, "string-encode-uri");
+benchSelectTrio("string-fn", stringDatatypeQuery, "string-datatype");
+benchSelectTrio("string-fn", stringLangQuery, "string-lang");
+benchSelectTrio("string-fn", stringIriQuery, "string-iri");
+benchSelectTrio("group-aggregate", havingQuery, "having");
+benchSelectTrio("reduced", reducedQuery, "reduced");
+benchConstructTrio("construct", constructListQuery, "construct-list");
+benchUpdateTrio("update-ops", clearGraphQuery, "clear-graph", graphOpsDataset);
+benchUpdateTrio(
+  "update-ops",
+  clearGraphSilentQuery,
+  "clear-graph-silent",
+  graphOpsDataset,
+);
+benchUpdateTrio("update-ops", dropGraphQuery, "drop-graph", graphOpsDataset);
+benchUpdateTrio(
+  "update-ops",
+  dropGraphSilentQuery,
+  "drop-graph-silent",
+  graphOpsDataset,
+);
+benchUpdateTrio("update-ops", addGraphQuery, "add-graph", graphOpsDataset);
+benchUpdateTrio(
+  "update-ops",
+  addGraphSilentQuery,
+  "add-graph-silent",
+  graphOpsDataset,
+);
+benchUpdateTrio("update-ops", copyGraphQuery, "copy-graph", graphOpsDataset);
+benchUpdateTrio(
+  "update-ops",
+  copyGraphSilentQuery,
+  "copy-graph-silent",
+  graphOpsDataset,
+);
+benchUpdateTrio("update-ops", moveGraphQuery, "move-graph", graphOpsDataset);
+benchUpdateTrio(
+  "update-ops",
+  moveGraphSilentQuery,
+  "move-graph-silent",
+  graphOpsDataset,
+);
