@@ -18,6 +18,7 @@ import type {
 } from "@/sparql-engine-interface.ts";
 import { aggregateValue, groupSolutions } from "@/evaluator/aggregate.ts";
 import { innerJoin } from "@/evaluator/join.ts";
+import { expandReifiedTriples } from "@/evaluator/reified.ts";
 import {
   BgpEvaluator,
   expressionContainsExists,
@@ -427,12 +428,17 @@ export class SparqlEvaluator {
       return { quads };
     }
 
+    // Reified-triple templates (`<< s p o >>`, annotation `{| ... |}`)
+    // expand into a reifier blank node joined to its `rdf:reifies` triple
+    // term, so the template instantiates the RDF 1.2 reifier representation.
+    const template = expandReifiedTriples(query.template);
+
     for (const binding of bindings) {
       // Blank nodes in a CONSTRUCT template are fresh per solution mapping
       // (SPARQL 1.1 §16.2.1): the parser expands RDF collections and _:b
       // template terms into shared labels, so remap them per binding.
       const bnodeMap = new Map<string, rdfjs.BlankNode>();
-      for (const t of query.template) {
+      for (const t of template) {
         const s = this.resolveConstructTerm(t.subject, binding, bnodeMap);
         const p = this.resolveConstructTerm(
           simplePredicate(t.predicate),
@@ -527,8 +533,19 @@ export class SparqlEvaluator {
       return fresh;
     }
     if (term.termType === "Quad") {
-      throw new Error(
-        "Reified-triple CONSTRUCT templates are not yet supported",
+      // A triple term in a template resolves its three positions recursively,
+      // so embedded variables and nested quoted triples instantiate per
+      // solution.
+      const s = this.resolveConstructTerm(term.subject, binding, bnodeMap);
+      const p = this.resolveConstructTerm(term.predicate, binding, bnodeMap);
+      const o = this.resolveConstructTerm(term.object, binding, bnodeMap);
+      if (!s || !p || !o) {
+        return null;
+      }
+      return DataFactory.quad(
+        s as rdfjs.Quad_Subject,
+        p as rdfjs.Quad_Predicate,
+        o as rdfjs.Quad_Object,
       );
     }
     return sparqlTermToRdfTerm(term);
