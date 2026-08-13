@@ -7,7 +7,7 @@ Status: **prototype implemented** — `src/store/sqlite-store.ts` (with tests in
 
 Run SPARQL UPDATE requests as atomic, restart-safe transactions against a
 durable store, while keeping the published engine runtime **dependency-free**
-(no `n3`, no SQLite npm package in the engine's export graph).
+(no npm packages in the engine's export graph).
 
 ## Why the engine already supports this
 

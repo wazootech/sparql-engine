@@ -9,7 +9,8 @@ import type {
 /**
  * RDF_REIFIES is the RDF 1.2 predicate connecting a reifier to the triple
  * term it reifies. Reified-triple data (`<< s p o >>`, annotation syntax
- * `{| ... |}`) is materialized by n3 as `_:r rdf:reifies <<( s p o )>>`,
+ * `{| ... |}`) is materialized by the in-repo Turtle/TriG parser as
+ * `_:r rdf:reifies <<( s p o )>>`,
  * so pattern matching routes through this predicate.
  */
 export const RDF_REIFIES = "http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies";
@@ -17,8 +18,8 @@ export const RDF_REIFIES = "http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies";
 /**
  * reifierCounter mints distinct reifier labels across a process. Labels are
  * opaque (never projected), so uniqueness is all that matters; the `reifier-`
- * prefix is disjoint from the parser's `e_`/`g_` blank-node labels and n3's
- * `n3-` data labels.
+ * prefix is disjoint from the SPARQL parser's `e_`/`g_` blank-node labels
+ * and the Turtle parser's `b1`/`b2` blank-node labels.
  */
 let reifierCounter = 0;
 

@@ -190,8 +190,8 @@
   // a fresh internal reifier at evaluation time.
   function reifiedTriplePattern(quad) {
     var reifier = quad.reifier || quad;
-    // Build a fresh factory quad for the triple term (n3 Quad accessors live on
-    // the prototype, so a shallow copy would lose subject/predicate/object).
+    // Build a fresh factory quad for the triple term (RDF/JS Quad accessors live
+    // on the prototype, so a shallow copy would lose subject/predicate/object).
     var tripleTerm = nestedTriple(quad.subject, quad.predicate, quad.object);
     return [triple(reifier, Parser.factory.namedNode(RDF_REIFIES), tripleTerm)];
   }

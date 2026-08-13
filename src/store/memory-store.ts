@@ -223,9 +223,9 @@ export class MemoryStream implements rdfjs.Stream<rdfjs.Quad> {
 }
 
 /**
- * MemoryStore is a minimal in-memory RDF/JS Store used to materialize FROM and
- * FROM NAMED datasets (and transient update materializations) inside the
- * engine. It replaces N3's Store with a zero-dependency equivalent.
+ * MemoryStore is a minimal, zero-dependency in-memory RDF/JS Store used to
+ * materialize FROM and FROM NAMED datasets (and transient update
+ * materializations) inside the engine.
  */
 export class MemoryStore implements rdfjs.Store<rdfjs.Quad> {
   private quads: Map<string, rdfjs.Quad> = new Map();
