@@ -1,5 +1,6 @@
 import type * as rdfjs from "@rdfjs/types";
-import { DataFactory, Store } from "n3";
+import { DataFactory } from "@/term/mod.ts";
+import { MemoryStore as Store } from "@/store/memory-store.ts";
 import { XSD_INTEGER } from "@/term/mod.ts";
 
 const { blankNode, literal, namedNode, quad } = DataFactory;
@@ -127,7 +128,7 @@ export const fromDatasetQuads: rdfjs.Quad[] = [
 ];
 
 /**
- * createQuadStore builds a fresh N3 Store seeded with the given quads.
+ * createQuadStore builds a fresh MemoryStore seeded with the given quads.
  */
 export function createQuadStore(quads: rdfjs.Quad[]): Store {
   const store = new Store();

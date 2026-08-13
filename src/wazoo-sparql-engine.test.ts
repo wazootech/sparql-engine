@@ -1,8 +1,9 @@
 import { assertEquals, assertRejects } from "@std/assert";
-import { DataFactory, Store } from "n3";
+import { DataFactory } from "@/term/mod.ts";
+import { MemoryStore as Store } from "@/store/memory-store.ts";
 import { WazooSparqlEngine } from "@/wazoo-sparql-engine.ts";
 
-const { namedNode, literal, quad } = DataFactory;
+const { blankNode, namedNode, literal, quad } = DataFactory;
 
 Deno.test("WazooSparqlEngine - SELECT query BGP evaluation", async () => {
   const store = new Store();
@@ -2796,5 +2797,76 @@ Deno.test("WazooSparqlEngine - SERVICE pattern single-endpoint fallback", async 
   if (result.kind === "select") {
     assertEquals(result.data.results.bindings.length, 1);
     assertEquals(result.data.results.bindings[0].name.value, "Ethan");
+  }
+});
+
+/** Builds a store with reified triples: :s :p :o reified by :iri with an
+ * annotation, and :s :p :o2 reified by a fresh blank node with an annotation. */
+function reifiedStore(): Store {
+  const store = new Store();
+  const s = namedNode("http://example.com/ns#s");
+  const p = namedNode("http://example.com/ns#p");
+  const o = namedNode("http://example.com/ns#o");
+  const o2 = namedNode("http://example.com/ns#o2");
+  const iri = namedNode("http://example.com/ns#iri");
+  const r = namedNode("http://example.com/ns#r");
+  const reifies = namedNode(
+    "http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies",
+  );
+  store.addQuad(quad(s, p, o));
+  store.addQuad(quad(iri, reifies, quad(s, p, o)));
+  store.addQuad(quad(iri, r, namedNode("http://example.com/ns#Z1")));
+  store.addQuad(quad(s, p, o2));
+  store.addQuad(quad(blankNode("r2"), reifies, quad(s, p, o2)));
+  store.addQuad(
+    quad(blankNode("r2"), r, namedNode("http://example.com/ns#Z2")),
+  );
+  return store;
+}
+
+Deno.test("WazooSparqlEngine - reifier and annotation after an object match reified data", async () => {
+  const engine = new WazooSparqlEngine({ store: reifiedStore() });
+  const result = await engine.execute({
+    query:
+      "PREFIX : <http://example.com/ns#> SELECT * { :s :p ?o ~ :iri {| :r ?Z |} }",
+  });
+  assertEquals(result.kind, "select");
+  if (result.kind === "select") {
+    assertEquals(result.data.results.bindings.length, 1);
+    const b = result.data.results.bindings[0];
+    assertEquals(b.o.value, "http://example.com/ns#o");
+    assertEquals(b.Z.value, "http://example.com/ns#Z1");
+  }
+});
+
+Deno.test("WazooSparqlEngine - variable reifier binds the reifier term", async () => {
+  const engine = new WazooSparqlEngine({ store: reifiedStore() });
+  const result = await engine.execute({
+    query:
+      "PREFIX : <http://example.com/ns#> SELECT * { :s :p ?o ~ ?r {| :r ?Z |} }",
+  });
+  assertEquals(result.kind, "select");
+  if (result.kind === "select") {
+    assertEquals(result.data.results.bindings.length, 2);
+    const byO = new Map(
+      result.data.results.bindings.map((b) => [b.o.value, b]),
+    );
+    assertEquals(
+      byO.get("http://example.com/ns#o")!.r.value,
+      "http://example.com/ns#iri",
+    );
+    assertEquals(byO.get("http://example.com/ns#o2")!.r.type, "bnode");
+  }
+});
+
+Deno.test("WazooSparqlEngine - bare ~ matches any reifier of the triple", async () => {
+  const engine = new WazooSparqlEngine({ store: reifiedStore() });
+  const result = await engine.execute({
+    query:
+      "PREFIX : <http://example.com/ns#> SELECT * { :s :p ?o ~ {| :r ?Z |} }",
+  });
+  assertEquals(result.kind, "select");
+  if (result.kind === "select") {
+    assertEquals(result.data.results.bindings.length, 2);
   }
 });

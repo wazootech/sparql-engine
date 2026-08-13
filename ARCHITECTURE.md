@@ -2,15 +2,15 @@
 
 ## Topology
 
-`@wazoo/sparql-engine` is a standalone, lightweight SPARQL 1.1 query and update
-engine for RDF/JS Quad Stores (`rdfjs.Store`).
+`@wazoo/sparql-engine` is a standalone, lightweight SPARQL 1.1 & 1.2 query and
+update engine for RDF/JS Quad Stores (`rdfjs.Store`).
 
 ```text
 [ SPARQL Query String ] 
          │
          ▼
  ┌──────────────┐
- │  Parser      │ (vendored sparqljs grammar)
+ │  Parser      │ (in-repo sparqljs grammar + generated parser)
  └───────┬──────┘
          │
          ▼
@@ -20,9 +20,14 @@ engine for RDF/JS Quad Stores (`rdfjs.Store`).
          │
          ▼
  ┌──────────────┐
- │ rdfjs.Store  │ (In-memory N3.Store, LibsqlRdfjsStore, DenokvRdfjsStore)
+ │ rdfjs.Store  │ (MemoryStore, SqliteStore, or any external rdfjs.Store)
  └──────────────┘
 ```
+
+In-repo store implementations are `MemoryStore` (in-memory, the default) and
+`SqliteStore` (durable prototype over `node:sqlite`; deep-import only, not part
+of the public export graph). Any external `rdfjs.Store` also works — e.g.
+`@worlds/client`'s `LibsqlRdfjsStore` / `DenokvRdfjsStore`.
 
 ## Contracts
 

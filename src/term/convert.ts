@@ -1,7 +1,7 @@
 import type * as rdfjs from "@rdfjs/types";
 import type { Term as SparqlTerm } from "@/parser/sparql-parser.ts";
 import type { SparqlValue } from "@/sparql-engine-interface.ts";
-import { DataFactory } from "n3";
+import { DataFactory } from "./data-factory.ts";
 import { XSD_STRING } from "./numeric.ts";
 
 const { namedNode, blankNode, literal } = DataFactory;
@@ -24,9 +24,9 @@ export function sparqlTermToRdfTerm(term: SparqlTerm): rdfjs.Term {
       }
       return literal(term.value);
     case "Quad":
-      // RDF 1.2 triple terms are already RDF/JS Quad terms (the parser builds
-      // them with N3's DataFactory); their sub-terms are structural matches,
-      // so pass them through unchanged.
+      // RDF 1.2 triple terms are already RDF/JS Quad terms (the vendored
+      // parser builds them with the internal DataFactory); their sub-terms
+      // are structural matches, so pass them through unchanged.
       return term;
     default:
       throw new Error(`Unsupported term type: ${term.termType}`);

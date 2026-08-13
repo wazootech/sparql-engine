@@ -1,6 +1,7 @@
 import type * as rdfjs from "@rdfjs/types";
 import { assertEquals } from "@std/assert";
-import { DataFactory, Store } from "n3";
+import { DataFactory } from "@/term/mod.ts";
+import { MemoryStore as Store } from "@/store/memory-store.ts";
 import {
   blankNode as oxigraphBlankNode,
   defaultGraph as oxigraphDefaultGraph,
@@ -153,9 +154,9 @@ function toOxigraphQuad(item: rdfjs.Quad): ReturnType<typeof oxigraphQuad> {
 }
 
 /**
- * seedN3Store builds a fresh N3 Store seeded with the given quads.
+ * seedStore builds a fresh memory store seeded with the given quads.
  */
-function seedN3Store(quads: rdfjs.Quad[]): Store {
+function seedStore(quads: rdfjs.Quad[]): Store {
   const store = new Store();
   for (const item of quads) {
     store.addQuad(item);
@@ -176,12 +177,12 @@ function seedOxigraphStore(quads: rdfjs.Quad[]): OxigraphStore {
 }
 
 const dataset = buildDataset();
-const n3Store = seedN3Store(dataset);
+const memoryStore = seedStore(dataset);
 const oxigraphStore = seedOxigraphStore(dataset);
 
-const nativeEngine = new WazooSparqlEngine({ store: n3Store });
+const nativeEngine = new WazooSparqlEngine({ store: memoryStore });
 const nativeEngineNoReorder = new WazooSparqlEngine({
-  store: n3Store,
+  store: memoryStore,
   reorderPatterns: false,
 });
 const comunicaEngine = getComunicaEngine();
@@ -190,9 +191,9 @@ const comunicaEngine = getComunicaEngine();
 // verification keeps the main dataset default-graph-only so its graph-blind
 // store dump stays symmetric across engines.
 const graphDataset = buildGraphDataset();
-const graphN3Store = seedN3Store(graphDataset);
+const graphMemoryStore = seedStore(graphDataset);
 const graphOxigraphStore = seedOxigraphStore(graphDataset);
-const graphNativeEngine = new WazooSparqlEngine({ store: graphN3Store });
+const graphNativeEngine = new WazooSparqlEngine({ store: graphMemoryStore });
 const graphOpsDataset = buildGraphOpsDataset();
 
 const scanQuery = "SELECT ?s ?p ?o WHERE { ?s ?p ?o }";
@@ -575,12 +576,12 @@ interface EngineTrio {
 
 const mainTrio: EngineTrio = {
   native: nativeEngine,
-  comunicaStore: n3Store,
+  comunicaStore: memoryStore,
   oxigraph: oxigraphStore,
 };
 const graphTrio: EngineTrio = {
   native: graphNativeEngine,
-  comunicaStore: graphN3Store,
+  comunicaStore: graphMemoryStore,
   oxigraph: graphOxigraphStore,
 };
 
@@ -644,7 +645,7 @@ async function verifyAskEquality(query: string, label: string): Promise<void> {
     throw new Error(`${label}: native engine returned ${nativeResult.kind}`);
   }
   const comunicaBoolean = await comunicaEngine.queryBoolean(query, {
-    sources: [n3Store],
+    sources: [memoryStore],
   });
   const oxigraphBoolean = oxigraphStore.query(query) as boolean;
 
@@ -677,7 +678,7 @@ async function verifyConstructEquality(
     .sort();
 
   const comunicaStream = await comunicaEngine.queryQuads(query, {
-    sources: [n3Store],
+    sources: [memoryStore],
   });
   const comunicaQuads = await comunicaStream.toArray();
   const comunicaSet = comunicaQuads
@@ -722,7 +723,7 @@ async function verifyConstructIsoEquality(
   );
 
   const comunicaStream = await comunicaEngine.queryQuads(query, {
-    sources: [n3Store],
+    sources: [memoryStore],
   });
   const comunicaQuads = await comunicaStream.toArray();
   const comunicaRecords = quadRecords(comunicaQuads, canonicalizeComunicaTerm);
@@ -766,7 +767,7 @@ async function verifyUpdateEquality(
   label: string,
   seed: rdfjs.Quad[] = dataset,
 ): Promise<void> {
-  const nativeStore = seedN3Store(seed);
+  const nativeStore = seedStore(seed);
   const nativeUpdateEngine = new WazooSparqlEngine({ store: nativeStore });
   const nativeResult = await nativeUpdateEngine.execute({ query });
   if (nativeResult.kind !== "void") {
@@ -774,7 +775,7 @@ async function verifyUpdateEquality(
   }
   const nativeSet = storeQuadStrings(nativeStore);
 
-  const comunicaStore = seedN3Store(seed);
+  const comunicaStore = seedStore(seed);
   await comunicaEngine.queryVoid(query, { sources: [comunicaStore] });
   const comunicaSet = storeQuadStrings(comunicaStore);
 
@@ -886,7 +887,7 @@ Deno.bench(
 
 Deno.bench({ name: "comunica - scan", group: "scan" }, async () => {
   const stream = await comunicaEngine.queryBindings(scanQuery, {
-    sources: [n3Store],
+    sources: [memoryStore],
   });
   const bindings = await stream.toArray();
   if (bindings.length === 0) {
@@ -913,7 +914,7 @@ Deno.bench(
 
 Deno.bench({ name: "comunica - join", group: "join" }, async () => {
   const stream = await comunicaEngine.queryBindings(joinQuery, {
-    sources: [n3Store],
+    sources: [memoryStore],
   });
   const bindings = await stream.toArray();
   if (bindings.length === 0) {
@@ -952,7 +953,7 @@ Deno.bench(
 
 Deno.bench({ name: "comunica - asym", group: "asym-join" }, async () => {
   const stream = await comunicaEngine.queryBindings(asymJoinQuery, {
-    sources: [n3Store],
+    sources: [memoryStore],
   });
   const bindings = await stream.toArray();
   if (bindings.length === 0) {
@@ -995,7 +996,7 @@ Deno.bench(
 
 Deno.bench({ name: "comunica - chain", group: "reorder-chain" }, async () => {
   const stream = await comunicaEngine.queryBindings(chainQuery, {
-    sources: [n3Store],
+    sources: [memoryStore],
   });
   const bindings = await stream.toArray();
   if (bindings.length === 0) {
@@ -1024,7 +1025,7 @@ Deno.bench(
 
 Deno.bench({ name: "comunica - ask", group: "ask" }, async () => {
   const result = await comunicaEngine.queryBoolean(askQuery, {
-    sources: [n3Store],
+    sources: [memoryStore],
   });
   if (!result) {
     throw new Error("comunica ask returned an unexpected result");
@@ -1050,7 +1051,7 @@ Deno.bench(
 
 Deno.bench({ name: "comunica - construct", group: "construct" }, async () => {
   const stream = await comunicaEngine.queryQuads(constructQuery, {
-    sources: [n3Store],
+    sources: [memoryStore],
   });
   const quads = await stream.toArray();
   if (quads.length === 0) {
@@ -1079,7 +1080,7 @@ Deno.bench(
 
 Deno.bench({ name: "comunica - update", group: "update" }, async () => {
   await comunicaEngine.queryVoid(rewriteUpdateQuery, {
-    sources: [n3Store],
+    sources: [memoryStore],
   });
 });
 
@@ -1151,7 +1152,7 @@ function benchConstructTrio(
 
   Deno.bench({ name: `comunica - ${label}`, group }, async () => {
     const stream = await comunicaEngine.queryQuads(query, {
-      sources: [n3Store],
+      sources: [memoryStore],
     });
     const quads = await stream.toArray();
     if (quads.length === 0) {
@@ -1182,7 +1183,7 @@ function benchUpdateTrio(
   Deno.bench(
     { name: `native - ${label}`, group, baseline: true },
     async () => {
-      const store = seedN3Store(seed);
+      const store = seedStore(seed);
       const engine = new WazooSparqlEngine({ store });
       const result = await engine.execute({ query });
       if (result.kind !== "void") {
@@ -1192,7 +1193,7 @@ function benchUpdateTrio(
   );
 
   Deno.bench({ name: `comunica - ${label}`, group }, async () => {
-    const store = seedN3Store(seed);
+    const store = seedStore(seed);
     await comunicaEngine.queryVoid(query, { sources: [store] });
   });
 

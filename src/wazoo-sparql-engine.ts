@@ -38,7 +38,7 @@ export interface WazooSparqlEngineOptions {
    * createTransaction is an optional factory to create a transaction for SPARQL
    * UPDATEs. When provided, every update runs through one atomic transaction.
    * When omitted, updates are applied directly to the store, which must then
-   * implement addQuad/removeQuad (as N3.Store does).
+   * implement addQuad/removeQuad (as MemoryStore does).
    */
   createTransaction?: () => WazooSparqlTransaction;
 
@@ -51,7 +51,7 @@ export interface WazooSparqlEngineOptions {
 }
 
 /**
- * WazooSparqlEngine is the Wazoo-native SPARQL 1.1 engine over RDFJS Store sources.
+ * WazooSparqlEngine is the Wazoo-native SPARQL 1.1 & 1.2 engine over RDFJS Store sources.
  */
 export class WazooSparqlEngine implements SparqlEngineInterface {
   private readonly parser: SparqlParser;

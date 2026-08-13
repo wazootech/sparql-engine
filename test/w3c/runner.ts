@@ -1,5 +1,8 @@
 import type * as rdfjs from "@rdfjs/types";
-import { DataFactory, Parser as N3Parser, Store as N3Store } from "n3";
+// deno-lint-ignore no-import-prefix
+import { Parser as N3Parser } from "npm:n3@2.2.0";
+import { DataFactory } from "@/term/mod.ts";
+import { MemoryStore } from "@/store/memory-store.ts";
 import { WazooSparqlEngine } from "@/wazoo-sparql-engine.ts";
 import type { SparqlResponse } from "@/sparql-engine-interface.ts";
 import { canonicalizeRdfTerm, canonicalizeSparqlValue } from "@/term/mod.ts";
@@ -14,8 +17,8 @@ import type { W3cTestCase } from "./manifest.ts";
 
 /**
  * W3C_BASE is the canonical URL namespace the fixtures resolve against. Both
- * engines parse queries (with a prepended BASE directive) and data (N3
- * baseIRI) against these URLs, so relative IRIs like <exists02.ttl> and the
+ * engines parse queries (with a prepended BASE directive) and data (with a
+ * base IRI) against these URLs, so relative IRIs like <exists02.ttl> and the
  * empty IRI <> resolve identically in both — reproducing the upstream
  * rdf-test-suite base semantics without any network access.
  */
@@ -331,12 +334,12 @@ export class W3cRunner {
   }
 
   /**
-   * loadStore seeds a fresh N3 store for a test case: data files into the
+   * loadStore seeds a fresh MemoryStore for a test case: data files into the
    * default graph, graphData into named graphs (named by the label IRI or,
    * when unlabeled, by the data file's own resolved IRI).
    */
-  private loadStore(testCase: W3cTestCase): N3Store {
-    const store = new N3Store();
+  private loadStore(testCase: W3cTestCase): MemoryStore {
+    const store = new MemoryStore();
     const load = (file: string, graph: string | null): void => {
       const text = this.fixtureText(testCase, file);
       const parser = new N3Parser({
@@ -514,7 +517,7 @@ export class W3cRunner {
       baseIRI: canonicalUrl(testCase.category, file),
     });
     const quads: rdfjs.Quad[] = parser.parse(this.fixtureText(testCase, file));
-    const store = new N3Store();
+    const store = new MemoryStore();
     for (const quad of quads) {
       store.addQuad(quad);
     }
@@ -743,7 +746,7 @@ export class W3cRunner {
 
   private async runComunicaSelect(
     query: string,
-    store: N3Store,
+    store: MemoryStore,
   ): Promise<string[]> {
     const raw = await runComunicaRawSelectBindings(
       this.comunicaEngine,
@@ -761,7 +764,7 @@ export class W3cRunner {
 
   private async runComunicaSelectRecords(
     query: string,
-    store: N3Store,
+    store: MemoryStore,
   ): Promise<CanonicalTerm[][]> {
     const raw = await runComunicaRawSelectBindings(
       this.comunicaEngine,
@@ -852,12 +855,12 @@ export class W3cRunner {
       };
   }
 
-  private storeQuadStrings(store: N3Store): string[] {
+  private storeQuadStrings(store: MemoryStore): string[] {
     const quads: rdfjs.Quad[] = store.getQuads(null, null, null, null);
     return quads.map((item) => canonicalQuadString(item, canonicalizeRdfTerm));
   }
 
-  private storeQuadRecords(store: N3Store): CanonicalTerm[][] {
+  private storeQuadRecords(store: MemoryStore): CanonicalTerm[][] {
     const quads: rdfjs.Quad[] = store.getQuads(null, null, null, null);
     return quads.map((item) => this.quadRecords(item, canonicalizeRdfTerm));
   }
@@ -865,7 +868,7 @@ export class W3cRunner {
   /**
    * conformanceReport soft-checks the spec-expected result where it is
    * parseable: update post-states and CONSTRUCT result files are TTL (parsed
-   * with N3); SELECT and ASK results are SPARQL XML/JSON, which this runner
+   * with n3); SELECT and ASK results are SPARQL XML/JSON, which this runner
    * does not parse. The report never gates — it only adds signal about which
    * engine is right when the two disagree.
    */

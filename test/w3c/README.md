@@ -70,3 +70,65 @@ tar -xzf /tmp/rdf-tests.tar.gz -C /tmp
 # 3. Remove any stray top-level files (index pages, template.haml, *.jsonld).
 # 4. Run `deno task test:w3c` and review the gap count before committing.
 ```
+
+# RDF 1.1 / 1.2 syntax gates
+
+The native Turtle / TriG / N-Triples / N-Quads grammar used by SPARQL `LOAD`
+(`src/parser/turtle-parser.ts`) is gated against the W3C rdf-tests suites with
+two runners, both invoked from `deno task ci`:
+
+- `deno task test:rdf11` — **RDF 1.1 differential** (`rdf-differential.ts`).
+  Every Turtle / TriG / N-Triples / N-Quads syntax and eval test is parsed with
+  both the native grammar and `n3@2.2.0`; the two must agree on accept/reject
+  and on the resulting quads (up to blank-node relabeling). Negative tests are
+  additionally gated absolutely — native must reject them even if n3 is lenient.
+  Eval tests are also gated against their `.nt`/`.nq` reference result (parsed
+  with the native grammar), so a native+n3 agreement on the wrong quads still
+  fails.
+- `deno task test:rdf12` — **RDF 1.2 manifest classifier** (`rdf-classify.ts`).
+  n3 predates RDF 1.2 triple terms and reifiers, so each positive syntax test
+  must parse, each negative syntax test must be rejected, and each eval test
+  must produce quads isomorphic to its `.nt`/`.nq` reference (parsed with the
+  native grammar, which is a superset of N-Triples/N-Quads).
+
+Both gates are expected to be green. The only tolerated mismatches are
+documented divergences keyed inside each runner:
+
+- **Superset acceptances** — the native grammar is a single Turtle + TriG +
+  N-Quads superset (LOAD content-sniffs the format rather than trusting the file
+  extension), so it accepts Turtle/TriG/N-Quads constructs in files where the
+  strict N-Triples/N-Quads/Turtle/TriG grammar rejects them. Everything else
+  must be fixed, never allowlisted.
+
+## Vendored fixtures and re-fetching
+
+`fixtures/rdf/` holds the RDF 1.1 and 1.2 Turtle, TriG, N-Triples, and N-Quads
+suites (~2.5 MB) from the upstream `w3c/rdf-tests` gh-pages branch, with the
+`reports/`, `c14n/`, `index.html`, and `manifest.jsonld` files stripped. On-disk
+paths map 1:1 to canonical `https://w3c.github.io/rdf-tests/rdf/...` URLs, so
+relative IRIs in the test files resolve exactly as the W3C harness resolves
+them.
+
+To refresh the snapshot:
+
+```bash
+# 1. Download the upstream tree.
+curl -L https://github.com/w3c/rdf-tests/archive/refs/heads/gh-pages.tar.gz -o /tmp/rdf-tests.tar.gz
+tar -xzf /tmp/rdf-tests.tar.gz -C /tmp
+SRC=/tmp/rdf-tests-gh-pages/rdf
+DST=test/w3c/fixtures/rdf
+
+# 2. Replace each suite, excluding reports/c14n/index pages.
+for v in rdf11 rdf12; do
+  for d in rdf-turtle rdf-trig rdf-n-triples rdf-n-quads; do
+    mkdir -p "$DST/$v/$d"
+    (cd "$SRC/$v/$d" && tar --exclude=reports --exclude=c14n \
+        --exclude=index.html --exclude=manifest.jsonld --exclude=README.md \
+        -cf - .) | tar -xf - -C "$DST/$v/$d"
+  done
+done
+
+# 3. Run both gates and review any new gaps before committing.
+deno task test:rdf11
+deno task test:rdf12
+```

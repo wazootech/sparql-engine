@@ -1,7 +1,7 @@
 import type * as rdfjs from "@rdfjs/types";
 import type { Term as SparqlTerm } from "@/parser/sparql-parser.ts";
-import { DataFactory, Store as N3Store } from "n3";
-import { sameRdfTerm, termKey } from "@/term/mod.ts";
+import { MemoryStore } from "@/store/memory-store.ts";
+import { DataFactory, sameRdfTerm, termKey } from "@/term/mod.ts";
 
 /**
  * QuadIndex maps each of the three quad positions to the candidate quads
@@ -183,7 +183,7 @@ export async function buildDatasetStore(
   from: readonly rdfjs.Term[],
   fromNamed: readonly rdfjs.Term[],
 ): Promise<rdfjs.Store> {
-  const dataset = new N3Store();
+  const dataset = new MemoryStore();
   const seen = new Set<string>();
   for (const graph of from) {
     const quads = await matchQuads(store, null, null, null, graph);

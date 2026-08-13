@@ -1,6 +1,6 @@
 import { assertEquals } from "@std/assert";
 import type * as rdfjs from "@rdfjs/types";
-import { DataFactory } from "n3";
+import { DataFactory } from "@/term/mod.ts";
 import {
   canonicalDouble,
   canonicalizeRdfTerm,
@@ -119,4 +119,22 @@ Deno.test("formatNumber keeps Comunica's plain decimal forms", () => {
   assertEquals(canonicalDouble(3), "3.0E0");
   assertEquals(canonicalDouble(1.5), "1.5E0");
   assertEquals(canonicalDouble(0), "0.0E0");
+});
+Deno.test("literal lowercases BCP47 language tags per the RDF/JS contract", () => {
+  assertEquals(literal("foo", "en-US").language, "en-us");
+  assertEquals(literal("foo", "EN-us").language, "en-us");
+  assertEquals(literal("foo", "en").language, "en");
+  assertEquals(literal("foo", "en-GB").language, "en-gb");
+  assertEquals(literal("plain").language, "");
+});
+
+Deno.test("fromTerm preserves the language of lang-tagged literals", () => {
+  const original = literal("foo", "en-US");
+  const roundTripped = DataFactory.fromTerm(original);
+  assertEquals(roundTripped.value, "foo");
+  assertEquals(roundTripped.language, "en-us");
+  assertEquals(
+    roundTripped.datatype.value,
+    "http://www.w3.org/1999/02/22-rdf-syntax-ns#langString",
+  );
 });

@@ -5,7 +5,7 @@ import type {
   Grouping,
   Wildcard,
 } from "@/parser/sparql-parser.ts";
-import { DataFactory } from "n3";
+import { DataFactory } from "@/term/mod.ts";
 import type { TermBinding } from "@/evaluator/join.ts";
 import {
   canonicalDouble,

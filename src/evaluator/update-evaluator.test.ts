@@ -1,10 +1,11 @@
-import { assertEquals, assertRejects } from "@std/assert";
+import { assertEquals, assertNotEquals, assertRejects } from "@std/assert";
 import type * as rdfjs from "@rdfjs/types";
-import { DataFactory, Store } from "n3";
+import { DataFactory } from "@/term/mod.ts";
+import { MemoryStore as Store } from "@/store/memory-store.ts";
 import { WazooSparqlEngine } from "@/wazoo-sparql-engine.ts";
 import type { WazooSparqlTransaction } from "@/wazoo-sparql-engine.ts";
 
-const { namedNode, literal, quad } = DataFactory;
+const { namedNode, literal, quad, defaultGraph } = DataFactory;
 
 const exampleP = namedNode("http://example.org/p");
 const exampleQ = namedNode("http://example.org/q");
@@ -222,6 +223,80 @@ Deno.test("UpdateEvaluator - CLEAR, DROP, CREATE operations work", async () => {
   assertEquals(store.countQuads(null, null, null, null), 0);
 });
 
+Deno.test("UpdateEvaluator - LOAD merges the document dataset, preserving named graphs", async () => {
+  const store = new Store();
+  const engine = new WazooSparqlEngine({ store });
+
+  const dir = await Deno.makeTempDir();
+  const file = `${dir}/data.trig`;
+  await Deno.writeTextFile(
+    file,
+    `
+    @prefix : <http://example.org/> .
+    :s :p :o .
+    :g { :a :b :c . }
+  `,
+  );
+
+  await engine.execute({ query: `LOAD <file://${file.replace(/\\/g, "/")}>` });
+
+  // default graph triples and the TriG named graph are both merged in.
+  assertEquals(store.countQuads(null, null, null, null), 2);
+  assertEquals(
+    store.countQuads(null, null, null, defaultGraph()),
+    1,
+  );
+  assertEquals(
+    store.countQuads(null, null, null, namedNode("http://example.org/g")),
+    1,
+  );
+});
+
+Deno.test("UpdateEvaluator - LOAD INTO GRAPH maps the default graph into the destination", async () => {
+  const store = new Store();
+  const engine = new WazooSparqlEngine({ store });
+
+  const dir = await Deno.makeTempDir();
+  const file = `${dir}/data.ttl`;
+  await Deno.writeTextFile(
+    file,
+    "<http://example.org/s> <http://example.org/p> <http://example.org/o> .",
+  );
+
+  await engine.execute({
+    query: `LOAD <file://${
+      file.replace(/\\/g, "/")
+    }> INTO GRAPH <http://example.org/dest>`,
+  });
+
+  assertEquals(
+    store.countQuads(null, null, null, namedNode("http://example.org/dest")),
+    1,
+  );
+});
+
+Deno.test("UpdateEvaluator - LOAD INTO GRAPH rejects documents that contain named graphs", async () => {
+  const store = new Store();
+  const engine = new WazooSparqlEngine({ store });
+
+  const dir = await Deno.makeTempDir();
+  const file = `${dir}/data.trig`;
+  await Deno.writeTextFile(
+    file,
+    "<http://example.org/g> { <http://example.org/s> <http://example.org/p> <http://example.org/o> . }",
+  );
+
+  await assertRejects(
+    () =>
+      engine.execute({
+        query: `LOAD <file://${
+          file.replace(/\\/g, "/")
+        }> INTO GRAPH <http://example.org/dest>`,
+      }),
+    Error,
+  );
+});
+
 Deno.test("UpdateEvaluator - LOAD operation with SILENT error handling", async () => {
   const store = new Store();
   const engine = new WazooSparqlEngine({ store });
@@ -229,4 +304,104 @@ Deno.test("UpdateEvaluator - LOAD operation with SILENT error handling", async (
   // Non-existent file with SILENT does not throw
   await engine.execute({ query: "LOAD SILENT <file:///nonexistent-file.ttl>" });
   assertEquals(store.countQuads(null, null, null, null), 0);
+});
+
+Deno.test("UpdateEvaluator - LOAD then reified patterns match grammar reifier output", async () => {
+  const store = new Store();
+  const engine = new WazooSparqlEngine({ store });
+
+  const dir = await Deno.makeTempDir();
+  const file = `${dir}/data.ttl`;
+  await Deno.writeTextFile(
+    file,
+    `
+    @prefix : <http://example.com/ns#> .
+    :s :p :o ~ :iri {| :r :Z1 |} .
+    :s :p :o2 ~ {| :r :Z2 |} .
+    :r1 :reifies <<( :a :b <<( :d :e :f )>> )>> .
+  `,
+  );
+
+  await engine.execute({ query: `LOAD <file://${file.replace(/\\/g, "/")}>` });
+
+  // The jison grammar emits `reifier rdf:reifies <<( s p o )>>` for a reified
+  // triple, and annotation blocks attach to the reifier; the evaluator's
+  // reified.ts expansion must agree with that shape.
+  let result = await engine.execute({
+    query:
+      "PREFIX : <http://example.com/ns#> SELECT * { :s :p ?o ~ :iri {| :r ?Z |} }",
+  });
+  assertEquals(result.kind, "select");
+  if (result.kind === "select") {
+    assertEquals(result.data.results.bindings.length, 1);
+    assertEquals(
+      result.data.results.bindings[0].o.value,
+      "http://example.com/ns#o",
+    );
+    assertEquals(
+      result.data.results.bindings[0].Z.value,
+      "http://example.com/ns#Z1",
+    );
+  }
+
+  // A variable reifier binds both the explicit IRI reifier and the fresh
+  // blank-node reifier the grammar minted for the bare `~`.
+  result = await engine.execute({
+    query:
+      "PREFIX : <http://example.com/ns#> SELECT * { :s :p ?o ~ ?r {| :r ?Z |} }",
+  });
+  assertEquals(result.kind, "select");
+  if (result.kind === "select") {
+    assertEquals(result.data.results.bindings.length, 2);
+  }
+
+  // A data triple term (including a nested one) in object position matches
+  // the grammar's plain-Quad triple terms.
+  result = await engine.execute({
+    query:
+      "PREFIX : <http://example.com/ns#> SELECT ?r WHERE { ?r :reifies <<( :a :b <<( :d :e :f )>> )>> }",
+  });
+  assertEquals(result.kind, "select");
+  if (result.kind === "select") {
+    assertEquals(result.data.results.bindings.length, 1);
+    assertEquals(
+      result.data.results.bindings[0].r.value,
+      "http://example.com/ns#r1",
+    );
+  }
+});
+
+Deno.test("UpdateEvaluator - LOAD keeps blank nodes distinct across documents", async () => {
+  const store = new Store();
+  const engine = new WazooSparqlEngine({ store });
+
+  const dir = await Deno.makeTempDir();
+  const fileA = `${dir}/a.ttl`;
+  const fileB = `${dir}/b.ttl`;
+  await Deno.writeTextFile(
+    fileA,
+    '@prefix : <http://ex/> . _:b1 :name "Alice" . _:b1 :friend _:b2 .',
+  );
+  await Deno.writeTextFile(
+    fileB,
+    '@prefix : <http://ex/> . _:b1 :name "Bob" .',
+  );
+
+  await engine.execute({ query: `LOAD <file://${fileA.replace(/\\/g, "/")}>` });
+  await engine.execute({ query: `LOAD <file://${fileB.replace(/\\/g, "/")}>` });
+
+  // Blank node labels are document-scoped: the two documents' `_:b1` must
+  // stay distinct, and each document's internal structure must be preserved.
+  const result = await engine.execute({
+    query: "PREFIX : <http://ex/> SELECT * { ?x :name ?n }",
+  });
+  assertEquals(result.kind, "select");
+  if (result.kind === "select") {
+    assertEquals(result.data.results.bindings.length, 2);
+    const byName = new Map(
+      result.data.results.bindings.map((b) => [b.n.value, b.x.value]),
+    );
+    assertNotEquals(byName.get("Alice"), byName.get("Bob"));
+  }
+  assertEquals(store.countQuads(null, null, null, null), 3);
 });

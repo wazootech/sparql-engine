@@ -1,12 +1,9 @@
-import { Parser as SparqlJsParser } from "../../vendor/sparql-parser/mod.ts";
-import type {
-  SparqlParser as SparqlJsParserType,
-  SparqlQuery,
-} from "../../vendor/sparql-parser/mod.ts";
-export type * from "../../vendor/sparql-parser/mod.ts";
+import { Parser as SparqlJsParser } from "./mod.ts";
+import type { SparqlParser as SparqlJsParserType, SparqlQuery } from "./mod.ts";
+export type * from "./mod.ts";
 
 /**
- * SparqlParser handles parsing raw SPARQL 1.1 strings into structured AST objects.
+ * SparqlParser handles parsing raw SPARQL 1.1 & 1.2 strings into structured AST objects.
  * The standard xsd: prefix is pre-registered so XSD value constructors
  * (xsd:integer, xsd:double, ...) parse without an explicit PREFIX clause.
  */

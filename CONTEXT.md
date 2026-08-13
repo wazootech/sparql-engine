@@ -24,9 +24,9 @@
   can do, the native engine must do; parity is the floor. The **superset
   ceiling** is the as-yet-uncharted question of which features beyond that floor
   the native engine should carry.
-- **Vendored parser** — the parser module the native engine owns
-  (`vendor/sparql-parser/`): a vendored sparqljs 3.7.4 grammar, extended and
-  maintained in-repo, no longer a runtime dependency.
+- **In-repo parser** — the parser module the native engine owns (`src/parser/`):
+  a maintained sparqljs 3.7.4 grammar, extended in-repo with the SPARQL 1.2
+  surface, no longer a runtime dependency.
 - **Pattern-evaluation hook** — the injected seam that lets the pure expression
   layer evaluate graph patterns (for `EXISTS`/`NOT EXISTS`):
   `evaluateExists(pattern, solution) => boolean`, bound to the current graph

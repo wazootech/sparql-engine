@@ -38,7 +38,7 @@ import {
   sparqlTermToRdfTerm,
   termKey,
 } from "@/term/mod.ts";
-import { DataFactory } from "n3";
+import { DataFactory } from "@/term/mod.ts";
 
 /**
  * SparqlEvaluatorOptions configures SparqlEvaluator.

@@ -1,12 +1,15 @@
 import type * as rdfjs from "@rdfjs/types";
-import { DataFactory, Parser as N3Parser, Store as N3Store } from "n3";
+// deno-lint-ignore no-import-prefix
+import { Parser as N3Parser } from "npm:n3@2.2.0";
+import { DataFactory } from "@/term/mod.ts";
+import { MemoryStore } from "@/store/memory-store.ts";
 import { WazooSparqlEngine } from "@/wazoo-sparql-engine.ts";
 import type { SparqlResponse } from "@/sparql-engine-interface.ts";
 import { canonicalizeRdfTerm } from "@/term/mod.ts";
 import type { CanonicalTerm } from "@/term/mod.ts";
 import { loadManifest } from "./manifest.ts";
 import type { W3cTestCase } from "./manifest.ts";
-import { Parser as SparqlParser } from "../../vendor/sparql-parser/mod.ts";
+import { Parser as SparqlParser } from "@/parser/mod.ts";
 const parserInstance = new SparqlParser({
   sparqlStar: true,
   prefixes: { "": "http://example.org/", ex: "http://example.org/" },
@@ -59,8 +62,8 @@ function canonicalUrl(category: string, file: string): string {
   return `${BASE}${category}/${file}`;
 }
 
-function loadStore(testCase: W3cTestCase): N3Store {
-  const store = new N3Store();
+function loadStore(testCase: W3cTestCase): MemoryStore {
+  const store = new MemoryStore();
   const load = (file: string, graph: string | null): void => {
     const text = fixtureText(testCase, file);
     const parser = new N3Parser({

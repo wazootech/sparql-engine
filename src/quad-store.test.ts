@@ -1,6 +1,7 @@
 import { assertEquals, assertThrows } from "@std/assert";
 import type * as rdfjs from "@rdfjs/types";
-import { DataFactory, Store } from "n3";
+import { DataFactory } from "@/term/mod.ts";
+import { MemoryStore as Store } from "@/store/memory-store.ts";
 import {
   buildQuadIndex,
   matchQuads,
