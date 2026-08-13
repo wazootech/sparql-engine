@@ -19,10 +19,12 @@ The runner prints a report and exits nonzero while **parity gaps** remain:
 - **gap** — native and comunica disagree on an in-scope test; each gap is a
   tracked parity defect. The gap count is the progress metric.
 - **error** — the runner itself failed on a test.
-- **allowlisted** — a gap covered by an entry in
+- **documented divergence** — a test keyed in
   [`divergences.ts`](./divergences.ts) with a documented reason (reserved for
   decided Comunica bugs where native is spec-correct — never for unimplemented
-  surface).
+  surface). These are validated against the W3C reference result (result-set TTL
+  for SELECT, an empty store for the SILENT update cases) instead of against
+  Comunica, so a spec-correct native result **passes**.
 - **conformance** — a soft, never-gating cross-check of the spec-expected result
   where it is parseable (update post-states and CONSTRUCT result files are TTL;
   SELECT/ASK SPARQL XML/JSON results are not parsed).
