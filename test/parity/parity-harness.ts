@@ -12,7 +12,7 @@ import { createQuadStore } from "./parity-fixtures.ts";
 /**
  * ParityQueryKind selects which result channel a parity test case compares.
  */
-export type ParityQueryKind = "select" | "ask" | "construct";
+export type ParityQueryKind = "select" | "ask" | "construct" | "describe";
 
 /**
  * ParityTestCase describes a single differential query comparison.
@@ -338,6 +338,23 @@ async function compareResult(
       );
       const nativeQuads = nativeResult.data.quads.map(canonicalQuadString);
       return compareMultisets(comunicaQuads, nativeQuads, "CONSTRUCT quads");
+    }
+    case "describe": {
+      if (nativeResult.kind !== "construct") {
+        return `Native engine returned ${nativeResult.kind} instead of construct (DESCRIBE)`;
+      }
+      const comunicaQuads = await runComunicaConstruct(
+        comunicaEngine,
+        testCase.query,
+        comunicaStore,
+      );
+      // DESCRIBE results are graphs (sets): Comunica's stream may repeat a
+      // resource's arcs, so both sides are deduplicated before comparing.
+      const comunicaSet = [...new Set(comunicaQuads)];
+      const nativeSet = [
+        ...new Set(nativeResult.data.quads.map(canonicalQuadString)),
+      ];
+      return compareMultisets(comunicaSet, nativeSet, "DESCRIBE quads");
     }
   }
 }

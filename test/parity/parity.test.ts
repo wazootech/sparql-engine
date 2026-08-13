@@ -472,6 +472,40 @@ const constructCases: ParityTestCase[] = [
   },
 ];
 
+const describeCases: ParityTestCase[] = [
+  {
+    name: "DESCRIBE - IRI resource: outgoing arcs only",
+    kind: "describe",
+    query: `DESCRIBE ${exampleAlice}`,
+    quads: basicKnowledgeGraphQuads,
+  },
+  {
+    name: "DESCRIBE - variable bindings describe each resource",
+    kind: "describe",
+    query: `DESCRIBE ?person WHERE { ?person ${foafName} ?name }`,
+    quads: basicKnowledgeGraphQuads,
+  },
+  {
+    name: "DESCRIBE - star describes bound variables of the WHERE",
+    kind: "describe",
+    query: `DESCRIBE * WHERE { ${exampleAlice} ${foafKnows} ?friend }`,
+    quads: basicKnowledgeGraphQuads,
+  },
+  {
+    name: "DESCRIBE - IRI with WHERE describes only the IRI",
+    kind: "describe",
+    query:
+      `DESCRIBE ${exampleAlice} WHERE { ${exampleNobody} ${foafName} ?name }`,
+    quads: basicKnowledgeGraphQuads,
+  },
+  {
+    name: "DESCRIBE - unknown resource yields the empty graph",
+    kind: "describe",
+    query: `DESCRIBE ${exampleNobody}`,
+    quads: basicKnowledgeGraphQuads,
+  },
+];
+
 const path = (id: string) => `<http://example.org/${id}>`;
 const pPred = path("p");
 const qPred = path("q");
@@ -1107,6 +1141,7 @@ const allCases: ParityTestCase[] = [
   ...selectCases,
   ...askCases,
   ...constructCases,
+  ...describeCases,
   ...wildcardCases,
   ...pathCases,
   ...aggregateCases,
