@@ -12,6 +12,20 @@ export interface Wildcard {
   value: "*";
 }
 
+/**
+ * ReifiedQuad is an RDF/JS Quad produced by the parser from SPARQL
+ * quoted-triple syntax. Two optional markers distinguish the RDF 1.2 forms:
+ *
+ * - `tripleTerm` marks data triple terms (`<<( s p o )>>`) — the evaluator
+ *   treats them as data and never expands them into reifier statements.
+ * - `reifier` carries the reifier binding of `<< s p o ~ r >>` so the
+ *   evaluator binds it instead of minting a fresh internal reifier.
+ */
+export interface ReifiedQuad extends rdfjs.Quad {
+  tripleTerm?: boolean;
+  reifier?: Term;
+}
+
 export type PathElement = rdfjs.NamedNode | PropertyPath;
 
 export interface PropertyPath {

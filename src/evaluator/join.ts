@@ -36,6 +36,12 @@ export interface ScanEntry {
    * matching the object position directly.
    */
   reifies?: boolean;
+  /**
+   * tripleTermObject marks a pattern whose object is a triple-term pattern
+   * `?s ?p <<( ?st ?pt ?ot )>>`, which joins by decomposing each candidate's
+   * triple-term object instead of probing the object position directly.
+   */
+  tripleTermObject?: boolean;
 }
 
 /**
@@ -157,10 +163,21 @@ export function scanEntry(
   const predicate = simplePredicate(pattern.predicate);
   const object = pattern.object;
   const reifies = isReifiesPattern(predicate, object);
+  // A triple-term object (`?s ?p <<( ?st ?pt ?ot )>>`) cannot be probed
+  // positionally — its nested variables match structurally — so every quad
+  // with a triple-term object in the subject/predicate scope is a candidate.
+  const tripleTermObject = !reifies && object.termType === "Quad";
   // Reifies patterns scan every `rdf:reifies` statement; the join decomposes
   // each candidate's quoted triple term. Everything else matches positionally.
   const candidates = reifies
     ? matchQuads(store, null, predicate, null)
+    : tripleTermObject
+    ? matchQuads(
+      store,
+      patternConstant(subject),
+      patternConstant(predicate),
+      null,
+    ).then((quads) => quads.filter((quad) => quad.object.termType === "Quad"))
     : matchQuads(
       store,
       patternConstant(subject),
@@ -173,6 +190,7 @@ export function scanEntry(
     object,
     candidates: cs,
     reifies,
+    tripleTermObject,
   }));
 }
 
@@ -199,6 +217,9 @@ export function joinTriplePattern(
 ): TermBinding[] {
   if (entry.reifies) {
     return joinReifiesPattern(currentBindings, entry);
+  }
+  if (entry.tripleTermObject) {
+    return joinTripleTermObject(currentBindings, entry);
   }
   const subject = entry.subject;
   const predicate = entry.predicate;
@@ -286,11 +307,14 @@ export function joinTriplePattern(
 }
 
 /**
- * matchReifierPosition matches one position of a quoted triple term against a
- * concrete term: a variable position binds (or must agree with an existing
- * binding), and a constant position must be the same RDF term.
+ * matchPatternTerm matches a pattern position against a data term, extending
+ * the binding: a variable position binds (or must agree with an existing
+ * binding), a constant position must be the same RDF term, and a quad
+ * position (a nested triple term / triple-term pattern) recurses into its
+ * subject, predicate, and object — so `<<( ?s ?p <<( ?a ?b ?c )>> )>>`
+ * binds variables at every nesting level.
  */
-function matchReifierPosition(
+function matchPatternTerm(
   term: SparqlTerm,
   value: rdfjs.Term,
   binding: TermBinding,
@@ -303,6 +327,22 @@ function matchReifierPosition(
     }
     return { ...binding, [name]: value };
   }
+  if (term.termType === "Quad") {
+    if (value.termType !== "Quad") {
+      return null;
+    }
+    const pattern = term as rdfjs.Quad;
+    const data = value as rdfjs.Quad;
+    let extended = matchPatternTerm(pattern.subject, data.subject, binding);
+    if (extended === null) {
+      return null;
+    }
+    extended = matchPatternTerm(pattern.predicate, data.predicate, extended);
+    if (extended === null) {
+      return null;
+    }
+    return matchPatternTerm(pattern.object, data.object, extended);
+  }
   return sameRdfTerm(sparqlTermToRdfTerm(term), value) ? binding : null;
 }
 
@@ -310,7 +350,8 @@ function matchReifierPosition(
  * joinReifiesPattern joins solutions against a `?r rdf:reifies <<( s p o )>>`
  * pattern. Each candidate `X rdf:reifies TT` decomposes its quoted triple term
  * TT and matches its subject/predicate/object against the pattern's three
- * positions (binding variables), then binds the reifier variable to X.
+ * positions (binding variables, recursively through nested triple terms),
+ * then binds the reifier position to X.
  */
 function joinReifiesPattern(
   currentBindings: TermBinding[],
@@ -325,7 +366,7 @@ function joinReifiesPattern(
         continue;
       }
       const quoted = candidate.object as rdfjs.Quad;
-      let extended = matchReifierPosition(
+      let extended = matchPatternTerm(
         tripleTerm.subject,
         quoted.subject,
         binding,
@@ -333,7 +374,7 @@ function joinReifiesPattern(
       if (extended === null) {
         continue;
       }
-      extended = matchReifierPosition(
+      extended = matchPatternTerm(
         tripleTerm.predicate,
         quoted.predicate,
         extended,
@@ -341,7 +382,7 @@ function joinReifiesPattern(
       if (extended === null) {
         continue;
       }
-      extended = matchReifierPosition(
+      extended = matchPatternTerm(
         tripleTerm.object,
         quoted.object,
         extended,
@@ -349,7 +390,52 @@ function joinReifiesPattern(
       if (extended === null) {
         continue;
       }
-      const bound = matchReifierPosition(reifier, candidate.subject, extended);
+      const bound = matchPatternTerm(reifier, candidate.subject, extended);
+      if (bound !== null) {
+        result.push(bound);
+      }
+    }
+  }
+  return result;
+}
+
+/**
+ * joinTripleTermObject joins solutions against a triple pattern whose object
+ * is a triple-term pattern `?s ?p <<( ?st ?pt ?ot )>>`. Each candidate quad
+ * with a triple-term object matches the subject/predicate positionally and
+ * the object recursively through the triple-term pattern's positions.
+ */
+function joinTripleTermObject(
+  currentBindings: TermBinding[],
+  entry: ScanEntry,
+): TermBinding[] {
+  const result: TermBinding[] = [];
+  for (const binding of currentBindings) {
+    for (const candidate of entry.candidates) {
+      if (candidate.object.termType !== "Quad") {
+        continue;
+      }
+      let extended = matchPatternTerm(
+        entry.subject,
+        candidate.subject,
+        binding,
+      );
+      if (extended === null) {
+        continue;
+      }
+      extended = matchPatternTerm(
+        entry.predicate,
+        candidate.predicate,
+        extended,
+      );
+      if (extended === null) {
+        continue;
+      }
+      const bound = matchPatternTerm(
+        entry.object,
+        candidate.object,
+        extended,
+      );
       if (bound !== null) {
         result.push(bound);
       }
