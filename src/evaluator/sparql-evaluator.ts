@@ -238,7 +238,11 @@ export class SparqlEvaluator {
     );
 
     let filteredBindings = projected;
-    if (query.distinct) {
+    // REDUCED is a permitted hint to drop duplicates; per the REDUCED decision
+    // it is implemented as full dedup (REDUCED ≡ DISTINCT), which is strictly
+    // stronger than the spec floor and matches Comunica/Oxigraph on ≤100-
+    // distinct inputs.
+    if (query.distinct || query.reduced) {
       const seen = new Set<string>();
       filteredBindings = filteredBindings.filter((b) => {
         const key = Object.keys(b).sort().map((k) => `${k}:${termKey(b[k])}`)
