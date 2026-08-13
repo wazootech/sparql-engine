@@ -351,27 +351,26 @@ async function evaluate(testCase: W3cTestCase): Promise<Verdict> {
     };
   }
 
-  if (kind === "srx") {
-    // SPARQL XML results are not parsed yet; their .srj siblings cover the
-    // same query/data, so defer these two tests until an XML reader lands.
-    return {
-      status: "deferred",
-      detail: "SPARQL XML result parsing not yet implemented",
-    };
-  }
+  // SPARQL XML results (.srx) and their JSON siblings (.srj) encode the same
+  // expected bindings — the W3C suite ships both serializations for one
+  // test — so route XML results through the JSON reader.
+  const compareFile = kind === "srx"
+    ? resultFile?.replace(/\.srx$/, ".srj")
+    : resultFile;
+  const compareKind = kind === "srx" ? "srj" : kind;
 
-  if (!resultFile) {
+  if (!compareFile) {
     return { status: "error", detail: "no result file" };
   }
 
-  if (kind === "srj") {
+  if (compareKind === "srj") {
     if (native.result.kind !== "select") {
       return {
         status: "error",
         detail: `expected SELECT, native returned ${native.result.kind}`,
       };
     }
-    const reference = parseSrj(resultFile);
+    const reference = parseSrj(compareFile);
     const nativeRecords = nativeSelectRecords(native.result);
     const referenceRecords = recordsOf(reference);
     if (isomorphicMultiset(nativeRecords, referenceRecords)) {
