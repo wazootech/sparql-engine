@@ -168,8 +168,13 @@ function parseTestCase(
   let resultFile: string | null = null;
   if (resultQuad) {
     const result = resultQuad.object;
-    if (result.termType === "NamedNode" && result.value.endsWith(".ttl")) {
-      resultFile = `${result.value.split("/").pop()}`;
+    if (result.termType === "NamedNode") {
+      // Graph results (.ttl/.nt), JSON results (.srj), and XML results
+      // (.srx) all land here; the runner routes each by extension.
+      const name = result.value.split("/").pop() ?? "";
+      if (/\.(ttl|nt|trig|nq|srj|srx)$/.test(name)) {
+        resultFile = name;
+      }
     } else if (result.termType === "BlankNode") {
       // mf:result [ ut:data <post.ttl> ] — the expected update post-state.
       const data = store.getQuads(
