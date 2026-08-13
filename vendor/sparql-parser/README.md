@@ -89,16 +89,28 @@ Upstream sparqljs already supports the SPARQL-star quoted-triple form
 enables). The patch adds the SPARQL 1.2 data and reification surface upstream's
 grammar cannot express:
 
-| Form                                                      | Parses to                                                                                                                                                                                                             |
-| --------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `<<( s p o )>>` — data triple term                        | An RDF/JS Quad term marked `tripleTerm: true`; the evaluator treats it as data and never expands it into `rdf:reifies`. Nested triple terms are allowed (`<<( <<( s p o )>> p2 o2 )>>`).                              |
-| `<< s p o ~ r >>` — reified-triple pattern with a reifier | A Quad term carrying a `reifier` term (IRI, blank node, or variable), which the evaluator binds instead of minting a fresh internal reifier.                                                                          |
-| `<< s p o >>` — standalone reified-triple pattern         | Expanded at parse time into the single pattern triple `reifier rdf:reifies <<( s p o )>>`; the quoted triple itself stands in for the reifier in the AST, and the evaluator mints a fresh reifier at evaluation time. |
-| annotated triple — `:s :p :o` plus an annotation block    | The annotation property list becomes triples whose subject is the reifier quad of the annotated triple.                                                                                                               |
-| `VALUES ?t { <<( s p o )>> }`                             | Triple terms are legal data values in `VALUES` blocks.                                                                                                                                                                |
+| Form                                                      | Parses to                                                                                                                                                                                                                                        |
+| --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `<<( s p o )>>` — data triple term                        | An RDF/JS Quad term marked `tripleTerm: true`; the evaluator treats it as data and never expands it into `rdf:reifies`. Nested triple terms are allowed (`<<( <<( s p o )>> p2 o2 )>>`).                                                         |
+| `<< s p o ~ r >>` — reified-triple pattern with a reifier | A Quad term carrying a `reifier` term (IRI, blank node, or variable), which the evaluator binds instead of minting a fresh internal reifier.                                                                                                     |
+| `<< s p o >>` — standalone reified-triple pattern         | Expanded at parse time into the single pattern triple `reifier rdf:reifies <<( s p o )>>`; the quoted triple itself stands in for the reifier in the AST, and the evaluator mints a fresh reifier at evaluation time.                            |
+| annotated triple — `:s :p :o` plus an annotation block    | The annotation property list becomes triples whose subject is the reifier quad of the annotated triple.                                                                                                                                          |
+| reified object — `:s :p :o ~ r`                           | A `~` clause after the object names the triple's reifier (IRI, blank node, or variable; a bare `~` mints a fresh one at evaluation time). Emits the `reifier rdf:reifies <<( s p o )>>` pattern and binds any annotation blocks to that reifier. |
+| `VALUES ?t { <<( s p o )>> }`                             | Triple terms are legal data values in `VALUES` blocks.                                                                                                                                                                                           |
 
-Annotated triples write the block after the object —
-`:s :p :o {| :p2 :o2 ; :p3 :o3 |}` (fixtures pos-10/11).
+Annotations and reifiers attach after the object, per SPARQL 1.2 [86]/[111]:
+
+```
+Object ::= GraphNode Annotation
+Annotation ::= ( Reifier | AnnotationBlock )*
+```
+
+Annotation blocks look like `:s :p :o {| :p2 :o2 ; :p3 :o3 |}`, reifiers like
+`:s :p :o ~ :r`, and the two combine as `:s :p :o ~ :r {|
+:p2 :o2 |}` (fixtures
+pos-10/11 and the upstream annotation-reifier-* set). A bare
+`<< s p o >> {| ... |}` in subject position stays rejected — the spec grammar
+has no subject-position annotation block.
 
 New lexer tokens: `<<(`, `)>>`, and `~`. Triple terms are legal wherever data
 terms are — `BIND`/`SELECT` expressions (`<<( s p o )>> AS ?t`), the

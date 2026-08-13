@@ -16,8 +16,9 @@
  * extension for the four direction functions (they join existing
  * `FUNC_ARITYn` alternations, so the generated productions already construct
  * `functionCall` nodes), and grammar productions for `<<( s p o )>>` data
- * triple terms, `~` reifiers, `{| |}` annotated triples, and standalone
- * `<< s p o >>` reified-triple patterns.
+ * triple terms, `~` reifiers, `{| |}` annotated triples, standalone
+ * `<< s p o >>` reified-triple patterns, and object-level reifier and
+ * annotation clauses (`:s :p :o ~ r {| ... |}`).
  *
  * Term construction uses this project's internal zero-dependency DataFactory
  * (`@/term/data-factory.ts`) instead of upstream's `rdf-data-factory`. The

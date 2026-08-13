@@ -413,6 +413,17 @@
     return value;
   }
 
+  // Each `{| ... |}` block parses to an array of annotation triples; the
+  // annotation parts list holds one such array per block. Flatten them so
+  // _applyAnnotations iterates annotation triples directly.
+  function flatAnnotations(blocks) {
+    const triples = [];
+    for (const block of blocks) {
+      for (const item of block) triples.push(item);
+    }
+    return triples;
+  }
+
   function _applyAnnotations(subject, annotations, arr) {
     for (const annotation of annotations) {
       const t = triple(
@@ -446,7 +457,37 @@
         newTriples.push(s);
 
         if (t.annotations) {
-          _applyAnnotations(nestedTriple(t.subject, t.predicate, t.object), t.annotations, newTriples);
+          // Annotation parts (SPARQL 1.2 [111]) are `{ reifier: term|null }`
+          // for `~` clauses and property-list arrays for `{| ... |}` blocks.
+          let reifierTerm = null, hasReifier = false;
+          const blocks = [];
+          for (const part of t.annotations) {
+            if (part && 'reifier' in part) {
+              hasReifier = true;
+              reifierTerm = part.reifier;
+            } else {
+              blocks.push(part);
+            }
+          }
+
+          // The reified triple term the annotation(s) attach to. A named
+          // reifier (`~ r`) travels on the quad so the evaluator binds it;
+          // otherwise the evaluator mints a fresh reifier at evaluation time.
+          const quoted = hasReifier && reifierTerm
+            ? reifiedTriple(t.subject, t.predicate, t.object, reifierTerm)
+            : nestedTriple(t.subject, t.predicate, t.object);
+
+          if (hasReifier) {
+            // `s p o ~ r` / `s p o ~` — emit the `reifier rdf:reifies
+            // <<( s p o )>>` pattern triple; a bare `~` lets the quad stand in
+            // for the reifier so the evaluator mints a fresh one.
+            newTriples.push(...reifiedTriplePattern(quoted));
+            if (blocks.length) {
+              _applyAnnotations(reifierTerm || quoted, flatAnnotations(blocks), newTriples);
+            }
+          } else if (blocks.length) {
+            _applyAnnotations(quoted, flatAnnotations(blocks), newTriples);
+          }
         }
       });
 
@@ -1228,9 +1269,9 @@ ObjectList
     : (Object ',')* Object -> appendTo($1, $2)
     ;
 
-// [80]
+// [80] Object ::= GraphNode Annotation — SPARQL 1.2 [86]
 Object
-    : GraphNode AnnotationPattern? -> $2 ? { annotation: $2, object: $1 } : $1
+    : GraphNode Annotation? -> $2 ? { annotation: $2, object: $1 } : $1
     ;
 
 // [81]
@@ -1263,9 +1304,9 @@ ObjectListPath
     : (ObjectPath ',')* ObjectPath -> appendTo($1, $2)
     ;
 
-// [87]
+// [87] ObjectPath ::= GraphNodePath AnnotationPath — SPARQL 1.2 [93]
 ObjectPath
-    : GraphNodePath AnnotationPatternPath? -> $2 ? { object: $1, annotation: $2 } : $1;
+    : GraphNodePath AnnotationPath? -> $2 ? { object: $1, annotation: $2 } : $1;
     ;
 
 // [88] Path [89] PathAlternative
@@ -1603,6 +1644,38 @@ AnnotationPattern
 // [180]
 AnnotationPatternPath
     : '{|' PropertyListPathNotEmpty '|}' -> ensureSparqlStar($2)
+    ;
+
+// [111] Annotation ::= ( Reifier | AnnotationBlock )* — SPARQL 1.2. The
+// parts of an object-level annotation: a `~` reifier clause and/or one or
+// more `{| ... |}` annotation blocks, in any order.
+Annotation
+    : AnnotationPart -> [$1]
+    | Annotation AnnotationPart -> $1.concat([$2])
+    ;
+
+AnnotationPart
+    : Reifier
+    | AnnotationPattern
+    ;
+
+// [109] AnnotationPath ::= ( Reifier | AnnotationBlockPath )*
+AnnotationPath
+    : AnnotationPartPath -> [$1]
+    | AnnotationPath AnnotationPartPath -> $1.concat([$2])
+    ;
+
+AnnotationPartPath
+    : Reifier
+    | AnnotationPatternPath
+    ;
+
+// [70] Reifier ::= '~' VarOrReifierId? — SPARQL 1.2. A named reifier is
+// an IRI, blank node, or variable; a bare `~` mints a fresh reifier at
+// evaluation time. The value travels as `{ reifier: term|null }` so
+// applyAnnotations can bind annotation triples to the named reifier.
+Reifier
+    : '~' reifier? -> { reifier: $2 || null }
     ;
 
 
