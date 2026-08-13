@@ -2,6 +2,15 @@
 
 - **WazooSparqlEngine** — the in-repo SPARQL engine; the subject of this effort.
   Must be observably interchangeable with the parity reference.
+- **SparqlEngineInterface** — the shared execution contract
+  (`execute(request) => Promise<SparqlResponse>`) that `WazooSparqlEngine`
+  implements and `@worlds/client`'s `ComunicaSparqlEngine` also implements. The
+  interface is duplicated identically in both packages under an identical-spec
+  policy; reconcile any drift deliberately.
+- **ComunicaSparqlEngine** — the `@worlds/client` adapter
+  (`@worlds/client/comunica`) that wraps a caller-provided Comunica engine over
+  an RDF/JS store. `WazooSparqlEngine` is a drop-in replacement behind
+  `SparqlEngineInterface`, with no client changes.
 - **Parity reference** — the installed `@comunica/query-sparql-rdfjs-lite`
   (5.3.0) that the native engine is measured against. The porting surface is the
   lite config (`config-rdfjs-lite-v5-1-3.json` in the Comunica monorepo).
