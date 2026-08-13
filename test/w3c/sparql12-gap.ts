@@ -218,6 +218,7 @@ function srjValueToCanonical(raw: unknown): CanonicalTerm {
     type: string;
     value: unknown;
     "xml:lang"?: string;
+    "its:dir"?: string;
     datatype?: string;
   };
   switch (value.type) {
@@ -230,8 +231,10 @@ function srjValueToCanonical(raw: unknown): CanonicalTerm {
         termType: "Literal",
         value: String(value.value),
       };
-      if (value["xml:lang"]) canonical.language = value["xml:lang"];
-      else if (value.datatype && value.datatype !== XSD_STRING) {
+      if (value["xml:lang"]) {
+        canonical.language = value["xml:lang"];
+        if (value["its:dir"]) canonical.direction = value["its:dir"];
+      } else if (value.datatype && value.datatype !== XSD_STRING) {
         canonical.datatype = value.datatype;
       }
       return canonical;

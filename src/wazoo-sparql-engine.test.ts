@@ -2615,7 +2615,7 @@ Deno.test("WazooSparqlEngine - directional literals match only with same directi
       "SELECT ?o WHERE { <http://example.org/s> <http://example.org/p> ?o " +
         'FILTER(?o = "x"@en--ltr) }',
     ),
-    { type: "literal", value: "x", "xml:lang": "en" },
+    { type: "literal", value: "x", "xml:lang": "en", "its:dir": "ltr" },
   );
   assertEquals(
     await firstObject(
@@ -2636,8 +2636,157 @@ Deno.test("WazooSparqlEngine - directional literals match only with same directi
       `SELECT ?o WHERE { <http://example.org/s> <http://example.org/p> ?o ` +
         `FILTER(DATATYPE(?o) = <${RDF}dirLangString>) }`,
     ),
-    { type: "literal", value: "x", "xml:lang": "en" },
+    { type: "literal", value: "x", "xml:lang": "en", "its:dir": "ltr" },
   );
+});
+
+Deno.test("WazooSparqlEngine - results serialize directional literals with its:dir", async () => {
+  const store = new Store();
+  store.addQuad(
+    quad(
+      namedNode("http://example.org/s"),
+      namedNode("http://example.org/p"),
+      literal("x", { language: "en", direction: "ltr" }),
+    ),
+  );
+  const engine = new WazooSparqlEngine({ store });
+
+  // A directional literal in the store round-trips through the SELECT wire
+  // format with its base direction (SPARQL 1.2 results JSON `its:dir` key,
+  // which the XML format mirrors as an its:dir attribute).
+  const direct = await engine.execute({
+    query:
+      "SELECT ?o WHERE { <http://example.org/s> <http://example.org/p> ?o }",
+  });
+  if (direct.kind !== "select") {
+    throw new Error(`expected select, got ${direct.kind}`);
+  }
+  assertEquals(direct.data.results.bindings[0].o, {
+    type: "literal",
+    value: "x",
+    "xml:lang": "en",
+    "its:dir": "ltr",
+  });
+
+  // The direction also round-trips nested inside a triple term result.
+  const triple = await engine.execute({
+    query:
+      'SELECT ?t WHERE { BIND(TRIPLE(<http://s>, <http://p>, "x"@en--ltr) AS ?t) }',
+  });
+  if (triple.kind !== "select") {
+    throw new Error(`expected select, got ${triple.kind}`);
+  }
+  assertEquals(triple.data.results.bindings[0].t, {
+    type: "triple",
+    value: {
+      subject: { type: "uri", value: "http://s" },
+      predicate: { type: "uri", value: "http://p" },
+      object: {
+        type: "literal",
+        value: "x",
+        "xml:lang": "en",
+        "its:dir": "ltr",
+      },
+    },
+  });
+
+  // A plain lang-tagged literal carries no direction key.
+  const plain = await engine.execute({
+    query: 'SELECT ?o WHERE { BIND("y"@en AS ?o) }',
+  });
+  if (plain.kind !== "select") {
+    throw new Error(`expected select, got ${plain.kind}`);
+  }
+  assertEquals(plain.data.results.bindings[0].o, {
+    type: "literal",
+    value: "y",
+    "xml:lang": "en",
+  });
+});
+
+Deno.test("WazooSparqlEngine - TRIPLE/SUBJECT/OBJECT preserve the direction", async () => {
+  const engine = emptyEngine();
+
+  // OBJECT of a triple term keeps the directional literal intact, so it
+  // round-trips with its direction and compares direction-sensitively.
+  assertEquals(
+    await bindValue(
+      engine,
+      'SELECT ?v WHERE { BIND(OBJECT(TRIPLE(<http://s>, <http://p>, "x"@en--ltr)) AS ?v) }',
+      "v",
+    ),
+    { type: "literal", value: "x", lang: "en" },
+  );
+  assertEquals(
+    await bindValue(
+      engine,
+      'SELECT ?v WHERE { BIND(OBJECT(TRIPLE(<http://s>, <http://p>, "x"@en--ltr)) = "x"@en--ltr AS ?v) }',
+      "v",
+    ),
+    { type: "literal", value: "true", datatype: `${XSD}boolean` },
+  );
+  assertEquals(
+    await bindValue(
+      engine,
+      'SELECT ?v WHERE { BIND(OBJECT(TRIPLE(<http://s>, <http://p>, "x"@en--ltr)) = "x"@en AS ?v) }',
+      "v",
+    ),
+    { type: "literal", value: "false", datatype: `${XSD}boolean` },
+  );
+  assertEquals(
+    await bindValue(
+      engine,
+      'SELECT ?v WHERE { BIND(LANGDIR(OBJECT(TRIPLE(<http://s>, <http://p>, "x"@en--rtl))) AS ?v) }',
+      "v",
+    ),
+    { type: "literal", value: "rtl" },
+  );
+});
+
+Deno.test("WazooSparqlEngine - ORDER BY orders directional literals deterministically", async () => {
+  const store = new Store();
+  // Same lexical form, three direction variants: the datatype rdf:dirLangString
+  // sorts before rdf:langString, and within it the direction breaks the tie
+  // ("" < "ltr" < "rtl" codepoint-wise), so ASC is en--ltr, en--rtl, en.
+  store.addQuad(
+    quad(
+      namedNode("http://example.org/a"),
+      namedNode("http://example.org/p"),
+      literal("x", { language: "en", direction: "rtl" }),
+    ),
+  );
+  store.addQuad(
+    quad(
+      namedNode("http://example.org/b"),
+      namedNode("http://example.org/p"),
+      literal("x", { language: "en", direction: "ltr" }),
+    ),
+  );
+  store.addQuad(
+    quad(
+      namedNode("http://example.org/c"),
+      namedNode("http://example.org/p"),
+      literal("x", "en"),
+    ),
+  );
+  const engine = new WazooSparqlEngine({ store });
+
+  async function orderedObjects(order: string): Promise<string[]> {
+    const result = await engine.execute({
+      query:
+        `SELECT ?o WHERE { ?s <http://example.org/p> ?o } ORDER BY ${order}`,
+    });
+    if (result.kind !== "select") {
+      throw new Error(`expected select, got ${result.kind}`);
+    }
+    return result.data.results.bindings.map((b) => {
+      const o = b.o as { value: string; "its:dir"?: string };
+      return `${o.value}@${o["its:dir"] ?? ""}`;
+    });
+  }
+
+  assertEquals(await orderedObjects("ASC(?o)"), ["x@ltr", "x@rtl", "x@"]);
+  assertEquals(await orderedObjects("DESC(?o)"), ["x@", "x@rtl", "x@ltr"]);
 });
 
 Deno.test("WazooSparqlEngine - COALESCE, IF, IN, NOT IN, SAMETERM", async () => {
