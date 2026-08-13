@@ -82,6 +82,9 @@ two runners, both invoked from `deno task ci`:
   both the native grammar and `n3@2.2.0`; the two must agree on accept/reject
   and on the resulting quads (up to blank-node relabeling). Negative tests are
   additionally gated absolutely — native must reject them even if n3 is lenient.
+  Eval tests are also gated against their `.nt`/`.nq` reference result (parsed
+  with the native grammar), so a native+n3 agreement on the wrong quads still
+  fails.
 - `deno task test:rdf12` — **RDF 1.2 manifest classifier** (`rdf-classify.ts`).
   n3 predates RDF 1.2 triple terms and reifiers, so each positive syntax test
   must parse, each negative syntax test must be rejected, and each eval test
@@ -94,12 +97,8 @@ documented divergences keyed inside each runner:
 - **Superset acceptances** — the native grammar is a single Turtle + TriG +
   N-Quads superset (LOAD content-sniffs the format rather than trusting the file
   extension), so it accepts Turtle/TriG/N-Quads constructs in files where the
-  strict N-Triples/N-Quads/Turtle/TriG grammar rejects them.
-- **Literal leniency** — native does not yet enforce two RDF 1.2 literal
-  well-formedness rules (rejecting `rdf:langString`/`rdf:dirLangString` as
-  explicit datatypes, and BCP47 language-tag subtag length limits).
-
-Everything else must be fixed, never allowlisted.
+  strict N-Triples/N-Quads/Turtle/TriG grammar rejects them. Everything else
+  must be fixed, never allowlisted.
 
 ## Vendored fixtures and re-fetching
 
