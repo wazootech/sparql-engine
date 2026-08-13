@@ -1,9 +1,10 @@
 /**
  * Vendored SPARQL parser — maintained by this project.
  *
- * The runtime parser is a copy of sparqljs 3.7.4's generated parser
- * (`parser.cjs`), extended with the SPARQL 1.2 direction-function surface
- * that upstream's grammar does not whitelist:
+ * The runtime parser is a pure ESM/TypeScript module (`parser.ts`) generated
+ * from the in-repo jison grammar (`sparql.jison`), itself sparqljs 3.7.4's
+ * grammar extended with the SPARQL 1.2 direction-function surface that
+ * upstream does not whitelist:
  *
  *   - `LANGDIR(simpleLiteral)`            — arity 1
  *   - `hasLang(langString, language)`     — arity 2
@@ -23,7 +24,7 @@ import { DataFactory } from "n3";
 import type { SparqlQuery } from "./ast.ts";
 export type * from "./ast.ts";
 
-import generatedParser from "./parser.cjs";
+import generatedParser from "./parser.ts";
 
 /** The generated jison parser constructor (upstream `SparqlParser.Parser`). */
 type GeneratedParserConstructor =

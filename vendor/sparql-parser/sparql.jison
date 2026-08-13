@@ -11,6 +11,7 @@
       RDF_FIRST = RDF + 'first',
       RDF_REST  = RDF + 'rest',
       RDF_NIL   = RDF + 'nil',
+      RDF_REIFIES = RDF + 'reifies',
       XSD = 'http://www.w3.org/2001/XMLSchema#',
       XSD_INTEGER  = XSD + 'integer',
       XSD_DECIMAL  = XSD + 'decimal',
@@ -162,6 +163,37 @@
     }
 
     return Parser.factory.quad(subject, predicate, object);
+  }
+
+  // Marks a quad as a data triple term (`<<( s p o )>>`), distinct from a
+  // reified-triple pattern (`<< s p o >>`). The evaluator treats triple terms
+  // as data (they are never expanded into `rdf:reifies` statements).
+  function tripleTerm(subject, predicate, object) {
+    var term = nestedTriple(subject, predicate, object);
+    term.tripleTerm = true;
+    return term;
+  }
+
+  // Builds a quoted triple pattern with a reifier binding (`<< s p o ~ r >>`):
+  // the quad carries the reifier term so the evaluator binds it instead of
+  // minting a fresh internal reifier.
+  function reifiedTriple(subject, predicate, object, reifier) {
+    var quad = nestedTriple(subject, predicate, object);
+    quad.reifier = reifier;
+    return quad;
+  }
+
+  // Expands a standalone reified-triple pattern (`<< s p o >>` or
+  // `<< s p o ~ r >>` with an empty property list) into the single
+  // `reifier rdf:reifies <<( s p o )>>` pattern triple it denotes. Without a
+  // reifier the quad itself stands in for the subject, so the evaluator mints
+  // a fresh internal reifier at evaluation time.
+  function reifiedTriplePattern(quad) {
+    var reifier = quad.reifier || quad;
+    // Build a fresh factory quad for the triple term (n3 Quad accessors live on
+    // the prototype, so a shallow copy would lose subject/predicate/object).
+    var tripleTerm = nestedTriple(quad.subject, quad.predicate, quad.object);
+    return [triple(reifier, Parser.factory.namedNode(RDF_REIFIES), tripleTerm)];
   }
 
   // Creates a triple with the given subject, predicate, and object
@@ -597,8 +629,11 @@ SPACES_COMMENTS       (\s+|{COMMENT}\n\r?)+
 "MINUS"                  return 'MINUS'
 "UNION"                  return 'UNION'
 "FILTER"                 return 'FILTER'
+"<<("                    return '<<('
+")>>"                    return ')>>'
 "<<"                     return '<<'
 ">>"                     return '>>'
+"~"                      return '~'
 "{|"                     return '{|'
 "|}"                     return '|}'
 ","                      return ','
@@ -1111,6 +1146,8 @@ DataBlockValue
     | Literal
     // @see https://w3c.github.io/rdf-star/cg-spec/editors_draft.html#sparql-star-grammar
     | QuotedTriple -> ensureSparqlStar($1)
+    // [69] DataBlockValue — triple terms are data in VALUES blocks
+    | TripleTerm
     | 'UNDEF' -> undefined
     ;
 
@@ -1157,6 +1194,10 @@ ConstructTriples
 TriplesSameSubject
     : VarOrTermOrQuotedTP PropertyListNotEmpty -> applyAnnotations($2.map(t => extend(triple($1), t)))
     | TriplesNode PropertyList -> applyAnnotations(appendAllTo($2.map(t => extend(triple($1.entity), t)), $1.triples)) /* the subject is a blank node, possibly with more triples */
+    // [58] ReifiedTripleBlock — a quoted triple (with optional reifier) as the
+    // subject; with an empty property list it is a standalone reified-triple
+    // pattern matching any reifier of the quoted triple.
+    | QuotedTP PropertyList -> $2 ? applyAnnotations($2.map(t => extend(triple($1), t))) : reifiedTriplePattern($1)
     ;
 
 // [76]
@@ -1196,6 +1237,10 @@ Object
 TriplesSameSubjectPath
     : VarOrTermOrQuotedTP PropertyListPathNotEmpty -> applyAnnotations($2.map(t => extend(triple($1), t)))
     | TriplesNodePath PropertyListPathNotEmpty? -> !$2 ? $1.triples : applyAnnotations(appendAllTo($2.map(t => extend(triple($1.entity), t)), $1.triples)) /* the subject is a blank node, possibly with more triples */
+    // [59] ReifiedTripleBlockPath — a quoted triple (with optional reifier) as
+    // the subject; with an empty property list it is a standalone reified-triple
+    // pattern matching any reifier of the quoted triple.
+    | QuotedTP PropertyListPathNotEmpty? -> $2 ? applyAnnotations($2.map(t => extend(triple($1), t))) : reifiedTriplePattern($1)
     ;
 
 // [82] Should be propertyListPath
@@ -1286,6 +1331,7 @@ GraphNodePath
 
 VarOrTermOrQuotedTPExpr
   : VarOrTermOrQuotedTP -> { entity: $1, triples: [] }
+  | QuotedTP -> { entity: $1, triples: [] }
   ;
 
 // [106]
@@ -1312,6 +1358,9 @@ GraphTerm
     | Literal
     | BlankNode
     | NIL -> Parser.factory.namedNode(RDF_NIL)
+    // [119] TripleTerm — a data triple term `<<( s p o )>>`, allowed in any
+    // term position (patterns, expressions, VALUES).
+    | TripleTerm
     ;
 
 // [110]
@@ -1383,6 +1432,8 @@ PrimaryExpression
     | Literal
     | Var
     | ExprQuotedTP
+    // ExprTripleTerm — triple terms are terms in expressions (BIND, IN, ...)
+    | TripleTerm
     ;
 
 // [120]
@@ -1493,9 +1544,11 @@ BlankNode
 // Note [139] - [173] are grammar terms that are written above
 //
 
-// [174]
+// [174] / [116]
 QuotedTP
     : '<<' qtSubjectOrObject Verb qtSubjectOrObject '>>' -> ensureSparqlStar(nestedTriple($2, $3, $4))
+    // [116] ReifiedTriple with a reifier binding `<< s p o ~ r >>`
+    | '<<' qtSubjectOrObject Verb qtSubjectOrObject '~' reifier '>>' -> ensureSparqlStar(reifiedTriple($2, $3, $4, $6))
     ;
 
 // [175]
@@ -1510,6 +1563,7 @@ qtSubjectOrObject
     | BlankNode
     | Literal
     | QuotedTP
+    | TripleTerm
     ;
 
 
@@ -1518,13 +1572,27 @@ DataValueTerm
     : iri
     | Literal
     | QuotedTP
+    | TripleTerm
+    ;
+
+// [119] TripleTerm — the SPARQL 1.2 data triple-term form `<<( s p o )>>`.
+// Nested triple terms are allowed; the result is an RDF/JS Quad carrying a
+// `tripleTerm` marker so the evaluator treats it as data (never a reifier).
+TripleTerm
+    : '<<(' qtSubjectOrObject Verb qtSubjectOrObject ')>>' -> tripleTerm($2, $3, $4)
+    ;
+
+// [70] Reifier — the `~` clause binding the reifier of a quoted triple.
+reifier
+    : VAR -> toVar($1)
+    | iri -> $1
+    | BlankNode -> $1
     ;
 
 // [178]
 VarOrTermOrQuotedTP
     : Var
     | GraphTerm
-    | QuotedTP
     ;
 
 // [179]
@@ -1548,6 +1616,7 @@ ExprVarOrTerm
   : VarOrIri
   | ExprQuotedTP
   | Literal
+  | TripleTerm
   ;
 
 // Utilities

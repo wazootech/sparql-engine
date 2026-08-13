@@ -197,19 +197,25 @@ export class BgpEvaluator {
           }
           const predicate = simplePredicate(triple.predicate);
           const reifies = isReifiesPattern(predicate, triple.object);
+          const tripleTermObject = !reifies &&
+            triple.object.termType === "Quad";
           const entry: ScanEntry = {
             subject: triple.subject,
             predicate,
             object: triple.object,
             reifies,
+            tripleTermObject,
             // probeQuadIndex checks only s/p/o, so the graph scope is
             // enforced afterwards over the probed candidates. Reifies
-            // patterns scan every `rdf:reifies` statement in the scope.
+            // patterns scan every `rdf:reifies` statement in the scope, and
+            // triple-term objects scan every quad with a triple-term object.
             candidates: reifies
               ? candidates.filter((item) =>
                 item.predicate.termType === "NamedNode" &&
                 item.predicate.value === RDF_REIFIES
               )
+              : tripleTermObject
+              ? candidates.filter((item) => item.object.termType === "Quad")
               : probeQuadIndex(
                 this.existsIndex!,
                 candidates,

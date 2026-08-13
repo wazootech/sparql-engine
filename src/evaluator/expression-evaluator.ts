@@ -45,6 +45,48 @@ const { blankNode, literal, namedNode, quad } = DataFactory;
 type Ebv = boolean | "error";
 
 /**
+ * substituteTripleTerm evaluates a triple-term expression (`<<( s p o )>>`)
+ * against a binding: bound variables are substituted into each position
+ * (recursively through nested triple terms), and an unbound variable makes
+ * the whole expression an error (undefined).
+ */
+function substituteTripleTerm(
+  term: rdfjs.BaseQuad,
+  binding: TermBinding,
+): rdfjs.Term | undefined {
+  const subject = substituteTripleTermPosition(term.subject, binding);
+  if (subject === undefined) {
+    return undefined;
+  }
+  const predicate = substituteTripleTermPosition(term.predicate, binding);
+  if (predicate === undefined) {
+    return undefined;
+  }
+  const object = substituteTripleTermPosition(term.object, binding);
+  if (object === undefined) {
+    return undefined;
+  }
+  return quad(
+    subject as rdfjs.Quad_Subject,
+    predicate as rdfjs.Quad_Predicate,
+    object as rdfjs.Quad_Object,
+  );
+}
+
+function substituteTripleTermPosition(
+  term: rdfjs.Term,
+  binding: TermBinding,
+): rdfjs.Term | undefined {
+  if (term.termType === "Variable") {
+    return binding[term.value];
+  }
+  if (term.termType === "Quad") {
+    return substituteTripleTerm(term, binding);
+  }
+  return term;
+}
+
+/**
  * ExpressionEvaluator evaluates SPARQL 1.1 expression ASTs against a solution
  * binding, producing RDF/JS terms or undefined for unbound variables and
  * runtime type errors. It is shared by FILTER (via BgpEvaluator) and ORDER BY
@@ -163,6 +205,11 @@ export class ExpressionEvaluator {
     if ("termType" in expression) {
       if (expression.termType === "Variable") {
         return binding[expression.value];
+      }
+      if (expression.termType === "Quad") {
+        // A triple-term expression (`<<( ?s ?p ?o )>>`) substitutes bound
+        // variables into each position; an unbound variable errors.
+        return substituteTripleTerm(expression, binding);
       }
       return sparqlTermToRdfTerm(expression as SparqlTerm);
     }
@@ -650,6 +697,11 @@ export class ExpressionEvaluator {
       }
       return Number(an) === Number(bn);
     }
+    // xsd:boolean literals compare with RDFterm-equal (same value and
+    // datatype), like sameTerm.
+    if (this.isBoolean(a) && this.isBoolean(b)) {
+      return sameRdfTerm(a, b);
+    }
     const aString = this.isStringTyped(a);
     const bString = this.isStringTyped(b);
     if (aString && bString) {
@@ -808,6 +860,10 @@ export class ExpressionEvaluator {
 
   private isLangTagged(literalTerm: rdfjs.Literal): boolean {
     return literalTerm.language !== undefined && literalTerm.language !== "";
+  }
+
+  private isBoolean(literalTerm: rdfjs.Literal): boolean {
+    return literalTerm.datatype?.value === XSD_BOOLEAN;
   }
 
   private isSimpleLiteral(literalTerm: rdfjs.Literal): boolean {

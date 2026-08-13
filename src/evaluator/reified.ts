@@ -1,6 +1,10 @@
 import type * as rdfjs from "@rdfjs/types";
 import { DataFactory } from "n3";
-import type { Term as SparqlTerm, Triple } from "@/parser/sparql-parser.ts";
+import type {
+  ReifiedQuad,
+  Term as SparqlTerm,
+  Triple,
+} from "@/parser/sparql-parser.ts";
 
 /**
  * RDF_REIFIES is the RDF 1.2 predicate connecting a reifier to the triple
@@ -31,19 +35,25 @@ interface ExpandedTerm {
 
 /**
  * expandQuotedTerm expands one RDF 1.2 reified-triple pattern term
- * (`<< s p o >>`) into a fresh reifier variable plus the `rdf:reifies`
- * statement that binds it to the quoted triple term. Nested quoted triples
- * recurse, so `<< << s p o >> q r >>` produces two reifiers chained through
- * their `rdf:reifies` statements.
+ * (`<< s p o >>`) into a reifier term plus the `rdf:reifies` statement that
+ * binds it to the quoted triple term. Nested quoted triples recurse, so
+ * `<< << s p o >> q r >>` produces two reifiers chained through their
+ * `rdf:reifies` statements. Two kinds of quad terms pass through unchanged:
+ * data triple terms (`<<( s p o )>>`, marked `tripleTerm`) and quads already
+ * carrying a reifier binding (`<< s p o ~ r >>`).
  */
 function expandQuotedTerm(term: SparqlTerm): ExpandedTerm {
   if (term.termType !== "Quad") {
     return { term, triples: [] };
   }
-  const s = expandQuotedTerm(term.subject);
-  const p = expandQuotedTerm(term.predicate);
-  const o = expandQuotedTerm(term.object);
-  const reifier = freshReifier();
+  const quad = term as ReifiedQuad;
+  if (quad.tripleTerm) {
+    return { term, triples: [] };
+  }
+  const s = expandQuotedTerm(quad.subject);
+  const p = expandQuotedTerm(quad.predicate);
+  const o = expandQuotedTerm(quad.object);
+  const reifier = quad.reifier ?? freshReifier();
   const tripleTerm: rdfjs.Quad = DataFactory.quad(
     s.term as rdfjs.Quad_Subject,
     p.term as rdfjs.Quad_Predicate,
@@ -64,21 +74,46 @@ function expandQuotedTerm(term: SparqlTerm): ExpandedTerm {
  * expandReifiedTriples rewrites a triple-pattern block so reified-triple
  * patterns (`<< s p o >>` in subject or object position) become plain
  * triples that match the RDF 1.2 reifier representation in the store. Each
- * quoted term becomes a fresh reifier (a blank node the BGP treats as an
- * internal variable) joined to its quoted triple term via `rdf:reifies`.
+ * quoted term becomes a reifier (a blank node the BGP treats as an internal
+ * variable, or the bound reifier of `<< s p o ~ r >>`) joined to its quoted
+ * triple term via `rdf:reifies`.
+ *
+ * A triple that is already an `rdf:reifies` statement with a triple-term
+ * object — the standalone reified-triple pattern `<< s p o >>` /
+ * `<< s p o ~ r >>`, or an explicit `?r rdf:reifies <<( s p o )>>` — passes
+ * through with only its reifier side expanded: the object is a data triple
+ * term and is decomposed by the join, never re-expanded.
  */
 export function expandReifiedTriples(triples: Triple[]): Triple[] {
   const expanded: Triple[] = [];
   for (const triple of triples) {
+    const p = triple.predicate;
+    if (
+      "termType" in p && p.termType === "NamedNode" &&
+      p.value === RDF_REIFIES && triple.object.termType === "Quad"
+    ) {
+      const s = expandQuotedTerm(triple.subject);
+      expanded.push(...s.triples);
+      expanded.push({ subject: s.term, predicate: p, object: triple.object });
+      continue;
+    }
     const s = expandQuotedTerm(triple.subject);
     const o = expandQuotedTerm(triple.object);
     // A predicate is never a quoted triple (property paths are not terms),
     // so it passes through unchanged.
-    const p = triple.predicate;
     expanded.push(...s.triples, ...o.triples);
     expanded.push({ subject: s.term, predicate: p, object: o.term });
   }
   return expanded;
+}
+
+/**
+ * isTripleTerm reports whether a quad carries the parser's `tripleTerm`
+ * marker — a data triple term `<<( s p o )>>`, never a reified-triple
+ * pattern.
+ */
+export function isTripleTerm(term: SparqlTerm): boolean {
+  return (term as ReifiedQuad).tripleTerm === true;
 }
 
 /**

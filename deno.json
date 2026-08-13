@@ -35,17 +35,5 @@
     "publish:dry": "deno publish --dry-run --allow-dirty",
     "test": "deno test --allow-all",
     "test:w3c": "deno run --allow-all test/w3c/w3c-main.ts"
-  },
-  "fmt": {
-    "exclude": [
-      "vendor/sparql-parser/parser.cjs",
-      "vendor/sparql-parser/Wildcard.js"
-    ]
-  },
-  "lint": {
-    "exclude": [
-      "vendor/sparql-parser/parser.cjs",
-      "vendor/sparql-parser/Wildcard.js"
-    ]
   }
 }
