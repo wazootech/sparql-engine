@@ -115,14 +115,14 @@ const { cases, skipped } = loadAllCases();
 const report = await new W3cRunner(readFixture).run(cases);
 printReport(report, skipped);
 
-// Coverage gate: the milestone target is >= 95% of the differential suite
-// passing (ceiling-rounded so 336 tests requires >= 320). Runner errors are
+// Coverage gate: the milestone target is >= 99% of the differential suite
+// passing (ceiling-rounded so 336 tests requires >= 333). Runner errors are
 // always fatal — they indicate a harness bug, not a parity gap.
-const threshold = Math.ceil(report.total * 0.95);
+const threshold = Math.ceil(report.total * 0.99);
 if (report.pass < threshold || report.error > 0) {
   console.error(
     `\nW3C differential gate FAILED: ${report.pass}/${report.total} pass is ` +
-      `below the ${threshold} (>=95%) threshold, with ${report.gap} parity ` +
+      `below the ${threshold} (>=99%) threshold, with ${report.gap} parity ` +
       `gap(s) and ${report.error} error(s). The parity-gap count is the ` +
       `tracked progress metric — each gap is a place native must converge ` +
       `with comunica.`,
@@ -131,6 +131,6 @@ if (report.pass < threshold || report.error > 0) {
 }
 console.log(
   `\nW3C differential gate passed: ${report.pass}/${report.total} pass is at ` +
-    `or above the ${threshold} (>=95%) threshold (plus ` +
+    `or above the ${threshold} (>=99%) threshold (plus ` +
     `${report.allowlisted} allowlisted documented divergences).`,
 );
