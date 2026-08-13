@@ -8,8 +8,9 @@ Wazoo-native SPARQL 1.1 Query & Update Engine over RDF/JS Quad Stores.
   `CONSTRUCT`, and `DESCRIBE` queries over `rdfjs.Store` sources.
 - **SPARQL 1.1 Update Engine**: Support for `INSERT DATA`, `DELETE DATA`,
   `DELETE/INSERT`, and atomic patch transactions.
-- **Zero Heavy Dependencies**: Lightweight AST parsing via `sparqljs` without
-  Comunica framework overhead.
+- **Zero Heavy Dependencies**: Lightweight AST parsing via the vendored, in-repo
+  SPARQL parser (a maintained sparqljs 3.7.4 grammar), with no Comunica
+  framework overhead.
 - **JSR & Deno Native**: Published on JSR as `@wazoo/sparql-engine` for Deno,
   Node.js, and browser environments.
 - **Drop-in for `@worlds/client`**: Implements the same `SparqlEngineInterface`

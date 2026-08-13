@@ -10,7 +10,7 @@ engine for RDF/JS Quad Stores (`rdfjs.Store`).
          │
          ▼
  ┌──────────────┐
- │  Parser      │ (sparqljs AST parsing)
+ │  Parser      │ (vendored sparqljs grammar)
  └───────┬──────┘
          │
          ▼
