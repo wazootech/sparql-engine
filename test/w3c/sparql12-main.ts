@@ -1,6 +1,5 @@
 import type * as rdfjs from "@rdfjs/types";
-// deno-lint-ignore no-import-prefix
-import { Parser as N3Parser } from "npm:n3@2.2.0";
+import { parseTurtleQuads } from "@/parser/turtle-parser.ts";
 import { DataFactory } from "@/term/mod.ts";
 import { MemoryStore as N3Store } from "@/store/memory-store.ts";
 import { WazooSparqlEngine } from "@/wazoo-sparql-engine.ts";
@@ -66,10 +65,10 @@ function loadStore(testCase: W3cTestCase): N3Store {
   const store = new N3Store();
   const load = (file: string, graph: string | null): void => {
     const text = fixtureText(testCase, file);
-    const parser = new N3Parser({
-      baseIRI: canonicalUrl(testCase.category, file),
-    });
-    const quads: rdfjs.Quad[] = parser.parse(text);
+    const quads: rdfjs.Quad[] = parseTurtleQuads(
+      text,
+      canonicalUrl(testCase.category, file),
+    );
     for (const quad of quads) {
       if (graph === null) {
         store.addQuad(quad);
@@ -260,11 +259,9 @@ async function evaluate(testCase: W3cTestCase): Promise<Verdict> {
       testCase.resultFile.endsWith(".ttl") ||
       testCase.resultFile.endsWith(".trig")
     ) {
-      const parser = new N3Parser({
-        baseIRI: canonicalUrl(testCase.category, testCase.resultFile),
-      });
-      const expectedQuads = parser.parse(
+      const expectedQuads = parseTurtleQuads(
         fixtureText(testCase, testCase.resultFile),
+        canonicalUrl(testCase.category, testCase.resultFile),
       );
       const expectedRecords = expectedQuads.map(
         (q: rdfjs.Quad) => [

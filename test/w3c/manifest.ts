@@ -1,6 +1,5 @@
 import type * as rdfjs from "@rdfjs/types";
-// deno-lint-ignore no-import-prefix
-import { Parser as N3Parser } from "npm:n3@2.2.0";
+import { parseTurtleQuads } from "@/parser/turtle-parser.ts";
 import { DataFactory } from "@/term/mod.ts";
 import { MemoryStore as N3Store } from "@/store/memory-store.ts";
 
@@ -338,8 +337,7 @@ export function loadManifest(
   manifestText: string,
 ): ManifestLoad {
   const store = new N3Store();
-  const parser = new N3Parser();
-  const quads: rdfjs.Quad[] = parser.parse(manifestText);
+  const quads: rdfjs.Quad[] = parseTurtleQuads(manifestText);
   for (const quad of quads) {
     store.addQuad(quad);
   }

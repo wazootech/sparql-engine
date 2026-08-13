@@ -1,6 +1,5 @@
 import type * as rdfjs from "@rdfjs/types";
-// deno-lint-ignore no-import-prefix
-import { Parser as N3Parser } from "npm:n3@2.2.0";
+import { parseTurtleQuads } from "@/parser/turtle-parser.ts";
 import { DataFactory } from "@/term/mod.ts";
 import { MemoryStore as N3Store } from "@/store/memory-store.ts";
 import { WazooSparqlEngine } from "@/wazoo-sparql-engine.ts";
@@ -342,10 +341,10 @@ export class W3cRunner {
     const store = new N3Store();
     const load = (file: string, graph: string | null): void => {
       const text = this.fixtureText(testCase, file);
-      const parser = new N3Parser({
-        baseIRI: canonicalUrl(testCase.category, file),
-      });
-      const quads: rdfjs.Quad[] = parser.parse(text);
+      const quads: rdfjs.Quad[] = parseTurtleQuads(
+        text,
+        canonicalUrl(testCase.category, file),
+      );
       for (const quad of quads) {
         if (graph === null) {
           store.addQuad(quad);
@@ -513,10 +512,10 @@ export class W3cRunner {
     testCase: W3cTestCase,
     file: string,
   ): Record<string, CanonicalTerm>[] {
-    const parser = new N3Parser({
-      baseIRI: canonicalUrl(testCase.category, file),
-    });
-    const quads: rdfjs.Quad[] = parser.parse(this.fixtureText(testCase, file));
+    const quads: rdfjs.Quad[] = parseTurtleQuads(
+      this.fixtureText(testCase, file),
+      canonicalUrl(testCase.category, file),
+    );
     const store = new N3Store();
     for (const quad of quads) {
       store.addQuad(quad);
@@ -880,11 +879,9 @@ export class W3cRunner {
     }
     let expectedRecords: CanonicalTerm[][];
     try {
-      const parser = new N3Parser({
-        baseIRI: canonicalUrl(testCase.category, testCase.resultFile),
-      });
-      const expectedQuads: rdfjs.Quad[] = parser.parse(
+      const expectedQuads: rdfjs.Quad[] = parseTurtleQuads(
         this.fixtureText(testCase, testCase.resultFile),
+        canonicalUrl(testCase.category, testCase.resultFile),
       );
       // rs:ResultSet files are SELECT references, not graph post-states;
       // compareReference validates those tests, so skip the soft report.
