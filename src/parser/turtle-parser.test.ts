@@ -230,3 +230,58 @@ Deno.test("turtle-parser: RFC 3986 IRI resolution edge cases", () => {
   assertEquals(objectOf("?y"), "http://a/bb/ccc/d;p?y");
   assertEquals(objectOf("#s"), "http://a/bb/ccc/d;p?q#s");
 });
+
+Deno.test("turtle-parser: rejects rdf:langString and rdf:dirLangString as explicit datatypes", () => {
+  const langString = "http://www.w3.org/1999/02/22-rdf-syntax-ns#langString";
+  const dirLangString =
+    "http://www.w3.org/1999/02/22-rdf-syntax-ns#dirLangString";
+  for (const dt of [langString, dirLangString]) {
+    assertThrows(
+      () => parseTurtleQuads(`<http://a> <http://b> "hello"^^<${dt}> .`),
+      Error,
+      "explicit datatype",
+    );
+  }
+  // Prefixed spellings resolve to the same forbidden IRIs.
+  assertThrows(
+    () =>
+      parseTurtleQuads(
+        `@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> . ` +
+          `<http://a> <http://b> "hello"^^rdf:langString .`,
+      ),
+    Error,
+    "explicit datatype",
+  );
+});
+
+Deno.test("turtle-parser: rejects BCP47-ill-formed language tags", () => {
+  // 13-letter primary subtag exceeds BCP47's 5*8ALPHA maximum.
+  assertThrows(
+    () => parseTurtleQuads(`<http://a> <http://b> "hello"@cantbethislong .`),
+    Error,
+    "BCP47",
+  );
+  // A bare private-use singleton without any subtags is not well-formed.
+  assertThrows(
+    () => parseTurtleQuads(`<http://a> <http://b> "hello"@x .`),
+    Error,
+    "BCP47",
+  );
+});
+
+Deno.test("turtle-parser: accepts well-formed language tags", () => {
+  const cases: Array<[string, string]> = [
+    // [input language tag, expected language tag]
+    ["en", "en"],
+    ["en-us", "en-us"],
+    ["zh-Hant-CN", "zh-hant-cn"],
+    ["en--ltr", "en--ltr"],
+    ["x-foo", "x-foo"],
+  ];
+  for (const [tag, expected] of cases) {
+    const quads = parseTurtleQuads(
+      `<http://a> <http://b> "hello"@${tag} .`,
+    );
+    assertEquals((quads[0].object as rdfjs.Literal).language, expected);
+  }
+});

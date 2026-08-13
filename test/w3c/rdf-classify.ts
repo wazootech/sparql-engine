@@ -11,11 +11,9 @@ import type { RdfSyntaxCase } from "./rdf-harness.ts";
  * triple terms and reifiers — so the reference result is parsed with the
  * native grammar itself (N-Triples/N-Quads are a subset of it).
  *
- * Permitted negative-test failures are documented in two allowlists below:
+ * Permitted negative-test failures are documented in one allowlist below:
  * `supersetDivergences` (RDF 1.2 constructs the single superset grammar
- * intentionally accepts in N-Triples/N-Quads files) and
- * `literalLeniencyDivergences` (literal well-formedness rules native does not
- * yet enforce).
+ * intentionally accepts in N-Triples/N-Quads files).
  */
 
 const RDF12_MANIFESTS = [
@@ -31,12 +29,6 @@ const SUPERSET_REASON =
   "RDF 1.2 N-Triples/N-Quads reject triple terms, reifiers, annotations, and " +
   "relative IRIs, but native's single Turtle + TriG + N-Quads superset grammar " +
   "accepts them (LOAD sniffs the format from the content). Intentional.";
-
-const LITERAL_REASON =
-  "Native does not yet enforce two RDF 1.2 literal well-formedness rules — " +
-  "rejecting rdf:langString / rdf:dirLangString as explicit datatypes and " +
-  "enforcing BCP47 language-tag subtag length limits — so it accepts these " +
-  "literals. Documented leniency.";
 
 /** Negative tests native accepts by design (RDF 1.2 superset grammar). */
 const supersetDivergences: ReadonlySet<string> = new Set([
@@ -55,16 +47,8 @@ const supersetDivergences: ReadonlySet<string> = new Set([
   "rdf12:rdf-n-quads/syntax:nquads12-nested-bad-annotated-syntax-2",
 ]);
 
-/** Negative tests native accepts due to literal well-formedness leniency. */
-const literalLeniencyDivergences: ReadonlySet<string> = new Set([
-  "rdf12:rdf-n-triples/syntax:ntriples-langdir-bad-3",
-  "rdf12:rdf-n-triples/syntax:ntriples-langdir-bad-4",
-  "rdf12:rdf-n-triples/syntax:ntriples-langdir-bad-5",
-]);
-
 function divergenceReason(id: string): string | null {
   if (supersetDivergences.has(id)) return SUPERSET_REASON;
-  if (literalLeniencyDivergences.has(id)) return LITERAL_REASON;
   return null;
 }
 

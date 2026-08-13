@@ -615,12 +615,15 @@ var TurtleParser = (function () {
         case 60:
           this.$ = Parser.factory.literal(
             unescapeString($$[$0 - 1]),
-            $$[$0].slice(1),
+            langDirTag($$[$0].slice(1)),
           );
           break;
         case 61:
         case 62:
-          this.$ = Parser.factory.literal(unescapeString($$[$0 - 2]), $$[$0]);
+          this.$ = Parser.factory.literal(
+            unescapeString($$[$0 - 2]),
+            datatypeIri($$[$0]),
+          );
           break;
         case 63:
           this.$ = Parser.factory.literal(
@@ -1530,6 +1533,8 @@ var TurtleParser = (function () {
     RDF_REST = RDF + "rest",
     RDF_NIL = RDF + "nil",
     RDF_REIFIES = RDF + "reifies",
+    RDF_LANGSTRING = RDF + "langString",
+    RDF_DIRLANGSTRING = RDF + "dirLangString",
     XSD = "http://www.w3.org/2001/XMLSchema#",
     XSD_INTEGER = XSD + "integer",
     XSD_DECIMAL = XSD + "decimal",
@@ -1738,6 +1743,147 @@ var TurtleParser = (function () {
   function addPrefix(pnameNs, iriTok) {
     var prefix = pnameNs.slice(0, -1);
     Parser.prefixes[prefix] = resolveIri(iriTok.slice(1, -1));
+  }
+
+  // --- RDF 1.2 literal well-formedness (Turtle 3.3 / N-Triples term
+  //     constructors): language tags MUST be well-formed per BCP47
+  //     (RFC 5646 section 2.2.9), and rdf:langString / rdf:dirLangString
+  //     MUST NOT be written as explicit datatype IRIs. ---
+
+  function isWellFormedBcp47(tag) {
+    var ALPHA = /^[A-Za-z]+$/;
+    var ALPHANUM = /^[A-Za-z0-9]+$/;
+    var DIGIT = /^[0-9]+$/;
+    // RFC 5646 section 2.2.8 grandfathered "irregular" tags, which do not
+    // match the langtag ABNF but are nonetheless well-formed.
+    var IRREGULAR = {
+      "en-GB-oed": 1,
+      "i-ami": 1,
+      "i-bnn": 1,
+      "i-default": 1,
+      "i-enochian": 1,
+      "i-hak": 1,
+      "i-klingon": 1,
+      "i-lux": 1,
+      "i-mingo": 1,
+      "i-navajo": 1,
+      "i-pwn": 1,
+      "i-tao": 1,
+      "i-tay": 1,
+      "i-tsu": 1,
+      "sgn-BE-FR": 1,
+      "sgn-BE-NL": 1,
+      "sgn-CH-DE": 1,
+    };
+    if (Object.prototype.hasOwnProperty.call(IRREGULAR, tag)) return true;
+
+    // privateuse = "x" 1*("-" 1*8alphanum)
+    if (/^x(-[A-Za-z0-9]{1,8})+$/.test(tag)) return true;
+
+    var subtags = tag.split("-");
+    var i = 0;
+    // language = 2*3ALPHA ["-" extlang] / 4ALPHA / 5*8ALPHA
+    var lang = subtags[i++];
+    if (lang.length >= 2 && lang.length <= 3) {
+      if (!ALPHA.test(lang)) return false;
+      // extlang = 3ALPHA *2("-" 3ALPHA)
+      var extlangs = 0;
+      while (
+        i < subtags.length && extlangs < 3 &&
+        subtags[i].length === 3 && ALPHA.test(subtags[i])
+      ) {
+        i++;
+        extlangs++;
+      }
+    } else if (lang.length === 4) {
+      if (!ALPHA.test(lang)) return false;
+    } else if (lang.length >= 5 && lang.length <= 8) {
+      if (!ALPHA.test(lang)) return false;
+    } else {
+      return false;
+    }
+
+    // script = 4ALPHA
+    if (
+      i < subtags.length && subtags[i].length === 4 &&
+      ALPHA.test(subtags[i])
+    ) {
+      i++;
+    }
+
+    // region = 2ALPHA / 3DIGIT
+    if (i < subtags.length) {
+      var region = subtags[i];
+      if (
+        (region.length === 2 && ALPHA.test(region)) ||
+        (region.length === 3 && DIGIT.test(region))
+      ) {
+        i++;
+      }
+    }
+
+    // variant = 5*8alphanum / (DIGIT 3alphanum)
+    while (i < subtags.length) {
+      var variant = subtags[i];
+      var isVariant = (variant.length >= 5 && variant.length <= 8 &&
+        ALPHANUM.test(variant)) ||
+        (variant.length === 4 && DIGIT.test(variant.charAt(0)) &&
+          ALPHANUM.test(variant));
+      if (!isVariant) break;
+      i++;
+    }
+
+    // extension = singleton 1*("-" 2*8alphanum), where singleton is a single
+    // alphanumeric other than x/X.
+    while (i < subtags.length && /^[0-9A-WY-Za-wy-z]$/.test(subtags[i])) {
+      i++;
+      var extCount = 0;
+      while (
+        i < subtags.length && subtags[i].length >= 2 &&
+        subtags[i].length <= 8 && ALPHANUM.test(subtags[i])
+      ) {
+        i++;
+        extCount++;
+      }
+      if (extCount === 0) return false;
+    }
+
+    // privateuse = "x" 1*("-" 1*8alphanum)
+    if (i < subtags.length && subtags[i] === "x") {
+      i++;
+      var puCount = 0;
+      while (
+        i < subtags.length && subtags[i].length >= 1 &&
+        subtags[i].length <= 8 && ALPHANUM.test(subtags[i])
+      ) {
+        i++;
+        puCount++;
+      }
+      if (puCount === 0) return false;
+    }
+
+    return i === subtags.length;
+  }
+
+  function langDirTag(langDir) {
+    // langDir is the LANG_DIR token after its leading '@' (e.g. "en--ltr").
+    // The optional "--ltr"/"--rtl" direction suffix is guaranteed by the
+    // LANG_DIR terminal; validate only the language-tag portion.
+    var dash = langDir.indexOf("--");
+    var tag = dash === -1 ? langDir : langDir.slice(0, dash);
+    if (!isWellFormedBcp47(tag)) {
+      throw new Error("Language tag is not well-formed per BCP47: " + tag);
+    }
+    return langDir;
+  }
+
+  function datatypeIri(dt) {
+    if (dt.value === RDF_LANGSTRING || dt.value === RDF_DIRLANGSTRING) {
+      throw new Error(
+        "rdf:langString and rdf:dirLangString must not be written as an explicit datatype IRI",
+      );
+    }
+    return dt;
   }
 
   // --- RDF 1.2 reifier / annotation state machine (TriG 5.3.4-5.3.7) ---
