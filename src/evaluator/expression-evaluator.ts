@@ -7,7 +7,11 @@ import type {
   Pattern,
   Term as SparqlTerm,
 } from "@/parser/sparql-parser.ts";
-import { DataFactory } from "@/term/mod.ts";
+import {
+  DataFactory,
+  RDF_DIR_LANG_STRING,
+  RDF_LANG_STRING,
+} from "@/term/mod.ts";
 import {
   md5Hex,
   parseDateTime,
@@ -663,45 +667,59 @@ export class ExpressionEvaluator {
         );
       }
       case "haslang": {
+        // hasLANG(term): true iff the term is a literal with a language tag
+        // (datatype rdf:langString or rdf:dirLangString); false otherwise.
         const val = this.evaluateWith(arg(0), binding, aggregates, context);
-        if (val === undefined || val.termType !== "Literal") {
-          return booleanLiteral(false);
-        }
-        if (operation.args.length > 1) {
-          const lang = this.evaluateWith(arg(1), binding, aggregates, context);
-          if (lang === undefined || lang.termType !== "Literal") {
-            return booleanLiteral(false);
-          }
-          return booleanLiteral(
-            val.language.toLowerCase() === lang.value.toLowerCase(),
-          );
-        }
-        return booleanLiteral(val.language !== "");
+        return booleanLiteral(
+          val !== undefined && val.termType === "Literal" &&
+            val.language !== "",
+        );
       }
       case "langdir": {
+        // LANGDIR(literal): the base direction ("ltr"/"rtl"), or the empty
+        // string when the literal has none; non-literals are a type error.
         const val = this.evaluateWith(arg(0), binding, aggregates, context);
         if (val === undefined || val.termType !== "Literal") {
           return undefined;
         }
-        return DataFactory.literal(val.language ? "ltr" : "");
+        return DataFactory.literal(val.direction ?? "");
       }
       case "strlangdir": {
+        // STRLANGDIR(lexicalForm, langTag, baseDirection): constructs an
+        // rdf:dirLangString literal; an empty tag, a direction other than
+        // "ltr"/"rtl", or a non-string argument is a type error.
         const val = this.evaluateWith(arg(0), binding, aggregates, context);
         const lang = this.evaluateWith(arg(1), binding, aggregates, context);
+        const dir = this.evaluateWith(arg(2), binding, aggregates, context);
         if (
           val === undefined || val.termType !== "Literal" ||
-          lang === undefined || lang.termType !== "Literal"
+          lang === undefined || lang.termType !== "Literal" ||
+          dir === undefined || dir.termType !== "Literal"
         ) {
           return undefined;
         }
-        return DataFactory.literal(val.value, lang.value);
+        if (
+          !this.isStringTyped(val) || !this.isStringTyped(lang) ||
+          !this.isStringTyped(dir) || lang.value === ""
+        ) {
+          return undefined;
+        }
+        if (dir.value !== "ltr" && dir.value !== "rtl") {
+          return undefined;
+        }
+        return DataFactory.literal(val.value, {
+          language: lang.value,
+          direction: dir.value,
+        });
       }
       case "haslangdir": {
+        // hasLANGDIR(term): true iff the term is a literal with a base
+        // direction (datatype rdf:dirLangString); false otherwise.
         const val = this.evaluateWith(arg(0), binding, aggregates, context);
-        if (val === undefined || val.termType !== "Literal") {
-          return booleanLiteral(false);
-        }
-        return booleanLiteral(Boolean(val.language));
+        return booleanLiteral(
+          val !== undefined && val.termType === "Literal" &&
+            Boolean(val.direction),
+        );
       }
       default:
         throw new Error(
@@ -749,8 +767,11 @@ export class ExpressionEvaluator {
       const aLang = a.language !== undefined && a.language !== "";
       const bLang = b.language !== undefined && b.language !== "";
       if (aLang || bLang) {
+        // RDF 1.2: lang-tagged strings are the same term only when the value,
+        // language tag, and base direction all match.
         return aLang && bLang && a.value === b.value &&
-          a.language === b.language;
+          a.language === b.language &&
+          (a.direction ?? "") === (b.direction ?? "");
       }
       return a.value === b.value;
     }
@@ -953,6 +974,7 @@ export class ExpressionEvaluator {
     return this.stringResult(
       transformed,
       this.isLangTagged(value) ? value.language : undefined,
+      this.isLangTagged(value) ? (value.direction ?? "") : undefined,
     );
   }
 
@@ -967,7 +989,10 @@ export class ExpressionEvaluator {
     context?: ExpressionEvaluationContext,
   ): rdfjs.Literal | undefined {
     let result = "";
+    // undefined = no language-tagged argument seen yet; null = the arguments
+    // disagree on language or direction, so the result is a plain string.
     let commonLang: string | null | undefined;
+    let commonDir: "ltr" | "rtl" | null | undefined;
     for (const expression of expressions) {
       const value = this.evaluateWith(expression, binding, aggregates, context);
       if (
@@ -978,16 +1003,27 @@ export class ExpressionEvaluator {
       }
       result += value.value;
       if (commonLang !== null) {
+        const direction = value.direction ?? "";
         if (!this.isLangTagged(value)) {
           commonLang = null;
+          commonDir = null;
         } else if (commonLang === undefined) {
           commonLang = value.language;
-        } else if (commonLang !== value.language) {
+          commonDir = direction === "" ? null : direction;
+        } else if (
+          commonLang !== value.language ||
+          commonDir !== (direction === "" ? null : direction)
+        ) {
           commonLang = null;
+          commonDir = null;
         }
       }
     }
-    return this.stringResult(result, commonLang ?? undefined);
+    return this.stringResult(
+      result,
+      commonLang ?? undefined,
+      commonDir ?? undefined,
+    );
   }
 
   /**
@@ -1039,6 +1075,7 @@ export class ExpressionEvaluator {
     return this.stringResult(
       sliced,
       this.isLangTagged(str) ? str.language : undefined,
+      this.isLangTagged(str) ? (str.direction ?? "") : undefined,
     );
   }
 
@@ -1073,7 +1110,17 @@ export class ExpressionEvaluator {
     ) {
       return undefined;
     }
-    return literal(value.value, namedNode(datatype.value));
+    // rdf:langString/rdf:dirLangString cannot be constructed via STRDT —
+    // STRLANG/STRLANGDIR are the constructors for them (SPARQL 1.2
+    // §17.4.3.14); an rdf:langString with no language or a dirLangString
+    // with no direction would be ill-formed.
+    const datatypeIri = datatype.value;
+    if (
+      datatypeIri === RDF_LANG_STRING || datatypeIri === RDF_DIR_LANG_STRING
+    ) {
+      return undefined;
+    }
+    return literal(value.value, namedNode(datatypeIri));
   }
 
   /**
@@ -1108,6 +1155,11 @@ export class ExpressionEvaluator {
       return undefined;
     }
     if (lang.termType !== "Literal" || !this.isStringTyped(lang)) {
+      return undefined;
+    }
+    // The langTag must not be empty (SPARQL 1.2 §17.4.3.12); an empty tag
+    // would produce an ill-formed rdf:langString literal.
+    if (lang.value === "") {
       return undefined;
     }
     return literal(value.value, lang.value);
@@ -1435,16 +1487,19 @@ export class ExpressionEvaluator {
   }
 
   /**
-   * stringResult builds a string-function result: language-tagged inputs
-   * keep their language, everything else becomes an xsd:string literal.
+   * stringResult builds a string-function result: language-tagged inputs keep
+   * their language and base direction (rdf:dirLangString when a direction is
+   * present), everything else becomes an xsd:string literal.
    */
   private stringResult(
     value: string,
     lang: string | undefined,
+    direction?: "ltr" | "rtl" | "",
   ): rdfjs.Literal {
-    return lang === undefined || lang === ""
-      ? literal(value, namedNode(XSD_STRING))
-      : literal(value, lang);
+    if (lang === undefined || lang === "") {
+      return literal(value, namedNode(XSD_STRING));
+    }
+    return literal(value, { language: lang, direction: direction ?? "" });
   }
 
   /**
@@ -1559,6 +1614,9 @@ export class ExpressionEvaluator {
       index === -1
         ? undefined
         : (this.isLangTagged(value) ? value.language : undefined),
+      index === -1
+        ? undefined
+        : (this.isLangTagged(value) ? (value.direction ?? "") : undefined),
     );
   }
 
@@ -1636,6 +1694,7 @@ export class ExpressionEvaluator {
     return this.stringResult(
       result,
       this.isLangTagged(value) ? value.language : undefined,
+      this.isLangTagged(value) ? (value.direction ?? "") : undefined,
     );
   }
 

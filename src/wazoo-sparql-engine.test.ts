@@ -2381,6 +2381,265 @@ Deno.test("WazooSparqlEngine - LANG and LANGMATCHES", async () => {
   });
 });
 
+Deno.test("WazooSparqlEngine - RDF 1.2 directional literal functions", async () => {
+  const engine = emptyEngine();
+  const RDF = "http://www.w3.org/1999/02/22-rdf-syntax-ns#";
+
+  // LANGDIR returns the base direction; empty when absent; non-literals error.
+  assertEquals(
+    await bindValue(
+      engine,
+      'SELECT ?v WHERE { BIND(LANGDIR("abc"@en--ltr) AS ?v) }',
+      "v",
+    ),
+    { type: "literal", value: "ltr" },
+  );
+  assertEquals(
+    await bindValue(
+      engine,
+      'SELECT ?v WHERE { BIND(LANGDIR("abc"@en) AS ?v) }',
+      "v",
+    ),
+    { type: "literal", value: "" },
+  );
+  assertEquals(
+    await bindValue(
+      engine,
+      'SELECT ?v WHERE { BIND(LANGDIR("abc") AS ?v) }',
+      "v",
+    ),
+    { type: "literal", value: "" },
+  );
+  assertEquals(
+    await bindValue(
+      engine,
+      "SELECT ?v WHERE { BIND(LANGDIR(<http://x>) AS ?v) }",
+      "v",
+    ),
+    null,
+  );
+
+  // hasLang / hasLangDir are unary term tests.
+  assertEquals(
+    await bindValue(
+      engine,
+      'SELECT ?v WHERE { BIND(hasLang("abc"@en--ltr) AS ?v) }',
+      "v",
+    ),
+    { type: "literal", value: "true", datatype: `${XSD}boolean` },
+  );
+  assertEquals(
+    await bindValue(
+      engine,
+      'SELECT ?v WHERE { BIND(hasLang("abc") AS ?v) }',
+      "v",
+    ),
+    { type: "literal", value: "false", datatype: `${XSD}boolean` },
+  );
+  assertEquals(
+    await bindValue(
+      engine,
+      'SELECT ?v WHERE { BIND(hasLangDir("abc"@en--ltr) AS ?v) }',
+      "v",
+    ),
+    { type: "literal", value: "true", datatype: `${XSD}boolean` },
+  );
+  assertEquals(
+    await bindValue(
+      engine,
+      'SELECT ?v WHERE { BIND(hasLangDir("abc"@en) AS ?v) }',
+      "v",
+    ),
+    { type: "literal", value: "false", datatype: `${XSD}boolean` },
+  );
+
+  // STRLANGDIR builds an rdf:dirLangString literal; bad args are errors.
+  const built = await bindValue(
+    engine,
+    'SELECT ?v WHERE { BIND(STRLANGDIR("abc", "en", "ltr") AS ?v) }',
+    "v",
+  );
+  assertEquals(built, { type: "literal", value: "abc", lang: "en" });
+  const builtDatatype = await bindValue(
+    engine,
+    'SELECT ?v WHERE { BIND(DATATYPE(STRLANGDIR("abc", "ar", "rtl")) AS ?v) }',
+    "v",
+  );
+  assertEquals(builtDatatype, {
+    type: "uri",
+    value: `${RDF}dirLangString`,
+  });
+  assertEquals(
+    await bindValue(
+      engine,
+      'SELECT ?v WHERE { BIND(STRLANGDIR("abc", "en", "LTR") AS ?v) }',
+      "v",
+    ),
+    null,
+  );
+  assertEquals(
+    await bindValue(
+      engine,
+      'SELECT ?v WHERE { BIND(STRLANGDIR("abc", "", "ltr") AS ?v) }',
+      "v",
+    ),
+    null,
+  );
+
+  // STRLANG rejects an empty tag; STRDT rejects the rdf:langString and
+  // rdf:dirLangString datatypes.
+  assertEquals(
+    await bindValue(
+      engine,
+      'SELECT ?v WHERE { BIND(STRLANG("abc", "") AS ?v) }',
+      "v",
+    ),
+    null,
+  );
+  assertEquals(
+    await bindValue(
+      engine,
+      `SELECT ?v WHERE { BIND(STRDT("abc", <${RDF}langString>) AS ?v) }`,
+      "v",
+    ),
+    null,
+  );
+  assertEquals(
+    await bindValue(
+      engine,
+      `SELECT ?v WHERE { BIND(STRDT("abc", <${RDF}dirLangString>) AS ?v) }`,
+      "v",
+    ),
+    null,
+  );
+
+  // Literal equality in filters includes the direction.
+  assertEquals(
+    await bindValue(
+      engine,
+      'SELECT ?v WHERE { BIND("x"@en--ltr = "x"@en--ltr AS ?v) }',
+      "v",
+    ),
+    { type: "literal", value: "true", datatype: `${XSD}boolean` },
+  );
+  assertEquals(
+    await bindValue(
+      engine,
+      'SELECT ?v WHERE { BIND("x"@en = "x"@en--ltr AS ?v) }',
+      "v",
+    ),
+    { type: "literal", value: "false", datatype: `${XSD}boolean` },
+  );
+  assertEquals(
+    await bindValue(
+      engine,
+      'SELECT ?v WHERE { BIND("x"@en--ltr = "x"@en--rtl AS ?v) }',
+      "v",
+    ),
+    { type: "literal", value: "false", datatype: `${XSD}boolean` },
+  );
+  assertEquals(
+    await bindValue(
+      engine,
+      'SELECT ?v WHERE { BIND("x"@en--ltr != "x"@en--rtl AS ?v) }',
+      "v",
+    ),
+    { type: "literal", value: "true", datatype: `${XSD}boolean` },
+  );
+
+  // String functions preserve the direction.
+  const ucaseDir = await bindValue(
+    engine,
+    'SELECT ?v WHERE { BIND(DATATYPE(UCASE("abc"@en--ltr)) AS ?v) }',
+    "v",
+  );
+  assertEquals(ucaseDir, { type: "uri", value: `${RDF}dirLangString` });
+  const concatDir = await bindValue(
+    engine,
+    'SELECT ?v WHERE { BIND(DATATYPE(CONCAT("a"@en--ltr, "b"@en--ltr)) AS ?v) }',
+    "v",
+  );
+  assertEquals(concatDir, { type: "uri", value: `${RDF}dirLangString` });
+  const concatMixed = await bindValue(
+    engine,
+    'SELECT ?v WHERE { BIND(DATATYPE(CONCAT("a"@en--ltr, "b"@en)) AS ?v) }',
+    "v",
+  );
+  assertEquals(concatMixed, { type: "uri", value: `${XSD}string` });
+
+  // LANGMATCHES over a directional literal: LANG strips the direction.
+  assertEquals(
+    await bindValue(
+      engine,
+      'SELECT ?v WHERE { BIND(LANGMATCHES(LANG("x"@en--ltr), "en") AS ?v) }',
+      "v",
+    ),
+    { type: "literal", value: "true", datatype: `${XSD}boolean` },
+  );
+  assertEquals(
+    await bindValue(
+      engine,
+      'SELECT ?v WHERE { BIND(LANGMATCHES(LANG("x"@en--ltr), "fr") AS ?v) }',
+      "v",
+    ),
+    { type: "literal", value: "false", datatype: `${XSD}boolean` },
+  );
+});
+
+Deno.test("WazooSparqlEngine - directional literals match only with same direction", async () => {
+  const store = new Store();
+  const RDF = "http://www.w3.org/1999/02/22-rdf-syntax-ns#";
+  store.addQuad(
+    quad(
+      namedNode("http://example.org/s"),
+      namedNode("http://example.org/p"),
+      literal("x", { language: "en", direction: "ltr" }),
+    ),
+  );
+  const engine = new WazooSparqlEngine({ store });
+
+  // firstObject runs a SELECT and returns the first row's `o` binding, or
+  // null when the query produced no rows (a no-match filter).
+  async function firstObject(query: string) {
+    const result = await engine.execute({ query });
+    if (result.kind !== "select") {
+      throw new Error(`expected select, got ${result.kind}`);
+    }
+    return result.data.results.bindings[0]?.o ?? null;
+  }
+
+  // A directional literal in the query matches the store term with the same
+  // direction and only that direction.
+  assertEquals(
+    await firstObject(
+      "SELECT ?o WHERE { <http://example.org/s> <http://example.org/p> ?o " +
+        'FILTER(?o = "x"@en--ltr) }',
+    ),
+    { type: "literal", value: "x", "xml:lang": "en" },
+  );
+  assertEquals(
+    await firstObject(
+      "SELECT ?o WHERE { <http://example.org/s> <http://example.org/p> ?o " +
+        'FILTER(?o = "x"@en--rtl) }',
+    ),
+    null,
+  );
+  assertEquals(
+    await firstObject(
+      "SELECT ?o WHERE { <http://example.org/s> <http://example.org/p> ?o " +
+        'FILTER(?o = "x"@en) }',
+    ),
+    null,
+  );
+  assertEquals(
+    await firstObject(
+      `SELECT ?o WHERE { <http://example.org/s> <http://example.org/p> ?o ` +
+        `FILTER(DATATYPE(?o) = <${RDF}dirLangString>) }`,
+    ),
+    { type: "literal", value: "x", "xml:lang": "en" },
+  );
+});
+
 Deno.test("WazooSparqlEngine - COALESCE, IF, IN, NOT IN, SAMETERM", async () => {
   const engine = emptyEngine();
   const coalesce = await bindValue(

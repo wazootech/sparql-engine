@@ -7,10 +7,10 @@
  * direction functions below and the RDF 1.2 triple-term/reifier/annotation
  * forms (see README.md):
  *
- *   - `LANGDIR(simpleLiteral)`            — arity 1
- *   - `hasLang(langString, language)`     — arity 2
- *   - `STRLANGDIR(simpleLiteral, lang)`   — arity 2
- *   - `hasLangDir(dirLangString, lang, dir)` — arity 3
+ *   - `LANGDIR(literal)`                  — arity 1
+ *   - `hasLang(term)`                     — arity 1
+ *   - `hasLangDir(term)`                  — arity 1
+ *   - `STRLANGDIR(simpleLiteral, langTag, baseDirection)` — arity 3
  *
  * The grammar patch (see README.md) is in two parts: a lexer whitelist
  * extension for the four direction functions (they join existing

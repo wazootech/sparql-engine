@@ -51,36 +51,38 @@ arity token (`FUNC_ARITY0/1/2/3`). The grammar productions build `functionCall`
 AST nodes generically from the lexed text (lowercased), so extending the
 whitelist is a lexer-only change:
 
-| Function                                         | Arity | Rule              | Change                                  |
-| ------------------------------------------------ | ----- | ----------------- | --------------------------------------- |
-| `LANGDIR(simpleLiteral)`                         | 1     | FUNC_ARITY1 group | added `LANGDIR` **before** `LANG`       |
-| `hasLang(langString, language)`                  | 2     | FUNC_ARITY2 group | appended `hasLang`                      |
-| `STRLANGDIR(simpleLiteral, language)`            | 2     | FUNC_ARITY2 group | added `STRLANGDIR` **before** `STRLANG` |
-| `hasLangDir(langDirString, language, direction)` | 3     | FUNC_ARITY3 rule  | added `hasLangDir` to the `IF` rule     |
+| Function                                        | Arity | Rule              | Change                                     |
+| ----------------------------------------------- | ----- | ----------------- | ------------------------------------------ |
+| `LANGDIR(literal)`                              | 1     | FUNC_ARITY1 group | added `LANGDIR` **before** `LANG`          |
+| `hasLang(term)`                                 | 1     | FUNC_ARITY1 group | appended `hasLangDir` **before** `hasLang` |
+| `hasLangDir(term)`                              | 1     | FUNC_ARITY1 group | same entry (unary, like `hasLang`)         |
+| `STRLANGDIR(simpleLiteral, langTag, direction)` | 3     | FUNC_ARITY3 rule  | added `STRLANGDIR` to the `IF` rule        |
 
 Two lexer subtleties matter here:
 
 1. **Ordered alternation within a rule.** JavaScript regex alternation is
-   first-match, not longest-match. `LANGDIR` must appear before `LANG`, and
-   `STRLANGDIR` before `STRLANG`, or the shorter name lexes first and the
+   first-match, not longest-match. `LANGDIR` must appear before `LANG` (and
+   `hasLangDir` before `hasLang`) or the shorter name lexes first and the
    remainder of the input becomes `INVALID`.
 2. **Longest match across rules.** The lexer tests rules in order and keeps the
-   longest match, so `hasLangDir` (its own rule) wins over `hasLang`, and
-   `LANGMATCHES` over `LANG`. Existing behavior is unaffected.
+   longest match, so `STRLANGDIR` (FUNC_ARITY3) wins over `STRLANG`
+   (FUNC_ARITY2), `hasLangDir` over `hasLang`, and `LANGMATCHES` over `LANG`.
+   Existing behavior is unaffected.
 
 Parse results (AST names are lowercased, matching sparqljs convention):
 
 ```ts
-LANGDIR("hello")                -> { type: "functionCall", name: "langdir", args: [..] }
-hasLang("hello", "en")          -> { type: "functionCall", name: "haslang", args: [..] }
-STRLANGDIR("hello", "en")       -> { type: "functionCall", name: "strlangdir", args: [..] }
-hasLangDir("hello", "en", "ltr")-> { type: "functionCall", name: "haslangdir", args: [..] }
+LANGDIR("hello"@en)             -> { type: "functionCall", name: "langdir", args: [..] }
+hasLang("hello"@en)             -> { type: "functionCall", name: "haslang", args: [..] }
+hasLangDir("hello"@en--ltr)     -> { type: "functionCall", name: "haslangdir", args: [..] }
+STRLANGDIR("hello", "en", "ltr")-> { type: "functionCall", name: "strlangdir", args: [..] }
 ```
 
-Out of scope for the patch: the variadic `hasLang(simpleLiteral)` and
-`hasLang(simpleLiteral, language, direction)` forms (arity tokens are fixed).
-Neither sparqljs nor traqula can express them, so they are unreachable in both
-engines; they would require real grammar surgery if ever needed.
+The arities match the SPARQL 1.2 grammar (production [141] `BuiltInCall`):
+`hasLang`/`hasLangDir` are unary term tests and `STRLANGDIR` takes
+`(lexicalForm, langTag, baseDirection)`. Earlier drafts of the spec had
+binary/ternary `hasLang` forms; the in-repo grammar follows the published
+grammar, matching what `@traqula/parser-sparql-1-2` accepts.
 
 ### RDF 1.2 triple terms, reifiers, and annotations (grammar productions)
 

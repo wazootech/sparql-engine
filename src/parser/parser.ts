@@ -285,8 +285,8 @@ var SparqlParser = (function () {
     $Vw = [28, 29, 45, 53, 87],
     $Vx = [1, 139],
     $Vy = [1, 152],
-    $Vz = [1, 128],
-    $VA = [1, 127],
+    $Vz = [1, 127],
+    $VA = [1, 128],
     $VB = [1, 129],
     $VC = [1, 141],
     $VD = [1, 142],
@@ -3233,10 +3233,10 @@ var SparqlParser = (function () {
 
           break;
         case 169:
-          this.$ = operation("UPLUS", [$$[$0]]);
+          this.$ = operation("!", [$$[$0]]);
           break;
         case 170:
-          this.$ = operation($$[$0 - 1], [$$[$0]]);
+          this.$ = operation("UPLUS", [$$[$0]]);
           break;
         case 171:
           this.$ = operation("UMINUS", [$$[$0]]);
@@ -4011,9 +4011,13 @@ var SparqlParser = (function () {
         87: $Vb,
         172: 135,
         174: 138,
+        227: $Vz,
         258: 155,
         260: 156,
-        267: 269,
+        262: 269,
+        266: $VA,
+        267: 130,
+        268: $VB,
         269: 137,
         270: 140,
         271: $VC,
@@ -8125,9 +8129,18 @@ var SparqlParser = (function () {
     return Parser.factory.literal(value, type);
   }
 
-  // Creates a literal with the given value and language
+  // Creates a literal with the given value and language; a trailing "--ltr"/
+  // "--rtl" (guaranteed by the LANGTAG terminal) becomes the RDF 1.2 base
+  // direction, yielding an rdf:dirLangString literal.
   function createLangLiteral(value, lang) {
-    return Parser.factory.literal(value, lang);
+    const dash = lang.indexOf("--");
+    if (dash === -1) {
+      return Parser.factory.literal(value, lang);
+    }
+    return Parser.factory.literal(value, {
+      language: lang.slice(0, dash),
+      direction: lang.slice(dash + 2),
+    });
   }
 
   function nestedTriple(subject, predicate, object) {
@@ -9402,12 +9415,12 @@ var SparqlParser = (function () {
         /^(?:BOUND)/i,
         /^(?:BNODE)/i,
         /^(?:(RAND|NOW|UUID|STRUUID))/i,
-        /^(?:(LANGDIR|LANG|DATATYPE|IRI|URI|ABS|CEIL|FLOOR|ROUND|STRLEN|STR|UCASE|LCASE|ENCODE_FOR_URI|YEAR|MONTH|DAY|HOURS|MINUTES|SECONDS|TIMEZONE|TZ|MD5|SHA1|SHA256|SHA384|SHA512|isIRI|isURI|isBLANK|isLITERAL|isNUMERIC))/i,
+        /^(?:(LANGDIR|LANG|DATATYPE|IRI|URI|ABS|CEIL|FLOOR|ROUND|STRLEN|STR|UCASE|LCASE|ENCODE_FOR_URI|YEAR|MONTH|DAY|HOURS|MINUTES|SECONDS|TIMEZONE|TZ|MD5|SHA1|SHA256|SHA384|SHA512|isIRI|isURI|isBLANK|isLITERAL|isNUMERIC|hasLangDir|hasLang))/i,
         /^(?:(SUBJECT|PREDICATE|OBJECT|isTRIPLE))/i,
-        /^(?:(LANGMATCHES|CONTAINS|STRSTARTS|STRENDS|STRBEFORE|STRAFTER|STRLANGDIR|STRLANG|STRDT|sameTerm|hasLang))/i,
+        /^(?:(LANGMATCHES|CONTAINS|STRSTARTS|STRENDS|STRBEFORE|STRAFTER|STRLANG|STRDT|sameTerm))/i,
         /^(?:CONCAT)/i,
         /^(?:COALESCE)/i,
-        /^(?:IF|hasLangDir)/i,
+        /^(?:IF|STRLANGDIR)/i,
         /^(?:TRIPLE)/i,
         /^(?:REGEX)/i,
         /^(?:SUBSTR)/i,
@@ -9424,7 +9437,7 @@ var SparqlParser = (function () {
         /^(?:(((([A-Za-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02FF\u0370-\u037D\u037F-\u1FFF\u200C-\u200D\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD]|[\uD800-\uDB7F][\uDC00-\uDFFF])(?:(?:(((?:([A-Za-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02FF\u0370-\u037D\u037F-\u1FFF\u200C-\u200D\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD]|[\uD800-\uDB7F][\uDC00-\uDFFF])|_))|-|[0-9]|\u00B7|[\u0300-\u036F\u203F-\u2040])|\.)*(((?:([A-Za-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02FF\u0370-\u037D\u037F-\u1FFF\u200C-\u200D\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD]|[\uD800-\uDB7F][\uDC00-\uDFFF])|_))|-|[0-9]|\u00B7|[\u0300-\u036F\u203F-\u2040]))?)?:)((?:((?:([A-Za-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02FF\u0370-\u037D\u037F-\u1FFF\u200C-\u200D\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD]|[\uD800-\uDB7F][\uDC00-\uDFFF])|_))|:|[0-9]|((%([0-9A-Fa-f])([0-9A-Fa-f]))|(\\(_|~|\.|-|!|\$|&|'|\(|\)|\*|\+|,|;|=|\/|\?|#|@|%))))(?:(?:(((?:([A-Za-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02FF\u0370-\u037D\u037F-\u1FFF\u200C-\u200D\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD]|[\uD800-\uDB7F][\uDC00-\uDFFF])|_))|-|[0-9]|\u00B7|[\u0300-\u036F\u203F-\u2040])|\.|:|((%([0-9A-Fa-f])([0-9A-Fa-f]))|(\\(_|~|\.|-|!|\$|&|'|\(|\)|\*|\+|,|;|=|\/|\?|#|@|%))))*(?:(((?:([A-Za-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02FF\u0370-\u037D\u037F-\u1FFF\u200C-\u200D\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD]|[\uD800-\uDB7F][\uDC00-\uDFFF])|_))|-|[0-9]|\u00B7|[\u0300-\u036F\u203F-\u2040])|:|((%([0-9A-Fa-f])([0-9A-Fa-f]))|(\\(_|~|\.|-|!|\$|&|'|\(|\)|\*|\+|,|;|=|\/|\?|#|@|%)))))?)))/i,
         /^(?:(_:(?:((?:([A-Za-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02FF\u0370-\u037D\u037F-\u1FFF\u200C-\u200D\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD]|[\uD800-\uDB7F][\uDC00-\uDFFF])|_))|[0-9])(?:(?:(((?:([A-Za-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02FF\u0370-\u037D\u037F-\u1FFF\u200C-\u200D\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD]|[\uD800-\uDB7F][\uDC00-\uDFFF])|_))|-|[0-9]|\u00B7|[\u0300-\u036F\u203F-\u2040])|\.)*(((?:([A-Za-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02FF\u0370-\u037D\u037F-\u1FFF\u200C-\u200D\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD]|[\uD800-\uDB7F][\uDC00-\uDFFF])|_))|-|[0-9]|\u00B7|[\u0300-\u036F\u203F-\u2040]))?))/i,
         /^(?:([\?\$]((?:((?:([A-Za-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02FF\u0370-\u037D\u037F-\u1FFF\u200C-\u200D\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD]|[\uD800-\uDB7F][\uDC00-\uDFFF])|_))|[0-9])(?:((?:([A-Za-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02FF\u0370-\u037D\u037F-\u1FFF\u200C-\u200D\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD]|[\uD800-\uDB7F][\uDC00-\uDFFF])|_))|[0-9]|\u00B7|[\u0300-\u036F\u203F-\u2040])*)))/i,
-        /^(?:(@[a-zA-Z]+(?:-[a-zA-Z0-9]+)*))/i,
+        /^(?:(@[a-zA-Z]+(?:-[a-zA-Z0-9]+)*(--(ltr|rtl))?))/i,
         /^(?:([0-9]+))/i,
         /^(?:([0-9]*\.[0-9]+))/i,
         /^(?:([0-9]+\.[0-9]*([eE][+-]?[0-9]+)|\.([0-9])+([eE][+-]?[0-9]+)|([0-9])+([eE][+-]?[0-9]+)))/i,
