@@ -52,12 +52,13 @@ function compareLiterals(a: rdfjs.Literal, b: rdfjs.Literal): number {
 /**
  * compareRdfTerms orders two RDF terms (or undefined for an unbound
  * variable) per SPARQL 1.1 §12.4: unbound sorts lowest, then blank nodes,
- * then IRIs, then literals. Literals order by datatype IRI first (plain
- * literals counting as xsd:string), numerically within the same numeric
- * datatype, then by lexical form. Blank-node labels and the relative order
- * of terms the spec leaves undefined (mixed blank nodes, RDF-star quads)
- * are compared deterministically. Returns a negative, zero, or positive
- * number suitable for Array.prototype.sort.
+ * then IRIs, then literals, then triple terms (per RDF 1.2's total order).
+ * Literals order by datatype IRI first (plain literals counting as
+ * xsd:string), numerically within the same numeric datatype, then by lexical
+ * form. Triple terms order lexicographically by subject, predicate, then
+ * object, recursively. Blank-node labels and the relative order of terms the
+ * spec leaves undefined are compared deterministically. Returns a negative,
+ * zero, or positive number suitable for Array.prototype.sort.
  */
 export function compareRdfTerms(
   a: rdfjs.Term | undefined,
@@ -94,6 +95,15 @@ export function compareRdfTerms(
       return compareStrings(a.value, (b as rdfjs.NamedNode).value);
     case "Literal":
       return compareLiterals(a as rdfjs.Literal, b as rdfjs.Literal);
+    case "Quad": {
+      // Triple terms order lexicographically by subject, predicate, then
+      // object (recursively), ignoring the graph component.
+      const qa = a as rdfjs.Quad;
+      const qb = b as rdfjs.Quad;
+      return compareRdfTerms(qa.subject, qb.subject) ||
+        compareRdfTerms(qa.predicate, qb.predicate) ||
+        compareRdfTerms(qa.object, qb.object);
+    }
     default:
       return compareStrings(termKey(a), termKey(b));
   }
