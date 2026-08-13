@@ -394,7 +394,7 @@ async function evaluate(testCase: W3cTestCase): Promise<Verdict> {
   }
 
   // ttl (CONSTRUCT) and trig (update) both compare a final graph.
-  const reference = parseGraphReference(testCase, resultFile);
+  const reference = parseGraphReference(testCase, compareFile);
   if (native.result.kind === "construct") {
     const nativeRecords = nativeQuadRecords(native.result.data.quads);
     if (isomorphicMultiset(nativeRecords, reference)) return { status: "pass" };
