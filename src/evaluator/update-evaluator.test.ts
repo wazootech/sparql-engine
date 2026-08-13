@@ -305,3 +305,68 @@ Deno.test("UpdateEvaluator - LOAD operation with SILENT error handling", async (
   await engine.execute({ query: "LOAD SILENT <file:///nonexistent-file.ttl>" });
   assertEquals(store.countQuads(null, null, null, null), 0);
 });
+
+Deno.test("UpdateEvaluator - LOAD then reified patterns match grammar reifier output", async () => {
+  const store = new Store();
+  const engine = new WazooSparqlEngine({ store });
+
+  const dir = await Deno.makeTempDir();
+  const file = `${dir}/data.ttl`;
+  await Deno.writeTextFile(
+    file,
+    `
+    @prefix : <http://example.com/ns#> .
+    :s :p :o ~ :iri {| :r :Z1 |} .
+    :s :p :o2 ~ {| :r :Z2 |} .
+    :r1 :reifies <<( :a :b <<( :d :e :f )>> )>> .
+  `,
+  );
+
+  await engine.execute({ query: `LOAD <file://${file.replace(/\\/g, "/")}>` });
+
+  // The jison grammar emits `reifier rdf:reifies <<( s p o )>>` for a reified
+  // triple, and annotation blocks attach to the reifier; the evaluator's
+  // reified.ts expansion must agree with that shape.
+  let result = await engine.execute({
+    query:
+      "PREFIX : <http://example.com/ns#> SELECT * { :s :p ?o ~ :iri {| :r ?Z |} }",
+  });
+  assertEquals(result.kind, "select");
+  if (result.kind === "select") {
+    assertEquals(result.data.results.bindings.length, 1);
+    assertEquals(
+      result.data.results.bindings[0].o.value,
+      "http://example.com/ns#o",
+    );
+    assertEquals(
+      result.data.results.bindings[0].Z.value,
+      "http://example.com/ns#Z1",
+    );
+  }
+
+  // A variable reifier binds both the explicit IRI reifier and the fresh
+  // blank-node reifier the grammar minted for the bare `~`.
+  result = await engine.execute({
+    query:
+      "PREFIX : <http://example.com/ns#> SELECT * { :s :p ?o ~ ?r {| :r ?Z |} }",
+  });
+  assertEquals(result.kind, "select");
+  if (result.kind === "select") {
+    assertEquals(result.data.results.bindings.length, 2);
+  }
+
+  // A data triple term (including a nested one) in object position matches
+  // the grammar's plain-Quad triple terms.
+  result = await engine.execute({
+    query:
+      "PREFIX : <http://example.com/ns#> SELECT ?r WHERE { ?r :reifies <<( :a :b <<( :d :e :f )>> )>> }",
+  });
+  assertEquals(result.kind, "select");
+  if (result.kind === "select") {
+    assertEquals(result.data.results.bindings.length, 1);
+    assertEquals(
+      result.data.results.bindings[0].r.value,
+      "http://example.com/ns#r1",
+    );
+  }
+});
