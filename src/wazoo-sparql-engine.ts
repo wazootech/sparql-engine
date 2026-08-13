@@ -51,7 +51,7 @@ export interface WazooSparqlEngineOptions {
 }
 
 /**
- * WazooSparqlEngine is the Wazoo-native SPARQL 1.1 engine over RDFJS Store sources.
+ * WazooSparqlEngine is the Wazoo-native SPARQL 1.1 & 1.2 engine over RDFJS Store sources.
  */
 export class WazooSparqlEngine implements SparqlEngineInterface {
   private readonly parser: SparqlParser;

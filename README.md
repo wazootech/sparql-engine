@@ -1,13 +1,19 @@
 # @wazoo/sparql-engine
 
-Wazoo-native SPARQL 1.1 Query & Update Engine over RDF/JS Quad Stores.
+Wazoo-native SPARQL 1.1 & 1.2 Query & Update Engine over RDF/JS Quad Stores.
 
 ## Key capabilities
 
-- **SPARQL 1.1 Query Engine**: Native evaluation of `SELECT`, `ASK`,
-  `CONSTRUCT`, and `DESCRIBE` queries over `rdfjs.Store` sources.
-- **SPARQL 1.1 Update Engine**: Support for `INSERT DATA`, `DELETE DATA`,
-  `DELETE/INSERT`, and atomic patch transactions.
+- **SPARQL 1.1 & 1.2 Query Engine**: Native evaluation of `SELECT`, `ASK`,
+  `CONSTRUCT`, and `DESCRIBE` queries over `rdfjs.Store` sources — including
+  SPARQL 1.2 direction functions (`LANGDIR`, `STRLANGDIR`, `hasLang`,
+  `hasLangDir`) and RDF 1.2 reified triple terms (`<< s p o >>`).
+- **SPARQL 1.1 & 1.2 Update Engine**: Support for `INSERT DATA`, `DELETE DATA`,
+  `DELETE/INSERT`, and atomic patch transactions, including updates over reified
+  triple terms.
+- **W3C SPARQL 1.2 Gate**: CI runs the W3C SPARQL 1.2 evaluation suite
+  differentially against Comunica — currently **249/249** pass — plus **41/41**
+  on the RDF 1.2 eval-triple-terms gap suite.
 - **Zero Runtime Dependencies**: Lightweight AST parsing via the vendored,
   in-repo SPARQL parser (a maintained sparqljs 3.7.4 grammar), zero runtime
   dependencies (only type-only `@rdfjs/types`), and no Comunica framework

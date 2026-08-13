@@ -6,7 +6,7 @@ import type {
 export type * from "../../vendor/sparql-parser/mod.ts";
 
 /**
- * SparqlParser handles parsing raw SPARQL 1.1 strings into structured AST objects.
+ * SparqlParser handles parsing raw SPARQL 1.1 & 1.2 strings into structured AST objects.
  * The standard xsd: prefix is pre-registered so XSD value constructors
  * (xsd:integer, xsd:double, ...) parse without an explicit PREFIX clause.
  */

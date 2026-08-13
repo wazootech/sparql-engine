@@ -3,17 +3,21 @@
  *
  * The runtime parser is a pure ESM/TypeScript module (`parser.ts`) generated
  * from the in-repo jison grammar (`sparql.jison`), itself sparqljs 3.7.4's
- * grammar extended with the SPARQL 1.2 direction-function surface that
- * upstream does not whitelist:
+ * grammar extended with the SPARQL 1.2 surface upstream lacks — the four
+ * direction functions below and the RDF 1.2 triple-term/reifier/annotation
+ * forms (see README.md):
  *
  *   - `LANGDIR(simpleLiteral)`            — arity 1
  *   - `hasLang(langString, language)`     — arity 2
  *   - `STRLANGDIR(simpleLiteral, lang)`   — arity 2
  *   - `hasLangDir(dirLangString, lang, dir)` — arity 3
  *
- * The grammar patch (see README.md) is a pure lexer whitelist extension: the
- * four names join existing `FUNC_ARITYn` alternations, so the generated
- * productions already construct `functionCall` nodes (name lowercased).
+ * The grammar patch (see README.md) is in two parts: a lexer whitelist
+ * extension for the four direction functions (they join existing
+ * `FUNC_ARITYn` alternations, so the generated productions already construct
+ * `functionCall` nodes), and grammar productions for `<<( s p o )>>` data
+ * triple terms, `~` reifiers, `{| |}` annotated triples, and standalone
+ * `<< s p o >>` reified-triple patterns.
  *
  * Term construction uses this project's internal zero-dependency DataFactory
  * (`@/term/data-factory.ts`) instead of upstream's `rdf-data-factory`. The

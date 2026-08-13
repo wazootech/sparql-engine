@@ -37,14 +37,19 @@ The generated parser's term construction needs an RDF/JS `DataFactory`
 generated parser. AST shapes are identical to upstream sparqljs — this module is
 a drop-in replacement for the `sparqljs` `Parser` export.
 
-## The patch (SPARQL 1.2 direction functions)
+## The patch (SPARQL 1.2 surface)
+
+The vendored grammar carries two SPARQL 1.2 additions beyond upstream sparqljs
+3.7.4, both applied **in `sparql.jison`** (the grammar source of truth);
+`parser.ts` is regenerated from it via `deno task parser:generate`, so the rules
+below always match the generated output.
+
+### Direction functions (lexer whitelist)
 
 sparqljs's jison grammar whitelists builtin functions as lexer rules grouped by
 arity token (`FUNC_ARITY0/1/2/3`). The grammar productions build `functionCall`
 AST nodes generically from the lexed text (lowercased), so extending the
-whitelist is a lexer-only change. The patch is applied **in `sparql.jison`**
-(the grammar source of truth); `parser.ts` is then regenerated from it, so the
-lexer rules below always match the generated output:
+whitelist is a lexer-only change:
 
 | Function                                         | Arity | Rule              | Change                                  |
 | ------------------------------------------------ | ----- | ----------------- | --------------------------------------- |
@@ -77,6 +82,30 @@ Out of scope for the patch: the variadic `hasLang(simpleLiteral)` and
 Neither sparqljs nor traqula can express them, so they are unreachable in both
 engines; they would require real grammar surgery if ever needed.
 
+### RDF 1.2 triple terms, reifiers, and annotations (grammar productions)
+
+Upstream sparqljs already supports the SPARQL-star quoted-triple form
+`<< s p o >>` behind its `sparqlStar` option (which this module's `Parser`
+enables). The patch adds the SPARQL 1.2 data and reification surface upstream's
+grammar cannot express:
+
+| Form                                                      | Parses to                                                                                                                                                                                                             |
+| --------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `<<( s p o )>>` — data triple term                        | An RDF/JS Quad term marked `tripleTerm: true`; the evaluator treats it as data and never expands it into `rdf:reifies`. Nested triple terms are allowed (`<<( <<( s p o )>> p2 o2 )>>`).                              |
+| `<< s p o ~ r >>` — reified-triple pattern with a reifier | A Quad term carrying a `reifier` term (IRI, blank node, or variable), which the evaluator binds instead of minting a fresh internal reifier.                                                                          |
+| `<< s p o >>` — standalone reified-triple pattern         | Expanded at parse time into the single pattern triple `reifier rdf:reifies <<( s p o )>>`; the quoted triple itself stands in for the reifier in the AST, and the evaluator mints a fresh reifier at evaluation time. |
+| annotated triple — `:s :p :o` plus an annotation block    | The annotation property list becomes triples whose subject is the reifier quad of the annotated triple.                                                                                                               |
+| `VALUES ?t { <<( s p o )>> }`                             | Triple terms are legal data values in `VALUES` blocks.                                                                                                                                                                |
+
+Annotated triples write the block after the object —
+`:s :p :o {| :p2 :o2 ; :p3 :o3 |}` (fixtures pos-10/11).
+
+New lexer tokens: `<<(`, `)>>`, and `~`. Triple terms are legal wherever data
+terms are — `BIND`/`SELECT` expressions (`<<( s p o )>> AS ?t`), the
+`TRIPLE`/`isTRIPLE`/`SUBJECT`/`PREDICATE`/`OBJECT` functions, and
+CONSTRUCT/INSERT/DELETE data blocks — all exercised by the vendored W3C SPARQL
+1.2 `syntax-triple-terms` fixtures (positive and negative) that gate in CI.
+
 ## Re-vendoring / upgrading
 
 The grammar is the source of truth, and `parser.ts` is generated from it:
@@ -84,8 +113,10 @@ The grammar is the source of truth, and `parser.ts` is generated from it:
 1. Copy `lib/sparql.jison` → `sparql.jison` from the target `sparqljs` version.
    (`lib/Wildcard.js` is inlined into `parser.ts` by the generator and needs no
    separate copy.)
-2. Re-apply the four lexer changes above to `sparql.jison` (same rule names;
-   verify the grammar's `FUNC_ARITY*` lines if upstream changed).
+2. Re-apply the two patch surfaces to `sparql.jison`: the direction-function
+   lexer rules and the triple-term/reifier/annotation productions (same rule
+   names; verify the grammar's `FUNC_ARITY*` lines and triple-term productions
+   if upstream changed).
 3. Run `deno task parser:generate` to regenerate `parser.ts`.
 4. Update this README's version table and `LICENSE` if upstream changed.
 

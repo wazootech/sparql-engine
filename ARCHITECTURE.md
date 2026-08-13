@@ -2,8 +2,8 @@
 
 ## Topology
 
-`@wazoo/sparql-engine` is a standalone, lightweight SPARQL 1.1 query and update
-engine for RDF/JS Quad Stores (`rdfjs.Store`).
+`@wazoo/sparql-engine` is a standalone, lightweight SPARQL 1.1 & 1.2 query and
+update engine for RDF/JS Quad Stores (`rdfjs.Store`).
 
 ```text
 [ SPARQL Query String ] 
