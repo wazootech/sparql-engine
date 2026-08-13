@@ -109,15 +109,6 @@ export function expandReifiedTriples(triples: Triple[]): Triple[] {
 }
 
 /**
- * isTripleTerm reports whether a quad carries the parser's `tripleTerm`
- * marker — a data triple term `<<( s p o )>>`, never a reified-triple
- * pattern.
- */
-export function isTripleTerm(term: SparqlTerm): boolean {
-  return (term as ReifiedQuad).tripleTerm === true;
-}
-
-/**
  * isReifiesPattern reports whether a triple pattern is the `rdf:reifies`
  * decomposition form — a `rdf:reifies` predicate with a quoted-triple-term
  * object — which the join must decompose from the store's reifier quads.
