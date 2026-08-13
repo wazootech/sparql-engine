@@ -2789,6 +2789,178 @@ Deno.test("WazooSparqlEngine - ORDER BY orders directional literals deterministi
   assertEquals(await orderedObjects("DESC(?o)"), ["x@", "x@rtl", "x@ltr"]);
 });
 
+Deno.test("WazooSparqlEngine - property paths inside EXISTS evaluate like the main pattern", async () => {
+  // Default graph: a -p-> b -q-> c -q-> d, plus a labeled edge b -r-> c.
+  // Named graph g1 carries a -p-> b -q-> c (same nodes).
+  const store = new Store();
+  const ex = (local: string) => namedNode(`http://example.org/${local}`);
+  const add = (
+    s: string,
+    p: string,
+    o: string,
+    graph?: string,
+  ) => store.addQuad(quad(ex(s), ex(p), ex(o), graph ? ex(graph) : undefined));
+  add("a", "p", "b");
+  add("b", "q", "c");
+  add("c", "q", "d");
+  add("b", "r", "c");
+  add("a", "p", "b", "g1");
+  add("b", "q", "c", "g1");
+  const engine = new WazooSparqlEngine({ store });
+
+  async function projected(query: string, variable: string): Promise<string[]> {
+    const result = await engine.execute({ query });
+    if (result.kind !== "select") {
+      throw new Error(`expected select, got ${result.kind}`);
+    }
+    return result.data.results.bindings.map((b) =>
+      String((b[variable] as { value: string }).value)
+    ).sort();
+  }
+
+  // EXISTS: b reaches c and d via q+ (one or more q edges), so a passes.
+  assertEquals(
+    await projected(
+      "SELECT ?s WHERE { ?s <http://example.org/p> ?o " +
+        "FILTER EXISTS { ?o <http://example.org/q>+ ?z } }",
+      "s",
+    ),
+    ["http://example.org/a"],
+  );
+  // zero-or-more also admits b itself (reflexive), so EXISTS holds.
+  assertEquals(
+    await projected(
+      "SELECT ?s WHERE { ?s <http://example.org/p> ?o " +
+        "FILTER EXISTS { ?o <http://example.org/q>* ?z } }",
+      "s",
+    ),
+    ["http://example.org/a"],
+  );
+  // NOT EXISTS with a zero-or-one path: b -q-> c exists, so b is excluded.
+  assertEquals(
+    await projected(
+      "SELECT ?s WHERE { ?s <http://example.org/p> ?o " +
+        "FILTER NOT EXISTS { ?o <http://example.org/q>? ?z } }",
+      "s",
+    ),
+    [],
+  );
+  // Sequence: b -q-> c -q-> d, so EXISTS { ?o <q>/<q> ?z } holds.
+  assertEquals(
+    await projected(
+      "SELECT ?s WHERE { ?s <http://example.org/p> ?o " +
+        "FILTER EXISTS { ?o <http://example.org/q>/<http://example.org/q> ?z } }",
+      "s",
+    ),
+    ["http://example.org/a"],
+  );
+  // Alternative: b -r-> c, so (q|r) matches.
+  assertEquals(
+    await projected(
+      "SELECT ?s WHERE { ?s <http://example.org/p> ?o " +
+        "FILTER EXISTS { ?o (<http://example.org/q>|<http://example.org/r>) ?z } }",
+      "s",
+    ),
+    ["http://example.org/a"],
+  );
+  // Inverse: nothing points at b via q (c does via b, d via c), so no pass.
+  assertEquals(
+    await projected(
+      "SELECT ?s WHERE { ?s <http://example.org/p> ?o " +
+        "FILTER EXISTS { ?o ^<http://example.org/q> ?x } }",
+      "s",
+    ),
+    [],
+  );
+  // Negated property set: b has a q edge and an r edge; excluding q still
+  // matches r, so EXISTS holds.
+  assertEquals(
+    await projected(
+      "SELECT ?s WHERE { ?s <http://example.org/p> ?o " +
+        "FILTER EXISTS { ?o !(<http://example.org/q>) ?z } }",
+      "s",
+    ),
+    ["http://example.org/a"],
+  );
+  // Negated property set excluding both q and r leaves b with no edges.
+  assertEquals(
+    await projected(
+      "SELECT ?s WHERE { ?s <http://example.org/p> ?o " +
+        "FILTER EXISTS { ?o !(<http://example.org/q>|<http://example.org/r>) ?z } }",
+      "s",
+    ),
+    [],
+  );
+  // Correlated: the outer binding of ?o is visible inside the path pattern's
+  // subject, and the path binds both endpoints.
+  assertEquals(
+    await projected(
+      "SELECT ?s ?o WHERE { ?s <http://example.org/p> ?o " +
+        "FILTER EXISTS { ?s <http://example.org/p>+ ?x } }",
+      "s",
+    ),
+    ["http://example.org/a"],
+  );
+});
+
+Deno.test("WazooSparqlEngine - property paths inside EXISTS respect GRAPH scopes", async () => {
+  // Named graph g1: a -p-> b -q-> c. Default graph also carries a -p-> b and
+  // b -q-> c -q-> d, so a plain default-graph EXISTS would pass for q+ even
+  // when the GRAPH-scoped one must not (the scope only reaches c).
+  const store = new Store();
+  const ex = (local: string) => namedNode(`http://example.org/${local}`);
+  const add = (s: string, p: string, o: string, graph?: string) =>
+    store.addQuad(quad(ex(s), ex(p), ex(o), graph ? ex(graph) : undefined));
+  add("a", "p", "b");
+  add("b", "q", "c");
+  add("c", "q", "d");
+  add("a", "p", "b", "g1");
+  add("b", "q", "c", "g1");
+  const engine = new WazooSparqlEngine({ store });
+
+  async function projected(query: string, variable: string): Promise<string[]> {
+    const result = await engine.execute({ query });
+    if (result.kind !== "select") {
+      throw new Error(`expected select, got ${result.kind}`);
+    }
+    return result.data.results.bindings.map((b) =>
+      String((b[variable] as { value: string }).value)
+    ).sort();
+  }
+
+  // Inside the g1 scope, q+ reaches only c (no d), but the EXISTS still holds
+  // for a — the scope is respected, not leaked into the default graph.
+  assertEquals(
+    await projected(
+      "SELECT ?s WHERE { GRAPH <http://example.org/g1> { ?s <http://example.org/p> ?o " +
+        "FILTER EXISTS { ?o <http://example.org/q>+ ?z } } }",
+      "s",
+    ),
+    ["http://example.org/a"],
+  );
+  // A scope with no q edges at all: EXISTS fails inside it, so a is not
+  // emitted even though the default graph would satisfy the path.
+  store.addQuad(quad(ex("a"), ex("p"), ex("b"), ex("g2")));
+  assertEquals(
+    await projected(
+      "SELECT ?s WHERE { GRAPH <http://example.org/g2> { ?s <http://example.org/p> ?o " +
+        "FILTER EXISTS { ?o <http://example.org/q>+ ?z } } }",
+      "s",
+    ),
+    [],
+  );
+  // GRAPH ?g with a bound ?g enumerates the named graphs; only g1 satisfies
+  // the q+ EXISTS, so a (from g1) is the sole row.
+  assertEquals(
+    await projected(
+      "SELECT ?s WHERE { GRAPH ?g { ?s <http://example.org/p> ?o " +
+        "FILTER EXISTS { ?o <http://example.org/q>+ ?z } } }",
+      "s",
+    ),
+    ["http://example.org/a"],
+  );
+});
+
 Deno.test("WazooSparqlEngine - COALESCE, IF, IN, NOT IN, SAMETERM", async () => {
   const engine = emptyEngine();
   const coalesce = await bindValue(
