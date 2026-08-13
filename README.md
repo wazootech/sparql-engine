@@ -9,15 +9,17 @@ Wazoo-native SPARQL 1.1 & 1.2 Query & Update Engine over RDF/JS Quad Stores.
   SPARQL 1.2 direction functions (`LANGDIR`, `STRLANGDIR`, `hasLang`,
   `hasLangDir`) and RDF 1.2 reified triple terms (`<< s p o >>`).
 - **SPARQL 1.1 & 1.2 Update Engine**: Support for `INSERT DATA`, `DELETE DATA`,
-  `DELETE/INSERT`, and atomic patch transactions, including updates over reified
-  triple terms.
+  `DELETE/INSERT`, `LOAD`, and atomic patch transactions, including updates over
+  reified triple terms.
 - **W3C SPARQL 1.2 Gate**: CI runs the W3C SPARQL 1.2 evaluation suite
   differentially against Comunica — currently **249/249** pass — plus **41/41**
   on the RDF 1.2 eval-triple-terms gap suite.
 - **Zero Runtime Dependencies**: Lightweight AST parsing via the in-repo SPARQL
-  parser (a maintained sparqljs 3.7.4 grammar), zero runtime dependencies (only
-  type-only `@rdfjs/types`), and no Comunica framework overhead —
-  browser-friendly and JSR-ready without transitive npm baggage.
+  parser (a maintained sparqljs 3.7.4 grammar), plus an in-repo jison
+  Turtle/TriG/N-Triples/N-Quads parser backing `LOAD` (including RDF 1.2 triple
+  terms, reifiers, and annotations); zero runtime dependencies (only type-only
+  `@rdfjs/types`), and no Comunica framework overhead — browser-friendly and
+  JSR-ready without transitive npm baggage.
 - **JSR & Deno Native**: Published on JSR as `@wazoo/sparql-engine` for Deno,
   Node.js, and browser environments.
 - **Drop-in for `@worlds/client`**: Implements the same `SparqlEngineInterface`

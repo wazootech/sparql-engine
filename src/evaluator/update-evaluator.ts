@@ -375,15 +375,35 @@ export class UpdateEvaluator {
 
       const parsedQuads = parseTurtleQuads(text, sourceIri);
 
-      const destRef = op.destination as GraphRef;
-      const destGraphTerm = (!destRef || destRef.default)
-        ? defaultGraph()
-        : destRef.name
-        ? sparqlTermToRdfTerm(destRef.name)
-        : defaultGraph();
+      // LOAD's optional INTO clause is a plain IRI term (ast
+      // LoadOperation.destination), not a GraphRef like the other update
+      // operations. No destination means "merge the document's dataset
+      // as-is".
+      const intoGraph = op.destination
+        ? sparqlTermToRdfTerm(op.destination as SparqlTerm)
+        : undefined;
+
+      if (intoGraph) {
+        // SPARQL 1.2 Update: LOAD ... INTO GRAPH <g> is an error if named
+        // graphs are encountered when parsing the RDF document.
+        const hasNamedGraphs = parsedQuads.some(
+          (q) => q.graph.termType !== "DefaultGraph",
+        );
+        if (hasNamedGraphs) {
+          throw new Error(
+            `LOAD INTO GRAPH failed: document contains named graphs: ${sourceIri}`,
+          );
+        }
+      }
 
       for (const q of parsedQuads) {
-        add(quad(q.subject, q.predicate, q.object, destGraphTerm));
+        // OpLoad(GS, documentIRI) = dataset-merge(GS, dataset(documentIRI)):
+        // the document's dataset is merged as-is (graph labels preserved).
+        // OpLoad(GS, documentIRI, iri) puts the document's default graph
+        // into the named destination graph.
+        add(
+          intoGraph ? quad(q.subject, q.predicate, q.object, intoGraph) : q,
+        );
       }
     } catch (err) {
       if (silent) return;

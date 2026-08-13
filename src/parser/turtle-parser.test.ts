@@ -1,4 +1,5 @@
 import { assertEquals, assertThrows } from "@std/assert";
+import type * as rdfjs from "@rdfjs/types";
 import { DataFactory } from "@/term/mod.ts";
 import { parseTurtleQuads } from "@/parser/turtle-parser.ts";
 
@@ -94,8 +95,68 @@ Deno.test("turtle-parser: empty anonymous blank nodes", () => {
   assertEquals(quads[0].object.termType, "BlankNode");
 });
 
-Deno.test("turtle-parser: unsupported input fails loudly instead of hanging", () => {
-  // RDF 1.2 triple terms are not part of the LOAD subset; they must reject,
-  // never hang or silently drop data.
-  assertThrows(() => parseTurtleQuads("<< <s> <p> <o> >> <p2> <o2> ."));
+Deno.test("turtle-parser: RDF 1.2 triple terms in object position", () => {
+  const quads = parseTurtleQuads(
+    "@prefix : <http://ex/> . :s :p <<( :a :b :c )>> .",
+  );
+  assertEquals(quads.length, 1);
+  assertEquals(quads[0].object.termType, "Quad");
+  const tt = quads[0].object as rdfjs.Quad;
+  assertEquals(tt.subject.value, "http://ex/a");
+  assertEquals(tt.predicate.value, "http://ex/b");
+  assertEquals(tt.object.value, "http://ex/c");
+});
+
+Deno.test("turtle-parser: reified triple emits rdf:reifies with its reifier", () => {
+  const quads = parseTurtleQuads(
+    "@prefix : <http://ex/> . << :a :b :c ~ :r >> :q :v .",
+  );
+  // r rdf:reifies <<( a b c )>>  and  r :q :v
+  assertEquals(quads.length, 2);
+  const reifies = quads.find((q) =>
+    q.predicate.value === "http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies"
+  );
+  assertEquals(reifies!.subject.value, "http://ex/r");
+  assertEquals(reifies!.object.termType, "Quad");
+  const qv = quads.find((q) => q.predicate.value === "http://ex/q");
+  assertEquals(qv!.subject.value, "http://ex/r");
+  assertEquals(qv!.object.value, "http://ex/v");
+});
+
+Deno.test("turtle-parser: annotation block reifies and annotates", () => {
+  const quads = parseTurtleQuads(
+    "@prefix : <http://ex/> . :s :p :o {| :q :v |} .",
+  );
+  assertEquals(quads.length, 3);
+  assertEquals(quads[0].subject.value, "http://ex/s");
+  const reifies = quads[1];
+  assertEquals(
+    reifies.predicate.value,
+    "http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies",
+  );
+  assertEquals(reifies.subject.termType, "BlankNode");
+  assertEquals(reifies.object.termType, "Quad");
+  assertEquals(quads[2].subject.value, reifies.subject.value);
+  assertEquals(quads[2].predicate.value, "http://ex/q");
+});
+
+Deno.test("turtle-parser: TriG graph blocks keep their graph labels", () => {
+  const quads = parseTurtleQuads(
+    "@prefix : <http://ex/> . :g1 { :s :p :o . } GRAPH :g2 { :s2 :p :o2 . }",
+  );
+  assertEquals(quads.length, 2);
+  assertEquals(quads[0].graph.value, "http://ex/g1");
+  assertEquals(quads[1].graph.value, "http://ex/g2");
+});
+
+Deno.test("turtle-parser: N-Quads graph labels on top-level statements", () => {
+  const quads = parseTurtleQuads("<s> <p> <o> <g> .");
+  assertEquals(quads.length, 1);
+  assertEquals(quads[0].graph.value, "g");
+});
+
+Deno.test("turtle-parser: malformed input fails loudly instead of hanging", () => {
+  // A missing object can never parse; it must reject, never hang.
+  assertThrows(() => parseTurtleQuads(":s :p ."));
+  assertThrows(() => parseTurtleQuads("<<( :a :b"));
 });

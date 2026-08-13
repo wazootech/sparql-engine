@@ -5,7 +5,7 @@ import { MemoryStore as Store } from "@/store/memory-store.ts";
 import { WazooSparqlEngine } from "@/wazoo-sparql-engine.ts";
 import type { WazooSparqlTransaction } from "@/wazoo-sparql-engine.ts";
 
-const { namedNode, literal, quad } = DataFactory;
+const { namedNode, literal, quad, defaultGraph } = DataFactory;
 
 const exampleP = namedNode("http://example.org/p");
 const exampleQ = namedNode("http://example.org/q");
@@ -221,6 +221,80 @@ Deno.test("UpdateEvaluator - CLEAR, DROP, CREATE operations work", async () => {
 
   await engine.execute({ query: "DROP ALL" });
   assertEquals(store.countQuads(null, null, null, null), 0);
+});
+
+Deno.test("UpdateEvaluator - LOAD merges the document dataset, preserving named graphs", async () => {
+  const store = new Store();
+  const engine = new WazooSparqlEngine({ store });
+
+  const dir = await Deno.makeTempDir();
+  const file = `${dir}/data.trig`;
+  await Deno.writeTextFile(
+    file,
+    `
+    @prefix : <http://example.org/> .
+    :s :p :o .
+    :g { :a :b :c . }
+  `,
+  );
+
+  await engine.execute({ query: `LOAD <file://${file.replace(/\\/g, "/")}>` });
+
+  // default graph triples and the TriG named graph are both merged in.
+  assertEquals(store.countQuads(null, null, null, null), 2);
+  assertEquals(
+    store.countQuads(null, null, null, defaultGraph()),
+    1,
+  );
+  assertEquals(
+    store.countQuads(null, null, null, namedNode("http://example.org/g")),
+    1,
+  );
+});
+
+Deno.test("UpdateEvaluator - LOAD INTO GRAPH maps the default graph into the destination", async () => {
+  const store = new Store();
+  const engine = new WazooSparqlEngine({ store });
+
+  const dir = await Deno.makeTempDir();
+  const file = `${dir}/data.ttl`;
+  await Deno.writeTextFile(
+    file,
+    "<http://example.org/s> <http://example.org/p> <http://example.org/o> .",
+  );
+
+  await engine.execute({
+    query: `LOAD <file://${
+      file.replace(/\\/g, "/")
+    }> INTO GRAPH <http://example.org/dest>`,
+  });
+
+  assertEquals(
+    store.countQuads(null, null, null, namedNode("http://example.org/dest")),
+    1,
+  );
+});
+
+Deno.test("UpdateEvaluator - LOAD INTO GRAPH rejects documents that contain named graphs", async () => {
+  const store = new Store();
+  const engine = new WazooSparqlEngine({ store });
+
+  const dir = await Deno.makeTempDir();
+  const file = `${dir}/data.trig`;
+  await Deno.writeTextFile(
+    file,
+    "<http://example.org/g> { <http://example.org/s> <http://example.org/p> <http://example.org/o> . }",
+  );
+
+  await assertRejects(
+    () =>
+      engine.execute({
+        query: `LOAD <file://${
+          file.replace(/\\/g, "/")
+        }> INTO GRAPH <http://example.org/dest>`,
+      }),
+    Error,
+  );
 });
 
 Deno.test("UpdateEvaluator - LOAD operation with SILENT error handling", async () => {
