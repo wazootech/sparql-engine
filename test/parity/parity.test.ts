@@ -522,6 +522,13 @@ const wildcardCases: ParityTestCase[] = [
     orderSensitive: true,
   },
   {
+    name: "SELECT - REDUCED deduplicates duplicate projected solutions",
+    kind: "select",
+    query: `SELECT REDUCED ?o WHERE { ?s ${pPred} ?o } ORDER BY ?o`,
+    quads: pathGraphQuads,
+    orderSensitive: true,
+  },
+  {
     name: "SELECT - LIMIT and OFFSET slice ordered results",
     kind: "select",
     query: `SELECT ?o WHERE { ?s ${pPred} ?o } ORDER BY ?o LIMIT 2 OFFSET 1`,
