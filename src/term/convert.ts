@@ -52,6 +52,9 @@ export function rdfTermToSparqlValue(term: rdfjs.Term): SparqlValue {
       const result: SparqlValue = { type: "literal", value: term.value };
       if (term.language) {
         result["xml:lang"] = term.language;
+        if (term.direction) {
+          result["its:dir"] = term.direction as "ltr" | "rtl";
+        }
       } else if (
         term.datatype &&
         term.datatype.value !== XSD_STRING

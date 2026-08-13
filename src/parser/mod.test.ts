@@ -34,17 +34,17 @@ Deno.test("parser: LANGDIR accepts a lang-tagged literal", () => {
   assertEquals(name, "langdir");
 });
 
-Deno.test("parser: hasLang parses as a functionCall", () => {
+Deno.test("parser: hasLang parses as a unary functionCall", () => {
   const { name, args } = parseExpression(
-    'SELECT ?x WHERE { BIND(hasLang("hello", "en") AS ?x) }',
+    'SELECT ?x WHERE { BIND(hasLang("hello"@en) AS ?x) }',
   );
   assertEquals(name, "haslang");
-  assertEquals(args.length, 2);
+  assertEquals(args.length, 1);
 });
 
 Deno.test("parser: hasLang works in FILTER", () => {
   const ast = new Parser().parse(
-    'SELECT ?x WHERE { ?s ?p ?x FILTER(hasLang(?x, "en")) }',
+    "SELECT ?x WHERE { ?s ?p ?x FILTER(hasLang(?x)) }",
   );
   if (ast.type !== "query") throw new Error("expected a query");
   const where = ast.where as Array<
@@ -54,20 +54,20 @@ Deno.test("parser: hasLang works in FILTER", () => {
   assertEquals(filter?.expression?.operator, "haslang");
 });
 
-Deno.test("parser: STRLANGDIR parses as a functionCall", () => {
+Deno.test("parser: STRLANGDIR parses as a ternary functionCall", () => {
   const { name, args } = parseExpression(
-    'SELECT ?x WHERE { BIND(STRLANGDIR("hello", "en") AS ?x) }',
+    'SELECT ?x WHERE { BIND(STRLANGDIR("hello", "en", "ltr") AS ?x) }',
   );
   assertEquals(name, "strlangdir");
-  assertEquals(args.length, 2);
+  assertEquals(args.length, 3);
 });
 
-Deno.test("parser: hasLangDir parses as a functionCall", () => {
+Deno.test("parser: hasLangDir parses as a unary functionCall", () => {
   const { name, args } = parseExpression(
-    'SELECT ?x WHERE { BIND(hasLangDir("hello", "en", "ltr") AS ?x) }',
+    'SELECT ?x WHERE { BIND(hasLangDir("hello"@en--ltr) AS ?x) }',
   );
   assertEquals(name, "haslangdir");
-  assertEquals(args.length, 3);
+  assertEquals(args.length, 1);
 });
 
 Deno.test("parser: prefix conflicts still lex correctly", () => {
@@ -81,6 +81,23 @@ Deno.test("parser: prefix conflicts still lex correctly", () => {
     parseExpression(`SELECT ?x WHERE { BIND(${expr} AS ?x) }`).name
   );
   assertEquals(names, ["lang", "strlang", "langmatches", "str"]);
+});
+
+Deno.test("parser: recursive unary ! allows double negation", () => {
+  // SPARQL 1.2 grammar [135] makes '!' recursive: `!!x` == !(!x).
+  const ast = new Parser().parse(
+    "SELECT ?v WHERE { VALUES ?v { true false } BIND(!!?v AS ?ebv) }",
+  );
+  if (ast.type !== "query") throw new Error("expected a query");
+  const where = ast.where as Array<
+    { type: string; expression?: { operator: string; args: unknown[] } }
+  >;
+  const bind = where.find((w) => w.type === "bind");
+  assertEquals(bind?.expression?.operator, "!");
+  assertEquals(
+    (bind?.expression?.args[0] as { operator?: string })?.operator,
+    "!",
+  );
 });
 
 Deno.test("parser: unknown bare function names still rejected", () => {

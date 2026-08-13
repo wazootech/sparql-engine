@@ -1,1 +1,0 @@
-SELECT (LANGDIR("hello") AS ?dir) WHERE {}

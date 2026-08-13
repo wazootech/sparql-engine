@@ -79,6 +79,8 @@ export type SparqlValue =
     type: "literal";
     value: string;
     "xml:lang"?: string;
+    /** Base direction ("ltr"/"rtl") of an RDF 1.2 directional language-tagged literal, per the SPARQL 1.2 results JSON/XML formats. */
+    "its:dir"?: "ltr" | "rtl";
     datatype?: string;
   }
   | {

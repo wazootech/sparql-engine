@@ -76,6 +76,7 @@ export function canonicalizeSparqlValue(value: SparqlValue): CanonicalTerm {
       };
       if (value["xml:lang"]) {
         canonical.language = value["xml:lang"];
+        if (value["its:dir"]) canonical.direction = value["its:dir"];
       } else if (value.datatype && value.datatype !== XSD_STRING) {
         canonical.datatype = value.datatype;
       }

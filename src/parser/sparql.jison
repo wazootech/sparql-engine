@@ -150,9 +150,18 @@
     return Parser.factory.literal(value, type);
   }
 
-  // Creates a literal with the given value and language
+  // Creates a literal with the given value and language; a trailing "--ltr"/
+  // "--rtl" (guaranteed by the LANGTAG terminal) becomes the RDF 1.2 base
+  // direction, yielding an rdf:dirLangString literal.
   function createLangLiteral(value, lang) {
-    return Parser.factory.literal(value, lang);
+    const dash = lang.indexOf('--');
+    if (dash === -1) {
+      return Parser.factory.literal(value, lang);
+    }
+    return Parser.factory.literal(value, {
+      language: lang.slice(0, dash),
+      direction: lang.slice(dash + 2),
+    });
   }
 
   function nestedTriple(subject, predicate, object) {
@@ -550,7 +559,7 @@ BLANK_NODE_LABEL      "_:"(?:{PN_CHARS_U}|[0-9])(?:(?:{PN_CHARS}|".")*{PN_CHARS}
 // [108] (and [143]-[144])
 VAR                   [\?\$]{VARNAME}
 // [145]
-LANGTAG               "@"[a-zA-Z]+(?:"-"[a-zA-Z0-9]+)*
+LANGTAG               "@"[a-zA-Z]+(?:"-"[a-zA-Z0-9]+)*("--"("ltr"|"rtl"))?
 // [146]
 INTEGER               [0-9]+
 // [147]
@@ -701,12 +710,12 @@ SPACES_COMMENTS       (\s+|{COMMENT}\n\r?)+
 "BOUND"                  return 'BOUND'
 "BNODE"                  return 'BNODE'
 ("RAND"|"NOW"|"UUID"|"STRUUID") return 'FUNC_ARITY0'
-("LANGDIR"|"LANG"|"DATATYPE"|"IRI"|"URI"|"ABS"|"CEIL"|"FLOOR"|"ROUND"|"STRLEN"|"STR"|"UCASE"|"LCASE"|"ENCODE_FOR_URI"|"YEAR"|"MONTH"|"DAY"|"HOURS"|"MINUTES"|"SECONDS"|"TIMEZONE"|"TZ"|"MD5"|"SHA1"|"SHA256"|"SHA384"|"SHA512"|"isIRI"|"isURI"|"isBLANK"|"isLITERAL"|"isNUMERIC") return 'FUNC_ARITY1'
+("LANGDIR"|"LANG"|"DATATYPE"|"IRI"|"URI"|"ABS"|"CEIL"|"FLOOR"|"ROUND"|"STRLEN"|"STR"|"UCASE"|"LCASE"|"ENCODE_FOR_URI"|"YEAR"|"MONTH"|"DAY"|"HOURS"|"MINUTES"|"SECONDS"|"TIMEZONE"|"TZ"|"MD5"|"SHA1"|"SHA256"|"SHA384"|"SHA512"|"isIRI"|"isURI"|"isBLANK"|"isLITERAL"|"isNUMERIC"|"hasLangDir"|"hasLang") return 'FUNC_ARITY1'
 ("SUBJECT"|"PREDICATE"|"OBJECT"|"isTRIPLE") return 'FUNC_ARITY1_SPARQL_STAR'
-("LANGMATCHES"|"CONTAINS"|"STRSTARTS"|"STRENDS"|"STRBEFORE"|"STRAFTER"|"STRLANGDIR"|"STRLANG"|"STRDT"|"sameTerm"|"hasLang") return 'FUNC_ARITY2'
+("LANGMATCHES"|"CONTAINS"|"STRSTARTS"|"STRENDS"|"STRBEFORE"|"STRAFTER"|"STRLANG"|"STRDT"|"sameTerm") return 'FUNC_ARITY2'
 "CONCAT"                 return 'CONCAT'
 "COALESCE"               return 'COALESCE'
-"IF"|"hasLangDir"         return 'FUNC_ARITY3'
+"IF"|"STRLANGDIR"        return 'FUNC_ARITY3'
 "TRIPLE"                 return 'FUNC_ARITY3_SPARQL_STAR'
 "REGEX"                  return 'REGEX'
 "SUBSTR"                 return 'SUBSTR'
@@ -1456,10 +1465,11 @@ MultiplicativeExpressionTail
     : ( '*' | '/' ) UnaryExpression -> [$1, $2]
     ;
 
-// [118]
+// [135] — SPARQL 1.2 makes '!' recursive so `!!x` (double negation) parses;
+// '+'/'-' remain single-shot (the pre-existing sparqljs 1.1 behavior).
 UnaryExpression
-    : '+' PrimaryExpression -> operation('UPLUS', [$2])
-    | '!'  PrimaryExpression -> operation($1, [$2])
+    : '!' UnaryExpression -> operation('!', [$2])
+    | '+' PrimaryExpression -> operation('UPLUS', [$2])
     | '-'  PrimaryExpression -> operation('UMINUS', [$2])
     | PrimaryExpression -> $1
     ;

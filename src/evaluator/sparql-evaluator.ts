@@ -577,11 +577,11 @@ export class SparqlEvaluator {
   /**
    * orderBindings sorts term bindings by the query's ORDER BY clauses, using
    * the term module's ordering (unbound lowest, then blank nodes, IRIs, and
-   * literals; literals by datatype, numeric value, then lexical form).
-   * Comparison is stable, so ties keep the evaluation order. Only variable
-   * and constant-term expressions are supported; anything else (function
-   * calls, arithmetic) has no expression evaluator yet and raises a clear
-   * error.
+   * literals; literals by datatype, numeric value, then lexical form, with
+   * rdf:dirLangString values tie-broken by base direction). Comparison is
+   * stable, so ties keep the evaluation order. Any expression the expression
+   * evaluator supports (variables, constants, builtin function calls) can be
+   * sorted on; genuinely unsupported expressions raise a clear error.
    */
   private orderBindings(
     solutions: SelectSolution[],

@@ -1,1 +1,0 @@
-SELECT (STRLANGDIR("hello", "en") AS ?l) WHERE {}

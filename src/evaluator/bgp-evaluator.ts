@@ -25,6 +25,7 @@ import {
   minus,
   scanEntry,
   scanPathEntry,
+  scanPathEntrySync,
 } from "@/evaluator/join.ts";
 import type { ScanEntry, TermBinding } from "@/evaluator/join.ts";
 import { sameRdfTerm, sparqlTermToRdfTerm, termKey } from "@/term/mod.ts";
@@ -159,9 +160,9 @@ export class BgpEvaluator {
    * evaluateExistsGroup threads solutions through a pattern list with the
    * synchronous exists evaluator, mirroring evaluateGroup for the pattern
    * forms the W3C EXISTS surface exercises (BGP, FILTER, GRAPH, BIND,
-   * VALUES, nested EXISTS). OPTIONAL / MINUS / UNION / subqueries and
-   * property paths inside EXISTS raise a clear error rather than silently
-   * returning a wrong answer.
+   * VALUES, nested EXISTS, and property paths over the graph-scoped
+   * candidate set). OPTIONAL / MINUS / UNION / subqueries inside EXISTS
+   * raise a clear error rather than silently returning a wrong answer.
    */
   private evaluateExistsGroup(
     patterns: Pattern[],
@@ -191,9 +192,18 @@ export class BgpEvaluator {
         let result = bindings;
         for (const triple of expandReifiedTriples(pattern.triples)) {
           if (isPropertyPath(triple.predicate)) {
-            throw new Error(
-              "Property paths inside EXISTS are not supported",
+            // Property paths inside EXISTS evaluate synchronously over the
+            // graph-scoped candidate set, mirroring the main-pattern
+            // scanPathEntry semantics (pair dedup unless multiset, constant
+            // endpoint pruning, reflexive closures over the scope's nodes).
+            const entry = scanPathEntrySync(
+              candidates,
+              triple.predicate,
+              triple.subject,
+              triple.object,
             );
+            result = joinPathPattern(result, entry);
+            continue;
           }
           const predicate = simplePredicate(triple.predicate);
           const reifies = isReifiesPattern(predicate, triple.object);

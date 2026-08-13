@@ -32,6 +32,9 @@ Deno.test("termKey agrees with sameRdfTerm on term identity", () => {
     literal("plain"),
     literal("hello", "en"),
     literal("hello", "fr"),
+    literal("hello", { language: "en", direction: "ltr" }),
+    literal("hello", { language: "en", direction: "rtl" }),
+    literal("hello", { language: "ar", direction: "rtl" }),
     literal("42", xsdInteger),
     literal("42"),
     quad(ex("s"), ex("p"), literal("o")),
@@ -56,8 +59,15 @@ Deno.test("canonicalize agrees across the RDF/JS and SparqlValue representations
     blankNode("x"),
     literal("plain"),
     literal("hello", "en"),
+    literal("hello", { language: "en", direction: "ltr" }),
+    literal("hello", { language: "ar", direction: "rtl" }),
     literal("42", xsdInteger),
     quad(ex("s"), ex("p"), literal("o")),
+    quad(
+      ex("s"),
+      ex("p"),
+      literal("hello", { language: "en", direction: "ltr" }),
+    ),
     quad(ex("s"), ex("p"), quad(ex("s1"), ex("p1"), ex("o1"))),
   ];
   for (const term of terms) {
