@@ -20,6 +20,7 @@ import {
   simplePredicate,
 } from "@/quad-store.ts";
 import { sameRdfTerm, sparqlTermToRdfTerm, termKey } from "@/term/mod.ts";
+import { expandReifiedTriples } from "@/evaluator/reified.ts";
 import { DataFactory } from "n3";
 
 const { blankNode, quad, defaultGraph } = DataFactory;
@@ -442,9 +443,16 @@ export class UpdateEvaluator {
     if (bindings.length === 0) {
       return;
     }
-    const graph = pattern.type === "graph"
-      ? this.convertTerm(pattern.name, null)
-      : (withGraph ?? defaultGraph());
+    const graphName = pattern.type === "graph" ? pattern.name : null;
+    // A variable graph name resolves per solution (`GRAPH ?g { ... }`); a
+    // constant graph (or a non-GRAPH template) fixes the graph for every
+    // solution and keeps the single store scan.
+    const variableGraph = graphName?.termType === "Variable";
+    const fixedGraph = !variableGraph
+      ? graphName
+        ? this.convertTerm(graphName, null)
+        : (withGraph ?? defaultGraph())
+      : null;
     const triples: Triple[] =
       (pattern as unknown as { triples?: Triple[] }).triples ??
         (pattern as unknown as { patterns?: { triples?: Triple[] }[] }).patterns
@@ -452,12 +460,13 @@ export class UpdateEvaluator {
         [];
     for (const triple of triples) {
       const scan = this.deleteScanPositions(triple);
+      // A variable graph scans every graph and filters per solution below.
       const candidates = await matchQuads(
         this.options.store,
         scan.s,
         scan.p,
         scan.o,
-        graph,
+        variableGraph ? null : fixedGraph,
       );
       const index = buildQuadIndex(candidates);
       // Quads are removed at most once across all solutions: a second
@@ -465,6 +474,14 @@ export class UpdateEvaluator {
       // index scan, and buffering duplicate deletes wastes transaction space.
       const removed = new Set<string>();
       for (const binding of bindings) {
+        let graph: rdfjs.Term | null = fixedGraph;
+        if (variableGraph) {
+          const bound = binding[graphName!.value];
+          if (!bound) {
+            continue;
+          }
+          graph = bound;
+        }
         const subject = this.resolveDeleteTerm(triple.subject, binding);
         const predicate = this.resolveDeleteTerm(
           simplePredicate(triple.predicate),
@@ -485,6 +502,9 @@ export class UpdateEvaluator {
           object.kind === "wildcard" ? null : object.term,
         );
         for (const item of matches) {
+          if (variableGraph && !sameRdfTerm(item.graph, graph!)) {
+            continue;
+          }
           const key = termKey(item);
           if (removed.has(key)) {
             continue;
@@ -535,12 +555,12 @@ export class UpdateEvaluator {
       ? this.convertTerm(pattern.name, null)
       : (withGraph ?? defaultGraph());
     const quads: rdfjs.Quad[] = [];
-    const triples: Triple[] =
+    const rawTriples: Triple[] =
       (pattern as unknown as { triples?: Triple[] }).triples ??
         (pattern as unknown as { patterns?: { triples?: Triple[] }[] }).patterns
           ?.flatMap((p) => p.triples ?? []) ??
         [];
-    for (const triple of triples) {
+    for (const triple of expandReifiedTriples(rawTriples)) {
       const subject = this.resolveInsertTerm(triple.subject, binding, bnodeMap);
       const predicate = this.resolveInsertTerm(
         simplePredicate(triple.predicate),
@@ -620,6 +640,22 @@ export class UpdateEvaluator {
       bnodeMap.set(term.value, fresh);
       return { kind: "value", term: fresh };
     }
+    if (term.termType === "Quad") {
+      const s = this.resolveInsertTerm(term.subject, binding, bnodeMap);
+      const p = this.resolveInsertTerm(term.predicate, binding, bnodeMap);
+      const o = this.resolveInsertTerm(term.object, binding, bnodeMap);
+      if (s.kind !== "value" || p.kind !== "value" || o.kind !== "value") {
+        return { kind: "skip" };
+      }
+      return {
+        kind: "value",
+        term: quad(
+          s.term as rdfjs.Quad_Subject,
+          p.term as rdfjs.Quad_Predicate,
+          o.term as rdfjs.Quad_Object,
+        ),
+      };
+    }
     return { kind: "value", term: this.convertTerm(term, null) };
   }
 
@@ -633,11 +669,12 @@ export class UpdateEvaluator {
     pattern: Pattern,
     bnodeMap: Map<string, rdfjs.BlankNode> | null,
   ): rdfjs.Quad[] {
-    const triples: Triple[] =
+    const rawTriples: Triple[] =
       (pattern as unknown as { triples?: Triple[] }).triples ??
         (pattern as unknown as { patterns?: { triples?: Triple[] }[] }).patterns
           ?.flatMap((p) => p.triples ?? []) ??
         [];
+    const triples: Triple[] = expandReifiedTriples(rawTriples);
     if (pattern.type === "graph") {
       const graph = this.convertTerm(pattern.name, bnodeMap);
       return triples.map((item) => this.convertTriple(item, graph, bnodeMap));
@@ -688,8 +725,10 @@ export class UpdateEvaluator {
       return fresh;
     }
     if (term.termType === "Quad") {
-      throw new Error(
-        "Reified-triple update templates are not yet supported",
+      return quad(
+        this.convertTerm(term.subject, bnodeMap) as rdfjs.Quad_Subject,
+        this.convertTerm(term.predicate, bnodeMap) as rdfjs.Quad_Predicate,
+        this.convertTerm(term.object, bnodeMap) as rdfjs.Quad_Object,
       );
     }
     // Constants resolve through the shared term conversion; only the blank
