@@ -1,8 +1,8 @@
-# Vendored SPARQL parser
+# In-repo SPARQL parser
 
-A vendored copy of the **sparqljs** SPARQL 1.1 parser, maintained by this
-project as a standalone module, extended with the SPARQL 1.2 direction-function
-surface that upstream's grammar does not whitelist.
+This project's SPARQL parser, derived from the **sparqljs** 3.7.4 grammar and
+maintained in-repo as a first-party module, extended with the SPARQL 1.2 surface
+that upstream's grammar does not whitelist.
 
 ## Why this exists
 
@@ -16,11 +16,11 @@ was a real, reachable parity gap: Comunica ran it, native could not even parse
 it.
 
 Rather than depend on upstream sparqljs's release cadence, the parser is
-vendored here and patched in-place. The patch is deliberately tiny: a pure lexer
-whitelist extension, so the existing generated grammar productions handle the
-new names with no grammar surgery.
+maintained in-repo and patched in-place. The patch is deliberately tiny: a pure
+lexer whitelist extension, so the existing generated grammar productions handle
+the new names with no grammar surgery.
 
-## What is vendored
+## What lives here
 
 | File                 | Origin                              | Notes                                                                                                                   |
 | -------------------- | ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
@@ -39,7 +39,7 @@ a drop-in replacement for the `sparqljs` `Parser` export.
 
 ## The patch (SPARQL 1.2 surface)
 
-The vendored grammar carries two SPARQL 1.2 additions beyond upstream sparqljs
+The in-repo grammar carries two SPARQL 1.2 additions beyond upstream sparqljs
 3.7.4, both applied **in `sparql.jison`** (the grammar source of truth);
 `parser.ts` is regenerated from it via `deno task parser:generate`, so the rules
 below always match the generated output.
@@ -115,10 +115,10 @@ has no subject-position annotation block.
 New lexer tokens: `<<(`, `)>>`, and `~`. Triple terms are legal wherever data
 terms are — `BIND`/`SELECT` expressions (`<<( s p o )>> AS ?t`), the
 `TRIPLE`/`isTRIPLE`/`SUBJECT`/`PREDICATE`/`OBJECT` functions, and
-CONSTRUCT/INSERT/DELETE data blocks — all exercised by the vendored W3C SPARQL
-1.2 `syntax-triple-terms` fixtures (positive and negative) that gate in CI.
+CONSTRUCT/INSERT/DELETE data blocks — all exercised by the W3C SPARQL 1.2
+`syntax-triple-terms` fixtures (positive and negative) that gate in CI.
 
-## Re-vendoring / upgrading
+## Upgrading the grammar source
 
 The grammar is the source of truth, and `parser.ts` is generated from it:
 

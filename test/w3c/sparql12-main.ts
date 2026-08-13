@@ -9,7 +9,7 @@ import { canonicalizeRdfTerm } from "@/term/mod.ts";
 import type { CanonicalTerm } from "@/term/mod.ts";
 import { loadManifest } from "./manifest.ts";
 import type { W3cTestCase } from "./manifest.ts";
-import { Parser as SparqlParser } from "../../vendor/sparql-parser/mod.ts";
+import { Parser as SparqlParser } from "@/parser/mod.ts";
 const parserInstance = new SparqlParser({
   sparqlStar: true,
   prefixes: { "": "http://example.org/", ex: "http://example.org/" },

@@ -19,7 +19,7 @@ function parseExpression(query: string): {
   return { name: bind.expression.operator, args: bind.expression.args };
 }
 
-Deno.test("vendored parser: LANGDIR parses as a functionCall", () => {
+Deno.test("parser: LANGDIR parses as a functionCall", () => {
   const { name, args } = parseExpression(
     'SELECT ?x WHERE { BIND(LANGDIR("hello") AS ?x) }',
   );
@@ -27,14 +27,14 @@ Deno.test("vendored parser: LANGDIR parses as a functionCall", () => {
   assertEquals(args.length, 1);
 });
 
-Deno.test("vendored parser: LANGDIR accepts a lang-tagged literal", () => {
+Deno.test("parser: LANGDIR accepts a lang-tagged literal", () => {
   const { name } = parseExpression(
     'SELECT ?x WHERE { BIND(LANGDIR("hello"@en) AS ?x) }',
   );
   assertEquals(name, "langdir");
 });
 
-Deno.test("vendored parser: hasLang parses as a functionCall", () => {
+Deno.test("parser: hasLang parses as a functionCall", () => {
   const { name, args } = parseExpression(
     'SELECT ?x WHERE { BIND(hasLang("hello", "en") AS ?x) }',
   );
@@ -42,7 +42,7 @@ Deno.test("vendored parser: hasLang parses as a functionCall", () => {
   assertEquals(args.length, 2);
 });
 
-Deno.test("vendored parser: hasLang works in FILTER", () => {
+Deno.test("parser: hasLang works in FILTER", () => {
   const ast = new Parser().parse(
     'SELECT ?x WHERE { ?s ?p ?x FILTER(hasLang(?x, "en")) }',
   );
@@ -54,7 +54,7 @@ Deno.test("vendored parser: hasLang works in FILTER", () => {
   assertEquals(filter?.expression?.operator, "haslang");
 });
 
-Deno.test("vendored parser: STRLANGDIR parses as a functionCall", () => {
+Deno.test("parser: STRLANGDIR parses as a functionCall", () => {
   const { name, args } = parseExpression(
     'SELECT ?x WHERE { BIND(STRLANGDIR("hello", "en") AS ?x) }',
   );
@@ -62,7 +62,7 @@ Deno.test("vendored parser: STRLANGDIR parses as a functionCall", () => {
   assertEquals(args.length, 2);
 });
 
-Deno.test("vendored parser: hasLangDir parses as a functionCall", () => {
+Deno.test("parser: hasLangDir parses as a functionCall", () => {
   const { name, args } = parseExpression(
     'SELECT ?x WHERE { BIND(hasLangDir("hello", "en", "ltr") AS ?x) }',
   );
@@ -70,7 +70,7 @@ Deno.test("vendored parser: hasLangDir parses as a functionCall", () => {
   assertEquals(args.length, 3);
 });
 
-Deno.test("vendored parser: prefix conflicts still lex correctly", () => {
+Deno.test("parser: prefix conflicts still lex correctly", () => {
   // LANGDIR/LANG, STRLANGDIR/STRLANG, hasLangDir/hasLang must not shadow each other.
   const names = [
     'LANG("hello"@en)',
@@ -83,13 +83,13 @@ Deno.test("vendored parser: prefix conflicts still lex correctly", () => {
   assertEquals(names, ["lang", "strlang", "langmatches", "str"]);
 });
 
-Deno.test("vendored parser: unknown bare function names still rejected", () => {
+Deno.test("parser: unknown bare function names still rejected", () => {
   assertThrows(() =>
     new Parser().parse('SELECT ?x WHERE { BIND(foo("hello") AS ?x) }')
   );
 });
 
-Deno.test("vendored parser: AST is a drop-in for upstream sparqljs", () => {
+Deno.test("parser: AST is a drop-in for upstream sparqljs", () => {
   const ast = new Parser().parse(
     "PREFIX ex: <http://ex/> SELECT ?s ?o WHERE { ?s ex:p ?o } ORDER BY ?o LIMIT 3",
   );
@@ -117,7 +117,7 @@ function parseBgpTriples(query: string): Array<{
   return bgp.triples as never;
 }
 
-Deno.test("vendored parser: reifier and annotation after an object expand to reifies + annotation triples", () => {
+Deno.test("parser: reifier and annotation after an object expand to reifies + annotation triples", () => {
   const triples = parseBgpTriples(
     "SELECT * { ?s ?p ?o ~ :iri {| :r ?Z |} . }",
   );
@@ -136,7 +136,7 @@ Deno.test("vendored parser: reifier and annotation after an object expand to rei
   assertEquals(ann.object.value, "Z");
 });
 
-Deno.test("vendored parser: reifier-only object (no annotation block)", () => {
+Deno.test("parser: reifier-only object (no annotation block)", () => {
   const triples = parseBgpTriples(
     "SELECT * { ?s ?p ?o ~ :iri . }",
   );
@@ -149,7 +149,7 @@ Deno.test("vendored parser: reifier-only object (no annotation block)", () => {
   );
 });
 
-Deno.test("vendored parser: bare ~ and variable reifier bind via rdf:reifies", () => {
+Deno.test("parser: bare ~ and variable reifier bind via rdf:reifies", () => {
   const bare = parseBgpTriples("SELECT * { ?s ?p ?o ~ . }");
   // The quad stands in for the reifier; the evaluator mints a fresh one.
   assertEquals(bare[1].subject.termType, "Quad");
@@ -166,7 +166,7 @@ Deno.test("vendored parser: bare ~ and variable reifier bind via rdf:reifies", (
   );
 });
 
-Deno.test("vendored parser: annotation block and reifier combine in either order", () => {
+Deno.test("parser: annotation block and reifier combine in either order", () => {
   const triples = parseBgpTriples(
     "SELECT * { ?s ?p ?o {| :a :b |} ~ :iri {| :c :d |} . }",
   );
@@ -179,7 +179,7 @@ Deno.test("vendored parser: annotation block and reifier combine in either order
   assertEquals(annC.predicate.value, "http://example.com/ns#c");
 });
 
-Deno.test("vendored parser: reifier after a quoted-triple object", () => {
+Deno.test("parser: reifier after a quoted-triple object", () => {
   const triples = parseBgpTriples(
     "SELECT * { :s :p <<:a :b :c>> ~ :iri {| ?q ?z |} }",
   );
@@ -190,7 +190,7 @@ Deno.test("vendored parser: reifier after a quoted-triple object", () => {
   assertEquals(ann.subject.value, "http://example.com/ns#iri");
 });
 
-Deno.test("vendored parser: subject-position annotation blocks are rejected per the SPARQL 1.2 grammar", () => {
+Deno.test("parser: subject-position annotation blocks are rejected per the SPARQL 1.2 grammar", () => {
   // Annotations attach to objects (Object ::= GraphNode Annotation); a quoted
   // triple subject takes a plain property list (ReifiedTripleBlock).
   assertThrows(() =>
@@ -205,7 +205,7 @@ Deno.test("vendored parser: subject-position annotation blocks are rejected per 
     );
 });
 
-Deno.test("vendored parser: CONSTRUCT and INSERT templates accept reifiers", () => {
+Deno.test("parser: CONSTRUCT and INSERT templates accept reifiers", () => {
   const construct = new Parser({
     sparqlStar: true,
     prefixes: { "": "http://example.com/ns#" },

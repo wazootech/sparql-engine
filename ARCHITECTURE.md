@@ -10,7 +10,7 @@ update engine for RDF/JS Quad Stores (`rdfjs.Store`).
          │
          ▼
  ┌──────────────┐
- │  Parser      │ (vendored in-repo sparqljs grammar)
+ │  Parser      │ (in-repo sparqljs grammar + generated parser)
  └───────┬──────┘
          │
          ▼
