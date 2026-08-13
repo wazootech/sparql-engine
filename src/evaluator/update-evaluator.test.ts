@@ -405,3 +405,37 @@ Deno.test("UpdateEvaluator - LOAD keeps blank nodes distinct across documents", 
   }
   assertEquals(store.countQuads(null, null, null, null), 3);
 });
+
+Deno.test("UpdateEvaluator - LOAD preserves directional literals and keeps directions distinct", async () => {
+  const store = new Store();
+  const engine = new WazooSparqlEngine({ store });
+
+  const dir = await Deno.makeTempDir();
+  const file = `${dir}/data.ttl`;
+  await Deno.writeTextFile(
+    file,
+    `@prefix : <http://ex/> .
+     :a :label "same"@en--ltr, "same"@en--rtl, "same"@en .`,
+  );
+
+  await engine.execute({ query: `LOAD <file://${file.replace(/\\/g, "/")}>` });
+
+  const labels = store.getQuads(
+    namedNode("http://ex/a"),
+    namedNode("http://ex/label"),
+    null,
+    null,
+  ).map((q) => q.object as rdfjs.Literal);
+  assertEquals(labels.length, 3);
+  const dirs = labels.map((l) => l.direction ?? "").sort();
+  assertEquals(dirs, ["", "ltr", "rtl"]);
+  for (const l of labels) {
+    assertEquals(l.language, "en");
+    assertEquals(
+      l.datatype.value,
+      l.direction
+        ? "http://www.w3.org/1999/02/22-rdf-syntax-ns#dirLangString"
+        : "http://www.w3.org/1999/02/22-rdf-syntax-ns#langString",
+    );
+  }
+});

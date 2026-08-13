@@ -4,6 +4,8 @@ let blankNodeCounter = 0;
 
 export const RDF_LANG_STRING =
   "http://www.w3.org/1999/02/22-rdf-syntax-ns#langString";
+export const RDF_DIR_LANG_STRING =
+  "http://www.w3.org/1999/02/22-rdf-syntax-ns#dirLangString";
 export const XSD_STRING = "http://www.w3.org/2001/XMLSchema#string";
 
 export class NamedNodeImpl<Iri extends string = string>
@@ -32,23 +34,38 @@ export class BlankNodeImpl implements rdfjs.BlankNode {
 export class LiteralImpl implements rdfjs.Literal {
   public readonly termType = "Literal" as const;
   public readonly language: string;
+  public readonly direction: "ltr" | "rtl" | "";
   public readonly datatype: rdfjs.NamedNode;
 
   public constructor(
     public readonly value: string,
-    languageOrDatatype?: string | rdfjs.NamedNode,
+    languageOrDatatype?: string | rdfjs.NamedNode | rdfjs.DirectionalLanguage,
   ) {
     if (typeof languageOrDatatype === "string") {
       this.language = languageOrDatatype.toLowerCase();
+      this.direction = "";
       this.datatype = new NamedNodeImpl(RDF_LANG_STRING);
     } else if (
       languageOrDatatype && typeof languageOrDatatype === "object" &&
       "termType" in languageOrDatatype
     ) {
       this.language = "";
+      this.direction = "";
       this.datatype = languageOrDatatype;
+    } else if (
+      languageOrDatatype && typeof languageOrDatatype === "object" &&
+      "language" in languageOrDatatype
+    ) {
+      // DirectionalLanguage: a language tag with an optional RDF 1.2 initial
+      // text direction. A direction makes this an rdf:dirLangString literal.
+      this.language = languageOrDatatype.language.toLowerCase();
+      this.direction = languageOrDatatype.direction ?? "";
+      this.datatype = new NamedNodeImpl(
+        this.direction ? RDF_DIR_LANG_STRING : RDF_LANG_STRING,
+      );
     } else {
       this.language = "";
+      this.direction = "";
       this.datatype = new NamedNodeImpl(XSD_STRING);
     }
   }
@@ -60,6 +77,7 @@ export class LiteralImpl implements rdfjs.Literal {
     return (
       this.value === other.value &&
       this.language === other.language &&
+      (this.direction ?? "") === ((other as rdfjs.Literal).direction ?? "") &&
       this.datatype.value === other.datatype.value
     );
   }
@@ -135,7 +153,12 @@ function fromTermImpl(original: rdfjs.Term): rdfjs.Term {
     case "Literal":
       return new LiteralImpl(
         original.value,
-        original.language || original.datatype,
+        original.language
+          ? {
+            language: original.language,
+            direction: original.direction ?? undefined,
+          }
+          : original.datatype,
       );
     case "Variable":
       return new VariableImpl(original.value);
@@ -156,7 +179,7 @@ export interface InternalDataFactory extends rdfjs.DataFactory {
   blankNode(value?: string): rdfjs.BlankNode;
   literal(
     value: string,
-    languageOrDatatype?: string | rdfjs.NamedNode,
+    languageOrDatatype?: string | rdfjs.NamedNode | rdfjs.DirectionalLanguage,
   ): rdfjs.Literal;
   variable(value: string): rdfjs.Variable;
   defaultGraph(): rdfjs.DefaultGraph;
@@ -184,7 +207,7 @@ export const DataFactory: InternalDataFactory = {
   },
   literal(
     value: string,
-    languageOrDatatype?: string | rdfjs.NamedNode,
+    languageOrDatatype?: string | rdfjs.NamedNode | rdfjs.DirectionalLanguage,
   ): rdfjs.Literal {
     return new LiteralImpl(value, languageOrDatatype);
   },

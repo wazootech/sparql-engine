@@ -19,7 +19,7 @@ export function termKey(term: rdfjs.Term): string {
     case "Literal":
       return (
         `literal:${term.value}|${term.language ?? ""}|` +
-        `${term.datatype?.value ?? ""}`
+        `${term.direction ?? ""}|${term.datatype?.value ?? ""}`
       );
     case "Quad":
       return (
@@ -55,6 +55,7 @@ export function sameRdfTerm(a: rdfjs.Term, b: rdfjs.Term): boolean {
     case "Literal":
       return a.value === (b as rdfjs.Literal).value &&
         a.language === (b as rdfjs.Literal).language &&
+        (a.direction ?? "") === ((b as rdfjs.Literal).direction ?? "") &&
         (a.datatype?.value ?? "") ===
           ((b as rdfjs.Literal).datatype?.value ?? "");
     case "Quad":

@@ -46,7 +46,11 @@ function compareLiterals(a: rdfjs.Literal, b: rdfjs.Literal): number {
   if (da !== db) {
     return compareStrings(da, db);
   }
-  return compareStrings(a.value, b.value);
+  const byValue = compareStrings(a.value, b.value);
+  if (byValue !== 0) return byValue;
+  // Directional language-tagged strings (rdf:dirLangString) that share a
+  // lexical form order deterministically by direction.
+  return compareStrings(a.direction ?? "", b.direction ?? "");
 }
 
 /**

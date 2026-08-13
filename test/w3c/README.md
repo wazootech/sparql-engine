@@ -100,6 +100,48 @@ documented divergences keyed inside each runner:
   strict N-Triples/N-Quads/Turtle/TriG grammar rejects them. Everything else
   must be fixed, never allowlisted.
 
+### Reference-engine cross-check (`deno task test:ref`)
+
+`ref-crosscheck.ts` audits every allowlisted divergence against two independent
+reference engines and fails if any of them is accepted by native but rejected by
+every lenient reference:
+
+- **Oxigraph** (`npm:oxigraph`, Rust/WASM) — format-strict. Checked in both the
+  file's strict format and the superset format content-sniffing would select.
+- **N3.js in RDF-star mode** (`npm:n3@1.26.0` with the `+ "*"` format suffix) —
+  the engine behind `@comunica`'s `rdf-parse` (which passes `mediaType + "*"` to
+  enable RDF-star syntax in every format), i.e. the lenient, content-sniffing
+  reference. The synchronous API is used because rdf-parse's streaming path
+  throws an _uncaught_ null-deref on some malformed RDF 1.2 inputs
+  (`nquads12-nested-bad-annotated-syntax-1`); sync N3 raises the same error
+  catchably.
+
+Current result: **45/45 allowlisted cases endorsed** (RDF 1.1: 32, RDF 1.2: 13).
+Every construct native accepts is genuine Turtle/TriG 1.1/1.2 syntax or RFC 3986
+IRI resolution:
+
+- Turtle constructs in `.nt`/`.nq` files (relative IRIs, `@prefix`/`@base`,
+  object lists, numeric and long-string shorthands) — accepted by Oxigraph's
+  Turtle parser and by N3-RDF-star; rejected only by the strict N-Triples /
+  N-Quads grammars.
+- RDF 1.2 constructs in `.nt`/`.nq` files: old-style `<< s p o >>` reified
+  triples and `{| |}` annotations (including on blank-node triples and nested
+  annotations) — all accepted by Oxigraph's Turtle 1.2 parser; the W3C negative
+  tests exist because the N-Triples / N-Quads 1.2 grammars contain no annotation
+  production at all, not because the constructs are invalid.
+- `ntriples12-bad-iri-1` (`<//example/missing-scheme>`) — RFC 3986 network-path
+  reference, accepted by Oxigraph-Turtle exactly as native's RFC 3986 resolver
+  handles it.
+- `.nq` files whose Oxigraph/TriG rejection is only about graph-name placement
+  (`<g>.` after a triple/annotation, which TriG cannot express) — the same
+  content with graph names stripped parses under Oxigraph-Turtle.
+
+So none of the allowlisted cases requires "unholding": tightening the grammar
+would mean making `LOAD` format-strict, contradicting its content-sniffing
+design, and would reject constructs every reference engine accepts in the
+corresponding format. Re-run the audit any time the grammar or the allowlists
+change: `deno task test:ref`.
+
 ## Vendored fixtures and re-fetching
 
 `fixtures/rdf/` holds the RDF 1.1 and 1.2 Turtle, TriG, N-Triples, and N-Quads

@@ -39,7 +39,7 @@ const SUPERSET_REASON =
   "the strict N-Triples/N-Quads/Turtle/TriG grammar rejects them. Intentional.";
 
 /** Negative tests native accepts by design (superset grammar), keyed by id. */
-const supersetDivergences: ReadonlySet<string> = new Set([
+export const supersetDivergences: ReadonlySet<string> = new Set([
   "rdf11:rdf-turtle:turtle-syntax-bad-struct-01",
   "rdf11:rdf-turtle:turtle-syntax-bad-struct-03",
   "rdf11:rdf-trig:trig-syntax-bad-struct-03",
@@ -207,54 +207,58 @@ function evaluate(testCase: RdfSyntaxCase): Verdict {
   };
 }
 
-const rows: Row[] = [];
-for (const manifest of RDF11_MANIFESTS) {
-  const loaded = loadRdfManifest(manifest);
-  console.log(
-    `${manifest}: ${loaded.cases.length} cases (${loaded.skipped} skipped)`,
-  );
-  for (const testCase of loaded.cases) {
-    rows.push({
-      id: testCase.id,
-      format: testCase.format,
-      kind: testCase.kind,
-      verdict: evaluate(testCase),
-    });
+// The runner below only executes when this file is run directly; importing
+// it (test/w3c/ref-crosscheck.ts) just reads the exported allowlist.
+if (import.meta.main) {
+  const rows: Row[] = [];
+  for (const manifest of RDF11_MANIFESTS) {
+    const loaded = loadRdfManifest(manifest);
+    console.log(
+      `${manifest}: ${loaded.cases.length} cases (${loaded.skipped} skipped)`,
+    );
+    for (const testCase of loaded.cases) {
+      rows.push({
+        id: testCase.id,
+        format: testCase.format,
+        kind: testCase.kind,
+        verdict: evaluate(testCase),
+      });
+    }
   }
-}
 
-const pass = rows.filter((r) => r.verdict.status === "pass").length;
-const gaps = rows.filter((r) => r.verdict.status === "gap");
-const allowlisted = gaps.filter((r) =>
-  r.verdict.status === "gap" && r.verdict.allowlisted
-);
-const realGaps = gaps.filter((r) =>
-  r.verdict.status === "gap" && !r.verdict.allowlisted
-);
-
-console.log("\n=== RDF 1.1 differential (native vs n3) ===");
-console.log(`total:      ${rows.length}`);
-console.log(`pass:       ${pass}`);
-console.log(`gap:        ${realGaps.length}`);
-console.log(`allowlisted:${allowlisted.length}`);
-
-for (const r of gaps) {
-  const tag = r.verdict.status === "gap" && r.verdict.allowlisted
-    ? "ALLOWLISTED"
-    : "GAP";
-  console.log(`\n[${tag}] ${r.id} (${r.format}, ${r.kind})`);
-  if (r.verdict.status === "gap") console.log(`  ${r.verdict.detail}`);
-}
-
-if (realGaps.length > 0) {
-  console.error(
-    `\nRDF 1.1 differential gate FAILED: ${realGaps.length} unexplained ` +
-      `disagreement(s) with n3. Fix them, or — only for intentional superset ` +
-      `acceptances — add the test to supersetDivergences.`,
+  const pass = rows.filter((r) => r.verdict.status === "pass").length;
+  const gaps = rows.filter((r) => r.verdict.status === "gap");
+  const allowlisted = gaps.filter((r) =>
+    r.verdict.status === "gap" && r.verdict.allowlisted
   );
-  Deno.exit(1);
+  const realGaps = gaps.filter((r) =>
+    r.verdict.status === "gap" && !r.verdict.allowlisted
+  );
+
+  console.log("\n=== RDF 1.1 differential (native vs n3) ===");
+  console.log(`total:      ${rows.length}`);
+  console.log(`pass:       ${pass}`);
+  console.log(`gap:        ${realGaps.length}`);
+  console.log(`allowlisted:${allowlisted.length}`);
+
+  for (const r of gaps) {
+    const tag = r.verdict.status === "gap" && r.verdict.allowlisted
+      ? "ALLOWLISTED"
+      : "GAP";
+    console.log(`\n[${tag}] ${r.id} (${r.format}, ${r.kind})`);
+    if (r.verdict.status === "gap") console.log(`  ${r.verdict.detail}`);
+  }
+
+  if (realGaps.length > 0) {
+    console.error(
+      `\nRDF 1.1 differential gate FAILED: ${realGaps.length} unexplained ` +
+        `disagreement(s) with n3. Fix them, or — only for intentional superset ` +
+        `acceptances — add the test to supersetDivergences.`,
+    );
+    Deno.exit(1);
+  }
+  console.log(
+    `\nRDF 1.1 differential gate passed: ${pass}/${rows.length} agree with n3 ` +
+      `(plus ${allowlisted.length} intentional superset acceptance(s)).`,
+  );
 }
-console.log(
-  `\nRDF 1.1 differential gate passed: ${pass}/${rows.length} agree with n3 ` +
-    `(plus ${allowlisted.length} intentional superset acceptance(s)).`,
-);

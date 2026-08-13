@@ -43,6 +43,7 @@
     "test": "deno test --allow-all",
     "test:rdf11": "deno run --allow-all test/w3c/rdf-differential.ts",
     "test:rdf12": "deno run --allow-all test/w3c/rdf-classify.ts",
+    "test:ref": "deno run --allow-all test/w3c/ref-crosscheck.ts",
     "test:sparql12": "deno run --allow-all test/w3c/sparql12-main.ts",
     "test:sparql12:gap": "deno run --allow-all test/w3c/sparql12-gap.ts",
     "test:w3c": "deno run --allow-all test/w3c/w3c-main.ts"

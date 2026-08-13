@@ -12,6 +12,7 @@ export type CanonicalTerm = {
   termType: "NamedNode" | "BlankNode" | "Literal" | "DefaultGraph" | "Quad";
   value: string;
   language?: string;
+  direction?: string;
   datatype?: string;
   subject?: CanonicalTerm;
   predicate?: CanonicalTerm;
@@ -38,6 +39,7 @@ export function canonicalizeRdfTerm(term: rdfjs.Term): CanonicalTerm {
       };
       if (term.language) {
         canonical.language = term.language;
+        if (term.direction) canonical.direction = term.direction;
       } else if (term.datatype && term.datatype.value !== XSD_STRING) {
         canonical.datatype = term.datatype.value;
       }
