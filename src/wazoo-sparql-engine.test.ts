@@ -1776,6 +1776,121 @@ Deno.test("WazooSparqlEngine - DISTINCT removes duplicate projected solutions", 
   }
 });
 
+Deno.test("WazooSparqlEngine - REDUCED dedups like DISTINCT", async () => {
+  // REDUCED is a permitted hint to drop duplicates; this engine implements
+  // it as full dedup (REDUCED ≡ DISTINCT), matching Comunica/Oxigraph.
+  const store = new Store();
+  for (
+    const [s, o] of [
+      ["a", "c"],
+      ["b", "c"],
+      ["c", "d"],
+    ]
+  ) {
+    store.addQuad(
+      quad(
+        namedNode(`http://example.org/${s}`),
+        namedNode("http://example.org/p"),
+        namedNode(`http://example.org/${o}`),
+      ),
+    );
+  }
+  const engine = new WazooSparqlEngine({ store });
+  const result = await engine.execute({
+    query: "SELECT REDUCED ?o WHERE { ?s <http://example.org/p> ?o }",
+  });
+  assertEquals(result.kind, "select");
+  if (result.kind === "select") {
+    // ?o binds c twice (a->c and b->c); REDUCED collapses it like DISTINCT.
+    assertEquals(result.data.results.bindings.length, 2);
+  }
+});
+
+Deno.test("WazooSparqlEngine - DISTINCT with ORDER BY keeps order and dedups", async () => {
+  const store = new Store();
+  for (
+    const [s, o] of [
+      ["a", "c"],
+      ["b", "c"],
+      ["c", "d"],
+    ]
+  ) {
+    store.addQuad(
+      quad(
+        namedNode(`http://example.org/${s}`),
+        namedNode("http://example.org/p"),
+        namedNode(`http://example.org/${o}`),
+      ),
+    );
+  }
+  const engine = new WazooSparqlEngine({ store });
+  const result = await engine.execute({
+    query: "SELECT DISTINCT ?o WHERE { ?s <http://example.org/p> ?o } " +
+      "ORDER BY ?o",
+  });
+  assertEquals(result.kind, "select");
+  if (result.kind === "select") {
+    assertEquals(
+      result.data.results.bindings.map((b) => b.o.value),
+      ["http://example.org/c", "http://example.org/d"],
+    );
+  }
+});
+
+Deno.test("WazooSparqlEngine - DISTINCT dedups projected expressions", async () => {
+  const store = new Store();
+  store.addQuad(
+    quad(
+      namedNode("http://example.org/a"),
+      namedNode("http://example.org/p"),
+      literal("hello", "en"),
+    ),
+  );
+  store.addQuad(
+    quad(
+      namedNode("http://example.org/b"),
+      namedNode("http://example.org/p"),
+      literal("world", "en"),
+    ),
+  );
+  const engine = new WazooSparqlEngine({ store });
+  const result = await engine.execute({
+    query:
+      "SELECT DISTINCT (LANG(?o) AS ?lang) WHERE { ?s <http://example.org/p> ?o }",
+  });
+  assertEquals(result.kind, "select");
+  if (result.kind === "select") {
+    // Both literals are en-tagged, so the projected ?lang binds "en" twice.
+    assertEquals(result.data.results.bindings.length, 1);
+    assertEquals(result.data.results.bindings[0].lang.value, "en");
+  }
+});
+
+Deno.test("WazooSparqlEngine - DISTINCT keeps bound and unbound solutions apart", async () => {
+  const store = new Store();
+  store.addQuad(
+    quad(
+      namedNode("http://example.org/a"),
+      namedNode("http://example.org/p"),
+      namedNode("http://example.org/c"),
+    ),
+  );
+  const engine = new WazooSparqlEngine({ store });
+  const result = await engine.execute({
+    query:
+      "SELECT DISTINCT ?o ?x WHERE { ?s <http://example.org/p> ?o OPTIONAL { ?s <http://example.org/q> ?x } }",
+  });
+  assertEquals(result.kind, "select");
+  if (result.kind === "select") {
+    // {?o: c, ?x: unbound} and any bound variant are different solutions:
+    // DISTINCT must not collapse a missing key onto a present one.
+    const keys = result.data.results.bindings.map((b) =>
+      `${b.o.value}|${b.x ? b.x.value : "UNBOUND"}`
+    );
+    assertEquals(keys, ["http://example.org/c|UNBOUND"]);
+  }
+});
+
 Deno.test("WazooSparqlEngine - LIMIT and OFFSET slice ordered results", async () => {
   const store = new Store();
   for (const o of ["d", "b", "c", "a"]) {
