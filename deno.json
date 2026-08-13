@@ -24,7 +24,8 @@
         "fmt:check",
         "lint",
         "check",
-        "test"
+        "test",
+        "test:sparql12:gap"
       ]
     },
     "fmt": "deno fmt",
@@ -34,6 +35,7 @@
     "parser:check": "deno run --allow-all vendor/sparql-parser/generate-parser.ts --check",
     "publish:dry": "deno publish --dry-run --allow-dirty",
     "test": "deno test --allow-all",
+    "test:sparql12:gap": "deno run --allow-all test/w3c/sparql12-gap.ts",
     "test:w3c": "deno run --allow-all test/w3c/w3c-main.ts"
   }
 }

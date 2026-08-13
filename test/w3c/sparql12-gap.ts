@@ -472,3 +472,14 @@ for (const row of rows) {
     );
   }
 }
+
+const FLOOR = 41;
+if (pass < FLOOR || gap > 0 || error > 0) {
+  console.error(
+    `\nSPARQL 1.2 eval-triple-terms gap gate FAILED: ${pass}/${rows.length} pass is below floor of ${FLOOR}, with ${gap} gap(s) and ${error} error(s).`,
+  );
+  Deno.exit(1);
+}
+console.log(
+  `\nSPARQL 1.2 eval-triple-terms gap gate passed: ${pass}/${rows.length} pass (floor: ${FLOOR}).`,
+);

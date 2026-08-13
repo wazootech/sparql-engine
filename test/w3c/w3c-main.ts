@@ -86,6 +86,9 @@ function printReport(
     const conforms = report.conformance.filter((c) =>
       c.native === "conforms" && c.comunica === "conforms"
     ).length;
+    const nativeConforms = report.conformance.filter((c) =>
+      c.native === "conforms"
+    ).length;
     const nativeDeviations = report.conformance.filter((c) =>
       c.native === "deviates"
     ).length;
@@ -96,7 +99,7 @@ function printReport(
       "\n--- conformance soft-report (parseable results only) ---",
     );
     console.log(
-      `checked: ${report.conformance.length} | both conform: ${conforms} | ` +
+      `checked: ${report.conformance.length} | native conforms: ${nativeConforms}/${report.conformance.length} | both conform: ${conforms} | ` +
         `native deviates: ${nativeDeviations} | comunica deviates: ` +
         `${comunicaDeviations}`,
     );
