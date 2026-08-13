@@ -12,7 +12,8 @@
     "@rdfjs/types": "npm:@rdfjs/types@^2.0.1",
     "@std/assert": "jsr:@std/assert@^1.0.19",
     "oxigraph": "npm:oxigraph@^0.5.9",
-    "@types/node": "npm:@types/node@^22.10.0"
+    "@types/node": "npm:@types/node@^22.10.0",
+    "n3": "npm:n3@2.2.0"
   },
   "nodeModulesDir": "auto",
   "tasks": {

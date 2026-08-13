@@ -1,5 +1,6 @@
 import type * as rdfjs from "@rdfjs/types";
-import { parseTurtleQuads } from "@/parser/turtle-parser.ts";
+// deno-lint-ignore no-import-prefix
+import { Parser as N3Parser } from "npm:n3@2.2.0";
 import { DataFactory } from "@/term/mod.ts";
 import { MemoryStore } from "@/store/memory-store.ts";
 import { WazooSparqlEngine } from "@/wazoo-sparql-engine.ts";
@@ -341,10 +342,10 @@ export class W3cRunner {
     const store = new MemoryStore();
     const load = (file: string, graph: string | null): void => {
       const text = this.fixtureText(testCase, file);
-      const quads: rdfjs.Quad[] = parseTurtleQuads(
-        text,
-        canonicalUrl(testCase.category, file),
-      );
+      const parser = new N3Parser({
+        baseIRI: canonicalUrl(testCase.category, file),
+      });
+      const quads: rdfjs.Quad[] = parser.parse(text);
       for (const quad of quads) {
         if (graph === null) {
           store.addQuad(quad);
@@ -512,10 +513,10 @@ export class W3cRunner {
     testCase: W3cTestCase,
     file: string,
   ): Record<string, CanonicalTerm>[] {
-    const quads: rdfjs.Quad[] = parseTurtleQuads(
-      this.fixtureText(testCase, file),
-      canonicalUrl(testCase.category, file),
-    );
+    const parser = new N3Parser({
+      baseIRI: canonicalUrl(testCase.category, file),
+    });
+    const quads: rdfjs.Quad[] = parser.parse(this.fixtureText(testCase, file));
     const store = new MemoryStore();
     for (const quad of quads) {
       store.addQuad(quad);
@@ -867,8 +868,7 @@ export class W3cRunner {
   /**
    * conformanceReport soft-checks the spec-expected result where it is
    * parseable: update post-states and CONSTRUCT result files are TTL (parsed
-   * with the vendored parser); SELECT and ASK results are SPARQL XML/JSON,
-   * which this runner
+   * with n3); SELECT and ASK results are SPARQL XML/JSON, which this runner
    * does not parse. The report never gates — it only adds signal about which
    * engine is right when the two disagree.
    */
@@ -880,9 +880,11 @@ export class W3cRunner {
     }
     let expectedRecords: CanonicalTerm[][];
     try {
-      const expectedQuads: rdfjs.Quad[] = parseTurtleQuads(
+      const parser = new N3Parser({
+        baseIRI: canonicalUrl(testCase.category, testCase.resultFile),
+      });
+      const expectedQuads: rdfjs.Quad[] = parser.parse(
         this.fixtureText(testCase, testCase.resultFile),
-        canonicalUrl(testCase.category, testCase.resultFile),
       );
       // rs:ResultSet files are SELECT references, not graph post-states;
       // compareReference validates those tests, so skip the soft report.

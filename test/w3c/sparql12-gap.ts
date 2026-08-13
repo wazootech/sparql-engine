@@ -1,5 +1,6 @@
 import type * as rdfjs from "@rdfjs/types";
-import { parseTurtleQuads } from "@/parser/turtle-parser.ts";
+// deno-lint-ignore no-import-prefix
+import { Parser as N3Parser } from "npm:n3@2.2.0";
 import { DataFactory } from "@/term/mod.ts";
 import { MemoryStore } from "@/store/memory-store.ts";
 import { WazooSparqlEngine } from "@/wazoo-sparql-engine.ts";
@@ -49,18 +50,15 @@ function canonicalUrl(file: string): string {
 }
 
 /**
- * loadStore seeds a fresh MemoryStore for a test case. The vendored parser
- * handles triple terms (`<<( )>>`), reified triples (`<< >>`), Turtle, TriG,
- * and N-Quads.
+ * loadStore seeds a fresh MemoryStore for a test case. n3@2.2.0 parses triple
+ * terms (`<<( )>>`), reified triples (`<< >>`), Turtle, TriG, and N-Quads.
  */
 function loadStore(testCase: W3cTestCase): MemoryStore {
   const store = new MemoryStore();
   const load = (file: string, graph: string | null): void => {
     const text = fixtureText(testCase, file);
-    const quads: rdfjs.Quad[] = parseTurtleQuads(
-      text,
-      canonicalUrl(file),
-    );
+    const parser = new N3Parser({ baseIRI: canonicalUrl(file) });
+    const quads: rdfjs.Quad[] = parser.parse(text);
     for (const quad of quads) {
       if (graph === null) {
         store.addQuad(quad);
@@ -277,10 +275,8 @@ function parseGraphReference(
   testCase: W3cTestCase,
   file: string,
 ): CanonicalTerm[][] {
-  const quads: rdfjs.Quad[] = parseTurtleQuads(
-    fixtureText(testCase, file),
-    canonicalUrl(file),
-  );
+  const parser = new N3Parser({ baseIRI: canonicalUrl(file) });
+  const quads: rdfjs.Quad[] = parser.parse(fixtureText(testCase, file));
   return quads.map((quad) =>
     [quad.subject, quad.predicate, quad.object, quad.graph].map((term) =>
       canonicalizeRdfTerm(term)
