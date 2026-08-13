@@ -1,4 +1,4 @@
-import { assertEquals, assertRejects } from "@std/assert";
+import { assertEquals, assertNotEquals, assertRejects } from "@std/assert";
 import type * as rdfjs from "@rdfjs/types";
 import { DataFactory } from "@/term/mod.ts";
 import { MemoryStore as Store } from "@/store/memory-store.ts";
@@ -369,4 +369,39 @@ Deno.test("UpdateEvaluator - LOAD then reified patterns match grammar reifier ou
       "http://example.com/ns#r1",
     );
   }
+});
+
+Deno.test("UpdateEvaluator - LOAD keeps blank nodes distinct across documents", async () => {
+  const store = new Store();
+  const engine = new WazooSparqlEngine({ store });
+
+  const dir = await Deno.makeTempDir();
+  const fileA = `${dir}/a.ttl`;
+  const fileB = `${dir}/b.ttl`;
+  await Deno.writeTextFile(
+    fileA,
+    '@prefix : <http://ex/> . _:b1 :name "Alice" . _:b1 :friend _:b2 .',
+  );
+  await Deno.writeTextFile(
+    fileB,
+    '@prefix : <http://ex/> . _:b1 :name "Bob" .',
+  );
+
+  await engine.execute({ query: `LOAD <file://${fileA.replace(/\\/g, "/")}>` });
+  await engine.execute({ query: `LOAD <file://${fileB.replace(/\\/g, "/")}>` });
+
+  // Blank node labels are document-scoped: the two documents' `_:b1` must
+  // stay distinct, and each document's internal structure must be preserved.
+  const result = await engine.execute({
+    query: "PREFIX : <http://ex/> SELECT * { ?x :name ?n }",
+  });
+  assertEquals(result.kind, "select");
+  if (result.kind === "select") {
+    assertEquals(result.data.results.bindings.length, 2);
+    const byName = new Map(
+      result.data.results.bindings.map((b) => [b.n.value, b.x.value]),
+    );
+    assertNotEquals(byName.get("Alice"), byName.get("Bob"));
+  }
+  assertEquals(store.countQuads(null, null, null, null), 3);
 });

@@ -396,19 +396,69 @@ export class UpdateEvaluator {
         }
       }
 
+      // Blank node labels are scoped to a single document (RDF 1.1
+      // Concepts 3.4): two documents may both use `_:b1`, and
+      // dataset-merge must keep them distinct. Mint a fresh, never-reused
+      // label per blank node per LOAD, so loaded documents never conflate
+      // nodes (with each other or with INSERT template blank nodes).
+      const bnodeMap = new Map<string, rdfjs.BlankNode>();
       for (const q of parsedQuads) {
+        const remapped = this.remapLoadBlankNodes(q, bnodeMap);
         // OpLoad(GS, documentIRI) = dataset-merge(GS, dataset(documentIRI)):
         // the document's dataset is merged as-is (graph labels preserved).
         // OpLoad(GS, documentIRI, iri) puts the document's default graph
         // into the named destination graph.
         add(
-          intoGraph ? quad(q.subject, q.predicate, q.object, intoGraph) : q,
+          intoGraph
+            ? quad(
+              remapped.subject,
+              remapped.predicate,
+              remapped.object,
+              intoGraph,
+            )
+            : remapped,
         );
       }
     } catch (err) {
       if (silent) return;
       throw err;
     }
+  }
+
+  /**
+   * remapLoadBlankNodes rewrites one parsed quad so every blank node
+   * carries a fresh label minted from the evaluator's monotonic counter.
+   * Subject, object, and graph positions are remapped — including blank
+   * nodes nested inside triple-term (Quad) objects — with a per-LOAD map
+   * keeping one document's repeated label identical to itself.
+   */
+  private remapLoadBlankNodes(
+    parsed: rdfjs.Quad,
+    bnodeMap: Map<string, rdfjs.BlankNode>,
+  ): rdfjs.Quad {
+    const map = (term: rdfjs.Term): rdfjs.Term => {
+      if (term.termType === "BlankNode") {
+        const existing = bnodeMap.get(term.value);
+        if (existing !== undefined) return existing;
+        const fresh = blankNode(`u${this.nextBnodeId++}`);
+        bnodeMap.set(term.value, fresh);
+        return fresh;
+      }
+      if (term.termType === "Quad") {
+        return quad(
+          map(term.subject) as rdfjs.Quad_Subject,
+          map(term.predicate) as rdfjs.Quad_Predicate,
+          map(term.object) as rdfjs.Quad_Object,
+        );
+      }
+      return term;
+    };
+    return quad(
+      map(parsed.subject) as rdfjs.Quad_Subject,
+      map(parsed.predicate) as rdfjs.Quad_Predicate,
+      map(parsed.object) as rdfjs.Quad_Object,
+      map(parsed.graph) as rdfjs.Quad_Graph,
+    );
   }
 
   private sameGraphRef(a: GraphRef, b: GraphRef): boolean {
