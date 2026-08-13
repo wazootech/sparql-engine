@@ -28,6 +28,11 @@ import {
 } from "@/evaluator/join.ts";
 import type { ScanEntry, TermBinding } from "@/evaluator/join.ts";
 import { sameRdfTerm, sparqlTermToRdfTerm, termKey } from "@/term/mod.ts";
+import {
+  expandReifiedTriples,
+  isReifiesPattern,
+  RDF_REIFIES,
+} from "@/evaluator/reified.ts";
 
 export type { TermBinding } from "@/evaluator/join.ts";
 
@@ -184,32 +189,40 @@ export class BgpEvaluator {
     switch (pattern.type) {
       case "bgp": {
         let result = bindings;
-        for (const triple of pattern.triples) {
+        for (const triple of expandReifiedTriples(pattern.triples)) {
           if (isPropertyPath(triple.predicate)) {
             throw new Error(
               "Property paths inside EXISTS are not supported",
             );
           }
           const predicate = simplePredicate(triple.predicate);
+          const reifies = isReifiesPattern(predicate, triple.object);
           const entry: ScanEntry = {
             subject: triple.subject,
             predicate,
             object: triple.object,
+            reifies,
             // probeQuadIndex checks only s/p/o, so the graph scope is
-            // enforced afterwards over the probed candidates.
-            candidates: probeQuadIndex(
-              this.existsIndex!,
-              candidates,
-              triple.subject.termType === "Variable"
-                ? null
-                : sparqlTermToRdfTerm(triple.subject),
-              predicate.termType === "Variable"
-                ? null
-                : sparqlTermToRdfTerm(predicate),
-              triple.object.termType === "Variable"
-                ? null
-                : sparqlTermToRdfTerm(triple.object),
-            ).filter((item) => sameRdfTerm(item.graph, graph)),
+            // enforced afterwards over the probed candidates. Reifies
+            // patterns scan every `rdf:reifies` statement in the scope.
+            candidates: reifies
+              ? candidates.filter((item) =>
+                item.predicate.termType === "NamedNode" &&
+                item.predicate.value === RDF_REIFIES
+              )
+              : probeQuadIndex(
+                this.existsIndex!,
+                candidates,
+                triple.subject.termType === "Variable"
+                  ? null
+                  : sparqlTermToRdfTerm(triple.subject),
+                predicate.termType === "Variable"
+                  ? null
+                  : sparqlTermToRdfTerm(predicate),
+                triple.object.termType === "Variable"
+                  ? null
+                  : sparqlTermToRdfTerm(triple.object),
+              ).filter((item) => sameRdfTerm(item.graph, graph)),
           };
           result = joinTriplePattern(result, entry);
         }
@@ -569,12 +582,15 @@ export class BgpEvaluator {
     bindings: TermBinding[],
     store: rdfjs.Source<rdfjs.Quad>,
   ): Promise<TermBinding[]> {
-    const hasPath = triples.some((triple) => isPropertyPath(triple.predicate));
-    if (this.reorderPatterns && triples.length > 1 && !hasPath) {
-      return await this.evaluateWithReordering(triples, bindings, store);
+    // Reified-triple patterns (`<< s p o >>`, annotation `{| ... |}`) expand
+    // into plain `rdf:reifies` triples before any scanning or reordering.
+    const expanded = expandReifiedTriples(triples);
+    const hasPath = expanded.some((triple) => isPropertyPath(triple.predicate));
+    if (this.reorderPatterns && expanded.length > 1 && !hasPath) {
+      return await this.evaluateWithReordering(expanded, bindings, store);
     }
     let result = bindings;
-    for (const triple of triples) {
+    for (const triple of expanded) {
       if (isPropertyPath(triple.predicate)) {
         const entry = await scanPathEntry(
           store,

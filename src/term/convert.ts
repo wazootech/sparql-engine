@@ -23,6 +23,11 @@ export function sparqlTermToRdfTerm(term: SparqlTerm): rdfjs.Term {
         return literal(term.value, namedNode(term.datatype.value));
       }
       return literal(term.value);
+    case "Quad":
+      // RDF 1.2 triple terms are already RDF/JS Quad terms (the parser builds
+      // them with N3's DataFactory); their sub-terms are structural matches,
+      // so pass them through unchanged.
+      return term;
     default:
       throw new Error(`Unsupported term type: ${term.termType}`);
   }

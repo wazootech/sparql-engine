@@ -1,0 +1,96 @@
+import type * as rdfjs from "@rdfjs/types";
+import { DataFactory } from "n3";
+import type { Term as SparqlTerm, Triple } from "@/parser/sparql-parser.ts";
+
+/**
+ * RDF_REIFIES is the RDF 1.2 predicate connecting a reifier to the triple
+ * term it reifies. Reified-triple data (`<< s p o >>`, annotation syntax
+ * `{| ... |}`) is materialized by n3 as `_:r rdf:reifies <<( s p o )>>`,
+ * so pattern matching routes through this predicate.
+ */
+export const RDF_REIFIES = "http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies";
+
+/**
+ * reifierCounter mints distinct reifier labels across a process. Labels are
+ * opaque (never projected), so uniqueness is all that matters; the `reifier-`
+ * prefix is disjoint from the parser's `e_`/`g_` blank-node labels and n3's
+ * `n3-` data labels.
+ */
+let reifierCounter = 0;
+
+function freshReifier(): rdfjs.BlankNode {
+  return DataFactory.blankNode(`reifier-${reifierCounter++}`);
+}
+
+interface ExpandedTerm {
+  /** term is the substituted term (a reifier for quoted triples). */
+  term: SparqlTerm;
+  /** triples are the emitted `rdf:reifies` statements for nested reifiers. */
+  triples: Triple[];
+}
+
+/**
+ * expandQuotedTerm expands one RDF 1.2 reified-triple pattern term
+ * (`<< s p o >>`) into a fresh reifier variable plus the `rdf:reifies`
+ * statement that binds it to the quoted triple term. Nested quoted triples
+ * recurse, so `<< << s p o >> q r >>` produces two reifiers chained through
+ * their `rdf:reifies` statements.
+ */
+function expandQuotedTerm(term: SparqlTerm): ExpandedTerm {
+  if (term.termType !== "Quad") {
+    return { term, triples: [] };
+  }
+  const s = expandQuotedTerm(term.subject);
+  const p = expandQuotedTerm(term.predicate);
+  const o = expandQuotedTerm(term.object);
+  const reifier = freshReifier();
+  const tripleTerm: rdfjs.Quad = DataFactory.quad(
+    s.term as rdfjs.Quad_Subject,
+    p.term as rdfjs.Quad_Predicate,
+    o.term as rdfjs.Quad_Object,
+  );
+  const reifies: Triple = {
+    subject: reifier,
+    predicate: DataFactory.namedNode(RDF_REIFIES),
+    object: tripleTerm,
+  };
+  return {
+    term: reifier,
+    triples: [...s.triples, ...p.triples, ...o.triples, reifies],
+  };
+}
+
+/**
+ * expandReifiedTriples rewrites a triple-pattern block so reified-triple
+ * patterns (`<< s p o >>` in subject or object position) become plain
+ * triples that match the RDF 1.2 reifier representation in the store. Each
+ * quoted term becomes a fresh reifier (a blank node the BGP treats as an
+ * internal variable) joined to its quoted triple term via `rdf:reifies`.
+ */
+export function expandReifiedTriples(triples: Triple[]): Triple[] {
+  const expanded: Triple[] = [];
+  for (const triple of triples) {
+    const s = expandQuotedTerm(triple.subject);
+    const o = expandQuotedTerm(triple.object);
+    // A predicate is never a quoted triple (property paths are not terms),
+    // so it passes through unchanged.
+    const p = triple.predicate;
+    expanded.push(...s.triples, ...o.triples);
+    expanded.push({ subject: s.term, predicate: p, object: o.term });
+  }
+  return expanded;
+}
+
+/**
+ * isReifiesPattern reports whether a triple pattern is the `rdf:reifies`
+ * decomposition form — a `rdf:reifies` predicate with a quoted-triple-term
+ * object — which the join must decompose from the store's reifier quads.
+ */
+export function isReifiesPattern(
+  predicate: SparqlTerm,
+  object: SparqlTerm,
+): boolean {
+  return predicate.termType === "NamedNode" &&
+    predicate.value === RDF_REIFIES &&
+    object.termType === "Quad";
+}
