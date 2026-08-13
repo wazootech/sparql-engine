@@ -26,6 +26,19 @@ function canonicalUrl(category: string, file: string): string {
 }
 
 /**
+ * W3C result-set vocabulary (rs:ResultSet / rs:solution / rs:binding /
+ * rs:variable / rs:value), used to parse the reference representation of a
+ * SELECT result for documented divergences.
+ */
+const RS = "http://www.w3.org/2001/sw/DataAccess/tests/result-set#";
+const RS_RESULT_SET = RS + "ResultSet";
+const RS_SOLUTION = RS + "solution";
+const RS_BINDING = RS + "binding";
+const RS_VARIABLE = RS + "variable";
+const RS_VALUE = RS + "value";
+const RDF_TYPE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
+
+/**
  * TestOutcome is the differential verdict for one test.
  */
 export type TestOutcome =
@@ -246,13 +259,19 @@ export class W3cRunner {
 
   private async runOne(testCase: W3cTestCase): Promise<void> {
     this.report.total += 1;
-    const allowlisted = testCase.id in documentedDivergences;
+    const divergence = testCase.id in documentedDivergences;
 
     let outcome: TestOutcome;
     try {
-      outcome = testCase.kind === "update"
-        ? await this.compareUpdate(testCase)
-        : await this.compareQuery(testCase);
+      if (divergence) {
+        // Documented divergences are validated against the W3C reference
+        // result, not against Comunica (which is known to be buggy there).
+        outcome = await this.compareReference(testCase);
+      } else {
+        outcome = testCase.kind === "update"
+          ? await this.compareUpdate(testCase)
+          : await this.compareQuery(testCase);
+      }
     } catch (error) {
       outcome = {
         status: "error",
@@ -263,16 +282,12 @@ export class W3cRunner {
     if (outcome.status === "pass") {
       this.report.pass += 1;
     } else if (outcome.status === "gap") {
-      if (allowlisted) {
-        this.report.allowlisted += 1;
-      } else {
-        this.report.gap += 1;
-        this.report.gapDetails.push({
-          id: testCase.id,
-          name: testCase.name,
-          detail: outcome.detail,
-        });
-      }
+      this.report.gap += 1;
+      this.report.gapDetails.push({
+        id: testCase.id,
+        name: testCase.name,
+        detail: outcome.detail,
+      });
     } else {
       this.report.error += 1;
       this.report.errorDetails.push({
@@ -373,6 +388,177 @@ export class W3cRunner {
     } catch {
       return false;
     }
+  }
+
+  /**
+   * compareReference validates a documented divergence against the W3C
+   * reference result instead of Comunica, so a spec-correct native result
+   * passes even when Comunica lite is buggy. SELECT divergences compare
+   * against the rs:ResultSet reference up to blank-node isomorphism; update
+   * divergences with an empty mf:result compare the final store against an
+   * empty store.
+   */
+  private compareReference(testCase: W3cTestCase): Promise<TestOutcome> {
+    return testCase.kind === "update"
+      ? this.compareUpdateReference(testCase)
+      : this.compareQueryReference(testCase);
+  }
+
+  private async compareQueryReference(
+    testCase: W3cTestCase,
+  ): Promise<TestOutcome> {
+    if (!testCase.resultFile) {
+      return {
+        status: "error",
+        detail:
+          `documented SELECT divergence ${testCase.id} has no result file`,
+      };
+    }
+
+    const store = this.loadStore(testCase);
+    const native = new WazooSparqlEngine({ store });
+    const nativeResult = await native.execute({
+      query: this.queryText(testCase),
+    });
+    if (nativeResult.kind !== "select") {
+      return {
+        status: "error",
+        detail:
+          `documented divergence ${testCase.id} returned kind ${nativeResult.kind}, expected select`,
+      };
+    }
+
+    const solutions = this.parseResultSetTtl(testCase, testCase.resultFile);
+    const nativeRecords = this.nativeSelectRecords(nativeResult);
+    const referenceRecords = this.resultSetRecords(solutions);
+    if (isomorphicMultiset(nativeRecords, referenceRecords)) {
+      return { status: "pass" };
+    }
+    return {
+      status: "gap",
+      detail: this.firstDiff(
+        this.nativeSelectStrings(nativeResult),
+        this.resultSetStrings(solutions),
+        "native vs W3C reference bindings",
+      ),
+    };
+  }
+
+  private async compareUpdateReference(
+    testCase: W3cTestCase,
+  ): Promise<TestOutcome> {
+    const nativeStore = this.loadStore(testCase);
+    const native = new WazooSparqlEngine({ store: nativeStore });
+    try {
+      const result = await native.execute({ query: this.queryText(testCase) });
+      if (result.kind !== "void") {
+        return {
+          status: "error",
+          detail: `native update ${testCase.id} returned a non-void result`,
+        };
+      }
+    } catch (error) {
+      return {
+        status: "error",
+        detail: `native rejected the update for divergence ${testCase.id}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      };
+    }
+
+    const quads: rdfjs.Quad[] = nativeStore.getQuads(null, null, null, null);
+    if (quads.length === 0) {
+      return { status: "pass" };
+    }
+    return {
+      status: "gap",
+      detail:
+        `native left ${quads.length} quad(s) after ${testCase.id}; the W3C reference (mf:result []) expects an empty store`,
+    };
+  }
+
+  /**
+   * parseResultSetTtl parses an rs:ResultSet result file into canonical
+   * binding records — the W3C reference representation of a SELECT result.
+   * Each record maps variable name -> canonical term, matching the shape
+   * nativeSelectRecords and runComunicaSelectRecords build from live results.
+   */
+  private parseResultSetTtl(
+    testCase: W3cTestCase,
+    file: string,
+  ): Record<string, CanonicalTerm>[] {
+    const parser = new N3Parser({
+      baseIRI: canonicalUrl(testCase.category, file),
+    });
+    const quads: rdfjs.Quad[] = parser.parse(this.fixtureText(testCase, file));
+    const store = new N3Store();
+    for (const quad of quads) {
+      store.addQuad(quad);
+    }
+
+    const resultSetQuad = store.getQuads(
+      null,
+      DataFactory.namedNode(RDF_TYPE),
+      DataFactory.namedNode(RS_RESULT_SET),
+      null,
+    )[0];
+    if (!resultSetQuad) {
+      throw new Error(`result file is not an rs:ResultSet: ${file}`);
+    }
+    const resultSet = resultSetQuad.subject;
+
+    const solutions: Record<string, CanonicalTerm>[] = [];
+    for (
+      const solutionQuad of store.getQuads(
+        resultSet,
+        DataFactory.namedNode(RS_SOLUTION),
+        null,
+        null,
+      )
+    ) {
+      const record: Record<string, CanonicalTerm> = {};
+      for (
+        const bindingQuad of store.getQuads(
+          solutionQuad.object,
+          DataFactory.namedNode(RS_BINDING),
+          null,
+          null,
+        )
+      ) {
+        const variable = store.getQuads(
+          bindingQuad.object,
+          DataFactory.namedNode(RS_VARIABLE),
+          null,
+          null,
+        )[0];
+        const value = store.getQuads(
+          bindingQuad.object,
+          DataFactory.namedNode(RS_VALUE),
+          null,
+          null,
+        )[0];
+        if (!variable || !value) {
+          continue;
+        }
+        record[variable.object.value] = canonicalizeRdfTerm(value.object);
+      }
+      solutions.push(record);
+    }
+    return solutions;
+  }
+
+  private resultSetRecords(
+    solutions: Record<string, CanonicalTerm>[],
+  ): CanonicalTerm[][] {
+    return solutions.map((record) =>
+      Object.keys(record).sort().map((name) => record[name])
+    );
+  }
+
+  private resultSetStrings(
+    solutions: Record<string, CanonicalTerm>[],
+  ): string[] {
+    return solutions.map(bindingRecord);
   }
 
   private async compareQuery(testCase: W3cTestCase): Promise<TestOutcome> {
@@ -664,6 +850,18 @@ export class W3cRunner {
       const expectedQuads: rdfjs.Quad[] = parser.parse(
         this.fixtureText(testCase, testCase.resultFile),
       );
+      // rs:ResultSet files are SELECT references, not graph post-states;
+      // compareReference validates those tests, so skip the soft report.
+      if (
+        expectedQuads.some((quad) =>
+          quad.predicate.termType === "NamedNode" &&
+          quad.predicate.value === RDF_TYPE &&
+          quad.object.termType === "NamedNode" &&
+          quad.object.value === RS_RESULT_SET
+        )
+      ) {
+        return null;
+      }
       expected = expectedQuads
         .map((quad) => canonicalQuadString(quad, canonicalizeRdfTerm))
         .sort();
