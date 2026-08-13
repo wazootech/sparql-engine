@@ -31,7 +31,7 @@ export function parseTurtleQuads(
 
   // Tokenizer regex
   const tokenRegex =
-    /\s*(@prefix|@base|PREFIX|BASE|a|true|false|<[^>]*>|_:[A-Za-z0-9_-]+|"[^"\\]*(?:\\.[^"\\]*)*"(?:@[a-zA-Z-]+|\^\^<[^>]*>|\^\^[A-Za-z0-9_:-]+)?|[A-Za-z0-9_:-]*:[A-Za-z0-9_:-]*|[-+]?[0-9]+(?:\.[0-9]+)?|\.|;||,|\[|\]|\(|\)|#.*)/g;
+    /\s*(@prefix|@base|PREFIX|BASE|a|true|false|<[^>]*>|_:[A-Za-z0-9_-]+|"[^"\\]*(?:\\.[^"\\]*)*"(?:@[a-zA-Z-]+|\^\^<[^>]*>|\^\^[A-Za-z0-9_:-]+)?|[A-Za-z0-9_:-]*:[A-Za-z0-9_:-]*|[-+]?[0-9]+(?:\.[0-9]+)?|\.|;|,|\[|\]|\(|\)|#.*)/g;
 
   let match: RegExpExecArray | null;
   const tokens: string[] = [];
