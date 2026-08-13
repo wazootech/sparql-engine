@@ -88,6 +88,29 @@ function canonicalQuadString(
 }
 
 /**
+ * dedupeRecords keeps one record per distinct canonical key, pairing each
+ * record with the canonical string of the quad it came from. A CONSTRUCT
+ * result is an RDF graph — a set of triples — so duplicate instantiations
+ * are not part of the result content (the W3C reference files are sets), and
+ * Comunica's query stream may repeat a triple that its graph would not.
+ */
+function dedupeRecords(
+  records: CanonicalTerm[][],
+  keys: string[],
+): CanonicalTerm[][] {
+  const seen = new Set<string>();
+  const out: CanonicalTerm[][] = [];
+  for (let i = 0; i < records.length; i++) {
+    const key = keys[i];
+    if (!seen.has(key)) {
+      seen.add(key);
+      out.push(records[i]);
+    }
+  }
+  return out;
+}
+
+/**
  * multisetEqual compares two arrays as multisets (order-insensitive).
  */
 function multisetEqual(a: string[], b: string[]): boolean {
@@ -647,11 +670,15 @@ export class W3cRunner {
         try {
           const stream = await this.comunicaEngine.queryQuads(query, options);
           const comunicaQuads = await stream.toArray();
-          comunicaSet = comunicaQuads
-            .map((item) => canonicalQuadString(item, canonicalizeComunicaTerm))
-            .sort();
-          comunicaRecords = comunicaQuads.map((item) =>
-            this.quadRecords(item, canonicalizeComunicaTerm)
+          const comunicaKeys = comunicaQuads.map((item) =>
+            canonicalQuadString(item, canonicalizeComunicaTerm)
+          );
+          comunicaSet = [...comunicaKeys].sort();
+          comunicaRecords = dedupeRecords(
+            comunicaQuads.map((item) =>
+              this.quadRecords(item, canonicalizeComunicaTerm)
+            ),
+            comunicaKeys,
           );
         } catch (error) {
           return {
@@ -661,11 +688,17 @@ export class W3cRunner {
             }`,
           };
         }
-        const nativeSet = nativeResult.data.quads
-          .map((item) => canonicalQuadString(item, canonicalizeRdfTerm))
-          .sort();
-        const nativeRecords = nativeResult.data.quads.map((item) =>
-          this.quadRecords(item, canonicalizeRdfTerm)
+        const nativeKeys = nativeResult.data.quads.map((item) =>
+          canonicalQuadString(item, canonicalizeRdfTerm)
+        );
+        const nativeSet = [...nativeKeys].sort();
+        // Compare graph content, not stream shape: CONSTRUCT results are
+        // graphs (sets), and duplicates collapse on both sides.
+        const nativeRecords = dedupeRecords(
+          nativeResult.data.quads.map((item) =>
+            this.quadRecords(item, canonicalizeRdfTerm)
+          ),
+          nativeKeys,
         );
         return isomorphicMultiset(nativeRecords, comunicaRecords)
           ? { status: "pass" }

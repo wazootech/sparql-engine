@@ -460,7 +460,21 @@ export class SparqlEvaluator {
       }
     }
 
-    return { quads };
+    // SPARQL 1.1 §16.2: the CONSTRUCT result is an RDF graph — a set of
+    // triples — so duplicate instantiations collapse. Multiple solutions can
+    // emit the same triple (e.g. an annotation pattern matching both a
+    // reifier's annotation and its own rdf:reifies statement), and RDF graph
+    // semantics remove those duplicates.
+    const seen = new Set<string>();
+    const graph: rdfjs.Quad[] = [];
+    for (const quad of quads) {
+      const key = termKey(quad);
+      if (!seen.has(key)) {
+        seen.add(key);
+        graph.push(quad);
+      }
+    }
+    return { quads: graph };
   }
 
   /**

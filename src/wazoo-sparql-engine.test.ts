@@ -907,6 +907,44 @@ Deno.test("WazooSparqlEngine - CONSTRUCT query evaluation", async () => {
   }
 });
 
+Deno.test("WazooSparqlEngine - CONSTRUCT result is a graph (duplicates collapse)", async () => {
+  // CONSTRUCT returns an RDF graph — a set of triples. The join has two
+  // solutions, one instantiating the template triple twice; both collapse to
+  // a single `:s1 :p :o1` and one `:s2 :p :o1`.
+  const store = new Store();
+  store.addQuad(
+    quad(
+      namedNode("http://example.org/s1"),
+      namedNode("http://example.org/p"),
+      namedNode("http://example.org/o1"),
+    ),
+  );
+  store.addQuad(
+    quad(
+      namedNode("http://example.org/s2"),
+      namedNode("http://example.org/p"),
+      namedNode("http://example.org/o1"),
+    ),
+  );
+
+  const engine = new WazooSparqlEngine({ store });
+  const result = await engine.execute({
+    query:
+      "PREFIX : <http://example.org/> CONSTRUCT WHERE { :s1 :p ?o . ?s2 :p ?o }",
+  });
+
+  assertEquals(result.kind, "construct");
+  if (result.kind === "construct") {
+    const contents = result.data.quads.map((q) =>
+      `${q.subject.value} ${q.predicate.value} ${q.object.value}`
+    ).sort();
+    assertEquals(contents, [
+      "http://example.org/s1 http://example.org/p http://example.org/o1",
+      "http://example.org/s2 http://example.org/p http://example.org/o1",
+    ]);
+  }
+});
+
 Deno.test("WazooSparqlEngine - INSERT DATA adds quads and returns void", async () => {
   const store = new Store();
   const engine = new WazooSparqlEngine({ store });
