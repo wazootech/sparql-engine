@@ -12,6 +12,9 @@ Wazoo-native SPARQL 1.1 Query & Update Engine over RDF/JS Quad Stores.
   Comunica framework overhead.
 - **JSR & Deno Native**: Published on JSR as `@wazoo/sparql-engine` for Deno,
   Node.js, and browser environments.
+- **Drop-in for `@worlds/client`**: Implements the same `SparqlEngineInterface`
+  as `ComunicaSparqlEngine` (`@worlds/client/comunica`), so it can be swapped
+  into a `Client` without client changes.
 
 ## Usage
 
