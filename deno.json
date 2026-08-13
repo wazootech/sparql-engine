@@ -16,6 +16,7 @@
   "nodeModulesDir": "auto",
   "tasks": {
     "bench": "deno bench --allow-all",
+    "bench:check": "deno run --allow-all bench/budget.ts",
     "check": "deno check",
     "ci": {
       "description": "Formats, lints, checks, and tests the code",
@@ -25,6 +26,7 @@
         "lint",
         "check",
         "test",
+        "bench:check",
         "test:sparql12:gap",
         "test:sparql12"
       ]

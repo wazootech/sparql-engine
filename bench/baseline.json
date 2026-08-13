@@ -1,0 +1,4 @@
+{
+  "maxAllowedMs": 50.0,
+  "maxRegressionRatio": 0.15
+}

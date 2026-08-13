@@ -241,6 +241,7 @@ export class UpdateEvaluator {
         return;
       }
       case "load": {
+        await this.applyLoad(op, add);
         return;
       }
       default:
@@ -339,6 +340,54 @@ export class UpdateEvaluator {
       : defaultGraph();
     for (const q of sourceQuads) {
       add(quad(q.subject, q.predicate, q.object, destGraphTerm));
+    }
+  }
+
+  private async applyLoad(
+    op: Record<string, unknown>,
+    add: (item: rdfjs.Quad) => unknown,
+  ): Promise<void> {
+    const silent = Boolean(op.silent);
+    const sourceIri = typeof op.source === "string"
+      ? op.source
+      : (op.source as { value?: string })?.value;
+    if (!sourceIri) return;
+
+    try {
+      let text = "";
+      if (sourceIri.startsWith("http://") || sourceIri.startsWith("https://")) {
+        const res = await fetch(sourceIri);
+        if (!res.ok) {
+          if (silent) return;
+          throw new Error(
+            `LOAD failed with status ${res.status}: ${sourceIri}`,
+          );
+        }
+        text = await res.text();
+      } else {
+        const cleanPath = sourceIri.startsWith("file://")
+          ? sourceIri.slice(7)
+          : sourceIri;
+        text = await Deno.readTextFile(cleanPath);
+      }
+
+      const { Parser } = await import("n3");
+      const parser = new Parser({ baseIRI: sourceIri });
+      const parsedQuads = parser.parse(text);
+
+      const destRef = op.destination as GraphRef;
+      const destGraphTerm = (!destRef || destRef.default)
+        ? defaultGraph()
+        : destRef.name
+        ? sparqlTermToRdfTerm(destRef.name)
+        : defaultGraph();
+
+      for (const q of parsedQuads) {
+        add(quad(q.subject, q.predicate, q.object, destGraphTerm));
+      }
+    } catch (err) {
+      if (silent) return;
+      throw err;
     }
   }
 
