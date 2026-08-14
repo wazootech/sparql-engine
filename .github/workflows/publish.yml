@@ -17,15 +17,36 @@ jobs:
           deno-version: v2.x
       - run: deno task ci
       - run: deno task publish:dry
-      # deno publish exits 0 when the version is already on JSR, so a stale
-      # version would otherwise make this workflow a silent no-op (which is
-      # how 0.1.0 shipped without the MemoryStore export). Fail loudly instead:
-      # bump deno.json version before merging to main.
+      - name: Check whether this merge is a release
+        id: release-check
+        run: |
+          version=$(deno eval 'console.log(JSON.parse(await Deno.readTextFile("deno.json")).version)')
+          curl -s https://jsr.io/@wazoo/sparql-engine/meta.json -o /tmp/jsr-meta.json
+          latest=$(deno eval 'console.log(JSON.parse(await Deno.readTextFile("/tmp/jsr-meta.json")).latest)')
+          echo "local version: $version / published latest: $latest"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "published=$latest" >> "$GITHUB_OUTPUT"
+          if [ "$version" = "$latest" ]; then
+            echo "match=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "match=false" >> "$GITHUB_OUTPUT"
+          fi
+      # Only release when deno.json's version is newer than the published
+      # latest. deno publish exits 0 when the version is already on JSR, so a
+      # stale version would otherwise make this workflow a silent no-op (which
+      # is how 0.1.0 shipped without the MemoryStore export); when a bump IS
+      # expected but publish still skips, fail loudly. Routine non-release
+      # merges (version unchanged) skip cleanly instead of failing the job.
       - name: Publish to JSR
+        if: steps.release-check.outputs.match == 'false'
         run: |
           output=$(deno publish 2>&1)
           echo "$output"
           if echo "$output" | grep -q "already published"; then
-            echo "::error::deno publish skipped: version already on JSR. Bump the version in deno.json before merging to main."
+            echo "::error::deno publish skipped even though local version ${{ steps.release-check.outputs.version }} differs from published ${{ steps.release-check.outputs.published }}. Investigate before merging to main."
             exit 1
           fi
+      - name: No release needed
+        if: steps.release-check.outputs.match == 'true'
+        run: |
+          echo "::notice::Version ${{ steps.release-check.outputs.version }} already published on JSR; nothing new to release on this merge."
