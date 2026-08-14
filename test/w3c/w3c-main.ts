@@ -127,7 +127,7 @@ const report = await new W3cRunner(readFixture).run(cases);
 printReport(report, skipped);
 
 // Coverage gate: the terminal milestone requires a full pass — every test
-// green (336/336), i.e. zero parity gaps. Runner errors are always fatal —
+// green (345/345), i.e. zero parity gaps. Runner errors are always fatal —
 // they indicate a harness bug, not a parity gap.
 const threshold = report.total;
 if (report.pass < threshold || report.error > 0) {

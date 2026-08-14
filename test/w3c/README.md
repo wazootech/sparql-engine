@@ -46,7 +46,7 @@ tests.
 ## Vendored fixtures and re-fetching
 
 `fixtures/sparql11/` holds a snapshot of the W3C rdf-tests evaluation core (~2.6
-MB, 336 tests across 23 categories) fetched from the upstream `w3c/rdf-tests`
+MB, 345 tests across 31 categories) fetched from the upstream `w3c/rdf-tests`
 gh-pages branch. Committing the fixtures keeps CI deterministic and
 offline-capable; queries and data resolve against canonical
 `http://www.w3.org/2009/sparql/docs/tests/data-sparql11/...` URLs so relative
