@@ -1114,9 +1114,10 @@ function benchSelectTrio(
   query: string,
   label: string,
   trio: EngineTrio = mainTrio,
+  options?: { warmup?: number; iterations?: number },
 ): void {
   Deno.bench(
-    { name: `native - ${label}`, group, baseline: true },
+    { name: `native - ${label}`, group, baseline: true, ...options },
     async () => {
       const result = await trio.native.execute({ query });
       if (
@@ -1235,10 +1236,39 @@ benchSelectTrio("from", fromQuery, "from", graphTrio);
 benchSelectTrio("subquery", subqueryQuery, "subquery");
 benchSelectTrio("subquery", subqueryAggQuery, "subquery-agg");
 benchSelectTrio("subquery", subqueryNestedQuery, "subquery-nested");
-benchSelectTrio("exists", existsQuery, "exists");
-benchSelectTrio("exists", notExistsQuery, "not-exists");
-benchSelectTrio("exists", nestedExistsQuery, "nested-exists");
-benchSelectTrio("exists", nestedNotExistsQuery, "nested-not-exists");
+// The native EXISTS path is the suite's slowest (tens of ms/iter), so it
+// needs a longer warmup than the 500 ms default for stable, comparable rows
+// (V8 must finish optimizing the hot EXISTS machinery before measurement),
+// plus more samples to average out scheduler noise.
+const EXISTS_BENCH_OPTIONS = { warmup: 3_000, iterations: 50 };
+benchSelectTrio(
+  "exists",
+  existsQuery,
+  "exists",
+  mainTrio,
+  EXISTS_BENCH_OPTIONS,
+);
+benchSelectTrio(
+  "exists",
+  notExistsQuery,
+  "not-exists",
+  mainTrio,
+  EXISTS_BENCH_OPTIONS,
+);
+benchSelectTrio(
+  "exists",
+  nestedExistsQuery,
+  "nested-exists",
+  mainTrio,
+  EXISTS_BENCH_OPTIONS,
+);
+benchSelectTrio(
+  "exists",
+  nestedNotExistsQuery,
+  "nested-not-exists",
+  mainTrio,
+  EXISTS_BENCH_OPTIONS,
+);
 benchSelectTrio("cast", castNumericQuery, "cast-numeric");
 benchSelectTrio("cast", castBooleanQuery, "cast-boolean");
 benchSelectTrio("cast", castDateTimeQuery, "cast-dateTime");
