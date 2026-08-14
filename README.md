@@ -148,11 +148,65 @@ oxigraph (a compiled Rust/WASM engine with native indexes, which remains ahead
 on the reorder-chain row); on the core scan/join rows native is the fastest of
 the three.
 
+Join surface, 10,000-person graph (~55,000 quads) — UNION joins 10k x 20k
+bindings on the shared subject (~200M candidate pairs); OPTIONAL and MINUS join
+10k x 5k (~50M pairs). The native engine's hash join probes an indexed right
+side per left binding instead of scanning it:
+
+| query               | native  | comunica | oxigraph |
+| ------------------- | ------- | -------- | -------- |
+| UNION (10k x 20k)   | 45.1 ms | 106.6 ms | 107.5 ms |
+| OPTIONAL (10k x 5k) | 22.1 ms | 587.9 ms | 56.5 ms  |
+| MINUS (10k x 5k)    | 18.0 ms | 41.7 ms  | 23.1 ms  |
+
+On this surface native leads all three engines, and the fan-out join scaling is
+sub-quadratic: the nested-loop before-state for the same UNION was ~7 s/iter
+versus 45 ms with the hash join (~150x), with OPTIONAL and MINUS showing the
+same shape (~60-80x).
+
 ## Development
 
 ```bash
 deno task ci
 ```
+
+## Query design notes
+
+Most performance work is the engine's job and happens automatically: greedy join
+reordering, hash joins over shared variables, the positional store index, and
+the once-per-query EXISTS snapshot with indexed probes. The query shapes below
+are expensive **by semantics** — the cost is proportional to the result the
+query itself asks for, so no engine can make them cheap without changing the
+answer. Treat them as the operator's responsibility:
+
+- **Joins with no shared variables.** A join (BGP patterns, UNION branches,
+  OPTIONAL, MINUS) over disjoint variable sets is a cross product — n·m rows by
+  definition, per SPARQL §18.2.2's natural join on an empty key. The hash join
+  does not change this: the result size _is_ the cost. Correlate the sides on a
+  shared variable (typically the subject). The same trap applies to
+  `OPTIONAL { ?x <pet> ?p }` whose group shares nothing with the outer query —
+  every outer row merges with every group row; bind the group to the outer
+  solution instead.
+- **Property paths with both endpoints unbound.** `?a <knows>+ ?b` walks the
+  path forward from every graph node, because the reachable-set has to be
+  computed before any solution can be formed. Binding one endpoint
+  (`<person1> <knows>+ ?b`) turns it into one anchored walk; reflexive forms
+  (`?`, `*`) additionally materialize the (node, node) pair.
+- **Queries whose result is the whole store.** `SELECT * WHERE { ?s ?p ?o }`
+  over 55k quads materializes 55k rows; the positional index makes each pattern
+  scan O(bucket) instead of O(store), but the result materialization is
+  inherent. Bind a selective subject, push FILTERs down, or use LIMIT — the
+  engine evaluates everything before slicing, so a small LIMIT over a huge scan
+  still pays the scan (streaming is tracked as #74).
+- **Correlated EXISTS over broad scopes.** EXISTS snapshots drain and index once
+  per query, and probes touch only the candidate bucket — but a correlated
+  `FILTER EXISTS { ?s <knows> ?who }` whose correlation variable is bound
+  _outside_ the EXISTS still runs once per outer solution. Bind the correlation
+  variable in the outer query.
+- **Non-selective data shapes.** If every node is connected to every node, the
+  compatible-candidate set for a join _is_ the whole right side, and no join
+  strategy beats scanning it. Prefer selective predicates on the hot path —
+  indexes help only when buckets are smaller than the full set.
 
 ## Releases
 

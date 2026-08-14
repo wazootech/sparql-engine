@@ -76,8 +76,48 @@ export function bindingsCompatible(
  * filters; when nothing matches, the left binding survives unextended. The
  * filters are the OPTIONAL group's own FILTER expressions, evaluated against
  * the merged binding so they can reference outer variables.
+ *
+ * Large joins dispatch to the hash join (compatibleCandidates); small joins
+ * keep the nested loop, which is faster below the hash-setup overhead.
  */
 export function leftJoin(
+  left: TermBinding[],
+  right: TermBinding[],
+  filters: BindingFilter[] = [],
+): TermBinding[] {
+  if (left.length === 0) {
+    return [];
+  }
+  if (right.length === 0) {
+    return left.slice();
+  }
+  if (left.length * right.length <= JOIN_PRODUCT_THRESHOLD) {
+    return leftJoinNested(left, right, filters);
+  }
+  const joinVars = sharedVars(left, right);
+  if (joinVars.length === 0) {
+    // No variable is bound on both sides: every pair is compatible.
+    return leftJoinNested(left, right, filters);
+  }
+  const index = buildHashIndex(right, joinVars);
+  const result: TermBinding[] = [];
+  for (const l of left) {
+    let matched = false;
+    for (const r of compatibleCandidates(l, joinVars, index, right)) {
+      const merged = { ...l, ...r };
+      if (filters.every((filter) => filter(merged))) {
+        result.push(merged);
+        matched = true;
+      }
+    }
+    if (!matched) {
+      result.push(l);
+    }
+  }
+  return result;
+}
+
+function leftJoinNested(
   left: TermBinding[],
   right: TermBinding[],
   filters: BindingFilter[] = [],
@@ -108,8 +148,36 @@ export function leftJoin(
  * multiset semantics. It threads a group element's independently evaluated
  * solutions (e.g. UNION branches) into the incoming solutions, matching the
  * Join(P, Union(Q1, Q2)) algebra translation.
+ *
+ * Large joins dispatch to the hash join; small joins keep the nested loop,
+ * which is faster below the hash-setup overhead.
  */
 export function innerJoin(
+  left: TermBinding[],
+  right: TermBinding[],
+): TermBinding[] {
+  if (left.length === 0 || right.length === 0) {
+    return [];
+  }
+  if (left.length * right.length <= JOIN_PRODUCT_THRESHOLD) {
+    return innerJoinNested(left, right);
+  }
+  const joinVars = sharedVars(left, right);
+  if (joinVars.length === 0) {
+    // No variable is bound on both sides: the result is a cross product.
+    return innerJoinNested(left, right);
+  }
+  const index = buildHashIndex(right, joinVars);
+  const result: TermBinding[] = [];
+  for (const l of left) {
+    for (const r of compatibleCandidates(l, joinVars, index, right)) {
+      result.push({ ...l, ...r });
+    }
+  }
+  return result;
+}
+
+function innerJoinNested(
   left: TermBinding[],
   right: TermBinding[],
 ): TermBinding[] {
@@ -129,14 +197,242 @@ export function innerJoin(
  * when some right binding shares at least one variable with it and is
  * compatible on all of them. Right bindings sharing no variables with a
  * left binding never eliminate it, per SPARQL 1.1 §18.2.2.9.
+ *
+ * Large joins dispatch to the hash join; small joins keep the nested loop.
  */
 export function minus(
+  left: TermBinding[],
+  right: TermBinding[],
+): TermBinding[] {
+  if (left.length === 0 || right.length === 0) {
+    return left.slice();
+  }
+  if (left.length * right.length <= JOIN_PRODUCT_THRESHOLD) {
+    return minusNested(left, right);
+  }
+  const joinVars = sharedVars(left, right);
+  if (joinVars.length === 0) {
+    // No variable is bound on both sides: no right binding shares a variable
+    // with any left binding, so nothing is eliminated.
+    return left.slice();
+  }
+  const index = buildHashIndex(right, joinVars);
+  const result: TermBinding[] = [];
+  for (const l of left) {
+    let eliminated = false;
+    for (const r of compatibleCandidates(l, joinVars, index, right)) {
+      if (sharesVariable(l, r)) {
+        eliminated = true;
+        break;
+      }
+    }
+    if (!eliminated) {
+      result.push(l);
+    }
+  }
+  return result;
+}
+
+function minusNested(
   left: TermBinding[],
   right: TermBinding[],
 ): TermBinding[] {
   return left.filter((l) =>
     !right.some((r) => sharesVariable(l, r) && bindingsCompatible(l, r))
   );
+}
+
+/* ------------------------------------------------------------------ */
+/* Hash join (issue #73)                                              */
+/*                                                                    */
+/* innerJoin / leftJoin / minus above dispatch large joins here. The  */
+/* right side is indexed once by the shared variables; each left      */
+/* binding probes only its compatible candidates instead of scanning  */
+/* the whole right side, turning the O(n·m) nested loop into a probe  */
+/* of O(n) buckets. Multiset semantics are preserved: every compatible */
+/* pair still produces its merged binding, duplicates included.       */
+/* ------------------------------------------------------------------ */
+
+/**
+ * JOIN_PRODUCT_THRESHOLD is the pair count below which the nested loop is
+ * kept: hash-setup (indexing the right side) costs more than the scan it
+ * saves for tiny joins.
+ */
+const JOIN_PRODUCT_THRESHOLD = 4096;
+
+/**
+ * sharedVars returns the sorted variables bound on both sides — the join
+ * key dimensions. Bindings missing a shared variable are wildcards on it
+ * (compatible with any value), which the candidate machinery handles.
+ */
+function sharedVars(
+  left: TermBinding[],
+  right: TermBinding[],
+): string[] {
+  const rightVars = new Set<string>();
+  for (const binding of right) {
+    for (const key of Object.keys(binding)) {
+      rightVars.add(key);
+    }
+  }
+  const shared: string[] = [];
+  for (const binding of left) {
+    for (const key of Object.keys(binding)) {
+      if (rightVars.has(key) && !shared.includes(key)) {
+        shared.push(key);
+      }
+    }
+  }
+  return shared.sort();
+}
+
+/**
+ * joinKey renders the hash key of a binding over the shared variables:
+ * the term keys of the values it binds, with null for unbound positions.
+ * JSON.stringify keeps the tuple collision-free for any term content.
+ */
+function joinKey(
+  binding: TermBinding,
+  joinVars: string[],
+): string {
+  return JSON.stringify(joinVars.map((v) => {
+    const t = binding[v];
+    return t === undefined ? null : termKey(t);
+  }));
+}
+
+/**
+ * HashIndex is the right side indexed for probing:
+ * - exact buckets total bindings (those binding every shared variable) by
+ *   their full key, so identical keys are compatible by construction;
+ * - byVar buckets every binding by each shared variable it binds, for
+ *   partial left bindings to probe their most selective variable;
+ * - partials holds the right bindings missing at least one shared variable
+ *   (OPTIONAL failures), which are wildcards and need per-probe checks.
+ */
+interface HashIndex {
+  exact: Map<string, TermBinding[]>;
+  byVar: Map<string, Map<string, TermBinding[]>>;
+  partials: TermBinding[];
+}
+
+function buildHashIndex(
+  right: TermBinding[],
+  joinVars: string[],
+): HashIndex {
+  const exact = new Map<string, TermBinding[]>();
+  const byVar = new Map<string, Map<string, TermBinding[]>>();
+  const partials: TermBinding[] = [];
+  for (const binding of right) {
+    let total = true;
+    for (const v of joinVars) {
+      if (binding[v] === undefined) {
+        total = false;
+        break;
+      }
+    }
+    if (total) {
+      const key = joinKey(binding, joinVars);
+      const bucket = exact.get(key);
+      if (bucket) {
+        bucket.push(binding);
+      } else {
+        exact.set(key, [binding]);
+      }
+    } else {
+      partials.push(binding);
+    }
+    for (const v of joinVars) {
+      const t = binding[v];
+      if (t === undefined) {
+        continue;
+      }
+      let varMap = byVar.get(v);
+      if (varMap === undefined) {
+        varMap = new Map();
+        byVar.set(v, varMap);
+      }
+      const tk = termKey(t);
+      const bucket = varMap.get(tk);
+      if (bucket) {
+        bucket.push(binding);
+      } else {
+        varMap.set(tk, [binding]);
+      }
+    }
+  }
+  return { exact, byVar, partials };
+}
+
+/**
+ * compatibleCandidates returns the right bindings compatible with l — those
+ * agreeing with l on every variable both bind. A total l (binding every
+ * shared variable) probes the exact bucket, which is compatible by
+ * construction, plus the (usually few) partial rights it agrees with. A
+ * partial l probes the bucket of its most selective bound variable and
+ * verifies, plus partial rights that do not bind that variable.
+ */
+function compatibleCandidates(
+  l: TermBinding,
+  joinVars: string[],
+  index: HashIndex,
+  right: TermBinding[],
+): TermBinding[] {
+  let total = true;
+  for (const v of joinVars) {
+    if (l[v] === undefined) {
+      total = false;
+      break;
+    }
+  }
+  if (total) {
+    const exactHits = index.exact.get(joinKey(l, joinVars)) ?? [];
+    if (index.partials.length === 0) {
+      return exactHits;
+    }
+    const out = exactHits.slice();
+    for (const r of index.partials) {
+      if (bindingsCompatible(l, r)) {
+        out.push(r);
+      }
+    }
+    return out;
+  }
+  // Partial l: pick the shared variable it binds with the smallest right
+  // bucket (most selective), probe it, and verify the rest of the agreement.
+  let bestVar: string | null = null;
+  let bestKey = "";
+  let bestSize = Infinity;
+  for (const v of joinVars) {
+    const t = l[v];
+    if (t === undefined) {
+      continue;
+    }
+    const tk = termKey(t);
+    const size = index.byVar.get(v)?.get(tk)?.length ?? 0;
+    if (size < bestSize) {
+      bestSize = size;
+      bestVar = v;
+      bestKey = tk;
+    }
+  }
+  if (bestVar === null) {
+    // l binds none of the shared variables: compatible with every right
+    // binding (they cannot disagree on any shared position).
+    return right;
+  }
+  const out: TermBinding[] = [];
+  for (const r of index.byVar.get(bestVar)?.get(bestKey) ?? []) {
+    if (bindingsCompatible(l, r)) {
+      out.push(r);
+    }
+  }
+  for (const r of index.partials) {
+    if (r[bestVar] === undefined && bindingsCompatible(l, r)) {
+      out.push(r);
+    }
+  }
+  return out;
 }
 
 /**
