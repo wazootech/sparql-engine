@@ -188,7 +188,7 @@ that they produce identical final store contents after mutating fresh stores (a
 move update, which a broken engine that ignores updates cannot pass). The timed
 update is a self-restoring delete+insert rewrite, so iterations never drift the
 benchmark stores. The reorder-chain group demonstrates the dynamic join
-ordering: a three-pattern chain written in worst-case order runs ~90x faster
+ordering: a three-pattern chain written in worst-case order runs ~80x faster
 with reordering enabled, because the planner scans each pattern once and joins
 in order of estimated cost, preferring patterns whose variables are already
 bound. Timings use Deno's built-in bench runner with the wazoo engine as the
@@ -207,37 +207,38 @@ Timings are machine-specific — run `deno task bench` for your own numbers.
 
 Core joins, 400-person graph (~2,200 quads):
 
-| query                        | wazoo    | comunica | oxigraph |
-| ---------------------------- | -------- | -------- | -------- |
-| full scan                    | 1.3 ms   | 7.6 ms   | 12.2 ms  |
-| join (knows × name)          | 1.0 ms   | 5.2 ms   | 2.6 ms   |
-| asymmetric join              | 1.4 ms   | 29.2 ms  | 15.1 ms  |
-| reorder chain, written order | 136.5 ms | 193.2 ms | 3.2 ms   |
-| reorder chain, planner on    | 1.5 ms   | —        | —        |
+| query                        | wazoo   | comunica | oxigraph |
+| ---------------------------- | ------- | -------- | -------- |
+| full scan                    | 0.96 ms | 5.5 ms   | 12.2 ms  |
+| join (knows × name)          | 0.66 ms | 3.1 ms   | 3.4 ms   |
+| asymmetric join              | 1.2 ms  | 19.2 ms  | 19.3 ms  |
+| reorder chain, written order | 97.4 ms | 96.8 ms  | 4.2 ms   |
+| reorder chain, planner on    | 1.2 ms  | —        | —        |
 
 EXISTS surface, 400-person graph:
 
-| query               | wazoo   | comunica | oxigraph |
-| ------------------- | ------- | -------- | -------- |
-| `FILTER EXISTS`     | 0.81 ms | 29.2 ms  | 1.0 ms   |
-| `FILTER NOT EXISTS` | 0.88 ms | 33.3 ms  | 1.3 ms   |
-| nested `EXISTS`     | 1.1 ms  | 134.6 ms | 1.3 ms   |
-| nested `NOT EXISTS` | 1.1 ms  | 134.1 ms | 1.2 ms   |
+| query               | wazoo  | comunica | oxigraph |
+| ------------------- | ------ | -------- | -------- |
+| `FILTER EXISTS`     | 1.0 ms | 19.3 ms  | 1.6 ms   |
+| `FILTER NOT EXISTS` | 0.9 ms | 20.1 ms  | 1.4 ms   |
+| nested `EXISTS`     | 1.2 ms | 74.8 ms  | 1.7 ms   |
+| nested `NOT EXISTS` | 1.2 ms | 75.2 ms  | 1.8 ms   |
 
 EXISTS surface, 10,000-person graph (~55,000 quads):
 
 | query               | wazoo   | comunica | oxigraph |
 | ------------------- | ------- | -------- | -------- |
-| `FILTER EXISTS`     | 27.8 ms | 729.5 ms | 27.0 ms  |
-| `FILTER NOT EXISTS` | 26.8 ms | 835.9 ms | 30.7 ms  |
-| nested `EXISTS`     | 41.3 ms | 3.1 s    | 43.3 ms  |
-| nested `NOT EXISTS` | 39.6 ms | 3.2 s    | 32.3 ms  |
+| `FILTER EXISTS`     | 33.0 ms | 466.1 ms | 34.0 ms  |
+| `FILTER NOT EXISTS` | 33.2 ms | 466.2 ms | 32.9 ms  |
+| nested `EXISTS`     | 40.9 ms | 1.9 s    | 39.4 ms  |
+| nested `NOT EXISTS` | 43.0 ms | 1.8 s    | 40.6 ms  |
 
-Scaling the data 25x (400 → 10,000 people) grows wazoo's EXISTS cost ~35-40x
-while the nested-vs-simple ratio _shrinks_ (1.45x → 1.12x): the snapshot is
+Scaling the data 25x (400 → 10,000 people) grows wazoo's EXISTS cost ~35x while
+nesting stays within ~1.2x of the simple case at both scales: the snapshot is
 drained and indexed once per query, and each probe touches only its candidate
 bucket, so nesting stays cheap relative to the dataset. Across the exists
-surface wazoo is 20-180x faster than comunica and roughly at parity with
+surface wazoo is ~15-65x faster than comunica and roughly at parity with
+
 oxigraph (a compiled Rust/WASM engine with native indexes, which remains ahead
 on the reorder-chain row); on the core scan/join rows wazoo is the fastest of
 the three.
@@ -249,14 +250,28 @@ per left binding instead of scanning it:
 
 | query               | wazoo   | comunica | oxigraph |
 | ------------------- | ------- | -------- | -------- |
-| UNION (10k x 20k)   | 45.1 ms | 106.6 ms | 107.5 ms |
-| OPTIONAL (10k x 5k) | 22.1 ms | 587.9 ms | 56.5 ms  |
-| MINUS (10k x 5k)    | 18.0 ms | 41.7 ms  | 23.1 ms  |
+| UNION (10k x 20k)   | 37.9 ms | 87.1 ms  | 98.2 ms  |
+| OPTIONAL (10k x 5k) | 15.4 ms | 444.4 ms | 46.0 ms  |
+| MINUS (10k x 5k)    | 13.3 ms | 31.7 ms  | 17.1 ms  |
 
 On this surface wazoo leads all three engines, and the fan-out join scaling is
 sub-quadratic: the nested-loop before-state for the same UNION was ~7 s/iter
-versus 45 ms with the hash join (~150x), with OPTIONAL and MINUS showing the
+versus ~38 ms with the hash join (~185x), with OPTIONAL and MINUS showing the
 same shape (~60-80x).
+
+The same snapshot as a chart — one row per query class, three bars per row
+(wazoo green, Comunica orange, Oxigraph blue), bar length proportional to avg
+ms/iter within the row:
+
+<figure>
+  <img src="docs/assets/chart-latency.svg" alt="Bar chart of average query latency per query class for wazoo, Comunica, and Oxigraph">
+  <figcaption><b>Fig — Query latency by class.</b> One row per query class;
+  three bars per row, bar length proportional to average ms/iter within the
+  row (each row normalized to its slowest engine — lower is better). The
+  planner-only rows (3-pattern chain, planner on) have a single wazoo bar;
+  Comunica and Oxigraph have no reordering equivalent. Snapshot from
+  `bench/latency-data.json`, regenerated by `deno task bench:latency`.</figcaption>
+</figure>
 
 ### Size & memory footprint
 

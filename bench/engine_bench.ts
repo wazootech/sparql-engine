@@ -1384,7 +1384,7 @@ benchSelectTrio(
 // 10k join-scaling rows: the same shared-subject join surface as the
 // 400-person rows but at 10k subjects, where the wazoo engine's hash join
 // probes instead of scanning the whole right side per left binding.
-const LARGE_JOIN_BENCH_OPTIONS = { warmup: 2_000, iterations: 10 };
+const LARGE_JOIN_BENCH_OPTIONS = { warmup: 2_000, iterations: 30 };
 benchSelectTrio(
   "join-large",
   unionJoinQuery,
