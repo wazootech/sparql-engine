@@ -4,7 +4,8 @@
 {% for entry in nav %}
   {% if page.url == entry.url %}
     {% unless forloop.first %}
-      {% assign prev = nav[forloop.index0 | minus: 1] %}
+      {% assign prev_index = forloop.index0 | minus: 1 %}
+      {% assign prev = nav[prev_index] %}
     {% endunless %}
     {% unless forloop.last %}
       {% assign next = nav[forloop.index] %}
