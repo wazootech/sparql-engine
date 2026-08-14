@@ -227,3 +227,48 @@ Deno.test("MemoryStream - once fires a single time", async () => {
   // Re-emitting end is a no-op because the stream is already ended.
   assertEquals(count, 1);
 });
+
+Deno.test("MemoryStore - positional indexes stay exact across mutations", () => {
+  const store = new MemoryStore();
+  const s1 = ex("s1");
+  const s2 = ex("s2");
+  const p = ex("p");
+  const o1 = ex("o1");
+  const o2 = ex("o2");
+
+  store.addQuad(quad(s1, p, o1));
+  store.addQuad(quad(s2, p, o1));
+  store.addQuad(quad(s1, p, o2));
+  store.addQuad(quad(s1, p, o1, graphA));
+
+  // Every constrained combination resolves through the smallest bucket.
+  assertEquals(store.countQuads(s1), 3);
+  assertEquals(store.countQuads(null, p), 4);
+  assertEquals(store.countQuads(null, null, o1), 3);
+  assertEquals(store.countQuads(s1, p, o1, graphA), 1);
+  assertEquals(store.countQuads(s2, p, o1), 1);
+  assertEquals(store.countQuads(s1, p, o2), 1);
+  assertEquals(store.countQuads(s1, null, o1, graphA), 1);
+  assertEquals(store.countQuads(null, null, null, defaultGraph()), 3);
+
+  // Re-adding an existing quad must not duplicate any bucket entry.
+  store.addQuad(quad(s1, p, o1));
+  assertEquals(store.countQuads(s1), 3);
+  assertEquals(store.countQuads(s1, p, o1), 2);
+  assertEquals(store.size, 4);
+
+  // Removing one quad unindexes it from every bucket; the rest survive.
+  store.removeQuad(quad(s1, p, o1));
+  assertEquals(store.countQuads(s1), 2);
+  assertEquals(store.countQuads(null, null, o1), 2);
+  assertEquals(store.countQuads(s1, p, o1), 1); // the named-graph copy
+  assertEquals(store.countQuads(s1, p, o1, graphA), 1);
+
+  // deleteGraph removes the whole graph bucket, leaving the default graph.
+  store.deleteGraph(graphA);
+  assertEquals(store.size, 2);
+  assertEquals(store.countQuads(null, null, null, graphA), 0);
+  assertEquals(store.countQuads(s1, p, o1), 0);
+  assertEquals(store.countQuads(s1), 1);
+  assertEquals(store.countQuads(s2, p, o1), 1);
+});

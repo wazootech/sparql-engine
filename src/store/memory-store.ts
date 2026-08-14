@@ -223,12 +223,60 @@ export class MemoryStream implements rdfjs.Stream<rdfjs.Quad> {
 }
 
 /**
+ * indexPosition appends a quad to the bucket for the given term key.
+ */
+function indexPosition(
+  index: Map<string, rdfjs.Quad[]>,
+  key: string,
+  quad: rdfjs.Quad,
+): void {
+  const bucket = index.get(key);
+  if (bucket) {
+    bucket.push(quad);
+  } else {
+    index.set(key, [quad]);
+  }
+}
+
+/**
+ * unindexPosition removes a quad from the bucket for the given term key,
+ * dropping the key once its bucket empties. Buckets never hold a quad more
+ * than once, and the removal matches structurally (quadKey) because callers
+ * pass a freshly constructed quad rather than the stored instance.
+ */
+function unindexPosition(
+  index: Map<string, rdfjs.Quad[]>,
+  key: string,
+  quad: rdfjs.Quad,
+): void {
+  const bucket = index.get(key);
+  if (bucket === undefined) {
+    return;
+  }
+  const targetKey = quadKey(quad);
+  const position = bucket.findIndex((item) => quadKey(item) === targetKey);
+  if (position >= 0) {
+    bucket.splice(position, 1);
+    if (bucket.length === 0) {
+      index.delete(key);
+    }
+  }
+}
+
+/**
  * MemoryStore is a minimal, zero-dependency in-memory RDF/JS Store used to
  * materialize FROM and FROM NAMED datasets (and transient update
- * materializations) inside the engine.
+ * materializations) inside the engine. Every quad is held once in a canonical
+ * map keyed by all four positions and mirrored into four positional indexes
+ * (subject / predicate / object / graph), so match scans only the smallest
+ * constrained bucket instead of the whole store.
  */
 export class MemoryStore implements rdfjs.Store<rdfjs.Quad> {
   private quads: Map<string, rdfjs.Quad> = new Map();
+  private bySubject: Map<string, rdfjs.Quad[]> = new Map();
+  private byPredicate: Map<string, rdfjs.Quad[]> = new Map();
+  private byObject: Map<string, rdfjs.Quad[]> = new Map();
+  private byGraph: Map<string, rdfjs.Quad[]> = new Map();
   private _version = 0;
 
   /**
@@ -269,13 +317,28 @@ export class MemoryStore implements rdfjs.Store<rdfjs.Quad> {
         graph,
       )
       : quadOrSubject as rdfjs.Quad;
-    this.quads.set(quadKey(quad), quad);
+    const key = quadKey(quad);
+    // Re-adding an existing quad keeps the canonical map (and the indexes)
+    // unchanged; only genuinely new quads are indexed.
+    if (!this.quads.has(key)) {
+      this.quads.set(key, quad);
+      indexPosition(this.bySubject, termKey(quad.subject), quad);
+      indexPosition(this.byPredicate, termKey(quad.predicate), quad);
+      indexPosition(this.byObject, termKey(quad.object), quad);
+      indexPosition(this.byGraph, termKey(quad.graph), quad);
+    }
     this._version++;
     return this;
   }
 
   public removeQuad(quad: rdfjs.Quad): this {
-    this.quads.delete(quadKey(quad));
+    const key = quadKey(quad);
+    if (this.quads.delete(key)) {
+      unindexPosition(this.bySubject, termKey(quad.subject), quad);
+      unindexPosition(this.byPredicate, termKey(quad.predicate), quad);
+      unindexPosition(this.byObject, termKey(quad.object), quad);
+      unindexPosition(this.byGraph, termKey(quad.graph), quad);
+    }
     this._version++;
     return this;
   }
@@ -296,23 +359,47 @@ export class MemoryStore implements rdfjs.Store<rdfjs.Quad> {
     object?: rdfjs.Term | null,
     graph?: rdfjs.Term | null,
   ): rdfjs.Quad[] {
-    const matches: rdfjs.Quad[] = [];
-    for (const quad of this.quads.values()) {
-      if (subject != null && !sameRdfTerm(quad.subject, subject)) {
-        continue;
-      }
-      if (predicate != null && !sameRdfTerm(quad.predicate, predicate)) {
-        continue;
-      }
-      if (object != null && !sameRdfTerm(quad.object, object)) {
-        continue;
-      }
-      if (graph != null && !sameRdfTerm(quad.graph, graph)) {
-        continue;
-      }
-      matches.push(quad);
+    // A constrained position with no indexed quads means nothing can match.
+    if (
+      (subject != null && !this.bySubject.has(termKey(subject))) ||
+      (predicate != null && !this.byPredicate.has(termKey(predicate))) ||
+      (object != null && !this.byObject.has(termKey(object))) ||
+      (graph != null && !this.byGraph.has(termKey(graph)))
+    ) {
+      return [];
     }
-    return matches;
+    // Probe the smallest constrained bucket, then filter the rest positionally
+    // (buckets are never empty: unindexPosition drops empty keys).
+    const constrained: rdfjs.Quad[][] = [];
+    if (subject != null) {
+      constrained.push(this.bySubject.get(termKey(subject))!);
+    }
+    if (predicate != null) {
+      constrained.push(this.byPredicate.get(termKey(predicate))!);
+    }
+    if (object != null) {
+      constrained.push(this.byObject.get(termKey(object))!);
+    }
+    if (graph != null) {
+      constrained.push(this.byGraph.get(termKey(graph))!);
+    }
+
+    if (constrained.length === 0) {
+      // No constraints: every quad matches, in insertion order.
+      return [...this.quads.values()];
+    }
+    let bucket = constrained[0];
+    for (const candidate of constrained) {
+      if (candidate.length < bucket.length) {
+        bucket = candidate;
+      }
+    }
+    return bucket.filter((quad) =>
+      (subject == null || sameRdfTerm(quad.subject, subject)) &&
+      (predicate == null || sameRdfTerm(quad.predicate, predicate)) &&
+      (object == null || sameRdfTerm(quad.object, object)) &&
+      (graph == null || sameRdfTerm(quad.graph, graph))
+    );
   }
 
   public countQuads(
