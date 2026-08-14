@@ -89,7 +89,8 @@ for removed files, and confirm every path the wiki references resolves.
 - Edit only the pages the classification maps to; apply additions and deletions
   the diff demands.
 - Validate: `deno fmt --check docs/`, nav/front-matter/link checks (all
-  `_data/navigation.yml` targets resolve, every page has front matter), and a
+  `_data/navigation.yml` targets resolve, every page has front matter),
+  `deno task docs:link-check` (external link rot — 404/410 fails), and a
   `pandoc -f gfm -t html` render of each touched page.
 - Bump `docs/.sync-base` to the new `origin/main` HEAD.
 - Land from a fresh worktree off `origin/main`

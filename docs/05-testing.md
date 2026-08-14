@@ -23,24 +23,25 @@ Every layer runs in CI (`.github/workflows/ci.yml`): the `ci` job runs
 
 ## Task reference
 
-| Task                          | Command                        | What it runs                                                    | Gating                     |
-| ----------------------------- | ------------------------------ | --------------------------------------------------------------- | -------------------------- |
-| `deno task test`              | `deno test --allow-all`        | All unit + integration + parity `*.test.ts` files               | ci                         |
-| `deno task check`             | `deno check`                   | Typecheck the package                                           | ci                         |
-| `deno task fmt:check`         | `deno fmt --check`             | Source **and markdown** formatting (width 80)                   | ci                         |
-| `deno task lint`              | `deno lint`                    | Lint                                                            | ci                         |
-| `deno task parser:check`      | `generate-parser.ts --check`   | Generated `parser.ts` in sync with `sparql.jison`               | ci                         |
-| `deno task bench:check`       | `bench/budget.ts`              | Perf regression budget (≤50 ms/iter)                            | ci                         |
-| `deno task test:exists-ref`   | `test/w3c/exists-ref.ts`       | EXISTS/NOT EXISTS subquery surface vs Oxigraph                  | ci + w3c-parity            |
-| `deno task test:sparql12:gap` | `test/w3c/sparql12-gap.ts`     | RDF 1.2 eval-triple-terms gap suite (41/41)                     | ci                         |
-| `deno task test:sparql12`     | `test/w3c/sparql12-main.ts`    | W3C SPARQL 1.2 evaluation suite (249/249)                       | ci                         |
-| `deno task test:rdf11`        | `test/w3c/rdf-differential.ts` | RDF 1.1 Turtle/TriG/N-Triples/N-Quads vs n3                     | ci                         |
-| `deno task test:rdf12`        | `test/w3c/rdf-classify.ts`     | RDF 1.2 syntax classifier                                       | ci                         |
-| `deno task ci`                | —                              | All of the above in dependency order                            | ci job                     |
-| `deno task test:w3c`          | `test/w3c/w3c-main.ts`         | SPARQL 1.1 evaluation-core differential vs Comunica (345 tests) | w3c-parity job             |
-| `deno task test:ref`          | `test/w3c/ref-crosscheck.ts`   | Allowlisted divergence audit vs Oxigraph + N3.js                | manual (on grammar change) |
-| `deno task bench`             | `deno bench --allow-all`       | Three-engine benchmarks                                         | manual                     |
-| `deno task publish:dry`       | `deno publish --dry-run`       | JSR publish validation                                          | ci + publish               |
+| Task                          | Command                        | What it runs                                                                                | Gating                     |
+| ----------------------------- | ------------------------------ | ------------------------------------------------------------------------------------------- | -------------------------- |
+| `deno task test`              | `deno test --allow-all`        | All unit + integration + parity `*.test.ts` files                                           | ci                         |
+| `deno task check`             | `deno check`                   | Typecheck the package                                                                       | ci                         |
+| `deno task fmt:check`         | `deno fmt --check`             | Source **and markdown** formatting (width 80)                                               | ci                         |
+| `deno task lint`              | `deno lint`                    | Lint                                                                                        | ci                         |
+| `deno task parser:check`      | `generate-parser.ts --check`   | Generated `parser.ts` in sync with `sparql.jison`                                           | ci                         |
+| `deno task bench:check`       | `bench/budget.ts`              | Perf regression budget (≤50 ms/iter)                                                        | ci                         |
+| `deno task test:exists-ref`   | `test/w3c/exists-ref.ts`       | EXISTS/NOT EXISTS subquery surface vs Oxigraph                                              | ci + w3c-parity            |
+| `deno task test:sparql12:gap` | `test/w3c/sparql12-gap.ts`     | RDF 1.2 eval-triple-terms gap suite (41/41)                                                 | ci                         |
+| `deno task test:sparql12`     | `test/w3c/sparql12-main.ts`    | W3C SPARQL 1.2 evaluation suite (249/249)                                                   | ci                         |
+| `deno task test:rdf11`        | `test/w3c/rdf-differential.ts` | RDF 1.1 Turtle/TriG/N-Triples/N-Quads vs n3                                                 | ci                         |
+| `deno task test:rdf12`        | `test/w3c/rdf-classify.ts`     | RDF 1.2 syntax classifier                                                                   | ci                         |
+| `deno task ci`                | —                              | All of the above in dependency order                                                        | ci job                     |
+| `deno task test:w3c`          | `test/w3c/w3c-main.ts`         | SPARQL 1.1 evaluation-core differential vs Comunica (345 tests)                             | w3c-parity job             |
+| `deno task docs:link-check`   | `docs/link-check.ts`           | Wiki link rot: every external markdown link (JSR/GitHub/W3C/…) must resolve (404/410 fails) | docs-links job             |
+| `deno task test:ref`          | `test/w3c/ref-crosscheck.ts`   | Allowlisted divergence audit vs Oxigraph + N3.js                                            | manual (on grammar change) |
+| `deno task bench`             | `deno bench --allow-all`       | Three-engine benchmarks                                                                     | manual                     |
+| `deno task publish:dry`       | `deno publish --dry-run`       | JSR publish validation                                                                      | ci + publish               |
 
 ## Unit & integration tests
 
