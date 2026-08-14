@@ -1,9 +1,9 @@
 ---
-title: 06 — Supplemental Context
+title: Supplemental Context
 layout: default
 ---
 
-# 06 — Supplemental Context
+# Supplemental Context
 
 Repository metadata, vendored datasets, W3C compliance notes, and glossary
 pointers. This page is intentionally secondary: engine architecture, parsing,

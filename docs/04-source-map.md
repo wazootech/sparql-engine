@@ -1,9 +1,9 @@
 ---
-title: 04 — Source Map & Module Directory
+title: Source Map & Module Directory
 layout: default
 ---
 
-# 04 — Source Map & Module Directory
+# Source Map & Module Directory
 
 Complete walkthrough of the repository layout. Every path is relative to the
 repo root; line numbers are the declaration sites reported by `deno doc --json`

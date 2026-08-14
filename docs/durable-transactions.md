@@ -1,5 +1,5 @@
 ---
-title: 07 — Durable Transactions (SQLite Backend)
+title: Durable Transactions (SQLite Backend)
 layout: default
 ---
 

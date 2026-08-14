@@ -1,9 +1,9 @@
 ---
-title: 02 — System Architecture & Query Pipeline
+title: System Architecture & Query Pipeline
 layout: default
 ---
 
-# 02 — System Architecture & Query Pipeline
+# System Architecture & Query Pipeline
 
 This page traces a SPARQL query end-to-end: string → AST → algebra →
 optimization → evaluation → result set, with the concrete files and methods that

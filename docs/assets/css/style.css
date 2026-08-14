@@ -385,7 +385,8 @@ pre {
   padding: 1rem 1.25rem;
   margin: 0 0 1.25rem;
   overflow-x: auto;
-  line-height: 1.55;
+  /* Tight rows so dense ASCII pipeline/tree diagrams stay compact */
+  line-height: 1.35;
   font-size: 0.9rem;
 }
 

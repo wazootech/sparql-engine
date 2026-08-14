@@ -1,9 +1,9 @@
 ---
-title: 05 — Verification & Testing
+title: Verification & Testing
 layout: default
 ---
 
-# 05 — Verification & Testing
+# Verification & Testing
 
 How the engine is verified — unit tests, differential parity, the W3C gates,
 benchmarking, and debugging the query pipeline.

@@ -1,9 +1,9 @@
 ---
-title: 01 — Developer Quickstart
+title: Developer Quickstart
 layout: default
 ---
 
-# 01 — Developer Quickstart
+# Developer Quickstart
 
 Get the engine running, execute SPARQL against a store, and run the test suites
 — in about five minutes.
