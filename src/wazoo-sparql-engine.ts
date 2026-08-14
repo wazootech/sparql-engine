@@ -5,6 +5,7 @@ import type {
   SparqlResponse,
 } from "@/sparql-engine-interface.ts";
 import { SparqlParser } from "@/parser/sparql-parser.ts";
+import type { SparqlQuery } from "@/parser/ast.ts";
 import { SparqlEvaluator } from "@/evaluator/sparql-evaluator.ts";
 import { UpdateEvaluator } from "@/evaluator/update-evaluator.ts";
 
@@ -57,6 +58,14 @@ export class WazooSparqlEngine implements SparqlEngineInterface {
   private readonly parser: SparqlParser;
   private readonly evaluator: SparqlEvaluator;
   private readonly updateEvaluator: UpdateEvaluator;
+  /**
+   * Bounded cache of parsed queries keyed by the exact request string.
+   * Parsing measured ~40% of a sub-millisecond execute, and the AST is only
+   * ever read by the evaluators (never mutated), so repeated queries reuse
+   * the parse. Map preserves insertion order, giving cheap FIFO eviction.
+   */
+  private readonly queryCache = new Map<string, SparqlQuery>();
+  private static readonly QUERY_CACHE_MAX = 128;
 
   public constructor(
     private readonly options: WazooSparqlEngineOptions,
@@ -78,7 +87,17 @@ export class WazooSparqlEngine implements SparqlEngineInterface {
     if (!raw) {
       throw new Error("SparqlRequest must specify either query or update");
     }
-    const ast = this.parser.parse(raw);
+    let ast = this.queryCache.get(raw);
+    if (ast === undefined) {
+      ast = this.parser.parse(raw);
+      this.queryCache.set(raw, ast);
+      if (this.queryCache.size > WazooSparqlEngine.QUERY_CACHE_MAX) {
+        const oldest = this.queryCache.keys().next().value;
+        if (oldest !== undefined) {
+          this.queryCache.delete(oldest);
+        }
+      }
+    }
     if (ast.type === "update") {
       await this.updateEvaluator.executeUpdate(ast);
       return { kind: "void" };
