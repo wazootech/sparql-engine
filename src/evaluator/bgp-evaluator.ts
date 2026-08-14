@@ -160,8 +160,9 @@ export class BgpEvaluator {
    * evaluateExistsGroup threads solutions through a pattern list with the
    * synchronous exists evaluator, mirroring evaluateGroup for the pattern
    * forms the W3C EXISTS surface exercises (BGP, FILTER, GRAPH, BIND,
-   * VALUES, nested EXISTS, and property paths over the graph-scoped
-   * candidate set). OPTIONAL / MINUS / UNION / subqueries inside EXISTS
+   * VALUES, OPTIONAL, MINUS, UNION, property paths, and nested EXISTS —
+   * all over the graph-scoped candidate set, reusing the same join.ts
+   * primitives as the main path). Only subqueries inside EXISTS still
    * raise a clear error rather than silently returning a wrong answer.
    */
   private evaluateExistsGroup(
@@ -338,9 +339,65 @@ export class BgpEvaluator {
         });
         return innerJoin(bindings, rows);
       }
-      case "optional":
-      case "minus":
-      case "union":
+      case "optional": {
+        // The OPTIONAL group's own FILTER expressions are hoisted out and
+        // evaluated against each merged binding (left joined with right), so
+        // they may reference variables bound on either side — mirroring the
+        // main path's LeftJoin(P1, P2, F) translation over the same join.ts
+        // primitives.
+        const innerPatterns: Pattern[] = [];
+        const filters: Expression[] = [];
+        for (const inner of pattern.patterns) {
+          if (inner.type === "filter") {
+            filters.push(inner.expression);
+          } else {
+            innerPatterns.push(inner);
+          }
+        }
+        const right = this.evaluateExistsGroup(
+          innerPatterns,
+          [{}],
+          candidates,
+          graph,
+        );
+        return leftJoin(
+          bindings,
+          right,
+          filters.map((expression) => (binding: TermBinding) =>
+            this.expressionEvaluator.filterPasses(expression, binding, context)
+          ),
+        );
+      }
+      case "minus": {
+        const right = this.evaluateExistsGroup(
+          pattern.patterns,
+          [{}],
+          candidates,
+          graph,
+        );
+        return minus(bindings, right);
+      }
+      case "union": {
+        // Each branch evaluates independently over the graph scope; the union
+        // is the multiset concatenation of the branches, naturally joined
+        // with the incoming solutions — mirroring Join(P, Union(Q1, Q2)).
+        const branchResults: TermBinding[][] = [];
+        for (const branch of pattern.patterns) {
+          branchResults.push(
+            this.evaluateExistsGroup([branch], [{}], candidates, graph),
+          );
+        }
+        return innerJoin(bindings, branchResults.flat());
+      }
+      case "group":
+        // A nested { ... } block recurses over the same scope, mirroring the
+        // main path's group case.
+        return this.evaluateExistsGroup(
+          pattern.patterns,
+          bindings,
+          candidates,
+          graph,
+        );
       case "query":
         throw new Error(
           `Graph pattern ${pattern.type} inside EXISTS is not supported yet`,
