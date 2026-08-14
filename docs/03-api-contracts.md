@@ -141,7 +141,13 @@ paths: `^ / | ? * + !` (negated property sets).
   triple-term expressions `<<( ?s ?p ?o )>>`, and `EXISTS` / `NOT EXISTS`
   (correlated, graph-scoped).
 - **SPARQL 1.2 direction functions**: `LANGDIR`, `STRLANGDIR`, `hasLang`,
-  `hasLangDir`.
+  `hasLangDir`. `hasLang` is variadic — all three arities parse and evaluate:
+  `hasLang(langString)`, `hasLang(langString, language)`, and
+  `hasLang(simpleLiteral, language, direction)`. The binary/ternary forms are a
+  **documented superset extension** (the published SPARQL 1.2 grammar defines
+  only the unary form); arity-2 matches the language tag case-insensitively and
+  arity-3 additionally matches the base direction (canonicalized to lowercase,
+  consistent with `STRLANGDIR`).
 
 Unsupported expression kinds (e.g. unknown `functionCall` IRIs) raise a clear
 error rather than silently mis-evaluating.
