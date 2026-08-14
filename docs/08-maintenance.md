@@ -8,7 +8,8 @@ layout: default
 This wiki is kept in sync with the source tree by a **Git-anchored delta
 process** (the approach LangChain's OpenWiki uses for documentation
 maintenance): the last-synced commit is the anchor, Git history is diffed
-forward, and only the pages the diff touches get edited. The procedurebelow is codified as a reusable skill (`wiki-sync` in
+forward, and only the pages the diff touches get edited. The procedurebelow is
+codified as a reusable skill (`wiki-sync` in
 `repos/wiki/skills/wiki-sync/SKILL.md` in the Wazoo wiki toolchain repo,
 alongside the `wiki` and `wiki-feedback` skills) so syncing docs after source
 changes is a command, not a prompt.
