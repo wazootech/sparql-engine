@@ -14,7 +14,7 @@ is the "why it's trustworthy and what the numbers say" companion.
 
 | Tool                         | Task                            | Measures                                                                              | Gate |
 | ---------------------------- | ------------------------------- | ------------------------------------------------------------------------------------- | ---- |
-| `bench/engine_bench.ts`      | `deno task bench`               | Query/update latency vs Comunica + Oxigraph                                           | no   |
+| `bench/engine_bench.ts`      | `deno task bench`               | Query/update latency vs [Comunica](https://comunica.dev/) + Oxigraph                  | no   |
 | `bench/budget.ts`            | `deno task bench:check`         | Latency regression vs `bench/baseline.json`                                           | CI   |
 | `bench/concurrency-probe.ts` | (manual)                        | EXISTS snapshot isolation under concurrency                                           | no   |
 | `bench/measure-libs.ts`      | `deno task bench:size`          | On-disk footprint of each engine                                                      | no   |
@@ -36,9 +36,11 @@ engine as the per-group baseline.
    engines return identical results (`verifySelectEquality`,
    `verifyAskEquality`, `verifyConstructEquality`, `verifyConstructIsoEquality`
    — CONSTRUCT under the graph-result multiset contract: reference deduplicated,
-   wazoo as-emitted (issue #87) — and every update asserts identical final store
-   contents on fresh stores (`verifyUpdateEquality`). A benchmark of a broken
-   engine fails loudly, not silently.
+   wazoo as-emitted (issue
+   [#87](https://github.com/wazootech/sparql-engine/issues/87)) — and every
+   update asserts identical final store contents on fresh stores
+   (`verifyUpdateEquality`). A benchmark of a broken engine fails loudly, not
+   silently.
 2. **Self-restoring updates.** The timed update deletes and re-inserts the same
    quads, netting to zero per iteration, so the benchmark stores never drift.
 3. **Per-group baselines.** Each group is timed independently; results are

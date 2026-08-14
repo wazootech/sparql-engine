@@ -16,7 +16,9 @@ durable store, while keeping the published engine runtime **dependency-free**
 
 ## Why the engine already supports this
 
-`WazooSparqlEngine` has a `createTransaction` hook (`WazooSparqlTransaction`):
+[`WazooSparqlEngine`](https://jsr.io/@wazoo/sparql-engine/doc/~/WazooSparqlEngine)
+has a `createTransaction` hook
+([`WazooSparqlTransaction`](https://jsr.io/@wazoo/sparql-engine/doc/~/WazooSparqlTransaction)):
 
 ```ts
 interface WazooSparqlTransaction {
@@ -33,10 +35,11 @@ multi-operation update (`INSERT DATA {…}; DELETE WHERE {…}`) is already
 all-or-nothing at the engine level. The missing piece is a _durable_
 implementation of that interface.
 
-## Prototype: `SqliteStore`
+## Prototype: [`SqliteStore`](https://github.com/wazootech/sparql-engine/blob/main/src/store/sqlite-store.ts)
 
-`SqliteStore` (`src/store/sqlite-store.ts`) is an RDF/JS Store + transaction
-factory backed by Deno/Node's built-in `node:sqlite` (`DatabaseSync`):
+[`SqliteStore`](https://github.com/wazootech/sparql-engine/blob/main/src/store/sqlite-store.ts)
+(`src/store/sqlite-store.ts`) is an RDF/JS Store + transaction factory backed by
+Deno/Node's built-in `node:sqlite` (`DatabaseSync`):
 
 ```ts
 const store = new SqliteStore({ path: "data.sqlite" });
@@ -56,9 +59,11 @@ quads(skey, pkey, okey, gkey, payload)
   STRICT                                 -- typed columns
 ```
 
-- The four key columns hold `termKey` of each position — the engine's own sound
-  RDF-term equality key (`src/term/identity.ts`), so lookups and the in-memory
-  store agree on identity, including RDF 1.2 triple terms.
+- The four key columns hold
+  [`termKey`](https://jsr.io/@wazoo/sparql-engine/doc/~/termKey) of each
+  position — the engine's own sound RDF-term equality key
+  (`src/term/identity.ts`), so lookups and the in-memory store agree on
+  identity, including RDF 1.2 triple terms.
 - `payload` is a lossless JSON encoding of the quad (term type, value, literal
   language + datatype, RDF-star nesting) so `match()` reconstructs exact terms —
   a `"hola"@es` literal round-trips with its language intact.
@@ -85,8 +90,9 @@ quads(skey, pkey, okey, gkey, payload)
   committed update survives power loss. (A production deployment can trade some
   durability for throughput with `synchronous=NORMAL`.)
 - A commit that completes survives `close()` and reopening the file with a
-  brand-new `SqliteStore` — covered by the "data persists across store reopen"
-  test.
+  brand-new
+  [`SqliteStore`](https://github.com/wazootech/sparql-engine/blob/main/src/store/sqlite-store.ts)
+  — covered by the "data persists across store reopen" test.
 
 ## Verified behavior (tests)
 
@@ -103,11 +109,12 @@ quads(skey, pkey, okey, gkey, payload)
 
 ## Packaging decision
 
-`node:sqlite` is a Node/Deno built-in, so `SqliteStore` is server-only and is
-**not exported from `src/mod.ts`** — the browser/edge export graph keeps zero
-runtime dependencies (`deno publish --dry-run` stays clean). It ships as a
-deep-import module today; before general release it should move to its own
-entrypoint (e.g. `./sqlite`) or a separate package.
+`node:sqlite` is a Node/Deno built-in, so
+[`SqliteStore`](https://github.com/wazootech/sparql-engine/blob/main/src/store/sqlite-store.ts)
+is server-only and is **not exported from `src/mod.ts`** — the browser/edge
+export graph keeps zero runtime dependencies (`deno publish --dry-run` stays
+clean). It ships as a deep-import module today; before general release it should
+move to its own entrypoint (e.g. `./sqlite`) or a separate package.
 
 ## Type-resolution note
 
@@ -125,13 +132,17 @@ package.
 | Deno KV (`Deno.openKv`)      | Built-in, atomic transactions, remote sync | Deno-only, eventual-consistency story |
 | Postgres via `node:postgres` | Mature, server-side                        | Heaviest integration                  |
 
-The engine-side contract (`WazooSparqlTransaction`) is intentionally minimal
-(add/delete/commit/rollback), so any of these can slot in without engine changes
-— the SQLite prototype is the reference implementation.
+The engine-side contract
+([`WazooSparqlTransaction`](https://jsr.io/@wazoo/sparql-engine/doc/~/WazooSparqlTransaction))
+is intentionally minimal (add/delete/commit/rollback), so any of these can slot
+in without engine changes — the SQLite prototype is the reference
+implementation.
 
 ## Next steps (not in this PR)
 
-1. Export `SqliteStore` from a dedicated `./sqlite` entrypoint.
+1. Export
+   [`SqliteStore`](https://github.com/wazootech/sparql-engine/blob/main/src/store/sqlite-store.ts)
+   from a dedicated `./sqlite` entrypoint.
 2. Decide fsync policy (`synchronous=NORMAL` vs `FULL`) and add a
    `busy_timeout`/retry policy for concurrent writers.
 3. Benchmark update throughput vs the in-memory store.

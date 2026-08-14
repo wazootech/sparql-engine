@@ -155,8 +155,8 @@ deno task test:exists-ref # EXISTS subquery surface vs Oxigraph
 deno task test:ref     # allowlisted-divergence audit vs Oxigraph + N3.js
 ```
 
-`deno test` needs no network for the W3C suites: fixtures are vendored under
-`test/w3c/fixtures/`.
+`deno test` needs no network for the [W3C](https://www.w3.org/) suites: fixtures
+are vendored under `test/w3c/fixtures/`.
 
 ## Benchmarks
 

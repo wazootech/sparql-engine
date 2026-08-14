@@ -5,21 +5,21 @@ layout: default
 
 # Supplemental Context
 
-Repository metadata, vendored datasets, W3C compliance notes, and glossary
-pointers. This page is intentionally secondary: engine architecture, parsing,
-and execution live in [02 — Architecture](02-architecture.md) and
-[04 — Source Map](04-source-map.md).
+Repository metadata, vendored datasets, [W3C](https://www.w3.org/) compliance
+notes, and glossary pointers. This page is intentionally secondary: engine
+architecture, parsing, and execution live in
+[02 — Architecture](02-architecture.md) and [04 — Source Map](04-source-map.md).
 
 ## Repository metadata
 
-| Field                 | Value                                                                                      |
-| --------------------- | ------------------------------------------------------------------------------------------ |
-| Package               | `@wazoo/sparql-engine` (JSR), version `0.1.0`, MIT                                         |
-| Runtime               | Deno 2.x (Node.js and browser via JSR; `SqliteStore` is server-only)                       |
-| Runtime dependencies  | **zero** — only type-only `@rdfjs/types`                                                   |
-| Dev/test dependencies | `@comunica/query-sparql-rdfjs-lite`, `oxigraph` (WASM), `n3`, `@std/assert`, `@types/node` |
-| Manifest              | `deno.json` (`exports["."] → ./src/mod.ts`, `@/` → `./src/`)                               |
-| CI                    | `.github/workflows/ci.yml` (`ci` + `w3c-parity` jobs), `publish.yml`                       |
+| Field                 | Value                                                                                                                                                  |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Package               | `@wazoo/sparql-engine` (JSR), version `0.1.0`, MIT                                                                                                     |
+| Runtime               | Deno 2.x (Node.js and browser via JSR; [`SqliteStore`](https://github.com/wazootech/sparql-engine/blob/main/src/store/sqlite-store.ts) is server-only) |
+| Runtime dependencies  | **zero** — only type-only `@rdfjs/types`                                                                                                               |
+| Dev/test dependencies | `@comunica/query-sparql-rdfjs-lite`, `oxigraph` (WASM), `n3`, `@std/assert`, `@types/node`                                                             |
+| Manifest              | `deno.json` (`exports["."] → ./src/mod.ts`, `@/` → `./src/`)                                                                                           |
+| CI                    | `.github/workflows/ci.yml` (`ci` + `w3c-parity` jobs), `publish.yml`                                                                                   |
 
 The "zero runtime dependencies" property is load-bearing: the package is
 browser-friendly and JSR-ready without transitive npm baggage. The vendored
@@ -39,8 +39,8 @@ engine is generated or vendored:
 | `bench/engine_bench.ts` (`buildGraphDataset` / `buildGraphOpsDataset`) | 200 person quads in `<http://example.org/g1>`; g1 + 50-quad g2 for ADD/COPY/MOVE/CLEAR/DROP                                                      | GRAPH/FROM benchmarks and graph-op updates     |
 | `bench/memory-probe.ts` (`buildPeopleDataset`)                         | 10,000-person graph, ~55k quads (foaf:name/age, pets, cities, spouses) — the peak-memory workload                                                | `deno task bench:memory`                       |
 | `test/parity/parity-fixtures.ts` (`createQuadStore`)                   | Small seeded stores for differential parity cases                                                                                                | `test/parity/*.test.ts`                        |
-| `test/w3c/fixtures/sparql11/`                                          | W3C SPARQL 1.1 evaluation-core (~2.6 MB, 345 tests, 31 categories)                                                                               | `deno task test:w3c`                           |
-| `test/w3c/fixtures/sparql12/`                                          | W3C SPARQL 1.2 evaluation suite (249 tests) + triple-terms gap suite (41)                                                                        | `deno task test:sparql12`, `test:sparql12:gap` |
+| `test/w3c/fixtures/sparql11/`                                          | W3C [SPARQL 1.1](https://www.w3.org/TR/sparql11-query/) evaluation-core (~2.6 MB, 345 tests, 31 categories)                                      | `deno task test:w3c`                           |
+| `test/w3c/fixtures/sparql12/`                                          | W3C [SPARQL 1.2](https://www.w3.org/TR/sparql12-query/) evaluation suite (249 tests) + triple-terms gap suite (41)                               | `deno task test:sparql12`, `test:sparql12:gap` |
 | `test/w3c/fixtures/rdf/`                                               | RDF 1.1 + 1.2 Turtle/TriG/N-Triples/N-Quads syntax suites (~2.5 MB)                                                                              | `deno task test:rdf11`, `test:rdf12`           |
 | `test/w3c/exists-ref.ts`                                               | Small inline Turtle graph (7 triples) cross-checked vs Oxigraph                                                                                  | `deno task test:exists-ref`                    |
 
@@ -53,8 +53,8 @@ engines. Refresh procedures are in `test/w3c/README.md`.
 ## W3C compliance posture
 
 The project does not run the W3C suites as a pass/fail conformance oracle alone
-— it runs them **differentially against Comunica**, with the W3C reference
-results as a secondary check. The posture is:
+— it runs them **differentially against [Comunica](https://comunica.dev/)**,
+with the W3C reference results as a secondary check. The posture is:
 
 1. **Parity is the floor.** Anything the parity reference
    (`@comunica/query-sparql-rdfjs-lite`) can do, the wazoo engine must do.
@@ -108,16 +108,21 @@ label identity.
   `evaluateExists(pattern,
   solution) => boolean` seam binding the pure
   expression layer to the graph scope and active dataset. Backed by a per-call
-  `ExistsSnapshot` (issue #72), so concurrent evaluations stay isolated.
+  [`ExistsSnapshot`](https://github.com/wazootech/sparql-engine/blob/main/src/evaluator/bgp-evaluator.ts)
+  (issue [#72](https://github.com/wazootech/sparql-engine/issues/72)), so
+  concurrent evaluations stay isolated.
 - **Correlated evaluation** — inner patterns see the outer solution's bindings;
   inner bindings never leak out.
 
 ## Known gaps and next steps
 
-- `timeoutMs` in `SparqlRequest` is accepted but not yet enforced by the wazoo
-  engine (Comunica enforces it). `baseIri` is accepted; the wazoo engine derives
-  the base from the query's `BASE` directive instead.
-- `SqliteStore` ships as a deep-import prototype; the durable-transactions notes
+- `timeoutMs` in
+  [`SparqlRequest`](https://jsr.io/@wazoo/sparql-engine/doc/~/SparqlRequest) is
+  accepted but not yet enforced by the wazoo engine (Comunica enforces it).
+  `baseIri` is accepted; the wazoo engine derives the base from the query's
+  `BASE` directive instead.
+- [`SqliteStore`](https://github.com/wazootech/sparql-engine/blob/main/src/store/sqlite-store.ts)
+  ships as a deep-import prototype; the durable-transactions notes
   (`docs/durable-transactions.md`) list next steps: a dedicated `./sqlite`
   entrypoint, fsync/busy-timeout policy, update-throughput benchmarks, and
   `INSERT … ON CONFLICT` batching.
