@@ -134,6 +134,31 @@ Deno.test(
 );
 
 Deno.test(
+  "serializeJsonResults - JSON-escapes special characters in values",
+  () => {
+    const parsed = JSON.parse(
+      serializeJsonResults({
+        kind: "select",
+        data: {
+          head: { vars: ["v"] },
+          results: {
+            bindings: [{
+              v: { type: "literal", value: 'a"b\\c\n\u0001d' },
+            }],
+          },
+        },
+      }),
+    ) as { results: { bindings: Array<Record<string, SparqlValue>> } };
+    // JSON.stringify escapes quotes, backslashes, and control characters;
+    // the parsed value is byte-identical to the original literal text.
+    assertEquals(parsed.results.bindings[0].v, {
+      type: "literal",
+      value: 'a"b\\c\n\u0001d',
+    });
+  },
+);
+
+Deno.test(
   "serializeJsonResults - round-trips a directional literal end to end",
   async () => {
     // A real query through the engine: the RDF 1.2 directional literal

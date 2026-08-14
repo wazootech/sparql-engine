@@ -17,6 +17,7 @@ export type {
 export { MemoryStore, MemoryStream } from "@/store/memory-store.ts";
 export { DataFactory, dataFactory } from "@/term/mod.ts";
 export { serializeJsonResults } from "@/serialize/json-results.ts";
+export { serializeXmlResults } from "@/serialize/xml-results.ts";
 
 export {
   canonicalizeRdfTerm,
