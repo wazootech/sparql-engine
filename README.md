@@ -56,6 +56,100 @@ if (result.kind === "select") {
 }
 ```
 
+## Tree-shakeable subpath imports
+
+The package also exposes four subpath entrypoints, so a consumer that only needs
+one layer never loads the whole engine graph. Each subpath's import closure is
+measured by `deno task bench:size:closures` — a store-only app pays **53 KiB
+instead of 576 KiB**, and the serializers are the cheapest leaf at 7.4 KiB.
+
+### `@wazoo/sparql-engine/term` — term algebra (40.3 KiB)
+
+RDF/JS term construction, hashing, comparison, and conversion, without the
+evaluator:
+
+```typescript
+import { DataFactory, sameRdfTerm, termKey } from "@wazoo/sparql-engine/term";
+
+const { literal, namedNode } = DataFactory;
+const xsd = "http://www.w3.org/2001/XMLSchema#";
+const a = literal("42", namedNode(xsd + "integer"));
+const b = literal("42", namedNode(xsd + "integer"));
+
+termKey(a); // stable hash key for maps/sets
+sameRdfTerm(a, b); // structural equality incl. datatype → true
+```
+
+### `@wazoo/sparql-engine/store` — RDF/JS quad store (53.1 KiB)
+
+The zero-dependency in-memory store, implementing the full `rdfjs.Store`
+interface — no query engine attached:
+
+```typescript
+import { DataFactory } from "@wazoo/sparql-engine/term";
+import { MemoryStore } from "@wazoo/sparql-engine/store";
+
+const { literal, namedNode, quad } = DataFactory;
+const store = new MemoryStore([
+  quad(
+    namedNode("https://example.org/alice"),
+    namedNode("https://xmlns.com/foaf/0.1/name"),
+    literal("Alice"),
+  ),
+]);
+
+// `match` returns an RDF/JS stream (async iterable)
+for await (const q of store.match(namedNode("https://example.org/alice"))) {
+  console.log(q.object.value); // "Alice"
+}
+```
+
+### `@wazoo/sparql-engine/parser` — SPARQL AST parser (213.8 KiB)
+
+Parse SPARQL 1.1 & 1.2 into the sparqljs-compatible AST without loading the
+evaluator:
+
+```typescript
+import { SparqlParser } from "@wazoo/sparql-engine/parser";
+
+const ast = new SparqlParser({ sparqlStar: true }).parse(
+  "SELECT ?s WHERE { ?s ?p ?o }",
+);
+console.log(ast.type); // "query"
+console.log(ast.variables); // [Variable{ value: "s" }]
+```
+
+### `@wazoo/sparql-engine/serialize` — results writers (7.4 KiB)
+
+Serialize a `SparqlResponse` to SPARQL results JSON (`.srj`) or XML (`.srx`):
+
+```typescript
+import {
+  serializeJsonResults,
+  serializeXmlResults,
+} from "@wazoo/sparql-engine/serialize";
+
+const response = {
+  kind: "select",
+  data: {
+    head: { vars: ["s"] },
+    results: {
+      bindings: [
+        { s: { type: "uri", value: "https://example.org/alice" } },
+      ],
+    },
+  },
+};
+
+serializeJsonResults(response); // {"head":{"vars":["s"]},"results":…}
+serializeXmlResults(response); // <?xml version="1.0" encoding="UTF-8"?>…
+```
+
+The subpaths can be mixed freely — e.g. the store above with the term layer, or
+the serializers fed by `engine.execute()`'s response. Anything not re-exported
+through `./term`, `./store`, `./parser`, or `./serialize` (or the root
+entrypoint) is private surface.
+
 ## Parity testing
 
 The differential test suite in `test/parity/` proves behavioral equivalence with
@@ -113,6 +207,7 @@ Timings are machine-specific — run `deno task bench` for your own numbers.
 
 Core joins, 400-person graph (~2,200 quads):
 
+
 | query                        | wazoo   | comunica | oxigraph |
 | ---------------------------- | ------- | -------- | -------- |
 | full scan                    | 0.96 ms | 5.5 ms   | 12.2 ms  |
@@ -130,6 +225,7 @@ EXISTS surface, 400-person graph:
 | nested `EXISTS`     | 1.2 ms | 74.8 ms  | 1.7 ms   |
 | nested `NOT EXISTS` | 1.2 ms | 75.2 ms  | 1.8 ms   |
 
+
 EXISTS surface, 10,000-person graph (~55,000 quads):
 
 | query               | wazoo   | comunica | oxigraph |
@@ -139,11 +235,13 @@ EXISTS surface, 10,000-person graph (~55,000 quads):
 | nested `EXISTS`     | 40.9 ms | 1.9 s    | 39.4 ms  |
 | nested `NOT EXISTS` | 43.0 ms | 1.8 s    | 40.6 ms  |
 
+
 Scaling the data 25x (400 → 10,000 people) grows wazoo's EXISTS cost ~35x while
 nesting stays within ~1.2x of the simple case at both scales: the snapshot is
 drained and indexed once per query, and each probe touches only its candidate
 bucket, so nesting stays cheap relative to the dataset. Across the exists
 surface wazoo is ~15-65x faster than comunica and roughly at parity with
+
 oxigraph (a compiled Rust/WASM engine with native indexes, which remains ahead
 on the reorder-chain row); on the core scan/join rows wazoo is the fastest of
 the three.
