@@ -1,0 +1,90 @@
+{
+  "generatedAt": "2026-08-14T19:36:41.556Z",
+  "entries": [
+    {
+      "name": ".",
+      "files": [
+        "src\\evaluator\\aggregate.ts",
+        "src\\evaluator\\bgp-evaluator.ts",
+        "src\\evaluator\\expression-evaluator.ts",
+        "src\\evaluator\\expression-utils.ts",
+        "src\\evaluator\\join.ts",
+        "src\\evaluator\\reified.ts",
+        "src\\evaluator\\select-pipeline.ts",
+        "src\\evaluator\\sparql-evaluator.ts",
+        "src\\evaluator\\update-evaluator.ts",
+        "src\\mod.ts",
+        "src\\parser\\mod.ts",
+        "src\\parser\\parser.ts",
+        "src\\parser\\sparql-parser.ts",
+        "src\\parser\\turtle-generated.ts",
+        "src\\parser\\turtle-parser.ts",
+        "src\\quad-store.ts",
+        "src\\serialize\\json-results.ts",
+        "src\\serialize\\mod.ts",
+        "src\\serialize\\xml-results.ts",
+        "src\\store\\memory-store.ts",
+        "src\\term\\canonical.ts",
+        "src\\term\\convert.ts",
+        "src\\term\\data-factory.ts",
+        "src\\term\\datetime.ts",
+        "src\\term\\hash.ts",
+        "src\\term\\identity.ts",
+        "src\\term\\mod.ts",
+        "src\\term\\numeric.ts",
+        "src\\term\\ordering.ts",
+        "src\\wazoo-sparql-engine.ts"
+      ],
+      "bytes": 589742
+    },
+    {
+      "name": "./term",
+      "files": [
+        "src\\term\\canonical.ts",
+        "src\\term\\convert.ts",
+        "src\\term\\data-factory.ts",
+        "src\\term\\datetime.ts",
+        "src\\term\\hash.ts",
+        "src\\term\\identity.ts",
+        "src\\term\\mod.ts",
+        "src\\term\\numeric.ts",
+        "src\\term\\ordering.ts"
+      ],
+      "bytes": 41277
+    },
+    {
+      "name": "./store",
+      "files": [
+        "src\\store\\memory-store.ts",
+        "src\\term\\canonical.ts",
+        "src\\term\\convert.ts",
+        "src\\term\\data-factory.ts",
+        "src\\term\\datetime.ts",
+        "src\\term\\hash.ts",
+        "src\\term\\identity.ts",
+        "src\\term\\mod.ts",
+        "src\\term\\numeric.ts",
+        "src\\term\\ordering.ts"
+      ],
+      "bytes": 54401
+    },
+    {
+      "name": "./parser",
+      "files": [
+        "src\\parser\\mod.ts",
+        "src\\parser\\parser.ts",
+        "src\\term\\data-factory.ts"
+      ],
+      "bytes": 218956
+    },
+    {
+      "name": "./serialize",
+      "files": [
+        "src\\serialize\\json-results.ts",
+        "src\\serialize\\mod.ts",
+        "src\\serialize\\xml-results.ts"
+      ],
+      "bytes": 7596
+    }
+  ]
+}

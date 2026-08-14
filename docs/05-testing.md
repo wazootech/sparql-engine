@@ -193,30 +193,51 @@ deno run --allow-all bench/concurrency-probe.ts
 The same guarantees are locked in as unit tests in
 `src/wazoo-sparql-engine.test.ts`.
 
-### `deno task bench:size` / `bench:memory` — footprint measurement
+### `deno task bench:size` / `bench:size:closures` / `bench:memory` — footprint measurement
 
 Latency is only half the story: the engine is also benchmarked on what it costs
 to ship and run (root `README.md` → _Size & memory footprint_):
 
 - `bench:size` — `bench/measure-libs.ts` measures the on-disk footprint a
-  consumer must install: the native JSR artifact (0.67 MiB, zero runtime deps)
+  consumer must install: the native JSR artifact (0.60 MiB, zero runtime deps)
   vs the Oxigraph npm package (7.9 MiB) vs Comunica's full transitive closure
-  (28.3 MiB) → `bench/size-data.json`.
+  (28.3 MiB) → `bench/size-data.json`. The JSR `publish.exclude` set (grammar
+  sources, `generate-parser.ts`, `sqlite-store.ts`) is applied before measuring,
+  so the number is what consumers actually install.
+- `bench:size:closures` — `bench/measure-closures.ts` walks the value-import
+  graph of each package entrypoint (`.`, `./term`, `./store`, `./parser`,
+  `./serialize`), skipping type-only imports, and reports the total local bytes
+  each one loads (7.4 KiB serializers … 575.9 KiB full engine) →
+  `bench/closures-data.json`.
 - `bench:memory` — `bench/collect-memory.ts` spawns `bench/memory-probe.ts` per
   engine in an **isolated Deno subprocess** (so only the target engine is
   loaded), reporting peak `Deno.memoryUsage().heapUsed` over 5 runs on a
   10k-person graph (~55k quads), across a full-scan and a nested-EXISTS workload
-  → `bench/memory-data.json`. Native is lowest on both (134 / 82 MB vs Comunica
-  214 / 271 MB, Oxigraph 251 / 108 MB).
-- `bench/treemap.ts` renders both JSON snapshots into
-  `docs/assets/treemap-*.svg` (area ∝ size):
+  → `bench/memory-data.json`. Native is lowest on both (134 / 82 MiB vs Comunica
+  214 / 271 MiB, Oxigraph 251 / 108 MiB).
+- `bench/treemap.ts` renders the JSON snapshots into `docs/assets/treemap-*.svg`
+  (area ∝ size for the treemaps; bar chart for the closures):
 
-![Library size treemap](assets/treemap-library-size.svg)
+<figure>
+  <img src="assets/treemap-library-size.svg" alt="Treemap of engine footprints on disk">
+  <figcaption><b>Fig — Library size on disk.</b> One panel per engine; panel
+  area is proportional to installed size (values in binary MiB). Inside each
+  panel the largest files/packages are tiled with the tail aggregated as
+  “other deps” — native (green) breaks into its 8 largest source files,
+  oxigraph (blue) into its WASM runtime vs JS glue, comunica (orange) into its
+  top dependency clusters.</figcaption>
+</figure>
 
-![Memory treemap](assets/treemap-memory.svg)
+<figure>
+  <img src="assets/treemap-memory.svg" alt="Treemap of peak heap per engine and workload">
+  <figcaption><b>Fig — Peak heap during execution</b> (10k-person graph).
+  One panel per workload (full scan, nested EXISTS); within each, the three
+  engines’ tiles are scaled by their peak `heapUsed` (values in MiB). Native
+  (green) is the smallest tile in both panels.</figcaption>
+</figure>
 
 These are machine-specific snapshots (Deno 2.9.5, Windows), not guarantees —
-regenerate with the two tasks above and commit the updated SVGs.
+regenerate with the three tasks above and commit the updated SVGs.
 
 ## Debugging guide
 

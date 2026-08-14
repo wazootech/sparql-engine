@@ -5,21 +5,22 @@ layout: default
 
 # Benchmarking & Performance
 
-The engine ships four benchmark surfaces — one latency comparison, one CI
-regression gate, one concurrency stress probe, and two footprint measurers. This
-page documents the methodology behind each and the known results measured on the
-reference machine. Run instructions live in
-[05 — Verification & Testing](05-testing.md); this page is the "why it's
-trustworthy and what the numbers say" companion.
+The engine ships six benchmark surfaces — one latency comparison, one CI
+regression gate, one concurrency stress probe, and three footprint measurers
+(on-disk size, per-entrypoint closure, and peak heap). This page documents the
+methodology behind each and the known results measured on the reference machine.
+Run instructions live in [05 — Verification & Testing](05-testing.md); this page
+is the "why it's trustworthy and what the numbers say" companion.
 
-| Tool                         | Task                     | Measures                                                        | Gate |
-| ---------------------------- | ------------------------ | --------------------------------------------------------------- | ---- |
-| `bench/engine_bench.ts`      | `deno task bench`        | Query/update latency vs Comunica + Oxigraph                     | no   |
-| `bench/budget.ts`            | `deno task bench:check`  | Latency regression vs `bench/baseline.json`                     | CI   |
-| `bench/concurrency-probe.ts` | (manual)                 | EXISTS snapshot isolation under concurrency                     | no   |
-| `bench/measure-libs.ts`      | `deno task bench:size`   | On-disk footprint of each engine                                | no   |
-| `bench/collect-memory.ts`    | `deno task bench:memory` | Peak heap during execution                                      | no   |
-| `bench/treemap.ts`           | (both of the above)      | Renders the two JSON snapshots into `docs/assets/treemap-*.svg` | no   |
+| Tool                         | Task                            | Measures                                                    | Gate |
+| ---------------------------- | ------------------------------- | ----------------------------------------------------------- | ---- |
+| `bench/engine_bench.ts`      | `deno task bench`               | Query/update latency vs Comunica + Oxigraph                 | no   |
+| `bench/budget.ts`            | `deno task bench:check`         | Latency regression vs `bench/baseline.json`                 | CI   |
+| `bench/concurrency-probe.ts` | (manual)                        | EXISTS snapshot isolation under concurrency                 | no   |
+| `bench/measure-libs.ts`      | `deno task bench:size`          | On-disk footprint of each engine                            | no   |
+| `bench/measure-closures.ts`  | `deno task bench:size:closures` | Per-entrypoint import closure (what each subpath loads)     | no   |
+| `bench/collect-memory.ts`    | `deno task bench:memory`        | Peak heap during execution                                  | no   |
+| `bench/treemap.ts`           | (all three above)               | Renders the JSON snapshots into `docs/assets/treemap-*.svg` | no   |
 
 ## `deno task bench` — three-engine latency comparison
 
@@ -171,28 +172,67 @@ On-disk footprint (what a consumer must have installed):
 
 | engine   | on disk      | contents                                                                                              |
 | -------- | ------------ | ----------------------------------------------------------------------------------------------------- |
-| native   | **0.67 MiB** | 38 source files (the whole JSR artifact: `src/` + `README.md` + `LICENSE`); zero runtime dependencies |
+| native   | **0.60 MiB** | 36 source files (the whole JSR artifact: `src/` + `README.md` + `LICENSE`); zero runtime dependencies |
 | oxigraph | 7.9 MiB      | WASM runtime (7.8 MiB) + JS glue/types                                                                |
 | comunica | 28.3 MiB     | 368 npm packages in the transitive dependency closure                                                 |
 
-Native breaks down as evaluator 226 KiB, parser 381 KiB, store 24 KiB, term 40
-KiB, README 13 KiB, LICENSE 1 KiB — the parser is the largest single module (the
-generated `parser.ts` from `sparql.jison`).
+<figure>
+  <img src="assets/treemap-library-size.svg" alt="Treemap of engine footprints on disk">
+  <figcaption><b>Fig — Library size on disk.</b> One panel per engine; panel
+  area is proportional to installed size (values in binary MiB). Inside each
+  panel the largest files/packages are tiled with the tail aggregated as
+  “other deps” — native (green) breaks into its 8 largest source files,
+  oxigraph (blue) into its WASM runtime vs JS glue, comunica (orange) into its
+  top dependency clusters.</figcaption>
+</figure>
+
+Native breaks down as evaluator 226 KiB, parser 294 KiB (the generated
+`parser.ts` alone is 202 KiB), term 40 KiB, store 13 KiB, serialize 7 KiB,
+README 15 KiB, LICENSE 1 KiB — the parser is the largest single module (the
+generated `parser.ts` from `sparql.jison`). The `bench:size` JSON breaks the
+artifact into per-file tiles so the treemap stays honest: the JSR
+`publish.exclude` set (grammar sources, `generate-parser.ts`, `sqlite-store.ts`)
+is applied before measuring.
+
+**Per-entrypoint consumer closure** — what importing a subpath actually loads
+from the published package (value-import graph, type-only imports erased;
+measured by `deno task bench:size:closures`):
+
+<figure>
+  <img src="assets/treemap-closures.svg" alt="Bar chart of per-entrypoint import closures">
+  <figcaption><b>Fig — Per-entrypoint consumer closure.</b> Bar length is the
+  total size of the local files each `@wazoo/sparql-engine` entrypoint actually
+  loads (file count per bar). The full engine pulls in the whole 576 KiB graph;
+  a store-only consumer pays just 53 KiB and the serializers are the cheapest
+  leaf at 7.4 KiB.</figcaption>
+</figure>
+
+| import                               | closure     | files |
+| ------------------------------------ | ----------- | ----- |
+| `@wazoo/sparql-engine/serialize`     | **7.4 KiB** | 3     |
+| `@wazoo/sparql-engine/term`          | 40.3 KiB    | 9     |
+| `@wazoo/sparql-engine/store`         | 53.1 KiB    | 10    |
+| `@wazoo/sparql-engine/parser`        | 213.8 KiB   | 3     |
+| `@wazoo/sparql-engine` (full engine) | 575.9 KiB   | 30    |
 
 Peak heap during execution (`heapUsed`; isolated subprocess per engine, peak
-over 5 runs, all three share the same ~65 MB runtime baseline so the comparison
+over 5 runs, all three share the same ~62 MiB runtime baseline so the comparison
 is symmetric):
 
-| workload             | native     | comunica | oxigraph |
-| -------------------- | ---------- | -------- | -------- |
-| full scan (55k rows) | **134 MB** | 214 MB   | 251 MB   |
-| nested EXISTS        | **82 MB**  | 271 MB   | 108 MB   |
+| workload             | native      | comunica | oxigraph |
+| -------------------- | ----------- | -------- | -------- |
+| full scan (55k rows) | **134 MiB** | 214 MiB  | 251 MiB  |
+| nested EXISTS        | **82 MiB**  | 271 MiB  | 108 MiB  |
 
-![Library size treemap](assets/treemap-library-size.svg)
+<figure>
+  <img src="assets/treemap-memory.svg" alt="Treemap of peak heap per engine and workload">
+  <figcaption><b>Fig — Peak heap during execution</b> (10k-person graph).
+  One panel per workload (full scan, nested EXISTS); within each, the three
+  engines’ tiles are scaled by their peak `heapUsed` (values in MiB). Native
+  (green) is the smallest tile in both panels.</figcaption>
+</figure>
 
-![Memory treemap](assets/treemap-memory.svg)
-
-Native is the smallest on disk by 12-42× (0.67 vs 7.9 vs 28.3 MiB) and holds its
+Native is the smallest on disk by 13-47× (0.60 vs 7.9 vs 28.3 MiB) and holds its
 speed advantage with the lowest peak heap on both workloads — including a peak
 roughly a third of Comunica's on the nested-EXISTS surface the timings above
 highlight. Oxigraph's WASM runtime is compact on disk, but its result
@@ -206,6 +246,7 @@ deno task bench        # latency: prints tables, verifies results first
 deno task bench:check  # CI gate: pass/fail vs bench/baseline.json
 deno run --allow-all bench/concurrency-probe.ts   # exit 1 on any divergence
 deno task bench:size   # measure-libs → size-data.json → treemap SVGs → fmt
+deno task bench:size:closures # measure-closures → closures-data.json → closures SVG → fmt
 deno task bench:memory # collect-memory → memory-data.json → treemap SVGs → fmt
 ```
 

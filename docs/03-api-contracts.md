@@ -267,8 +267,9 @@ Values/classes: `WazooSparqlEngine`, `MemoryStore`, `MemoryStream`,
 `DataFactory`, `dataFactory`, `canonicalizeRdfTerm`, `canonicalizeSparqlValue`,
 `compareNumericValues`, `compareRdfTerms`, `formatNumber`, `NUMERIC_DATATYPES`,
 `numericValue`, `rdfTermToSparqlValue`, `sameRdfTerm`, `sparqlTermToRdfTerm`,
-`termKey`, `XSD`, `XSD_BOOLEAN`, `XSD_DECIMAL`, `XSD_DOUBLE`, `XSD_FLOAT`,
-`XSD_INTEGER`, `XSD_STRING`.
+`serializeJsonResults`, `serializeXmlResults` (the writers are also re-exported
+from the `./serialize` subpath entrypoint), `termKey`, `XSD`, `XSD_BOOLEAN`,
+`XSD_DECIMAL`, `XSD_DOUBLE`, `XSD_FLOAT`, `XSD_INTEGER`, `XSD_STRING`.
 
 Not exported (deep-import only): `SparqlParser`, the AST types
 (`src/parser/ast.ts`), `SqliteStore` (`src/store/sqlite-store.ts`), and the

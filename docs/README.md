@@ -54,19 +54,34 @@ Updates take a parallel path through `UpdateEvaluator.executeUpdate()`
 
 ## Footprint at a glance
 
-Two treemaps summarize what the engine costs to ship and run versus the
-reference engines (area ∝ size; full methodology and tables in
-[07 — Benchmarking & Performance](07-benchmarking.md)):
+Three figures summarize what the engine costs to ship and run versus the
+reference engines (treemap panels are area ∝ size; full methodology and tables
+in [07 — Benchmarking & Performance](07-benchmarking.md)):
 
-|                          | native                   | oxigraph | comunica                |
-| ------------------------ | ------------------------ | -------- | ----------------------- |
-| on-disk footprint        | **0.67 MiB** (zero deps) | 7.9 MiB  | 28.3 MiB (368 packages) |
-| peak heap, full scan     | **134 MB**               | 251 MB   | 214 MB                  |
-| peak heap, nested EXISTS | **82 MB**                | 108 MB   | 271 MB                  |
+|                          | native                     | oxigraph | comunica                |
+| ------------------------ | -------------------------- | -------- | ----------------------- |
+| on-disk footprint        | **0.60 MiB** (zero deps)   | 7.9 MiB  | 28.3 MiB (368 packages) |
+| smallest subpath import  | **7.4 KiB** (`/serialize`) | —        | —                       |
+| peak heap, full scan     | **134 MiB**                | 251 MiB  | 214 MiB                 |
+| peak heap, nested EXISTS | **82 MiB**                 | 108 MiB  | 271 MiB                 |
 
-![Library size treemap](assets/treemap-library-size.svg)
+<figure>
+  <img src="assets/treemap-library-size.svg" alt="Treemap of engine footprints on disk">
+  <figcaption><b>Fig 1 — Library size on disk.</b> One panel per engine; panel
+  area is proportional to installed size (values in binary MiB). Inside each
+  panel the largest files/packages are tiled with the tail aggregated as
+  “other deps” — native (green) breaks into its 8 largest source files,
+  oxigraph (blue) into its WASM runtime vs JS glue, comunica (orange) into its
+  top dependency clusters.</figcaption>
+</figure>
 
-![Memory treemap](assets/treemap-memory.svg)
+<figure>
+  <img src="assets/treemap-memory.svg" alt="Treemap of peak heap per engine and workload">
+  <figcaption><b>Fig 2 — Peak heap during execution</b> (10k-person graph).
+  One panel per workload (full scan, nested EXISTS); within each, the three
+  engines’ tiles are scaled by their peak `heapUsed` (values in MiB). Native
+  (green) is the smallest tile in both panels.</figcaption>
+</figure>
 
 ## Keeping this wiki in sync
 

@@ -329,6 +329,78 @@ function memoryTree(): Placed[] {
 }
 
 /* ------------------------------------------------------------------ */
+/* Per-entrypoint consumer closure bar chart                         */
+/* ------------------------------------------------------------------ */
+
+/** closuresChart renders a horizontal bar chart of the per-entrypoint
+ * value-import closures from bench/closures-data.json (measure-closures.ts).
+ * Returns true when the data file exists and the SVG was written. */
+function closuresChart(): boolean {
+  const dataPath = join(Deno.cwd(), "bench", "closures-data.json");
+  try {
+    Deno.statSync(dataPath);
+  } catch {
+    return false;
+  }
+  const data = JSON.parse(Deno.readTextFileSync(dataPath)) as {
+    entries: { name: string; bytes: number; files: string[] }[];
+  };
+  const SUBPATH_LABEL: Record<string, string> = {
+    ".": "@wazoo/sparql-engine (full)",
+    "./term": "@wazoo/sparql-engine/term",
+    "./store": "@wazoo/sparql-engine/store",
+    "./parser": "@wazoo/sparql-engine/parser",
+    "./serialize": "@wazoo/sparql-engine/serialize",
+  };
+  const entries = [...data.entries]
+    .map((e) => ({ ...e, label: SUBPATH_LABEL[e.name] ?? e.name }))
+    .sort((a, b) => a.bytes - b.bytes);
+  const max = Math.max(...entries.map((e) => e.bytes), 1);
+  const width = 720;
+  const height = 40 + entries.length * 34 + 14;
+  const padL = 16;
+  const padR = 250; // label column
+  const barW = width - padL - padR;
+  const barH = 18;
+  const parts: string[] = [];
+  parts.push(
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" ` +
+      `font-family="sans-serif"><rect width="${width}" height="${height}" fill="#f8f9fa"/>`,
+  );
+  parts.push(
+    `<text x="12" y="20" font-size="13" font-weight="bold" fill="#212529">` +
+      `Per-entrypoint consumer closure</text>`,
+  );
+  parts.push(
+    `<text x="12" y="34" font-size="9" fill="#868e96">` +
+      `Value-import graph of what each subpath loads from the published package ` +
+      `(type-only imports erased)</text>`,
+  );
+  entries.forEach((entry, i) => {
+    const y = 46 + i * 34;
+    const len = Math.max((entry.bytes / max) * barW, 1);
+    parts.push(
+      `<rect x="${padL}" y="${y}" width="${len.toFixed(1)}" height="${barH}" ` +
+        `fill="#1971c2" rx="2"/>`,
+    );
+    parts.push(
+      `<text x="${padL + barW}" y="${(y + barH / 2 + 3).toFixed(1)}" ` +
+        `text-anchor="end" font-family="sans-serif" font-size="10" fill="#212529">` +
+        `${esc(entry.label)} — ${
+          fmtBytes(entry.bytes)
+        } (${entry.files.length} files)</text>`,
+    );
+  });
+  parts.push("</svg>");
+  Deno.writeTextFileSync(
+    join(Deno.cwd(), "docs", "assets", "treemap-closures.svg"),
+    parts.join("\n"),
+  );
+  console.log("wrote docs/assets/treemap-closures.svg");
+  return true;
+}
+
+/* ------------------------------------------------------------------ */
 
 const sizeSvg = treemapSvg(
   "Library size on disk",
@@ -342,7 +414,7 @@ Deno.writeTextFileSync(
 
 const memSvg = treemapSvg(
   "Peak heap during execution (10k-person graph)",
-  "Isolated Deno subprocess per engine; peak Deno.memoryUsage().heapUsed over 5 runs; ~65 MB runtime baseline excluded from comparison by symmetry",
+  "Isolated Deno subprocess per engine; peak Deno.memoryUsage().heapUsed over 5 runs; ~62 MiB runtime baseline excluded from comparison by symmetry",
   memoryTree(),
   720,
   300,
@@ -351,6 +423,8 @@ Deno.writeTextFileSync(
   join(Deno.cwd(), "docs", "assets", "treemap-memory.svg"),
   memSvg,
 );
+
+closuresChart();
 
 console.log(
   "wrote docs/assets/treemap-library-size.svg and treemap-memory.svg",
