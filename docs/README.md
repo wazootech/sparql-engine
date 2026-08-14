@@ -1,3 +1,8 @@
+---
+title: Wiki Index
+layout: default
+---
+
 # @wazoo/sparql-engine — Code Wiki
 
 Developer documentation for the Wazoo-native SPARQL 1.1 & 1.2 query and update

@@ -1,3 +1,8 @@
+---
+title: 04 — Source Map & Module Directory
+layout: default
+---
+
 # 04 — Source Map & Module Directory
 
 Complete walkthrough of the repository layout. Every path is relative to the

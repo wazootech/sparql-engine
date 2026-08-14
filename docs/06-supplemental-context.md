@@ -1,3 +1,8 @@
+---
+title: 06 — Supplemental Context
+layout: default
+---
+
 # 06 — Supplemental Context
 
 Repository metadata, vendored datasets, W3C compliance notes, and glossary

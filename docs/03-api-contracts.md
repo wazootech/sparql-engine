@@ -1,3 +1,8 @@
+---
+title: 03 — API Contracts & Interface Specs
+layout: default
+---
+
 # 03 — API Contracts & Interface Specs
 
 The public surface is small and stable: one engine class implementing one

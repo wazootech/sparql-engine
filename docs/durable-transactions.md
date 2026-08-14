@@ -1,3 +1,8 @@
+---
+title: 07 — Durable Transactions (SQLite Backend)
+layout: default
+---
+
 # Durable transaction backend for SPARQL updates
 
 Status: **prototype implemented** — `src/store/sqlite-store.ts` (with tests in
