@@ -82,6 +82,24 @@
         {% include prev-next.html %}
       </main>
     </div>
+
+    <footer class="site-footer">
+      {%- if site.github and site.github.build_revision -%}
+        Generated from
+        <a
+          href="https://github.com/wazootech/sparql-engine/commit/{{ site.github.build_revision }}"
+          target="_blank"
+          rel="noopener noreferrer"
+        >main@{{ site.github.build_revision | slice: 0, 7 }}</a>
+        on {{ site.time | date: "%Y-%m-%d" }}. This reflects the repo state at
+        that commit — see
+        <a href="{{ site.baseurl }}/08-maintenance.html">08 — Wiki Maintenance</a>
+        for how the docs are kept in sync with `main`.
+      {%- else -%}
+        Generated {{ site.time | date: "%Y-%m-%d %H:%M" }} (local build).
+      {%- endif -%}
+    </footer>
+
     <noscript>
       <style>
       /* Without JS the collapsible nav would be unreachable on phones. */
