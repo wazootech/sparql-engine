@@ -162,9 +162,10 @@ in `src/wazoo-sparql-engine.test.ts`.
   graph (~55,000 quads) → `bench/memory-data.json`.
 - `bench/treemap.ts` renders the JSON snapshots into
   `docs/assets/chart-library-size.svg` (bar chart),
-  `docs/assets/treemap-memory.svg` (treemap), and
-  `docs/assets/chart-closures.svg` (bar chart) — the SVGs are committed, so the
-  published wiki and README stay in sync with the measurements.
+  `docs/assets/treemap-memory.svg` (treemap), `docs/assets/chart-closures.svg`
+  (bar chart), and `docs/assets/treemap-submodules.svg` (full-engine closure
+  treemap) — the SVGs are committed, so the published wiki and README stay in
+  sync with the measurements.
 
 ### Known results
 
@@ -206,6 +207,16 @@ measured by `deno task bench:size:closures`):
   leaf at 7.4 KiB.</figcaption>
 </figure>
 
+<figure>
+  <img src="assets/treemap-submodules.svg" alt="Treemap of the full engine closure broken down by top-level module">
+  <figcaption><b>Fig — Inside the full engine: the tree-shaken submodules.</b>
+  Tile area is the share of the full `@wazoo/sparql-engine` import closure
+  (576 KiB, 30 files) that each top-level module accounts for — the parser
+  (277 KiB) and evaluator (226 KiB) dominate, so a consumer that imports only
+  `./serialize` (7 KiB) or `./term` (40 KiB) avoids most of the engine. Each
+  subpath closure above is a cut of this graph.</figcaption>
+</figure>
+
 | import                               | closure     | files |
 | ------------------------------------ | ----------- | ----- |
 | `@wazoo/sparql-engine/serialize`     | **7.4 KiB** | 3     |
@@ -245,7 +256,7 @@ deno task bench        # latency: prints tables, verifies results first
 deno task bench:check  # CI gate: pass/fail vs bench/baseline.json
 deno run --allow-all bench/concurrency-probe.ts   # exit 1 on any divergence
 deno task bench:size   # measure-libs → size-data.json → chart SVGs → fmt
-deno task bench:size:closures # measure-closures → closures-data.json → closures chart SVG → fmt
+deno task bench:size:closures # measure-closures → closures-data.json → closures chart + submodule treemap SVGs → fmt
 deno task bench:memory # collect-memory → memory-data.json → memory treemap SVG → fmt
 ```
 

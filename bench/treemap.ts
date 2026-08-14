@@ -335,6 +335,90 @@ function memoryTree(): Placed[] {
 }
 
 /* ------------------------------------------------------------------ */
+/* Full-engine closure treemap (tree-shaken submodules)             */
+/* ------------------------------------------------------------------ */
+
+/** submoduleTree renders a treemap of the full-engine value-import closure
+ * broken down by top-level module — the sizes of the tree-shaken submodules
+ * that make up `@wazoo/sparql-engine` (the "." entrypoint of
+ * bench/closures-data.json). Each tile is what a partial consumer avoids by
+ * importing a subpath instead of the full engine. */
+function submoduleTree(): Placed[] {
+  const dataPath = join(Deno.cwd(), "bench", "closures-data.json");
+  try {
+    Deno.statSync(dataPath);
+  } catch {
+    return [];
+  }
+  const data = JSON.parse(Deno.readTextFileSync(dataPath)) as {
+    entries: { name: string; bytes: number; files: string[] }[];
+  };
+  const full = data.entries.find((e) => e.name === ".");
+  if (full === undefined) return [];
+
+  const MODULE_LABEL: Record<string, string> = {
+    evaluator: "evaluator",
+    parser: "parser",
+    serialize: "serialize",
+    store: "store",
+    term: "term",
+  };
+  const byTop = new Map<string, { bytes: number; files: number }>();
+  for (const file of full.files) {
+    const norm = file.replaceAll("\\", "/");
+    const parts = norm.split("/");
+    // src/<module>/... is a module dir; src/<file>.ts is an entrypoint file.
+    const top = parts.length > 2 ? parts[1] : "entrypoints";
+    const cur = byTop.get(top) ?? { bytes: 0, files: 0 };
+    cur.bytes += Deno.statSync(file).size;
+    cur.files += 1;
+    byTop.set(top, cur);
+  }
+  const ramp = [
+    "#2f9e44",
+    "#40c057",
+    "#69db7c",
+    "#8ce99a",
+    "#b2f2bb",
+    "#d3f9d8",
+  ];
+  const items = [...byTop.entries()]
+    .map(([name, v]) => ({
+      name: MODULE_LABEL[name] ?? name,
+      bytes: v.bytes,
+      files: v.files,
+    }))
+    .sort((a, b) => b.bytes - a.bytes)
+    .map((item, i) => ({ ...item, color: ramp[i % ramp.length] }));
+
+  const outer: Rect = { x: 12, y: 44, w: 696, h: 236 };
+  const inner: Rect = {
+    x: outer.x + 2,
+    y: outer.y + 24,
+    w: outer.w - 4,
+    h: outer.h - 26,
+  };
+  const layout = squarify(items, inner);
+  const children = layout.map((l) => {
+    const item = items.find((i) => i.name === l.name)!;
+    return {
+      name: `${item.name} · ${item.files} file${item.files === 1 ? "" : "s"}`,
+      rect: l.rect,
+      color: item.color,
+      valueText: fmtBytes(item.bytes),
+    };
+  });
+  return [{
+    name: `Full engine — ${fmtBytes(full.bytes)}`,
+    rect: outer,
+    color: "#f1f3f5",
+    valueText: "",
+    panel: `@wazoo/sparql-engine (full) — ${fmtBytes(full.bytes)}`,
+    children,
+  }];
+}
+
+/* ------------------------------------------------------------------ */
 /* Per-entrypoint consumer closure bar chart                         */
 /* ------------------------------------------------------------------ */
 
@@ -424,6 +508,18 @@ Deno.writeTextFileSync(
 
 closuresChart();
 
+const submoduleSvg = treemapSvg(
+  "Inside the full engine: the tree-shaken submodules",
+  "Full-engine value-import closure from bench/closures-data.json, broken down by top-level module (area ∝ bytes) — each tile is what a subpath consumer avoids importing",
+  submoduleTree(),
+  720,
+  300,
+);
+Deno.writeTextFileSync(
+  join(Deno.cwd(), "docs", "assets", "treemap-submodules.svg"),
+  submoduleSvg,
+);
+
 console.log(
-  "wrote docs/assets/chart-library-size.svg, treemap-memory.svg, chart-closures.svg",
+  "wrote docs/assets/chart-library-size.svg, treemap-memory.svg, chart-closures.svg, treemap-submodules.svg",
 );

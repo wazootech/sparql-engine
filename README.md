@@ -1,6 +1,27 @@
 # @wazoo/sparql-engine
 
-Wazoo-native SPARQL 1.1 & 1.2 Query & Update Engine over RDF/JS Quad Stores.
+Wazoo SPARQL 1.1 & 1.2 Query & Update Engine over RDF/JS Quad Stores.
+
+## Compatibility
+
+- **SPARQL 1.1 — full.** `SELECT` / `ASK` / `CONSTRUCT` / `DESCRIBE`, UPDATE,
+  property paths, aggregation, subqueries, `VALUES`, and filters over any RDF/JS
+  quad store. Gated by the W3C SPARQL 1.1 evaluation suite (differential vs
+  Comunica): **345/345**.
+- **SPARQL 1.2 — working-draft surface implemented.** Direction functions
+  (`LANGDIR`, `STRLANGDIR`, `hasLang`, `hasLangDir`), RDF 1.2 reified triple
+  terms (`<< s p o >>`) in patterns, paths, and updates, and the 1.2
+  lexical/grammar surface (a single Turtle/TriG/N-Triples/N-Quads superset
+  grammar backing `LOAD`). Gated by the W3C SPARQL 1.2 evaluation suite
+  (**249/249**), the RDF 1.2 eval-triple-terms gap suite (**41/41**), and the
+  RDF 1.1/1.2 grammar gates.
+- **CI-enforced.** Every gate above runs in the `w3c-parity` CI job — a
+  spec-required behavior that regresses fails the build rather than silently
+  drifting.
+
+See [docs/05 — Verification & Testing](docs/05-testing.md) for the suite
+inventory and [docs/06 — Supplemental Context](docs/06-supplemental-context.md)
+for the W3C suite notes.
 
 ## Key capabilities
 
@@ -219,6 +240,16 @@ A store-only consumer pays **53 KiB instead of the whole 576 KiB engine graph**,
 and the serializers are the cheapest leaf at 7.4 KiB — just the two writers,
 since they only import types from the engine.
 
+<figure>
+  <img src="docs/assets/treemap-submodules.svg" alt="Treemap of the full engine closure broken down by top-level module">
+  <figcaption><b>Fig 3 — Inside the full engine: the tree-shaken submodules.</b>
+  Tile area is the share of the full `@wazoo/sparql-engine` import closure
+  (576 KiB, 30 files) that each top-level module accounts for — the parser
+  (277 KiB) and evaluator (226 KiB) dominate, so a consumer that imports only
+  `./serialize` (7 KiB) or `./term` (40 KiB) avoids most of the engine. Each
+  subpath closure in Fig 2 is a cut of this graph.</figcaption>
+</figure>
+
 **Peak heap during execution** on the 10k-person graph (55k quads), measured in
 an isolated Deno subprocess per engine (peak `Deno.memoryUsage().heapUsed` over
 5 runs; all three share the same ~62 MiB runtime baseline, so the comparison is
@@ -226,7 +257,7 @@ symmetric):
 
 <figure>
   <img src="docs/assets/treemap-memory.svg" alt="Treemap of peak heap per engine and workload">
-  <figcaption><b>Fig 3 — Peak heap during execution</b> (10k-person graph).
+  <figcaption><b>Fig 4 — Peak heap during execution</b> (10k-person graph).
   One panel per workload (full scan, nested EXISTS); within each, the three
   engines’ tiles are scaled by their peak `heapUsed` (values in MiB). Native
   (green) is the smallest tile in both panels.</figcaption>
