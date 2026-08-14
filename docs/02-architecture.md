@@ -79,9 +79,10 @@ SPARQL string (request.query)
 
 The grammar is sparqljs 3.7.4's, vendored and patched in-repo with the SPARQL
 1.2 surface: the four direction functions (`LANGDIR`, `STRLANGDIR`, `hasLang`,
-`hasLangDir`) and RDF 1.2 triple-term/reifier/annotation syntax
-(`<<( s p o )>>`, `<< s p o ~ r >>`, `{| ... |}`). Details and the exact lexer
-patch are in `src/parser/README.md`.
+`hasLangDir` — `hasLang` also accepts 2–3 args as a documented superset
+extension) and RDF 1.2 triple-term/reifier/annotation syntax (`<<( s p o )>>`,
+`<< s p o ~ r >>`, `{| ... |}`). Details and the exact lexer patch are in
+`src/parser/README.md`.
 
 The AST (`src/parser/ast.ts`) is **sparqljs-shaped**, so the parser is a drop-in
 replacement for the `sparqljs` export. `SparqlQuery` is a union of `Query`

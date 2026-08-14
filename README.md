@@ -9,12 +9,13 @@ Wazoo SPARQL 1.1 & 1.2 Query & Update Engine over RDF/JS Quad Stores.
   quad store. Gated by the W3C SPARQL 1.1 evaluation suite (differential vs
   Comunica): **345/345**.
 - **SPARQL 1.2 — working-draft surface implemented.** Direction functions
-  (`LANGDIR`, `STRLANGDIR`, `hasLang`, `hasLangDir`), RDF 1.2 reified triple
-  terms (`<< s p o >>`) in patterns, paths, and updates, and the 1.2
-  lexical/grammar surface (a single Turtle/TriG/N-Triples/N-Quads superset
-  grammar backing `LOAD`). Gated by the W3C SPARQL 1.2 evaluation suite
-  (**249/249**), the RDF 1.2 eval-triple-terms gap suite (**41/41**), and the
-  RDF 1.1/1.2 grammar gates.
+  (`LANGDIR`, `STRLANGDIR`, `hasLang`, `hasLangDir`; `hasLang` is variadic, 1–3
+  args, as a documented superset extension), RDF 1.2 reified triple terms
+  (`<< s p o >>`) in patterns, paths, and updates, and the 1.2 lexical/grammar
+  surface (a single Turtle/TriG/N-Triples/N-Quads superset grammar backing
+  `LOAD`). Gated by the W3C SPARQL 1.2 evaluation suite (**249/249**), the RDF
+  1.2 eval-triple-terms gap suite (**41/41**), and the RDF 1.1/1.2 grammar
+  gates.
 - **CI-enforced.** Every gate above runs in the `w3c-parity` CI job — a
   spec-required behavior that regresses fails the build rather than silently
   drifting.
