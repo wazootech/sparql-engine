@@ -16,9 +16,9 @@ import {
   GraphScopedStore,
   matchQuads,
   namedGraphs,
-  probeQuadIndex,
   type QuadIndex,
   simplePredicate,
+  storeVersion,
 } from "@/quad-store.ts";
 
 const { defaultGraph } = DataFactory;
@@ -79,10 +79,13 @@ export class BgpEvaluator {
   /**
    * existsQuads and existsIndex are the drained, indexed snapshot of the
    * evaluator's store that the synchronous EXISTS hooks probe. They are
-   * rebuilt per query by prepareExistsIndex when any pattern uses EXISTS.
+   * cached across queries and rebuilt by prepareExistsIndex only when the
+   * store's mutation version changes (or when the store exposes no version).
    */
   private existsQuads: rdfjs.Quad[] | null = null;
   private existsIndex: QuadIndex | null = null;
+  /** existsVersion is the store version the snapshot was drained from. */
+  private existsVersion: number | null = null;
 
   /** expressionEvaluator evaluates FILTER expressions against solutions. */
   private readonly expressionEvaluator = new ExpressionEvaluator();
@@ -101,10 +104,10 @@ export class BgpEvaluator {
   public async evaluateBgp(patterns: Pattern[]): Promise<TermBinding[]> {
     // EXISTS support: when any pattern in the tree uses EXISTS/NOT EXISTS,
     // the store's quads are drained once into a synchronous index that the
-    // injected hooks probe (the decided sync-hook contract). Rebuilt per
-    // query, so updates between queries never see a stale snapshot.
-    this.existsIndex = null;
-    this.existsQuads = null;
+    // injected hooks probe (the decided sync-hook contract). The snapshot is
+    // cached across queries and invalidated by the store's mutation version,
+    // so updates between queries never see stale data and repeated queries
+    // against an unchanged store skip the drain entirely.
     if (patternListContainsExists(patterns)) {
       await this.prepareExistsIndex();
     }
@@ -124,12 +127,17 @@ export class BgpEvaluator {
    * though the WHERE clause does not.
    */
   public async prepareExistsIndex(): Promise<void> {
-    if (this.existsIndex !== null) {
+    const version = storeVersion(this.store);
+    if (
+      this.existsIndex !== null && this.existsQuads !== null &&
+      version !== null && this.existsVersion === version
+    ) {
       return;
     }
     const quads = await matchQuads(this.store, null, null, null);
     this.existsQuads = quads;
     this.existsIndex = buildQuadIndex(quads);
+    this.existsVersion = version;
   }
 
   /**
@@ -151,16 +159,36 @@ export class BgpEvaluator {
       );
     }
     const scopeGraph = graph ?? defaultGraph();
+    // The snapshot is filtered to the graph scope exactly once per
+    // evaluateExists call; the recursive probes reuse these candidates (see
+    // evaluateExistsScoped) instead of re-filtering per nested EXISTS.
     const candidates = this.existsQuads.filter((item) =>
       sameRdfTerm(item.graph, scopeGraph)
     );
-    const patterns = pattern.type === "group" ? pattern.patterns : [pattern];
-    return this.evaluateExistsGroup(
-      patterns,
-      [solution],
+    return this.evaluateExistsScoped(
+      pattern,
+      solution,
       candidates,
       scopeGraph,
-    ).length > 0;
+    );
+  }
+
+  /**
+   * evaluateExistsScoped runs an EXISTS probe against an already
+   * graph-scoped candidate set, skipping the per-call snapshot filter. The
+   * recursive hooks (nested EXISTS/NOT EXISTS and subqueries inside EXISTS)
+   * call this with the enclosing call's candidates, so nesting costs only
+   * the extra probe work — not another O(snapshot) filter per probe.
+   */
+  private evaluateExistsScoped(
+    pattern: Pattern,
+    solution: TermBinding,
+    candidates: rdfjs.Quad[],
+    graph: rdfjs.Term,
+  ): boolean {
+    const patterns = pattern.type === "group" ? pattern.patterns : [pattern];
+    return this.evaluateExistsGroup(patterns, [solution], candidates, graph)
+      .length > 0;
   }
 
   /**
@@ -193,7 +221,7 @@ export class BgpEvaluator {
   ): TermBinding[] {
     const context: ExpressionEvaluationContext = {
       evaluateExists: (subPattern, solution) =>
-        this.evaluateExists(subPattern, solution, graph),
+        this.evaluateExistsScoped(subPattern, solution, candidates, graph),
     };
     switch (pattern.type) {
       case "bgp": {
@@ -224,9 +252,11 @@ export class BgpEvaluator {
             reifies,
             tripleTermObject,
             // probeQuadIndex checks only s/p/o, so the graph scope is
-            // enforced afterwards over the probed candidates. Reifies
-            // patterns scan every `rdf:reifies` statement in the scope, and
-            // triple-term objects scan every quad with a triple-term object.
+            // enforced on the probed matches via the join's graphScope (the
+            // prebuilt snapshot index spans every graph). Reifies patterns
+            // scan every `rdf:reifies` statement in the scope, and
+            // triple-term objects scan every quad with a triple-term object
+            // (both subsets of the scoped candidates).
             candidates: reifies
               ? candidates.filter((item) =>
                 item.predicate.termType === "NamedNode" &&
@@ -234,21 +264,13 @@ export class BgpEvaluator {
               )
               : tripleTermObject
               ? candidates.filter((item) => item.object.termType === "Quad")
-              : probeQuadIndex(
-                this.existsIndex!,
-                candidates,
-                triple.subject.termType === "Variable"
-                  ? null
-                  : sparqlTermToRdfTerm(triple.subject),
-                predicate.termType === "Variable"
-                  ? null
-                  : sparqlTermToRdfTerm(predicate),
-                triple.object.termType === "Variable"
-                  ? null
-                  : sparqlTermToRdfTerm(triple.object),
-              ).filter((item) => sameRdfTerm(item.graph, graph)),
+              : candidates,
           };
-          result = joinTriplePattern(result, entry);
+          // The join probes the once-per-query snapshot index with each
+          // solution's resolved positions (constants and bound variables)
+          // instead of rebuilding an index over the probed bucket per
+          // solution — the EXISTS hook joins one solution at a time.
+          result = joinTriplePattern(result, entry, this.existsIndex!, graph);
         }
         return result;
       }
@@ -417,7 +439,7 @@ export class BgpEvaluator {
         const selectQuery = pattern as unknown as SelectQuery;
         const subContext: ExpressionEvaluationContext = {
           evaluateExists: (subPattern, solution) =>
-            this.evaluateExists(subPattern, solution, graph),
+            this.evaluateExistsScoped(subPattern, solution, candidates, graph),
           baseIri: selectQuery.base,
         };
         const subRaw = this.evaluateExistsGroup(
@@ -459,6 +481,53 @@ export class BgpEvaluator {
     return {
       evaluateExists: (pattern, solution) =>
         this.evaluateExists(pattern, solution, graph),
+    };
+  }
+
+  /**
+   * scopedExistsContext builds an expression context whose EXISTS hooks probe
+   * an already graph-scoped candidate set, computed once per context instead
+   * of re-filtering the snapshot for every solution. Callers gate on
+   * expressionContainsExists first, so the EXISTS index is guaranteed
+   * prepared — mirroring evaluateExistsScoped's reuse of the enclosing
+   * call's candidates for the main-path FILTER / BIND / OPTIONAL conditions.
+   */
+  private scopedExistsContext(
+    store: rdfjs.Source<rdfjs.Quad>,
+  ): ExpressionEvaluationContext {
+    const graph = store instanceof GraphScopedStore
+      ? store.graph
+      : defaultGraph();
+    const candidates = this.existsQuads!.filter((item) =>
+      sameRdfTerm(item.graph, graph)
+    );
+    return {
+      evaluateExists: (pattern, solution) =>
+        this.evaluateExistsScoped(pattern, solution, candidates, graph),
+    };
+  }
+
+  /**
+   * pipelineExistsContext builds a scoped expression context over the
+   * default graph's candidates for the SELECT pipeline (projection / HAVING
+   * / ORDER BY expressions). The caller must have prepared the EXISTS index
+   * (the pipelineNeedsExistsIndex gate) — the guard mirrors evaluateExists —
+   * and every solution then shares one candidate filter per query instead of
+   * re-filtering the snapshot per expression evaluation.
+   */
+  public pipelineExistsContext(): ExpressionEvaluationContext {
+    if (this.existsIndex === null || this.existsQuads === null) {
+      throw new Error(
+        "EXISTS requires a prepared pattern index: call prepareExistsIndex() first",
+      );
+    }
+    const graph = defaultGraph();
+    const candidates = this.existsQuads.filter((item) =>
+      sameRdfTerm(item.graph, graph)
+    );
+    return {
+      evaluateExists: (pattern, solution) =>
+        this.evaluateExistsScoped(pattern, solution, candidates, graph),
     };
   }
 
@@ -518,7 +587,9 @@ export class BgpEvaluator {
       case "bgp":
         return await this.joinBgp(pattern.triples, bindings, store);
       case "filter": {
-        const context = this.existsContext(store);
+        const context = expressionContainsExists(pattern.expression)
+          ? this.scopedExistsContext(store)
+          : this.existsContext(store);
         return bindings.filter((binding) =>
           this.expressionEvaluator.filterPasses(
             pattern.expression,
@@ -545,7 +616,9 @@ export class BgpEvaluator {
         if (filters.some(expressionContainsExists)) {
           await this.prepareExistsIndex();
         }
-        const context = this.existsContext(store);
+        const context = filters.some(expressionContainsExists)
+          ? this.scopedExistsContext(store)
+          : this.existsContext(store);
         return leftJoin(
           bindings,
           right,
@@ -590,7 +663,9 @@ export class BgpEvaluator {
         // expression is evaluated per solution and the variable bound; an
         // evaluation error or a variable already bound (from an outer
         // scope) leaves the solution unchanged.
-        const context = this.existsContext(store);
+        const context = expressionContainsExists(pattern.expression)
+          ? this.scopedExistsContext(store)
+          : this.existsContext(store);
         return bindings.map((binding) => {
           const value = this.expressionEvaluator.evaluate(
             pattern.expression,

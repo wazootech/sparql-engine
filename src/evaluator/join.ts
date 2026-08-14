@@ -8,6 +8,7 @@ import {
   buildQuadIndex,
   matchQuads,
   probeQuadIndex,
+  type QuadIndex,
   simplePredicate,
 } from "@/quad-store.ts";
 import { isReifiesPattern } from "@/evaluator/reified.ts";
@@ -210,10 +211,21 @@ function getQueryVarName(term: SparqlTerm): string {
  * a hash join: candidate quads come from the pattern's single indexed store
  * scan (performed once by the caller), and bindings probe a positional index
  * instead of issuing a stream round trip per binding.
+ *
+ * prebuiltIndex supplies an already-built QuadIndex (the EXISTS hooks' drained
+ * snapshot index) so the join probes it directly instead of rebuilding an
+ * index over the candidates on every call — the main path amortizes the build
+ * over all bindings of one join, but the EXISTS hooks join one solution at a
+ * time, so a fresh build there would re-index the candidates per probe.
+ * graphScope filters the probed quads to one graph: the prebuilt snapshot
+ * index spans every graph, so matches must be scoped before binding extension
+ * (the main path's candidates are already graph-scoped via GraphScopedStore).
  */
 export function joinTriplePattern(
   currentBindings: TermBinding[],
   entry: ScanEntry,
+  prebuiltIndex?: QuadIndex | null,
+  graphScope?: rdfjs.Term | null,
 ): TermBinding[] {
   if (entry.reifies) {
     return joinReifiesPattern(currentBindings, entry);
@@ -231,13 +243,19 @@ export function joinTriplePattern(
 
   const candidateQuads = entry.candidates;
 
-  const needsIndex = currentBindings.some((binding) =>
-    (subjectIsVariable && binding[getQueryVarName(subject)] !== undefined) ||
-    (predicateIsVariable &&
-      binding[getQueryVarName(predicate)] !== undefined) ||
-    (objectIsVariable && binding[getQueryVarName(object)] !== undefined)
-  );
-  const quadIndex = needsIndex ? buildQuadIndex(candidateQuads) : null;
+  const needsIndex = prebuiltIndex != null
+    ? false
+    : currentBindings.some((binding) =>
+      (subjectIsVariable && binding[getQueryVarName(subject)] !== undefined) ||
+      (predicateIsVariable &&
+        binding[getQueryVarName(predicate)] !== undefined) ||
+      (objectIsVariable && binding[getQueryVarName(object)] !== undefined)
+    );
+  const quadIndex = prebuiltIndex != null
+    ? prebuiltIndex
+    : needsIndex
+    ? buildQuadIndex(candidateQuads)
+    : null;
 
   const nextBindings: TermBinding[] = [];
 
@@ -253,8 +271,11 @@ export function joinTriplePattern(
       resolvedPredicate,
       resolvedObject,
     );
+    const scopedQuads = graphScope === undefined || graphScope === null
+      ? matchingQuads
+      : matchingQuads.filter((item) => sameRdfTerm(item.graph, graphScope));
 
-    for (const matchQuad of matchingQuads) {
+    for (const matchQuad of scopedQuads) {
       const newBinding = { ...binding };
       let valid = true;
 

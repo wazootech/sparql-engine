@@ -300,6 +300,20 @@ const existsQuery =
 const notExistsQuery =
   "SELECT ?s WHERE { ?s <http://xmlns.com/foaf/0.1/name> ?n " +
   "FILTER NOT EXISTS { ?s <http://example.org/spouse> ?spouse } }";
+// Nested EXISTS: an EXISTS inside the EXISTS body. Every spouse (odd-indexed
+// person) has a name, so the inner EXISTS always holds and the even-indexed
+// people (who have a spouse) pass — same shape as the simple EXISTS, plus one
+// inner probe per passing solution.
+const nestedExistsQuery =
+  "SELECT ?s WHERE { ?s <http://xmlns.com/foaf/0.1/name> ?n " +
+  "FILTER EXISTS { ?s <http://example.org/spouse> ?spouse . " +
+  "FILTER EXISTS { ?spouse <http://xmlns.com/foaf/0.1/name> ?n2 } } }";
+// Nested EXISTS inside NOT EXISTS: the body matches only even-indexed people
+// (spouse present and named), so the negation keeps the odd-indexed ones.
+const nestedNotExistsQuery =
+  "SELECT ?s WHERE { ?s <http://xmlns.com/foaf/0.1/name> ?n " +
+  "FILTER NOT EXISTS { ?s <http://example.org/spouse> ?spouse . " +
+  "FILTER EXISTS { ?spouse <http://xmlns.com/foaf/0.1/name> ?n2 } } }";
 
 // XSD cast constructors over the integer age literal, plus boolean and
 // dateTime casts from string constants (the shared dataset carries no
@@ -831,6 +845,8 @@ await verifySelectEquality(subqueryAggQuery, "subquery-agg");
 await verifySelectEquality(subqueryNestedQuery, "subquery-nested");
 await verifySelectEquality(existsQuery, "exists");
 await verifySelectEquality(notExistsQuery, "not-exists");
+await verifySelectEquality(nestedExistsQuery, "nested-exists");
+await verifySelectEquality(nestedNotExistsQuery, "nested-not-exists");
 await verifySelectEquality(castNumericQuery, "cast-numeric");
 await verifySelectEquality(castBooleanQuery, "cast-boolean");
 await verifySelectEquality(castDateTimeQuery, "cast-dateTime");
@@ -1098,9 +1114,10 @@ function benchSelectTrio(
   query: string,
   label: string,
   trio: EngineTrio = mainTrio,
+  options?: { warmup?: number; iterations?: number },
 ): void {
   Deno.bench(
-    { name: `native - ${label}`, group, baseline: true },
+    { name: `native - ${label}`, group, baseline: true, ...options },
     async () => {
       const result = await trio.native.execute({ query });
       if (
@@ -1219,8 +1236,39 @@ benchSelectTrio("from", fromQuery, "from", graphTrio);
 benchSelectTrio("subquery", subqueryQuery, "subquery");
 benchSelectTrio("subquery", subqueryAggQuery, "subquery-agg");
 benchSelectTrio("subquery", subqueryNestedQuery, "subquery-nested");
-benchSelectTrio("exists", existsQuery, "exists");
-benchSelectTrio("exists", notExistsQuery, "not-exists");
+// The native EXISTS path is the suite's slowest (tens of ms/iter), so it
+// needs a longer warmup than the 500 ms default for stable, comparable rows
+// (V8 must finish optimizing the hot EXISTS machinery before measurement),
+// plus more samples to average out scheduler noise.
+const EXISTS_BENCH_OPTIONS = { warmup: 3_000, iterations: 50 };
+benchSelectTrio(
+  "exists",
+  existsQuery,
+  "exists",
+  mainTrio,
+  EXISTS_BENCH_OPTIONS,
+);
+benchSelectTrio(
+  "exists",
+  notExistsQuery,
+  "not-exists",
+  mainTrio,
+  EXISTS_BENCH_OPTIONS,
+);
+benchSelectTrio(
+  "exists",
+  nestedExistsQuery,
+  "nested-exists",
+  mainTrio,
+  EXISTS_BENCH_OPTIONS,
+);
+benchSelectTrio(
+  "exists",
+  nestedNotExistsQuery,
+  "nested-not-exists",
+  mainTrio,
+  EXISTS_BENCH_OPTIONS,
+);
 benchSelectTrio("cast", castNumericQuery, "cast-numeric");
 benchSelectTrio("cast", castBooleanQuery, "cast-boolean");
 benchSelectTrio("cast", castDateTimeQuery, "cast-dateTime");

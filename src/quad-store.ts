@@ -84,6 +84,19 @@ export function probeQuadIndex(
 }
 
 /**
+ * storeVersion returns the store's mutation version when the store tracks
+ * one (MemoryStore does), or null when changes cannot be detected — callers
+ * that snapshot the store (the EXISTS synchronous index) must then rebuild
+ * the snapshot per query.
+ */
+export function storeVersion(
+  store: rdfjs.Source<rdfjs.Quad>,
+): number | null {
+  const version = (store as { version?: unknown }).version;
+  return typeof version === "number" ? version : null;
+}
+
+/**
  * matchQuads collects all quads matching the given pattern from an RDF/JS
  * store, resolving the store's match stream into an array.
  */
@@ -137,6 +150,12 @@ export class GraphScopedStore implements rdfjs.Source<rdfjs.Quad> {
     private readonly store: rdfjs.Source<rdfjs.Quad>,
     public readonly graph: rdfjs.Term,
   ) {}
+
+  /** version delegates to the wrapped store so snapshot caches see through
+   * the view (the view itself never mutates the data). */
+  public get version(): number | null {
+    return storeVersion(this.store);
+  }
 
   public match(
     subject?: rdfjs.Term | null,

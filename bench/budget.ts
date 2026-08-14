@@ -17,6 +17,17 @@ const baseline = {
       query:
         "SELECT ?s WHERE { ?s <http://example.org/p1> ?o1 . ?o1 <http://example.org/p2> ?o2 }",
     },
+    {
+      name: "EXISTS filter",
+      query: "SELECT ?s WHERE { ?s <http://xmlns.com/foaf/0.1/name> ?n " +
+        "FILTER EXISTS { ?s <http://example.org/p> ?o } }",
+    },
+    {
+      name: "Nested EXISTS filter",
+      query: "SELECT ?s WHERE { ?s <http://xmlns.com/foaf/0.1/name> ?n " +
+        "FILTER EXISTS { ?s <http://example.org/p1> ?o . " +
+        "FILTER EXISTS { ?o <http://example.org/p2> ?x } } }",
+    },
   ],
 };
 

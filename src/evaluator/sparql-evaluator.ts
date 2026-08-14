@@ -150,14 +150,21 @@ export class SparqlEvaluator {
   ): Promise<TermBinding[]> {
     const evaluator = await this.bgpEvaluatorFor(query.from);
     const rawBindings = await evaluator.evaluateBgp(query.where || []);
-    const existsContext: ExpressionEvaluationContext = {
-      evaluateExists: (pattern, solution) =>
-        evaluator.evaluateExists(pattern, solution),
-      baseIri: query.base,
-    };
-    if (pipelineNeedsExistsIndex(query)) {
+    // Projection / HAVING / ORDER BY expressions share one default-graph
+    // scoped candidate set across every solution (once per query) instead of
+    // re-filtering the snapshot per expression evaluation. Only queries that
+    // actually use EXISTS in the pipeline prepare the index.
+    const needsPipelineExists = pipelineNeedsExistsIndex(query);
+    if (needsPipelineExists) {
       await evaluator.prepareExistsIndex();
     }
+    const existsContext: ExpressionEvaluationContext = {
+      ...(needsPipelineExists ? evaluator.pipelineExistsContext() : {
+        evaluateExists: (pattern: Pattern, solution: TermBinding) =>
+          evaluator.evaluateExists(pattern, solution),
+      }),
+      baseIri: query.base,
+    };
     // The post-BGP SELECT pipeline (VALUES, grouping/aggregates, HAVING,
     // ORDER BY, projection, DISTINCT/REDUCED, OFFSET/LIMIT) is shared with
     // the synchronous EXISTS subquery path — one implementation, two call
