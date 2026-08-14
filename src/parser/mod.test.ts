@@ -42,6 +42,22 @@ Deno.test("parser: hasLang parses as a unary functionCall", () => {
   assertEquals(args.length, 1);
 });
 
+Deno.test("parser: hasLang parses as a binary functionCall", () => {
+  const { name, args } = parseExpression(
+    'SELECT ?x WHERE { BIND(hasLang("hello"@en, "en") AS ?x) }',
+  );
+  assertEquals(name, "haslang");
+  assertEquals(args.length, 2);
+});
+
+Deno.test("parser: hasLang parses as a ternary functionCall", () => {
+  const { name, args } = parseExpression(
+    'SELECT ?x WHERE { BIND(hasLang("hello"@en--ltr, "en", "ltr") AS ?x) }',
+  );
+  assertEquals(name, "haslang");
+  assertEquals(args.length, 3);
+});
+
 Deno.test("parser: hasLang works in FILTER", () => {
   const ast = new Parser().parse(
     "SELECT ?x WHERE { ?s ?p ?x FILTER(hasLang(?x)) }",

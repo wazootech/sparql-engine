@@ -710,7 +710,8 @@ SPACES_COMMENTS       (\s+|{COMMENT}\n\r?)+
 "BOUND"                  return 'BOUND'
 "BNODE"                  return 'BNODE'
 ("RAND"|"NOW"|"UUID"|"STRUUID") return 'FUNC_ARITY0'
-("LANGDIR"|"LANG"|"DATATYPE"|"IRI"|"URI"|"ABS"|"CEIL"|"FLOOR"|"ROUND"|"STRLEN"|"STR"|"UCASE"|"LCASE"|"ENCODE_FOR_URI"|"YEAR"|"MONTH"|"DAY"|"HOURS"|"MINUTES"|"SECONDS"|"TIMEZONE"|"TZ"|"MD5"|"SHA1"|"SHA256"|"SHA384"|"SHA512"|"isIRI"|"isURI"|"isBLANK"|"isLITERAL"|"isNUMERIC"|"hasLangDir"|"hasLang") return 'FUNC_ARITY1'
+("LANGDIR"|"LANG"|"DATATYPE"|"IRI"|"URI"|"ABS"|"CEIL"|"FLOOR"|"ROUND"|"STRLEN"|"STR"|"UCASE"|"LCASE"|"ENCODE_FOR_URI"|"YEAR"|"MONTH"|"DAY"|"HOURS"|"MINUTES"|"SECONDS"|"TIMEZONE"|"TZ"|"MD5"|"SHA1"|"SHA256"|"SHA384"|"SHA512"|"isIRI"|"isURI"|"isBLANK"|"isLITERAL"|"isNUMERIC"|"hasLangDir") return 'FUNC_ARITY1'
+"hasLang"                return 'HASLANG'
 ("SUBJECT"|"PREDICATE"|"OBJECT"|"isTRIPLE") return 'FUNC_ARITY1_SPARQL_STAR'
 ("LANGMATCHES"|"CONTAINS"|"STRSTARTS"|"STRENDS"|"STRBEFORE"|"STRAFTER"|"STRLANG"|"STRDT"|"sameTerm") return 'FUNC_ARITY2'
 "CONCAT"                 return 'CONCAT'
@@ -1499,6 +1500,12 @@ BuiltInCall
     | FUNC_ARITY1 '(' Expression ')' -> operation(lowercase($1), [$3])
     | FUNC_ARITY1_SPARQL_STAR '(' Expression ')' -> ensureSparqlStar(operation(lowercase($1), [$3]))
     | FUNC_ARITY2 '(' Expression ',' Expression ')' -> operation(lowercase($1), [$3, $5])
+    // hasLang is variadic (1-3 args) as a documented superset extension: the
+    // published SPARQL 1.2 grammar defines only the unary form, so it lexes as
+    // its own token instead of a fixed-arity FUNC_ARITY* group.
+    | HASLANG '(' Expression ')' -> operation(lowercase($1), [$3])
+    | HASLANG '(' Expression ',' Expression ')' -> operation(lowercase($1), [$3, $5])
+    | HASLANG '(' Expression ',' Expression ',' Expression ')' -> operation(lowercase($1), [$3, $5, $7])
     | FUNC_ARITY3 '(' Expression ',' Expression ',' Expression ')' -> operation(lowercase($1), [$3, $5, $7])
     | FUNC_ARITY3_SPARQL_STAR '(' Expression ',' Expression ',' Expression ')' -> ensureSparqlStar(operation(lowercase($1), [$3, $5, $7]))
     // [122], [123], [124]
