@@ -141,6 +141,37 @@ export class BgpEvaluator {
   }
 
   /**
+   * existsIndexForScope returns the prepared snapshot index for reuse by the
+   * main BGP join path, or null when reuse would be unsafe. The snapshot
+   * spans every graph, but the main path scans through a graph-scoped store
+   * view, so the two universes coincide only when the current scope is the
+   * default graph and the store holds no named-graph quads (then every
+   * scanned quad is in the snapshot). In every other case — a named scope,
+   * or named graphs in the store — probing the all-graph index could return
+   * quads outside the scope, so the per-join build over the scoped candidates
+   * stays.
+   */
+  private existsIndexForScope(
+    store: rdfjs.Source<rdfjs.Quad>,
+  ): QuadIndex | null {
+    if (this.existsIndex === null || this.existsQuads === null) {
+      return null;
+    }
+    if (
+      store instanceof GraphScopedStore &&
+      store.graph.termType !== "DefaultGraph"
+    ) {
+      return null;
+    }
+    if (
+      this.existsQuads.some((item) => item.graph.termType !== "DefaultGraph")
+    ) {
+      return null;
+    }
+    return this.existsIndex;
+  }
+
+  /**
    * evaluateExists implements the injected pattern-evaluation hook: a group
    * pattern evaluated against one incoming solution, returning whether any
    * solution matches. Correlated (the solution's bindings are visible
@@ -779,8 +810,19 @@ export class BgpEvaluator {
     // into plain `rdf:reifies` triples before any scanning or reordering.
     const expanded = expandReifiedTriples(triples);
     const hasPath = expanded.some((triple) => isPropertyPath(triple.predicate));
+    // When the EXISTS snapshot is prepared and its universe coincides with
+    // this scope (see existsIndexForScope), join against the prebuilt index
+    // instead of rebuilding one over each pattern's candidate bucket — the
+    // snapshot is already indexed once per query, so the per-join build is
+    // pure waste.
+    const prebuiltIndex = this.existsIndexForScope(store);
     if (this.reorderPatterns && expanded.length > 1 && !hasPath) {
-      return await this.evaluateWithReordering(expanded, bindings, store);
+      return await this.evaluateWithReordering(
+        expanded,
+        bindings,
+        store,
+        prebuiltIndex,
+      );
     }
     let result = bindings;
     for (const triple of expanded) {
@@ -793,10 +835,8 @@ export class BgpEvaluator {
         );
         result = joinPathPattern(result, entry);
       } else {
-        result = joinTriplePattern(
-          result,
-          await scanEntry(store, triple),
-        );
+        const entry = await scanEntry(store, triple);
+        result = joinTriplePattern(result, entry, prebuiltIndex);
       }
     }
     return result;
@@ -810,6 +850,7 @@ export class BgpEvaluator {
     triplePatterns: Triple[],
     bindings: TermBinding[],
     store: rdfjs.Source<rdfjs.Quad>,
+    prebuiltIndex: QuadIndex | null,
   ): Promise<TermBinding[]> {
     const remaining = await Promise.all(
       triplePatterns.map((pattern) => scanEntry(store, pattern)),
@@ -827,7 +868,7 @@ export class BgpEvaluator {
         }
       }
       const [chosen] = remaining.splice(bestIndex, 1);
-      result = joinTriplePattern(result, chosen);
+      result = joinTriplePattern(result, chosen, prebuiltIndex);
     }
     return result;
   }
