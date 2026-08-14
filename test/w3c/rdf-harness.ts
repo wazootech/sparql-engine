@@ -11,7 +11,7 @@ import { MemoryStore } from "@/store/memory-store.ts";
  * w3c/rdf-tests tree, so every on-disk path maps 1:1 to a canonical
  * `https://w3c.github.io/rdf-tests/…` URL. Relative IRIs in the test files
  * resolve against that canonical URL (matching the W3C harness), which is what
- * makes native output comparable to the `.nt` reference results.
+ * makes wazoo output comparable to the `.nt` reference results.
  */
 
 const RDF = "http://www.w3.org/1999/02/22-rdf-syntax-ns#";

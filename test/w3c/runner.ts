@@ -65,7 +65,7 @@ export interface W3cRunReport {
   /** conformance is the soft (never gating) spec-expected cross-check. */
   conformance: Array<{
     id: string;
-    native: string;
+    wazoo: string;
     comunica: string;
   }>;
 }
@@ -96,7 +96,7 @@ function canonicalQuadString(
  * a reference-engine CONSTRUCT stream to its graph content: the reference
  * is a set of triples (the W3C reference files are sets), and Comunica's
  * query stream may repeat a triple that its graph would not. Only the
- * reference side is normalized — the native side is compared as-emitted
+ * reference side is normalized — the wazoo side is compared as-emitted
  * (issue #87 contract, see compareConstructRecords).
  */
 export function dedupeRecords(
@@ -153,23 +153,23 @@ function isomorphicMultiset(
 }
 
 /**
- * compareConstructRecords compares a native CONSTRUCT result against a
+ * compareConstructRecords compares a wazoo CONSTRUCT result against a
  * reference (Comunica) result under the graph-result contract (issue #87):
  * the reference side is normalized to its graph content (Comunica's stream
- * may repeat a triple its graph would not), while the native side is
+ * may repeat a triple its graph would not), while the wazoo side is
  * compared as-emitted. Decision #29 guarantees a conforming engine emits no
  * duplicate quads — CONSTRUCT collapses duplicate instantiations — so raw
- * native records equal the normalized reference exactly when the graph
+ * wazoo records equal the normalized reference exactly when the graph
  * contents agree, and a future change that starts emitting duplicates fails
  * the gate instead of silently passing.
  */
 export function compareConstructRecords(
-  nativeRecords: CanonicalTerm[][],
+  wazooRecords: CanonicalTerm[][],
   comunicaRecords: CanonicalTerm[][],
   comunicaKeys: string[],
 ): boolean {
   return isomorphicMultiset(
-    nativeRecords,
+    wazooRecords,
     dedupeRecords(comunicaRecords, comunicaKeys),
   );
 }
@@ -442,7 +442,7 @@ export class W3cRunner {
 
   /**
    * compareReference validates a documented divergence against the W3C
-   * reference result instead of Comunica, so a spec-correct native result
+   * reference result instead of Comunica, so a spec-correct wazoo result
    * passes even when Comunica lite is buggy. SELECT divergences compare
    * against the rs:ResultSet reference up to blank-node isomorphism; update
    * divergences with an empty mf:result compare the final store against an
@@ -466,30 +466,30 @@ export class W3cRunner {
     }
 
     const store = this.loadStore(testCase);
-    const native = new WazooSparqlEngine({ store });
-    const nativeResult = await native.execute({
+    const wazoo = new WazooSparqlEngine({ store });
+    const wazooResult = await wazoo.execute({
       query: this.queryText(testCase),
     });
-    if (nativeResult.kind !== "select") {
+    if (wazooResult.kind !== "select") {
       return {
         status: "error",
         detail:
-          `documented divergence ${testCase.id} returned kind ${nativeResult.kind}, expected select`,
+          `documented divergence ${testCase.id} returned kind ${wazooResult.kind}, expected select`,
       };
     }
 
     const solutions = this.parseResultSetTtl(testCase, testCase.resultFile);
-    const nativeRecords = this.nativeSelectRecords(nativeResult);
+    const wazooRecords = this.wazooSelectRecords(wazooResult);
     const referenceRecords = this.resultSetRecords(solutions);
-    if (isomorphicMultiset(nativeRecords, referenceRecords)) {
+    if (isomorphicMultiset(wazooRecords, referenceRecords)) {
       return { status: "pass" };
     }
     return {
       status: "gap",
       detail: this.firstDiff(
-        this.nativeSelectStrings(nativeResult),
+        this.wazooSelectStrings(wazooResult),
         this.resultSetStrings(solutions),
-        "native vs W3C reference bindings",
+        "wazoo vs W3C reference bindings",
       ),
     };
   }
@@ -497,33 +497,33 @@ export class W3cRunner {
   private async compareUpdateReference(
     testCase: W3cTestCase,
   ): Promise<TestOutcome> {
-    const nativeStore = this.loadStore(testCase);
-    const native = new WazooSparqlEngine({ store: nativeStore });
+    const wazooStore = this.loadStore(testCase);
+    const wazoo = new WazooSparqlEngine({ store: wazooStore });
     try {
-      const result = await native.execute({ query: this.queryText(testCase) });
+      const result = await wazoo.execute({ query: this.queryText(testCase) });
       if (result.kind !== "void") {
         return {
           status: "error",
-          detail: `native update ${testCase.id} returned a non-void result`,
+          detail: `wazoo update ${testCase.id} returned a non-void result`,
         };
       }
     } catch (error) {
       return {
         status: "error",
-        detail: `native rejected the update for divergence ${testCase.id}: ${
+        detail: `wazoo rejected the update for divergence ${testCase.id}: ${
           error instanceof Error ? error.message : String(error)
         }`,
       };
     }
 
-    const quads: rdfjs.Quad[] = nativeStore.getQuads(null, null, null, null);
+    const quads: rdfjs.Quad[] = wazooStore.getQuads(null, null, null, null);
     if (quads.length === 0) {
       return { status: "pass" };
     }
     return {
       status: "gap",
       detail:
-        `native left ${quads.length} quad(s) after ${testCase.id}; the W3C reference (mf:result []) expects an empty store`,
+        `wazoo left ${quads.length} quad(s) after ${testCase.id}; the W3C reference (mf:result []) expects an empty store`,
     };
   }
 
@@ -531,7 +531,7 @@ export class W3cRunner {
    * parseResultSetTtl parses an rs:ResultSet result file into canonical
    * binding records — the W3C reference representation of a SELECT result.
    * Each record maps variable name -> canonical term, matching the shape
-   * nativeSelectRecords and runComunicaSelectRecords build from live results.
+   * wazooSelectRecords and runComunicaSelectRecords build from live results.
    */
   private parseResultSetTtl(
     testCase: W3cTestCase,
@@ -614,13 +614,13 @@ export class W3cRunner {
   private async compareQuery(testCase: W3cTestCase): Promise<TestOutcome> {
     const query = this.queryText(testCase);
 
-    let nativeResult: SparqlResponse;
+    let wazooResult: SparqlResponse;
     try {
       const store = this.loadStore(testCase);
-      const native = new WazooSparqlEngine({ store });
-      nativeResult = await native.execute({ query });
+      const wazoo = new WazooSparqlEngine({ store });
+      wazooResult = await wazoo.execute({ query });
     } catch (error) {
-      // Native rejected the query. Differential contract: pass only if
+      // Wazoo rejected the query. Differential contract: pass only if
       // Comunica rejects it too (both-reject agreement, which is the
       // expected outcome for NegativeSyntaxTest11 entries).
       const comunicaAccepted = await this.comunicaRunsQuery(testCase, query);
@@ -629,25 +629,25 @@ export class W3cRunner {
       }
       return {
         status: "gap",
-        detail: `native rejected the query, comunica accepted it: ${
+        detail: `wazoo rejected the query, comunica accepted it: ${
           error instanceof Error ? error.message : String(error)
         }`,
       };
     }
 
-    const comunicaOutcome = await this.runComunicaQuery(testCase, nativeResult);
+    const comunicaOutcome = await this.runComunicaQuery(testCase, wazooResult);
     return comunicaOutcome;
   }
 
   private async runComunicaQuery(
     testCase: W3cTestCase,
-    nativeResult: SparqlResponse,
+    wazooResult: SparqlResponse,
   ): Promise<TestOutcome> {
     const store = this.loadStore(testCase);
     const query = this.queryText(testCase);
     const options = { sources: [store] };
 
-    switch (nativeResult.kind) {
+    switch (wazooResult.kind) {
       case "select": {
         let comunica: string[];
         try {
@@ -655,22 +655,22 @@ export class W3cRunner {
         } catch (error) {
           return {
             status: "gap",
-            detail: `native executed the query, comunica rejected it: ${
+            detail: `wazoo executed the query, comunica rejected it: ${
               error instanceof Error ? error.message : String(error)
             }`,
           };
         }
-        const native = this.nativeSelectStrings(nativeResult);
-        const nativeRecords = this.nativeSelectRecords(nativeResult);
+        const wazoo = this.wazooSelectStrings(wazooResult);
+        const wazooRecords = this.wazooSelectRecords(wazooResult);
         const comunicaRecords = await this.runComunicaSelectRecords(
           query,
           store,
         );
-        return isomorphicMultiset(nativeRecords, comunicaRecords)
+        return isomorphicMultiset(wazooRecords, comunicaRecords)
           ? { status: "pass" }
           : {
             status: "gap",
-            detail: this.firstDiff(native, comunica, "SELECT bindings"),
+            detail: this.firstDiff(wazoo, comunica, "SELECT bindings"),
           };
       }
       case "ask": {
@@ -680,15 +680,15 @@ export class W3cRunner {
         } catch (error) {
           return {
             status: "gap",
-            detail: `native executed the query, comunica rejected it: ${
+            detail: `wazoo executed the query, comunica rejected it: ${
               error instanceof Error ? error.message : String(error)
             }`,
           };
         }
-        return comunica === nativeResult.data.boolean ? { status: "pass" } : {
+        return comunica === wazooResult.data.boolean ? { status: "pass" } : {
           status: "gap",
           detail:
-            `ASK mismatch: comunica=${comunica} native=${nativeResult.data.boolean}`,
+            `ASK mismatch: comunica=${comunica} wazoo=${wazooResult.data.boolean}`,
         };
       }
       case "construct": {
@@ -708,46 +708,46 @@ export class W3cRunner {
         } catch (error) {
           return {
             status: "gap",
-            detail: `native executed the query, comunica rejected it: ${
+            detail: `wazoo executed the query, comunica rejected it: ${
               error instanceof Error ? error.message : String(error)
             }`,
           };
         }
-        const nativeKeys = nativeResult.data.quads.map((item) =>
+        const wazooKeys = wazooResult.data.quads.map((item) =>
           canonicalQuadString(item, canonicalizeRdfTerm)
         );
-        const nativeSet = [...nativeKeys].sort();
+        const wazooSet = [...wazooKeys].sort();
         // Issue #87 contract: the reference side is normalized to its graph
-        // content, while the native side is compared as-emitted — decision
+        // content, while the wazoo side is compared as-emitted — decision
         // #29 guarantees a conforming engine emits no duplicate quads, so a
         // future change that starts emitting them fails this gate.
-        const nativeRecords = nativeResult.data.quads.map((item) =>
+        const wazooRecords = wazooResult.data.quads.map((item) =>
           this.quadRecords(item, canonicalizeRdfTerm)
         );
         return compareConstructRecords(
-            nativeRecords,
+            wazooRecords,
             comunicaRecords,
             comunicaKeys,
           )
           ? { status: "pass" }
           : {
             status: "gap",
-            detail: this.firstDiff(nativeSet, comunicaSet, "CONSTRUCT quads"),
+            detail: this.firstDiff(wazooSet, comunicaSet, "CONSTRUCT quads"),
           };
       }
       default:
         return {
           status: "error",
-          detail: `native returned unexpected kind ${nativeResult.kind}`,
+          detail: `wazoo returned unexpected kind ${wazooResult.kind}`,
         };
     }
   }
 
-  private nativeSelectStrings(nativeResult: SparqlResponse): string[] {
-    if (nativeResult.kind !== "select") {
+  private wazooSelectStrings(wazooResult: SparqlResponse): string[] {
+    if (wazooResult.kind !== "select") {
       return [];
     }
-    return nativeResult.data.results.bindings.map((binding) => {
+    return wazooResult.data.results.bindings.map((binding) => {
       const record: Record<string, CanonicalTerm> = {};
       for (const name of Object.keys(binding)) {
         record[name] = canonicalizeSparqlValue(binding[name]);
@@ -756,11 +756,11 @@ export class W3cRunner {
     });
   }
 
-  private nativeSelectRecords(nativeResult: SparqlResponse): CanonicalTerm[][] {
-    if (nativeResult.kind !== "select") {
+  private wazooSelectRecords(wazooResult: SparqlResponse): CanonicalTerm[][] {
+    if (wazooResult.kind !== "select") {
       return [];
     }
-    return nativeResult.data.results.bindings.map((binding) => {
+    return wazooResult.data.results.bindings.map((binding) => {
       const record: Record<string, CanonicalTerm> = {};
       for (const name of Object.keys(binding)) {
         record[name] = canonicalizeSparqlValue(binding[name]);
@@ -819,8 +819,8 @@ export class W3cRunner {
     for (let index = 0; index < Math.max(aSet.length, bSet.length); index++) {
       if (aSet[index] !== bSet[index]) {
         return (
-          `${label} diverge (native ${aSet.length}, comunica ${bSet.length}):\n` +
-          `  native:   ${aSet[index] ?? "<absent>"}\n` +
+          `${label} diverge (wazoo ${aSet.length}, comunica ${bSet.length}):\n` +
+          `  wazoo:   ${aSet[index] ?? "<absent>"}\n` +
           `  comunica: ${bSet[index] ?? "<absent>"}`
         );
       }
@@ -831,14 +831,14 @@ export class W3cRunner {
   private async compareUpdate(testCase: W3cTestCase): Promise<TestOutcome> {
     const request = this.queryText(testCase);
 
-    const nativeStore = this.loadStore(testCase);
-    const native = new WazooSparqlEngine({ store: nativeStore });
+    const wazooStore = this.loadStore(testCase);
+    const wazoo = new WazooSparqlEngine({ store: wazooStore });
     try {
-      const result = await native.execute({ query: request });
+      const result = await wazoo.execute({ query: request });
       if (result.kind !== "void") {
         return {
           status: "error",
-          detail: "native update returned a non-void result",
+          detail: "wazoo update returned a non-void result",
         };
       }
     } catch (error) {
@@ -848,7 +848,7 @@ export class W3cRunner {
       }
       return {
         status: "gap",
-        detail: `native rejected the update, comunica accepted it: ${
+        detail: `wazoo rejected the update, comunica accepted it: ${
           error instanceof Error ? error.message : String(error)
         }`,
       };
@@ -862,21 +862,21 @@ export class W3cRunner {
     } catch (error) {
       return {
         status: "gap",
-        detail: `native executed the update, comunica rejected it: ${
+        detail: `wazoo executed the update, comunica rejected it: ${
           error instanceof Error ? error.message : String(error)
         }`,
       };
     }
 
-    const nativeSet = this.storeQuadStrings(nativeStore).sort();
+    const wazooSet = this.storeQuadStrings(wazooStore).sort();
     const comunicaSet = this.storeQuadStrings(comunicaStore).sort();
-    const nativeRecords = this.storeQuadRecords(nativeStore);
+    const wazooRecords = this.storeQuadRecords(wazooStore);
     const comunicaRecords = this.storeQuadRecords(comunicaStore);
-    return isomorphicMultiset(nativeRecords, comunicaRecords)
+    return isomorphicMultiset(wazooRecords, comunicaRecords)
       ? { status: "pass" }
       : {
         status: "gap",
-        detail: this.firstDiff(nativeSet, comunicaSet, "final store contents"),
+        detail: this.firstDiff(wazooSet, comunicaSet, "final store contents"),
       };
   }
 
@@ -931,12 +931,12 @@ export class W3cRunner {
     }
 
     const evaluate = async (
-      engine: "native" | "comunica",
+      engine: "wazoo" | "comunica",
     ): Promise<boolean> => {
       try {
         const store = this.loadStore(testCase);
         let actualQuads: rdfjs.Quad[] = [];
-        if (engine === "native") {
+        if (engine === "wazoo") {
           const res = await new WazooSparqlEngine({ store }).execute({
             query: this.queryText(testCase),
           });
@@ -978,11 +978,11 @@ export class W3cRunner {
       }
     };
 
-    const native = await evaluate("native");
+    const wazoo = await evaluate("wazoo");
     const comunica = await evaluate("comunica");
     return {
       id: testCase.id,
-      native: native ? "conforms" : "deviates",
+      wazoo: wazoo ? "conforms" : "deviates",
       comunica: comunica ? "conforms" : "deviates",
     };
   }

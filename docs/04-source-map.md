@@ -121,20 +121,20 @@ sparql-engine/
 | `test/w3c/ref-crosscheck.ts`                                            | Allowlisted-divergence audit vs Oxigraph + N3.js                                                        |
 | `test/w3c/exists-ref.ts`                                                | EXISTS subquery surface vs Oxigraph                                                                     |
 | `test/w3c/runner.ts`, `manifest.ts`, `divergences.ts`, `rdf-harness.ts` | W3C harness plumbing, manifest parsing, documented divergences, CONSTRUCT multiset contract (issue #87) |
-| `test/w3c/construct-semantics.test.ts`                                  | Pins the CONSTRUCT graph-result contract: reference deduplicated, native as-emitted, duplicates fail    |
+| `test/w3c/construct-semantics.test.ts`                                  | Pins the CONSTRUCT graph-result contract: reference deduplicated, wazoo as-emitted, duplicates fail     |
 | `test/w3c/fixtures/`                                                    | Vendored W3C suites: `sparql11/`, `sparql12/`, `rdf/` (offline, deterministic)                          |
 
 ## `bench/`
 
 | File                                       | Role                                                                                                                       |
 | ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------- |
-| `bench/engine_bench.ts`                    | Three-engine benchmark (native / Comunica / Oxigraph) with verification-first equality asserts                             |
+| `bench/engine_bench.ts`                    | Three-engine benchmark (wazoo / Comunica / Oxigraph) with verification-first equality asserts                              |
 | `bench/budget.ts`                          | Regression budget gate (`deno task bench:check`): avg ms/iter against `bench/baseline.json`                                |
 | `bench/baseline.json`                      | `maxAllowedMs: 50`, `maxRegressionRatio: 0.15`                                                                             |
 | `bench/concurrency-probe.ts`               | EXISTS concurrency stress probe (issue #72): shuffled `Promise.all` rounds + update interleaving, exit 1 on error/mismatch |
-| `bench/measure-libs.ts`                    | On-disk footprint of native JSR artifact vs Oxigraph npm vs Comunica transitive closure → `bench/size-data.json`           |
+| `bench/measure-libs.ts`                    | On-disk footprint of wazoo JSR artifact vs Oxigraph npm vs Comunica transitive closure → `bench/size-data.json`            |
 | `bench/collect-memory.ts`                  | Spawns `bench/memory-probe.ts` per engine × workload, merges peak-heap results → `bench/memory-data.json`                  |
-| `bench/memory-probe.ts`                    | Peak `heapUsed` per engine (native/Comunica/Oxigraph) on full-scan + nested-EXISTS workloads over a 10k-person graph       |
+| `bench/memory-probe.ts`                    | Peak `heapUsed` per engine (wazoo/Comunica/Oxigraph) on full-scan + nested-EXISTS workloads over a 10k-person graph        |
 | `bench/treemap.ts`                         | Renders `bench/*-data.json` into `docs/assets/treemap-{library-size,memory}.svg`                                           |
 | `bench/size-data.json`, `memory-data.json` | Measured snapshots consumed by `bench/treemap.ts` and the root `README.md` (Size & memory footprint)                       |
 

@@ -4,19 +4,19 @@ import { MemoryStore as Store } from "@/store/memory-store.ts";
 import { WazooSparqlEngine } from "@/wazoo-sparql-engine.ts";
 
 /**
- * EXISTS surface cross-check: the native engine must agree with Oxigraph on
+ * EXISTS surface cross-check: the wazoo engine must agree with Oxigraph on
  * subqueries inside EXISTS/NOT EXISTS.
  *
  * The EXISTS evaluator (src/evaluator/bgp-evaluator.ts) evaluates subqueries
  * over the graph-scoped candidate snapshot, then runs the shared select
  * pipeline (src/evaluator/select-pipeline.ts). The in-repo regression tests
- * assert native semantics; this gate cross-validates them against an
+ * assert wazoo semantics; this gate cross-validates them against an
  * independent SPARQL 1.1 engine — Oxigraph (Rust/WASM) — so a future change
  * that quietly breaks subquery-in-EXISTS evaluation fails CI even if the
  * unit tests are updated to match. Every case projects one variable; the
  * comparison is over the sorted set of projected values.
  *
- * This mirrors the earlier probe-driven validation (native = Oxigraph on all
+ * This mirrors the earlier probe-driven validation (wazoo = Oxigraph on all
  * 9 cases, SPARQL 1.1 §18.2.4 non-correlation included) and keeps it
  * repeatable. Comunica's lite engine is deliberately not an oracle here: it
  * correlates subqueries with outer bindings (wrong per §18.2.4) and
@@ -28,7 +28,7 @@ import { WazooSparqlEngine } from "@/wazoo-sparql-engine.ts";
 const BASE = "http://example.org/base";
 
 /** Dataset shared by both engines, as Turtle (loaded by Oxigraph) and as
- * RDF/JS quads (built into the native MemoryStore). */
+ * RDF/JS quads (built into the wazoo MemoryStore). */
 const TURTLE = `
 @prefix ex: <http://example.org/> .
 ex:s ex:p ex:a .
@@ -45,7 +45,7 @@ interface Case {
 }
 
 /** Projected-variable expected values are implied by the subquery semantics;
- * the gate compares native vs Oxigraph, not against a hardcoded list. */
+ * the gate compares wazoo vs Oxigraph, not against a hardcoded list. */
 const CASES: Case[] = [
   {
     name: "basic",
@@ -130,7 +130,7 @@ const CASES: Case[] = [
 
 const { namedNode, literal, quad } = DataFactory;
 
-function nativeStore(): Store {
+function wazooStore(): Store {
   const store = new Store();
   const ex = (local: string) => namedNode(`http://example.org/${local}`);
   const add = (s: string, p: string, o: string) =>
@@ -147,12 +147,12 @@ function nativeStore(): Store {
   return store;
 }
 
-/** Native: project a variable from the SELECT results, sorted. */
-async function nativeProjected(
+/** Wazoo: project a variable from the SELECT results, sorted. */
+async function wazooProjected(
   query: string,
   variable: string,
 ): Promise<string[]> {
-  const engine = new WazooSparqlEngine({ store: nativeStore() });
+  const engine = new WazooSparqlEngine({ store: wazooStore() });
   const result = await engine.execute({ query });
   if (result.kind !== "select") {
     throw new Error(`expected select, got ${result.kind}`);
@@ -180,15 +180,15 @@ function oxigraphProjected(query: string, variable: string): string[] {
 }
 
 let failures = 0;
-console.log("case | native | oxigraph | verdict");
+console.log("case | wazoo | oxigraph | verdict");
 console.log("-".repeat(72));
 for (const c of CASES) {
-  const native = await nativeProjected(c.query, "s");
+  const wazoo = await wazooProjected(c.query, "s");
   const oxi = oxigraphProjected(c.query, "s");
-  const pass = JSON.stringify(native) === JSON.stringify(oxi);
+  const pass = JSON.stringify(wazoo) === JSON.stringify(oxi);
   if (!pass) failures++;
   console.log(
-    `${c.name} | [${native.join(", ")}] | [${oxi.join(", ")}] | ` +
+    `${c.name} | [${wazoo.join(", ")}] | [${oxi.join(", ")}] | ` +
       `${pass ? "pass" : "DIVERGE"}`,
   );
 }
@@ -196,13 +196,13 @@ for (const c of CASES) {
 console.log(`\n${CASES.length} EXISTS-subquery case(s) cross-checked.`);
 if (failures > 0) {
   console.error(
-    `\nCross-check FAILED: native diverges from Oxigraph on ${failures} ` +
+    `\nCross-check FAILED: wazoo diverges from Oxigraph on ${failures} ` +
       `case(s). Fix the EXISTS evaluator or the select pipeline before ` +
       `touching the queries.\n`,
   );
   Deno.exit(1);
 }
 console.log(
-  "\nCross-check passed: native agrees with Oxigraph on every subquery-in-" +
+  "\nCross-check passed: wazoo agrees with Oxigraph on every subquery-in-" +
     "EXISTS case, including §18.2.4 non-correlation.",
 );

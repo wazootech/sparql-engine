@@ -36,7 +36,7 @@ interface Placed {
   panel?: string;
 }
 
-const COLORS = ["#2f9e44", "#1971c2", "#f08c00"]; // native, oxigraph, comunica
+const COLORS = ["#2f9e44", "#1971c2", "#f08c00"]; // wazoo, oxigraph, comunica
 
 function worst(row: { bytes: number }[], rect: Rect): number {
   const total = row.reduce((s, i) => s + i.bytes, 0);
@@ -287,7 +287,7 @@ function memoryTree(): Placed[] {
       { scan: { peakHeap: number }; exists: { peakHeap: number } }
     >;
   };
-  const names = ["native", "comunica", "oxigraph"];
+  const names = ["wazoo", "comunica", "oxigraph"];
   const workloads = ["scan", "exists"] as const;
   const labels: Record<string, string> = {
     scan: "full scan (55k rows materialized)",
@@ -332,7 +332,7 @@ function memoryTree(): Placed[] {
 
 const sizeSvg = treemapSvg(
   "Library size on disk",
-  "Engine package footprint, excluding the shared Deno runtime (native: JSR artifact; oxigraph: npm package; comunica: full transitive dependency closure)",
+  "Engine package footprint, excluding the shared Deno runtime (wazoo: JSR artifact; oxigraph: npm package; comunica: full transitive dependency closure)",
   sizeTree(),
 );
 Deno.writeTextFileSync(

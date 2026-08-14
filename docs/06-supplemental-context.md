@@ -57,16 +57,16 @@ The project does not run the W3C suites as a pass/fail conformance oracle alone
 results as a secondary check. The posture is:
 
 1. **Parity is the floor.** Anything the parity reference
-   (`@comunica/query-sparql-rdfjs-lite`) can do, the native engine must do.
+   (`@comunica/query-sparql-rdfjs-lite`) can do, the wazoo engine must do.
 2. **Spec wins over the reference.** Where Comunica contradicts the spec
    (`LIMIT 0` ignored, malformed regex throwing, EXISTS subquery correlation),
-   the native engine implements the spec and the case is keyed as a _documented
+   the wazoo engine implements the spec and the case is keyed as a _documented
    divergence_ in `test/w3c/divergences.ts` rather than allowlisted blindly.
 3. **Gaps are tracked, not hidden.** The `w3c-parity` CI job goes green only on
    a full pass; the gap count is the progress metric.
 4. **RDF syntax is gated absolutely.** Negative syntax tests must be rejected
    even when the lenient reference (n3) accepts them; the only tolerated
-   mismatches are _superset acceptances_ — the native grammar is a single
+   mismatches are _superset acceptances_ — the wazoo grammar is a single
    Turtle+TriG+N-Quads superset for `LOAD`'s content-sniffing — each audited
    against Oxigraph and N3.js by `deno task test:ref` (45/45 endorsed).
 
@@ -81,7 +81,7 @@ not a guarantee.
 
 SPARQL 1.1 result semantics treat blank-node labels as scoped and opaque.
 Comunica skolemizes blank nodes from query sources into prefixed labels
-(`bc_<sourceId>_<label>`); the native engine returns the store's own labels and
+(`bc_<sourceId>_<label>`); the wazoo engine returns the store's own labels and
 deliberately does **not** replicate the prefix. The parity harness strips the
 prefix before comparing and locks the normalization with a dedicated test
 (`test/parity/parity.test.ts`). INSERT DATA mints fresh labels per execution
@@ -94,13 +94,13 @@ label identity.
   with the parity reference.
 - **SparqlEngineInterface** — the shared execution contract; duplicated
   identically in `@worlds/client` under an identical-spec policy.
-- **ComunicaSparqlEngine** — the `@worlds/client` adapter the native engine is a
+- **ComunicaSparqlEngine** — the `@worlds/client` adapter the wazoo engine is a
   drop-in replacement for.
 - **Parity reference** — the installed `@comunica/query-sparql-rdfjs-lite`; the
   porting surface is its lite config.
 - **Differential parity** — deep comparison of SELECT bindings, CONSTRUCT quads,
   ASK booleans, and final update store contents across engines.
-- **Spec-wins divergence** — the reference contradicts the spec; native
+- **Spec-wins divergence** — the reference contradicts the spec; wazoo
   implements the spec, documents it, and skips the parity case.
 - **Superset directive** — parity is the floor; the superset ceiling (what
   beyond that floor the engine should carry) is an open question.
@@ -114,9 +114,9 @@ label identity.
 
 ## Known gaps and next steps
 
-- `timeoutMs` in `SparqlRequest` is accepted but not yet enforced by the native
-  engine (Comunica enforces it). `baseIri` is accepted; the native engine
-  derives the base from the query's `BASE` directive instead.
+- `timeoutMs` in `SparqlRequest` is accepted but not yet enforced by the wazoo
+  engine (Comunica enforces it). `baseIri` is accepted; the wazoo engine derives
+  the base from the query's `BASE` directive instead.
 - `SqliteStore` ships as a deep-import prototype; the durable-transactions notes
   (`docs/durable-transactions.md`) list next steps: a dedicated `./sqlite`
   entrypoint, fsync/busy-timeout policy, update-throughput benchmarks, and

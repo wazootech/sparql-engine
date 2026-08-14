@@ -23,9 +23,9 @@ trustworthy and what the numbers say" companion.
 
 ## `deno task bench` — three-engine latency comparison
 
-`bench/engine_bench.ts` runs the native engine against
+`bench/engine_bench.ts` runs the wazoo engine against
 `@comunica/query-sparql-rdfjs-lite` and **Oxigraph (WASM)** over identical
-generated graphs. Deno's built-in bench runner times each group, with the native
+generated graphs. Deno's built-in bench runner times each group, with the wazoo
 engine as the per-group baseline.
 
 ### Why the timings are trustworthy
@@ -34,9 +34,9 @@ engine as the per-group baseline.
    engines return identical results (`verifySelectEquality`,
    `verifyAskEquality`, `verifyConstructEquality`, `verifyConstructIsoEquality`
    — CONSTRUCT under the graph-result multiset contract: reference deduplicated,
-   native as-emitted (issue #87) — and every update asserts identical final
-   store contents on fresh stores (`verifyUpdateEquality`). A benchmark of a
-   broken engine fails loudly, not silently.
+   wazoo as-emitted (issue #87) — and every update asserts identical final store
+   contents on fresh stores (`verifyUpdateEquality`). A benchmark of a broken
+   engine fails loudly, not silently.
 2. **Self-restoring updates.** The timed update deletes and re-inserts the same
    quads, netting to zero per iteration, so the benchmark stores never drift.
 3. **Per-group baselines.** Each group is timed independently; results are
@@ -49,14 +49,14 @@ subquery, exists, cast, string-fn, having, reduced, update-ops.
 
 ### Known results
 
-Snapshot measured on a Windows desktop, Deno 2.9.5, native engine as the
+Snapshot measured on a Windows desktop, Deno 2.9.5, wazoo engine as the
 per-group baseline. Each cell is the per-iteration average; every query was
 cross-verified identical on all three engines before timing. Machine-specific —
 run `deno task bench` for your own numbers.
 
 Core joins, 400-person graph (~2,200 quads):
 
-| query                        | native   | comunica | oxigraph |
+| query                        | wazoo    | comunica | oxigraph |
 | ---------------------------- | -------- | -------- | -------- |
 | full scan                    | 1.3 ms   | 7.6 ms   | 12.2 ms  |
 | join (knows × name)          | 1.0 ms   | 5.2 ms   | 2.6 ms   |
@@ -66,7 +66,7 @@ Core joins, 400-person graph (~2,200 quads):
 
 EXISTS surface, 400-person graph:
 
-| query               | native  | comunica | oxigraph |
+| query               | wazoo   | comunica | oxigraph |
 | ------------------- | ------- | -------- | -------- |
 | `FILTER EXISTS`     | 0.81 ms | 29.2 ms  | 1.0 ms   |
 | `FILTER NOT EXISTS` | 0.88 ms | 33.3 ms  | 1.3 ms   |
@@ -75,7 +75,7 @@ EXISTS surface, 400-person graph:
 
 EXISTS surface, 10,000-person graph (~55,000 quads):
 
-| query               | native  | comunica | oxigraph |
+| query               | wazoo   | comunica | oxigraph |
 | ------------------- | ------- | -------- | -------- |
 | `FILTER EXISTS`     | 27.8 ms | 729.5 ms | 27.0 ms  |
 | `FILTER NOT EXISTS` | 26.8 ms | 835.9 ms | 30.7 ms  |
@@ -85,7 +85,7 @@ EXISTS surface, 10,000-person graph (~55,000 quads):
 Join surface, 10,000-person graph — UNION joins 10k × 20k bindings on the shared
 subject (~200M candidate pairs); OPTIONAL and MINUS join 10k × 5k (~50M pairs):
 
-| query               | native  | comunica | oxigraph |
+| query               | wazoo   | comunica | oxigraph |
 | ------------------- | ------- | -------- | -------- |
 | UNION (10k × 20k)   | 45.1 ms | 106.6 ms | 107.5 ms |
 | OPTIONAL (10k × 5k) | 22.1 ms | 587.9 ms | 56.5 ms  |
@@ -93,17 +93,17 @@ subject (~200M candidate pairs); OPTIONAL and MINUS join 10k × 5k (~50M pairs):
 
 ### Reading the numbers
 
-- **Core joins**: native is fastest on every scan/join row, with the asymmetric
+- **Core joins**: wazoo is fastest on every scan/join row, with the asymmetric
   join ~20× faster than Comunica.
-- **Join scaling is sub-quadratic.** The native hash join probes an indexed
-  right side per left binding instead of scanning it: the nested-loop
-  before-state of the UNION benchmark was ~7 s/iter versus 45 ms with the hash
-  join (~150×), with OPTIONAL and MINUS showing the same shape (~60-80×).
+- **Join scaling is sub-quadratic.** The wazoo hash join probes an indexed right
+  side per left binding instead of scanning it: the nested-loop before-state of
+  the UNION benchmark was ~7 s/iter versus 45 ms with the hash join (~150×),
+  with OPTIONAL and MINUS showing the same shape (~60-80×).
 - **EXISTS is flat as data grows.** Scaling the data 25× (400 → 10,000 people)
-  grows native's EXISTS cost ~35-40× while the nested-vs-simple ratio _shrinks_
+  grows wazoo's EXISTS cost ~35-40× while the nested-vs-simple ratio _shrinks_
   (1.45× → 1.12×): the EXISTS snapshot is drained and indexed once per query,
   and each probe touches only its candidate bucket, so nesting stays cheap
-  relative to the dataset. Across the EXISTS surface native is 20-180× faster
+  relative to the dataset. Across the EXISTS surface wazoo is 20-180× faster
   than Comunica and roughly at parity with Oxigraph (a compiled Rust/WASM engine
   with native indexes, which stays ahead on the reorder-chain row).
 - **The dynamic join planner is worth ~90×** on the worst-case-ordered
@@ -151,7 +151,7 @@ in `src/wazoo-sparql-engine.test.ts`.
 ### Methodology
 
 - `bench:size` — `bench/measure-libs.ts` measures the on-disk footprint a
-  consumer must install: the native JSR publish artifact (`src/` + `README.md`
+  consumer must install: the wazoo JSR publish artifact (`src/` + `README.md`
   - `LICENSE`, broken down by top-level module), the installed Oxigraph npm
     package (WASM binary vs JS glue), and `@comunica/query-sparql-rdfjs-lite`
     plus its full transitive dependency closure → `bench/size-data.json`.
@@ -171,11 +171,11 @@ On-disk footprint (what a consumer must have installed):
 
 | engine   | on disk      | contents                                                                                              |
 | -------- | ------------ | ----------------------------------------------------------------------------------------------------- |
-| native   | **0.67 MiB** | 38 source files (the whole JSR artifact: `src/` + `README.md` + `LICENSE`); zero runtime dependencies |
+| wazoo    | **0.67 MiB** | 38 source files (the whole JSR artifact: `src/` + `README.md` + `LICENSE`); zero runtime dependencies |
 | oxigraph | 7.9 MiB      | WASM runtime (7.8 MiB) + JS glue/types                                                                |
 | comunica | 28.3 MiB     | 368 npm packages in the transitive dependency closure                                                 |
 
-Native breaks down as evaluator 226 KiB, parser 381 KiB, store 24 KiB, term 40
+Wazoo breaks down as evaluator 226 KiB, parser 381 KiB, store 24 KiB, term 40
 KiB, README 13 KiB, LICENSE 1 KiB — the parser is the largest single module (the
 generated `parser.ts` from `sparql.jison`).
 
@@ -183,7 +183,7 @@ Peak heap during execution (`heapUsed`; isolated subprocess per engine, peak
 over 5 runs, all three share the same ~65 MB runtime baseline so the comparison
 is symmetric):
 
-| workload             | native     | comunica | oxigraph |
+| workload             | wazoo      | comunica | oxigraph |
 | -------------------- | ---------- | -------- | -------- |
 | full scan (55k rows) | **134 MB** | 214 MB   | 251 MB   |
 | nested EXISTS        | **82 MB**  | 271 MB   | 108 MB   |
@@ -192,11 +192,11 @@ is symmetric):
 
 ![Memory treemap](assets/treemap-memory.svg)
 
-Native is the smallest on disk by 12-42× (0.67 vs 7.9 vs 28.3 MiB) and holds its
+Wazoo is the smallest on disk by 12-42× (0.67 vs 7.9 vs 28.3 MiB) and holds its
 speed advantage with the lowest peak heap on both workloads — including a peak
 roughly a third of Comunica's on the nested-EXISTS surface the timings above
 highlight. Oxigraph's WASM runtime is compact on disk, but its result
-materialization peaks higher than native on both workloads. The probe also
+materialization peaks higher than wazoo on both workloads. The probe also
 records peak RSS in `bench/memory-data.json` for deeper analysis.
 
 ## Regenerating and committing results

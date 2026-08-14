@@ -4,12 +4,12 @@ import { loadRdfManifest, quadSetsIsomorphicAsSets } from "./rdf-harness.ts";
 import type { RdfSyntaxCase } from "./rdf-harness.ts";
 
 /**
- * RDF 1.2 manifest classifier: the native grammar must (1) accept every
+ * RDF 1.2 manifest classifier: the wazoo grammar must (1) accept every
  * positive syntax test, (2) reject every negative syntax test, and (3) for
  * eval tests, parse the action into quads isomorphic to the `.nt`/`.nq`
  * reference result. n3 cannot be the oracle here — n3@2.2.0 predates RDF 1.2
  * triple terms and reifiers — so the reference result is parsed with the
- * native grammar itself (N-Triples/N-Quads are a subset of it).
+ * wazoo grammar itself (N-Triples/N-Quads are a subset of it).
  *
  * Permitted negative-test failures are documented in one allowlist below:
  * `supersetDivergences` (RDF 1.2 constructs the single superset grammar
@@ -27,10 +27,10 @@ const RDF12_MANIFESTS = [
 
 const SUPERSET_REASON =
   "RDF 1.2 N-Triples/N-Quads reject triple terms, reifiers, annotations, and " +
-  "relative IRIs, but native's single Turtle + TriG + N-Quads superset grammar " +
+  "relative IRIs, but wazoo's single Turtle + TriG + N-Quads superset grammar " +
   "accepts them (LOAD sniffs the format from the content). Intentional.";
 
-/** Negative tests native accepts by design (RDF 1.2 superset grammar). */
+/** Negative tests wazoo accepts by design (RDF 1.2 superset grammar). */
 export const supersetDivergences: ReadonlySet<string> = new Set([
   "rdf12:rdf-n-triples/syntax:ntriples12-bad-09",
   "rdf12:rdf-n-triples/syntax:ntriples12-bad-iri-1",
@@ -85,7 +85,7 @@ function evaluate(testCase: RdfSyntaxCase): Verdict {
 
   if (testCase.kind === "negative") {
     if (quads === null) return { status: "pass" };
-    const detail = `native accepted a negative test${
+    const detail = `wazoo accepted a negative test${
       allowlisted ? ` — allowlisted: ${reason}` : ""
     }`;
     return { status: "gap", detail, allowlisted };
@@ -94,7 +94,7 @@ function evaluate(testCase: RdfSyntaxCase): Verdict {
   if (quads === null) {
     return {
       status: "gap",
-      detail: `native rejected a positive test: ${error}`,
+      detail: `wazoo rejected a positive test: ${error}`,
       allowlisted: false,
     };
   }
@@ -120,7 +120,7 @@ function evaluate(testCase: RdfSyntaxCase): Verdict {
     if (reference === null) {
       return {
         status: "gap",
-        detail: `native rejected the reference result: ${referenceError}`,
+        detail: `wazoo rejected the reference result: ${referenceError}`,
         allowlisted: false,
       };
     }
@@ -130,7 +130,7 @@ function evaluate(testCase: RdfSyntaxCase): Verdict {
     return {
       status: "gap",
       detail:
-        `eval mismatch: native ${quads.length} quads vs reference ${reference.length} quads`,
+        `eval mismatch: wazoo ${quads.length} quads vs reference ${reference.length} quads`,
       allowlisted: false,
     };
   }

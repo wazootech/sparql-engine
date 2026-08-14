@@ -10,16 +10,16 @@ import {
 import type { RdfSyntaxCase } from "./rdf-harness.ts";
 
 /**
- * RDF 1.1 differential gate: the native Turtle/TriG/N-Triples/N-Quads grammar
+ * RDF 1.1 differential gate: the wazoo Turtle/TriG/N-Triples/N-Quads grammar
  * (parseTurtleQuads) must agree with n3@2.2.0 on every W3C RDF 1.1 syntax and
  * eval test — same accept/reject verdict, and isomorphic quads for the tests
- * both accept. Negative tests are additionally gated absolutely: native must
+ * both accept. Negative tests are additionally gated absolutely: wazoo must
  * reject them even if n3 is lenient. Eval tests are also gated against their
- * W3C `.nt`/`.nq` reference result (parsed with the native grammar), so a
- * native+n3 agreement on the wrong quads still fails.
+ * W3C `.nt`/`.nq` reference result (parsed with the wazoo grammar), so a
+ * wazoo+n3 agreement on the wrong quads still fails.
  *
  * The only permitted mismatches are in `supersetDivergences`: negative tests
- * the native grammar accepts because it is a single Turtle + TriG + N-Quads
+ * the wazoo grammar accepts because it is a single Turtle + TriG + N-Quads
  * superset (LOAD content-sniffs the document format rather than trusting the
  * file extension). Every other disagreement is a defect.
  */
@@ -32,13 +32,13 @@ const RDF11_MANIFESTS = [
 ];
 
 const SUPERSET_REASON =
-  "Native's grammar is a single Turtle + TriG + N-Quads superset (LOAD sniffs " +
+  "Wazoo's grammar is a single Turtle + TriG + N-Quads superset (LOAD sniffs " +
   "the format from the content, not the file extension), so it accepts " +
   "Turtle/TriG/N-Quads constructs — @prefix/@base, relative IRIs, numeric and " +
   "string literal shorthands, graph blocks, and graph labels — in files where " +
   "the strict N-Triples/N-Quads/Turtle/TriG grammar rejects them. Intentional.";
 
-/** Negative tests native accepts by design (superset grammar), keyed by id. */
+/** Negative tests wazoo accepts by design (superset grammar), keyed by id. */
 export const supersetDivergences: ReadonlySet<string> = new Set([
   "rdf11:rdf-turtle:turtle-syntax-bad-struct-01",
   "rdf11:rdf-turtle:turtle-syntax-bad-struct-03",
@@ -89,7 +89,7 @@ function readFixture(rel: string): string {
   return Deno.readTextFileSync(`test/w3c/fixtures/${rel}`);
 }
 
-function parseNative(testCase: RdfSyntaxCase): rdfjs.Quad[] {
+function parseWazoo(testCase: RdfSyntaxCase): rdfjs.Quad[] {
   return parseTurtleQuads(readFixture(testCase.action), testCase.actionUrl);
 }
 
@@ -112,14 +112,14 @@ function describe(err: unknown): string {
 function evaluate(testCase: RdfSyntaxCase): Verdict {
   const allowlisted = supersetDivergences.has(testCase.id);
 
-  let nativeQuads: rdfjs.Quad[] | null = null;
-  let nativeError: string | null = null;
+  let wazooQuads: rdfjs.Quad[] | null = null;
+  let wazooError: string | null = null;
   try {
-    nativeQuads = parseNative(testCase);
+    wazooQuads = parseWazoo(testCase);
   } catch (err) {
-    nativeError = describe(err);
+    wazooError = describe(err);
   }
-  const nativeAccepts = nativeQuads !== null;
+  const wazooAccepts = wazooQuads !== null;
 
   let n3Quads: rdfjs.Quad[] | null = null;
   let n3Error: string | null = null;
@@ -131,11 +131,11 @@ function evaluate(testCase: RdfSyntaxCase): Verdict {
   const n3Accepts = n3Quads !== null;
 
   if (testCase.kind === "negative") {
-    // Absolute gate: a negative test must be rejected by native. n3's verdict
+    // Absolute gate: a negative test must be rejected by wazoo. n3's verdict
     // is informational only (it is the stricter reference for N-Triples and
-    // N-Quads, but agreement does not excuse native accepting a negative test).
-    if (!nativeAccepts) return { status: "pass" };
-    const detail = `native accepted a negative test${
+    // N-Quads, but agreement does not excuse wazoo accepting a negative test).
+    if (!wazooAccepts) return { status: "pass" };
+    const detail = `wazoo accepted a negative test${
       n3Accepts ? " (n3 also accepted it)" : " (n3 rejected it)"
     }`;
     return allowlisted
@@ -147,9 +147,9 @@ function evaluate(testCase: RdfSyntaxCase): Verdict {
       : { status: "gap", detail, allowlisted: false };
   }
 
-  // Positive / eval: native must parse, and agree with n3 when both parse.
-  if (!nativeAccepts) {
-    const detail = `native rejected a positive test: ${nativeError}` +
+  // Positive / eval: wazoo must parse, and agree with n3 when both parse.
+  if (!wazooAccepts) {
+    const detail = `wazoo rejected a positive test: ${wazooError}` +
       (n3Accepts ? " (n3 accepted it)" : " (n3 also rejected it)");
     return { status: "gap", detail, allowlisted: false };
   }
@@ -157,12 +157,12 @@ function evaluate(testCase: RdfSyntaxCase): Verdict {
   if (!n3Accepts) {
     return {
       status: "gap",
-      detail: `native accepted, n3 rejected: ${n3Error}`,
+      detail: `wazoo accepted, n3 rejected: ${n3Error}`,
       allowlisted,
     };
   }
 
-  if (quadSetsIsomorphic(nativeQuads!, n3Quads!)) {
+  if (quadSetsIsomorphic(wazooQuads!, n3Quads!)) {
     // Eval tests must additionally reproduce the W3C reference result, so
     // agreement with n3 is not enough on its own.
     if (testCase.kind === "eval") {
@@ -183,14 +183,14 @@ function evaluate(testCase: RdfSyntaxCase): Verdict {
       if (reference === null) {
         return {
           status: "gap",
-          detail: `native rejected the reference result: ${referenceError}`,
+          detail: `wazoo rejected the reference result: ${referenceError}`,
           allowlisted: false,
         };
       }
-      if (!quadSetsIsomorphicAsSets(nativeQuads!, reference)) {
+      if (!quadSetsIsomorphicAsSets(wazooQuads!, reference)) {
         return {
           status: "gap",
-          detail: `eval mismatch vs reference: native ${nativeQuads!.length} ` +
+          detail: `eval mismatch vs reference: wazoo ${wazooQuads!.length} ` +
             `quads vs reference ${reference.length} quads`,
           allowlisted: false,
         };
@@ -200,7 +200,7 @@ function evaluate(testCase: RdfSyntaxCase): Verdict {
   }
   return {
     status: "gap",
-    detail: `quad mismatch: native ${nativeQuads!.length} quads vs n3 ${
+    detail: `quad mismatch: wazoo ${wazooQuads!.length} quads vs n3 ${
       n3Quads!.length
     } quads`,
     allowlisted,
@@ -235,7 +235,7 @@ if (import.meta.main) {
     r.verdict.status === "gap" && !r.verdict.allowlisted
   );
 
-  console.log("\n=== RDF 1.1 differential (native vs n3) ===");
+  console.log("\n=== RDF 1.1 differential (wazoo vs n3) ===");
   console.log(`total:      ${rows.length}`);
   console.log(`pass:       ${pass}`);
   console.log(`gap:        ${realGaps.length}`);

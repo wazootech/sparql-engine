@@ -5,10 +5,10 @@ layout: default
 
 # @wazoo/sparql-engine — Code Wiki
 
-Developer documentation for the Wazoo-native SPARQL 1.1 & 1.2 query and update
-engine over RDF/JS Quad Stores. This wiki is an application-first tour of the
-engine: how queries are parsed, optimized, and evaluated; the public API
-contracts; the physical source map; and how to test and benchmark the engine.
+Developer documentation for the Wazoo SPARQL 1.1 & 1.2 query and update engine
+over RDF/JS Quad Stores. This wiki is an application-first tour of the engine:
+how queries are parsed, optimized, and evaluated; the public API contracts; the
+physical source map; and how to test and benchmark the engine.
 
 The content is verified against the codebase and the `deno doc --json` symbol
 inventory of the public surface (`src/mod.ts`). Every file path below is
@@ -58,7 +58,7 @@ Two treemaps summarize what the engine costs to ship and run versus the
 reference engines (area ∝ size; full methodology and tables in
 [07 — Benchmarking & Performance](07-benchmarking.md)):
 
-|                          | native                   | oxigraph | comunica                |
+|                          | wazoo                    | oxigraph | comunica                |
 | ------------------------ | ------------------------ | -------- | ----------------------- |
 | on-disk footprint        | **0.67 MiB** (zero deps) | 7.9 MiB  | 28.3 MiB (368 packages) |
 | peak heap, full scan     | **134 MB**               | 251 MB   | 214 MB                  |

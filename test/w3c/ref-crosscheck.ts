@@ -11,7 +11,7 @@ import { supersetDivergences as rdf12Allowlist } from "./rdf-classify.ts";
  *
  * Every case in `supersetDivergences` (rdf-differential.ts, rdf11) and
  * `supersetDivergences` (rdf-classify.ts, rdf12) is a *negative* syntax test
- * that native accepts on purpose: LOAD parses with a single Turtle + TriG +
+ * that wazoo accepts on purpose: LOAD parses with a single Turtle + TriG +
  * N-Quads superset grammar and content-sniffs the format instead of trusting
  * the file extension, so Turtle/TriG constructs inside strict-format files are
  * accepted. This tool audits that policy against independent reference
@@ -23,12 +23,12 @@ import { supersetDivergences as rdf12Allowlist } from "./rdf-classify.ts";
  *   - N3.js in RDF-star mode (the engine behind @comunica's rdf-parse, which
  *     passes `mediaType + "*"` to enable RDF-star syntax in every format —
  *     see @comunica/actor-rdf-parse-n3). This is the lenient, content-sniffing
- *     reference; it mirrors native's design. The synchronous API is used
+ *     reference; it mirrors wazoo's design. The synchronous API is used
  *     because rdf-parse's streaming path throws an *uncaught* null-deref on
  *     some malformed RDF 1.2 inputs (nquads12-nested-bad-annotated-syntax-1)
  *     that would kill the whole tool.
  *
- * A case is endorsed when native accepts it AND at least one of:
+ * A case is endorsed when wazoo accepts it AND at least one of:
  *   1. N3 (RDF-star mode) accepts the file, or
  *   2. oxigraph accepts the file in the superset format, or
  *   3. for .nq files, oxigraph (Turtle) accepts the content with graph names
@@ -111,7 +111,7 @@ interface Row {
   action: string;
   text: string;
   url: string;
-  native: Verdict;
+  wazoo: Verdict;
   oxiSup: Verdict;
   oxiStrict: Verdict;
   n3Len: Verdict;
@@ -126,10 +126,10 @@ for (const manifest of MANIFESTS) {
     const allowed = RDF11_ALLOWED.has(c.id) || RDF12_ALLOWED.has(c.id);
     if (!allowed) continue;
     const text = readFixture(c.action);
-    const native = verdictOf(() => parseTurtleQuads(text, c.actionUrl));
+    const wazoo = verdictOf(() => parseTurtleQuads(text, c.actionUrl));
     const oxiSup = oxi(text, supersetFormat(c.action), c.actionUrl);
     const n3Len = n3(text, strictFormat(c.action), c.actionUrl, true);
-    let endorsed = native.kind === "accept" &&
+    let endorsed = wazoo.kind === "accept" &&
       (n3Len.kind === "accept" || oxiSup.kind === "accept");
     if (!endorsed && c.action.endsWith(".nq")) {
       const stripped = oxi(stripGraphNames(text), "text/turtle", c.actionUrl);
@@ -140,7 +140,7 @@ for (const manifest of MANIFESTS) {
       action: c.action,
       text,
       url: c.actionUrl,
-      native,
+      wazoo,
       oxiSup,
       oxiStrict: oxi(text, strictFormat(c.action), c.actionUrl),
       n3Len,
@@ -153,12 +153,12 @@ for (const manifest of MANIFESTS) {
 const fmt = (v: Verdict): string => v.kind === "accept" ? `A(${v.quads})` : `R`;
 
 console.log(
-  "case | native | oxi-superset | oxi-strict | n3-lenient | n3-strict | endorsed",
+  "case | wazoo | oxi-superset | oxi-strict | n3-lenient | n3-strict | endorsed",
 );
 console.log("-".repeat(110));
 for (const r of rows) {
   console.log(
-    `${r.id} | ${fmt(r.native)} | ${fmt(r.oxiSup)} | ${fmt(r.oxiStrict)} | ` +
+    `${r.id} | ${fmt(r.wazoo)} | ${fmt(r.oxiSup)} | ${fmt(r.oxiStrict)} | ` +
       `${fmt(r.n3Len)} | ${fmt(r.n3Strict)} | ${r.endorsed ? "yes" : "NO"}`,
   );
 }
@@ -183,7 +183,7 @@ if (n3Crashed.length > 0) {
 if (unendorsed.length > 0) {
   console.error(
     `\nCross-check FAILED: ${unendorsed.length} allowlisted case(s) are accepted ` +
-      `by native but rejected by every lenient reference engine. These are ` +
+      `by wazoo but rejected by every lenient reference engine. These are ` +
       `candidates for unholding — tighten the grammar or remove them from the ` +
       `allowlist:\n  ${unendorsed.map((r) => r.id).join("\n  ")}`,
   );

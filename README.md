@@ -1,10 +1,10 @@
 # @wazoo/sparql-engine
 
-Wazoo-native SPARQL 1.1 & 1.2 Query & Update Engine over RDF/JS Quad Stores.
+Wazoo SPARQL 1.1 & 1.2 Query & Update Engine over RDF/JS Quad Stores.
 
 ## Key capabilities
 
-- **SPARQL 1.1 & 1.2 Query Engine**: Native evaluation of `SELECT`, `ASK`,
+- **SPARQL 1.1 & 1.2 Query Engine**: Wazoo evaluation of `SELECT`, `ASK`,
   `CONSTRUCT`, and `DESCRIBE` queries over `rdfjs.Store` sources — including
   SPARQL 1.2 direction functions (`LANGDIR`, `STRLANGDIR`, `hasLang`,
   `hasLangDir`) and RDF 1.2 reified triple terms (`<< s p o >>`).
@@ -20,7 +20,7 @@ Wazoo-native SPARQL 1.1 & 1.2 Query & Update Engine over RDF/JS Quad Stores.
   terms, reifiers, and annotations); zero runtime dependencies (only type-only
   `@rdfjs/types`), and no Comunica framework overhead — browser-friendly and
   JSR-ready without transitive npm baggage.
-- **JSR & Deno Native**: Published on JSR as `@wazoo/sparql-engine` for Deno,
+- **JSR & Deno Wazoo**: Published on JSR as `@wazoo/sparql-engine` for Deno,
   Node.js, and browser environments.
 - **Drop-in for `@worlds/client`**: Implements the same `SparqlEngineInterface`
   as `ComunicaSparqlEngine` (`@worlds/client/comunica`), so it can be swapped
@@ -67,8 +67,8 @@ ASK booleans, and CONSTRUCT quads.
 
 Blank nodes are compared by identity, not by label. Comunica skolemizes blank
 nodes from query sources into prefixed labels (`bc_<sourceId>_<label>`); the
-native engine returns the store's own labels. SPARQL 1.1 result semantics treat
-blank node labels as scoped and opaque, so the native engine deliberately does
+wazoo engine returns the store's own labels. SPARQL 1.1 result semantics treat
+blank node labels as scoped and opaque, so the wazoo engine deliberately does
 not replicate the prefix — the harness strips it from Comunica's output before
 comparing (see `test/parity/parity-harness.ts`). A test in
 `test/parity/parity.test.ts` locks in this known difference against real
@@ -97,7 +97,7 @@ benchmark stores. The reorder-chain group demonstrates the dynamic join
 ordering: a three-pattern chain written in worst-case order runs ~90x faster
 with reordering enabled, because the planner scans each pattern once and joins
 in order of estimated cost, preferring patterns whose variables are already
-bound. Timings use Deno's built-in bench runner with the native engine as the
+bound. Timings use Deno's built-in bench runner with the wazoo engine as the
 per-group baseline:
 
 ```bash
@@ -106,14 +106,14 @@ deno task bench
 
 ### Results
 
-A snapshot measured on a Windows desktop with Deno 2.9.5 (native engine as the
+A snapshot measured on a Windows desktop with Deno 2.9.5 (wazoo engine as the
 per-group baseline). Each cell is the per-iteration average; every query is
 cross-verified to return identical results on all three engines before timing.
 Timings are machine-specific — run `deno task bench` for your own numbers.
 
 Core joins, 400-person graph (~2,200 quads):
 
-| query                        | native   | comunica | oxigraph |
+| query                        | wazoo    | comunica | oxigraph |
 | ---------------------------- | -------- | -------- | -------- |
 | full scan                    | 1.3 ms   | 7.6 ms   | 12.2 ms  |
 | join (knows × name)          | 1.0 ms   | 5.2 ms   | 2.6 ms   |
@@ -123,7 +123,7 @@ Core joins, 400-person graph (~2,200 quads):
 
 EXISTS surface, 400-person graph:
 
-| query               | native  | comunica | oxigraph |
+| query               | wazoo   | comunica | oxigraph |
 | ------------------- | ------- | -------- | -------- |
 | `FILTER EXISTS`     | 0.81 ms | 29.2 ms  | 1.0 ms   |
 | `FILTER NOT EXISTS` | 0.88 ms | 33.3 ms  | 1.3 ms   |
@@ -132,34 +132,34 @@ EXISTS surface, 400-person graph:
 
 EXISTS surface, 10,000-person graph (~55,000 quads):
 
-| query               | native  | comunica | oxigraph |
+| query               | wazoo   | comunica | oxigraph |
 | ------------------- | ------- | -------- | -------- |
 | `FILTER EXISTS`     | 27.8 ms | 729.5 ms | 27.0 ms  |
 | `FILTER NOT EXISTS` | 26.8 ms | 835.9 ms | 30.7 ms  |
 | nested `EXISTS`     | 41.3 ms | 3.1 s    | 43.3 ms  |
 | nested `NOT EXISTS` | 39.6 ms | 3.2 s    | 32.3 ms  |
 
-Scaling the data 25x (400 → 10,000 people) grows native's EXISTS cost ~35-40x
+Scaling the data 25x (400 → 10,000 people) grows wazoo's EXISTS cost ~35-40x
 while the nested-vs-simple ratio _shrinks_ (1.45x → 1.12x): the snapshot is
 drained and indexed once per query, and each probe touches only its candidate
 bucket, so nesting stays cheap relative to the dataset. Across the exists
-surface native is 20-180x faster than comunica and roughly at parity with
+surface wazoo is 20-180x faster than comunica and roughly at parity with
 oxigraph (a compiled Rust/WASM engine with native indexes, which remains ahead
-on the reorder-chain row); on the core scan/join rows native is the fastest of
+on the reorder-chain row); on the core scan/join rows wazoo is the fastest of
 the three.
 
 Join surface, 10,000-person graph (~55,000 quads) — UNION joins 10k x 20k
 bindings on the shared subject (~200M candidate pairs); OPTIONAL and MINUS join
-10k x 5k (~50M pairs). The native engine's hash join probes an indexed right
-side per left binding instead of scanning it:
+10k x 5k (~50M pairs). The wazoo engine's hash join probes an indexed right side
+per left binding instead of scanning it:
 
-| query               | native  | comunica | oxigraph |
+| query               | wazoo   | comunica | oxigraph |
 | ------------------- | ------- | -------- | -------- |
 | UNION (10k x 20k)   | 45.1 ms | 106.6 ms | 107.5 ms |
 | OPTIONAL (10k x 5k) | 22.1 ms | 587.9 ms | 56.5 ms  |
 | MINUS (10k x 5k)    | 18.0 ms | 41.7 ms  | 23.1 ms  |
 
-On this surface native leads all three engines, and the fan-out join scaling is
+On this surface wazoo leads all three engines, and the fan-out join scaling is
 sub-quadratic: the nested-loop before-state for the same UNION was ~7 s/iter
 versus 45 ms with the hash join (~150x), with OPTIONAL and MINUS showing the
 same shape (~60-80x).
@@ -176,16 +176,15 @@ summarize both:
 
 | engine   | on disk      | contents                                                                                                                                        |
 | -------- | ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| native   | **0.61 MiB** | 37 files (the whole JSR artifact: `src/` + `README.md` + `LICENSE`; build-time grammars + unreachable code excluded); zero runtime dependencies |
+| wazoo    | **0.61 MiB** | 37 files (the whole JSR artifact: `src/` + `README.md` + `LICENSE`; build-time grammars + unreachable code excluded); zero runtime dependencies |
 | oxigraph | 7.9 MiB      | WASM runtime (7.8 MiB) + JS glue/types                                                                                                          |
 | comunica | 28.3 MiB     | 368 npm packages in the transitive dependency closure                                                                                           |
 
-Regenerated by `deno task bench:size`. The native artifact is **~0.61 MiB on
-disk (~0.13 MiB gzipped)** — the JSR `publish.exclude` drops the build-time
-grammar sources (`*.jison`, `generate-parser.ts`, ~88 KiB) and the unreachable
-Node-only `sqlite-store.ts` (~11 KiB), so consumers never install build
-artifacts; the treemap and the `bench:size` JSON both mirror that file set
-exactly.
+Regenerated by `deno task bench:size`. The wazoo artifact is **~0.61 MiB on disk
+(~0.13 MiB gzipped)** — the JSR `publish.exclude` drops the build-time grammar
+sources (`*.jison`, `generate-parser.ts`, ~88 KiB) and the unreachable Node-only
+`sqlite-store.ts` (~11 KiB), so consumers never install build artifacts; the
+treemap and the `bench:size` JSON both mirror that file set exactly.
 
 **Per-entrypoint consumer closure** — what importing a subpath actually loads
 from the published package (value-import graph, type-only imports erased;
@@ -210,16 +209,16 @@ symmetric):
 
 ![Memory treemap](docs/assets/treemap-memory.svg)
 
-| workload             | native     | comunica | oxigraph |
+| workload             | wazoo      | comunica | oxigraph |
 | -------------------- | ---------- | -------- | -------- |
 | full scan (55k rows) | **134 MB** | 214 MB   | 251 MB   |
 | nested EXISTS        | **82 MB**  | 271 MB   | 108 MB   |
 
-Native is the smallest on disk by 13-46x (0.61 vs 7.9 vs 28.3 MiB) and holds its
+Wazoo is the smallest on disk by 13-46x (0.61 vs 7.9 vs 28.3 MiB) and holds its
 speed advantage with the lowest peak heap on both workloads — including a peak
 roughly a third of comunica's on the nested-EXISTS surface the timings above
 highlight. Oxigraph's WASM runtime is compact on disk, but its result
-materialization peaks higher than native on both workloads.
+materialization peaks higher than wazoo on both workloads.
 
 These are machine-specific snapshots (Deno 2.9.5, Windows), not guarantees.
 Regenerate them with `deno task bench:size` (library sizes, from the installed

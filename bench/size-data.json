@@ -2,7 +2,7 @@
   "generatedAt": "2026-08-14T18:50:35.246Z",
   "engines": [
     {
-      "name": "native",
+      "name": "wazoo",
       "bytes": 641468,
       "children": [
         {
@@ -904,7 +904,7 @@
       ]
     }
   ],
-  "native": {
+  "wazoo": {
     "artifactBytes": 641468,
     "gzipBytes": 137507,
     "files": 37
