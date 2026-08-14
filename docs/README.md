@@ -27,10 +27,12 @@ relative to the repository root.
 | [06 — Supplemental Context](06-supplemental-context.md) | Datasets, W3C suite notes, divergences, metadata       |
 | [08 — Wiki Maintenance](08-maintenance.md)              | The sync procedure: keep this wiki truthful to `main`  |
 
-Related in-repo documents: [ARCHITECTURE.md](../ARCHITECTURE.md) (topology and
-`@worlds/client` relationship), [CONTEXT.md](../CONTEXT.md) (glossary), and
-[`docs/durable-transactions.md`](durable-transactions.md) (SQLite transaction
-backend prototype).
+Related in-repo documents:
+[ARCHITECTURE.md](https://github.com/wazootech/sparql-engine/blob/main/ARCHITECTURE.md)
+(topology and `@worlds/client` relationship),
+[CONTEXT.md](https://github.com/wazootech/sparql-engine/blob/main/CONTEXT.md)
+(glossary), and [`docs/durable-transactions.md`](durable-transactions.md)
+(SQLite transaction backend prototype).
 
 ## One-paragraph map
 
