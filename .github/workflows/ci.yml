@@ -43,6 +43,28 @@ jobs:
           deno-version: v2.x
       - if: steps.bench-changed.outputs.bench == 'true'
         run: deno task bench:latency:check
+  # Wiki link-rot gate: every external markdown link in the wiki (README.md +
+  # docs/*.md) must resolve — JSR doc pages, GitHub blob/issues, spec TRs.
+  # Hard-fails on 404/410 only, so a transient host outage never false-reds
+  # the build. Runs only when the wiki or the check itself changes.
+  docs-links:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dorny/paths-filter@v3
+        id: docs-changed
+        with:
+          filters: |
+            docs:
+              - 'docs/**'
+              - 'README.md'
+              - '.github/workflows/ci.yml'
+      - if: steps.docs-changed.outputs.docs == 'true'
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - if: steps.docs-changed.outputs.docs == 'true'
+        run: deno task docs:link-check
   # W3C differential gate: wazoo must agree with comunica on the vendored
   # SPARQL 1.1 evaluation-core suite. The pass rate is the tracked progress
   # metric — this job goes green only on a full pass (345/345): wazoo agrees
