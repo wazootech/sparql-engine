@@ -337,7 +337,15 @@ async function compareResult(
         comunicaStore,
       );
       const nativeQuads = nativeResult.data.quads.map(canonicalQuadString);
-      return compareMultisets(comunicaQuads, nativeQuads, "CONSTRUCT quads");
+      // Issue #87 contract: the reference side is normalized to graph
+      // content (Comunica's stream may repeat a triple its graph would
+      // not), while the native side is compared as-emitted — a conforming
+      // engine emits no duplicate quads, so a duplicate regression fails.
+      return compareMultisets(
+        [...new Set(comunicaQuads)],
+        nativeQuads,
+        "CONSTRUCT quads",
+      );
     }
     case "describe": {
       if (nativeResult.kind !== "construct") {

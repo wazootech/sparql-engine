@@ -454,6 +454,26 @@ function quadRecord(
 }
 
 /**
+ * dedupeRecords keeps one copy of each distinct canonical record, preserving
+ * first-occurrence order. Reference-engine CONSTRUCT streams may repeat a
+ * triple their graph would not, so the reference side of a cross-engine
+ * comparison is normalized to graph content before comparing — the native
+ * side stays as-emitted (issue #87 contract).
+ */
+function dedupeRecords<T>(records: T[]): T[] {
+  const seen = new Set<string>();
+  const out: T[] = [];
+  for (const record of records) {
+    const key = JSON.stringify(record);
+    if (!seen.has(key)) {
+      seen.add(key);
+      out.push(record);
+    }
+  }
+  return out;
+}
+
+/**
  * quadRecords projects quads into ordered [s, p, o, g] canonical term lists,
  * the record shape the blank-node-isomorphic comparison operates on.
  */
@@ -734,16 +754,18 @@ async function verifyConstructEquality(
     sources: [memoryStore],
   });
   const comunicaQuads = await comunicaStream.toArray();
-  const comunicaSet = comunicaQuads
-    .map((item) => quadRecord(item, canonicalizeComunicaTerm))
-    .sort();
+  // Reference sides are normalized to graph content (issue #87 contract);
+  // the native side above stays as-emitted.
+  const comunicaSet = dedupeRecords(
+    comunicaQuads.map((item) => quadRecord(item, canonicalizeComunicaTerm)),
+  ).sort();
 
   const oxigraphQuads = oxigraphStore.query(
     query,
   ) as unknown as rdfjs.Quad[];
-  const oxigraphSet = oxigraphQuads
-    .map((item) => quadRecord(item, canonicalizeRdfTerm))
-    .sort();
+  const oxigraphSet = dedupeRecords(
+    oxigraphQuads.map((item) => quadRecord(item, canonicalizeRdfTerm)),
+  ).sort();
 
   assertEquals(
     nativeSet,
@@ -779,12 +801,18 @@ async function verifyConstructIsoEquality(
     sources: [memoryStore],
   });
   const comunicaQuads = await comunicaStream.toArray();
-  const comunicaRecords = quadRecords(comunicaQuads, canonicalizeComunicaTerm);
+  // Reference sides are normalized to graph content (issue #87 contract);
+  // the native side above stays as-emitted.
+  const comunicaRecords = dedupeRecords(
+    quadRecords(comunicaQuads, canonicalizeComunicaTerm),
+  );
 
   const oxigraphQuads = oxigraphStore.query(
     query,
   ) as unknown as rdfjs.Quad[];
-  const oxigraphRecords = quadRecords(oxigraphQuads, canonicalizeRdfTerm);
+  const oxigraphRecords = dedupeRecords(
+    quadRecords(oxigraphQuads, canonicalizeRdfTerm),
+  );
 
   assertEquals(
     isomorphicMultiset(nativeRecords, comunicaRecords),

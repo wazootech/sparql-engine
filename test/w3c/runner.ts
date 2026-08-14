@@ -92,12 +92,14 @@ function canonicalQuadString(
 
 /**
  * dedupeRecords keeps one record per distinct canonical key, pairing each
- * record with the canonical string of the quad it came from. A CONSTRUCT
- * result is an RDF graph — a set of triples — so duplicate instantiations
- * are not part of the result content (the W3C reference files are sets), and
- * Comunica's query stream may repeat a triple that its graph would not.
+ * record with the canonical string of the quad it came from. It normalizes
+ * a reference-engine CONSTRUCT stream to its graph content: the reference
+ * is a set of triples (the W3C reference files are sets), and Comunica's
+ * query stream may repeat a triple that its graph would not. Only the
+ * reference side is normalized — the native side is compared as-emitted
+ * (issue #87 contract, see compareConstructRecords).
  */
-function dedupeRecords(
+export function dedupeRecords(
   records: CanonicalTerm[][],
   keys: string[],
 ): CanonicalTerm[][] {
@@ -148,6 +150,28 @@ function isomorphicMultiset(
     return false;
   }
   return multisetEqual(canonicalizeBnodes(a), canonicalizeBnodes(b));
+}
+
+/**
+ * compareConstructRecords compares a native CONSTRUCT result against a
+ * reference (Comunica) result under the graph-result contract (issue #87):
+ * the reference side is normalized to its graph content (Comunica's stream
+ * may repeat a triple its graph would not), while the native side is
+ * compared as-emitted. Decision #29 guarantees a conforming engine emits no
+ * duplicate quads — CONSTRUCT collapses duplicate instantiations — so raw
+ * native records equal the normalized reference exactly when the graph
+ * contents agree, and a future change that starts emitting duplicates fails
+ * the gate instead of silently passing.
+ */
+export function compareConstructRecords(
+  nativeRecords: CanonicalTerm[][],
+  comunicaRecords: CanonicalTerm[][],
+  comunicaKeys: string[],
+): boolean {
+  return isomorphicMultiset(
+    nativeRecords,
+    dedupeRecords(comunicaRecords, comunicaKeys),
+  );
 }
 
 /**
@@ -670,18 +694,16 @@ export class W3cRunner {
       case "construct": {
         let comunicaSet: string[];
         let comunicaRecords: CanonicalTerm[][];
+        let comunicaKeys: string[];
         try {
           const stream = await this.comunicaEngine.queryQuads(query, options);
           const comunicaQuads = await stream.toArray();
-          const comunicaKeys = comunicaQuads.map((item) =>
+          comunicaKeys = comunicaQuads.map((item) =>
             canonicalQuadString(item, canonicalizeComunicaTerm)
           );
           comunicaSet = [...comunicaKeys].sort();
-          comunicaRecords = dedupeRecords(
-            comunicaQuads.map((item) =>
-              this.quadRecords(item, canonicalizeComunicaTerm)
-            ),
-            comunicaKeys,
+          comunicaRecords = comunicaQuads.map((item) =>
+            this.quadRecords(item, canonicalizeComunicaTerm)
           );
         } catch (error) {
           return {
@@ -695,15 +717,18 @@ export class W3cRunner {
           canonicalQuadString(item, canonicalizeRdfTerm)
         );
         const nativeSet = [...nativeKeys].sort();
-        // Compare graph content, not stream shape: CONSTRUCT results are
-        // graphs (sets), and duplicates collapse on both sides.
-        const nativeRecords = dedupeRecords(
-          nativeResult.data.quads.map((item) =>
-            this.quadRecords(item, canonicalizeRdfTerm)
-          ),
-          nativeKeys,
+        // Issue #87 contract: the reference side is normalized to its graph
+        // content, while the native side is compared as-emitted — decision
+        // #29 guarantees a conforming engine emits no duplicate quads, so a
+        // future change that starts emitting them fails this gate.
+        const nativeRecords = nativeResult.data.quads.map((item) =>
+          this.quadRecords(item, canonicalizeRdfTerm)
         );
-        return isomorphicMultiset(nativeRecords, comunicaRecords)
+        return compareConstructRecords(
+            nativeRecords,
+            comunicaRecords,
+            comunicaKeys,
+          )
           ? { status: "pass" }
           : {
             status: "gap",
