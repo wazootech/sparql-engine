@@ -483,6 +483,29 @@ export class BgpEvaluator {
   }
 
   /**
+   * scopedExistsContext builds an expression context whose EXISTS hooks probe
+   * an already graph-scoped candidate set, computed once per context instead
+   * of re-filtering the snapshot for every solution. Callers gate on
+   * expressionContainsExists first, so the EXISTS index is guaranteed
+   * prepared — mirroring evaluateExistsScoped's reuse of the enclosing
+   * call's candidates for the main-path FILTER / BIND / OPTIONAL conditions.
+   */
+  private scopedExistsContext(
+    store: rdfjs.Source<rdfjs.Quad>,
+  ): ExpressionEvaluationContext {
+    const graph = store instanceof GraphScopedStore
+      ? store.graph
+      : defaultGraph();
+    const candidates = this.existsQuads!.filter((item) =>
+      sameRdfTerm(item.graph, graph)
+    );
+    return {
+      evaluateExists: (pattern, solution) =>
+        this.evaluateExistsScoped(pattern, solution, candidates, graph),
+    };
+  }
+
+  /**
    * forStore returns a fresh BgpEvaluator over the given store view with the
    * same options, used by SparqlEvaluator to evaluate a query against its
    * FROM / FROM NAMED dataset.
@@ -538,7 +561,9 @@ export class BgpEvaluator {
       case "bgp":
         return await this.joinBgp(pattern.triples, bindings, store);
       case "filter": {
-        const context = this.existsContext(store);
+        const context = expressionContainsExists(pattern.expression)
+          ? this.scopedExistsContext(store)
+          : this.existsContext(store);
         return bindings.filter((binding) =>
           this.expressionEvaluator.filterPasses(
             pattern.expression,
@@ -565,7 +590,9 @@ export class BgpEvaluator {
         if (filters.some(expressionContainsExists)) {
           await this.prepareExistsIndex();
         }
-        const context = this.existsContext(store);
+        const context = filters.some(expressionContainsExists)
+          ? this.scopedExistsContext(store)
+          : this.existsContext(store);
         return leftJoin(
           bindings,
           right,
@@ -610,7 +637,9 @@ export class BgpEvaluator {
         // expression is evaluated per solution and the variable bound; an
         // evaluation error or a variable already bound (from an outer
         // scope) leaves the solution unchanged.
-        const context = this.existsContext(store);
+        const context = expressionContainsExists(pattern.expression)
+          ? this.scopedExistsContext(store)
+          : this.existsContext(store);
         return bindings.map((binding) => {
           const value = this.expressionEvaluator.evaluate(
             pattern.expression,
