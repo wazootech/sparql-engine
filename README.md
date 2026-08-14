@@ -1,21 +1,22 @@
-# @wazoo/sparql-engine
+# [@wazoo/sparql-engine](https://jsr.io/@wazoo/sparql-engine)
 
-Wazoo SPARQL 1.1 & 1.2 Query & Update Engine over RDF/JS Quad Stores.
+Wazoo [SPARQL 1.1](https://www.w3.org/TR/sparql11-query/) & 1.2 Query & Update
+Engine over RDF/JS Quad Stores.
 
 ## Compatibility
 
 - **SPARQL 1.1 — full.** `SELECT` / `ASK` / `CONSTRUCT` / `DESCRIBE`, UPDATE,
   property paths, aggregation, subqueries, `VALUES`, and filters over any RDF/JS
-  quad store. Gated by the W3C SPARQL 1.1 evaluation suite (differential vs
-  Comunica): **345/345**.
-- **SPARQL 1.2 — working-draft surface implemented.** Direction functions
-  (`LANGDIR`, `STRLANGDIR`, `hasLang`, `hasLangDir`; `hasLang` is variadic, 1–3
-  args, as a documented superset extension), RDF 1.2 reified triple terms
-  (`<< s p o >>`) in patterns, paths, and updates, and the 1.2 lexical/grammar
-  surface (a single Turtle/TriG/N-Triples/N-Quads superset grammar backing
-  `LOAD`). Gated by the W3C SPARQL 1.2 evaluation suite (**249/249**), the RDF
-  1.2 eval-triple-terms gap suite (**41/41**), and the RDF 1.1/1.2 grammar
-  gates.
+  quad store. Gated by the [W3C](https://www.w3.org/) SPARQL 1.1 evaluation
+  suite (differential vs [Comunica](https://comunica.dev/)): **345/345**.
+- **[SPARQL 1.2](https://www.w3.org/TR/sparql12-query/) — working-draft surface
+  implemented.** Direction functions (`LANGDIR`, `STRLANGDIR`, `hasLang`,
+  `hasLangDir`; `hasLang` is variadic, 1–3 args, as a documented superset
+  extension), RDF 1.2 reified triple terms (`<< s p o >>`) in patterns, paths,
+  and updates, and the 1.2 lexical/grammar surface (a single
+  Turtle/TriG/N-Triples/N-Quads superset grammar backing `LOAD`). Gated by the
+  W3C SPARQL 1.2 evaluation suite (**249/249**), the RDF 1.2 eval-triple-terms
+  gap suite (**41/41**), and the RDF 1.1/1.2 grammar gates.
 - **CI-enforced.** Every gate above runs in the `w3c-parity` CI job — a
   spec-required behavior that regresses fails the build rather than silently
   drifting.
@@ -44,7 +45,8 @@ for the W3C suite notes.
   JSR-ready without transitive npm baggage.
 - **JSR & Deno Wazoo**: Published on JSR as `@wazoo/sparql-engine` for Deno,
   Node.js, and browser environments.
-- **Drop-in for `@worlds/client`**: Implements the same `SparqlEngineInterface`
+- **Drop-in for `@worlds/client`**: Implements the same
+  [`SparqlEngineInterface`](https://jsr.io/@wazoo/sparql-engine/doc/~/SparqlEngineInterface)
   as `ComunicaSparqlEngine` (`@worlds/client/comunica`), so it can be swapped
   into a `Client` without client changes.
 
@@ -143,7 +145,9 @@ console.log(ast.variables); // [Variable{ value: "s" }]
 
 ### `@wazoo/sparql-engine/serialize` — results writers (7.4 KiB)
 
-Serialize a `SparqlResponse` to SPARQL results JSON (`.srj`) or XML (`.srx`):
+Serialize a
+[`SparqlResponse`](https://jsr.io/@wazoo/sparql-engine/doc/~/SparqlResponse) to
+SPARQL results JSON (`.srj`) or XML (`.srx`):
 
 ```typescript
 import {
@@ -422,7 +426,8 @@ answer. Treat them as the operator's responsibility:
   scan O(bucket) instead of O(store), but the result materialization is
   inherent. Bind a selective subject, push FILTERs down, or use LIMIT — the
   engine evaluates everything before slicing, so a small LIMIT over a huge scan
-  still pays the scan (streaming is tracked as #74).
+  still pays the scan (streaming is tracked as
+  [#74](https://github.com/wazootech/sparql-engine/issues/74)).
 - **Correlated EXISTS over broad scopes.** EXISTS snapshots drain and index once
   per query, and probes touch only the candidate bucket — but a correlated
   `FILTER EXISTS { ?s <knows> ?who }` whose correlation variable is bound

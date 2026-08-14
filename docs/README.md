@@ -3,12 +3,13 @@ title: Wiki Index
 layout: default
 ---
 
-# @wazoo/sparql-engine — Code Wiki
+# [@wazoo/sparql-engine](https://jsr.io/@wazoo/sparql-engine) — Code Wiki
 
-Developer documentation for the Wazoo SPARQL 1.1 & 1.2 query and update engine
-over RDF/JS Quad Stores. This wiki is an application-first tour of the engine:
-how queries are parsed, optimized, and evaluated; the public API contracts; the
-physical source map; and how to test and benchmark the engine.
+Developer documentation for the Wazoo
+[SPARQL 1.1](https://www.w3.org/TR/sparql11-query/) & 1.2 query and update
+engine over RDF/JS Quad Stores. This wiki is an application-first tour of the
+engine: how queries are parsed, optimized, and evaluated; the public API
+contracts; the physical source map; and how to test and benchmark the engine.
 
 The content is verified against the codebase and the `deno doc --json` symbol
 inventory of the public surface (`src/mod.ts`). Every file path below is
@@ -16,16 +17,16 @@ relative to the repository root.
 
 ## Pages
 
-| Page                                                    | What it covers                                         |
-| ------------------------------------------------------- | ------------------------------------------------------ |
-| [01 — Developer Quickstart](01-quickstart.md)           | Setup, install, running queries, test suites, CI tasks |
-| [02 — Architecture & Pipeline](02-architecture.md)      | Query lifecycle, algebra, joins, memory model, stores  |
-| [03 — API Contracts](03-api-contracts.md)               | `SparqlEngineInterface`, request/response envelopes,   |
-|                                                         | feature matrix, extensibility seams                    |
-| [04 — Source Map](04-source-map.md)                     | Directory walkthrough, file → symbol → doc mapping     |
-| [05 — Verification & Testing](05-testing.md)            | Unit/parity/W3C suites, benchmarking, debugging        |
-| [06 — Supplemental Context](06-supplemental-context.md) | Datasets, W3C suite notes, divergences, metadata       |
-| [08 — Wiki Maintenance](08-maintenance.md)              | The sync procedure: keep this wiki truthful to `main`  |
+| Page                                                    | What it covers                                                                                                          |
+| ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| [01 — Developer Quickstart](01-quickstart.md)           | Setup, install, running queries, test suites, CI tasks                                                                  |
+| [02 — Architecture & Pipeline](02-architecture.md)      | Query lifecycle, algebra, joins, memory model, stores                                                                   |
+| [03 — API Contracts](03-api-contracts.md)               | [`SparqlEngineInterface`](https://jsr.io/@wazoo/sparql-engine/doc/~/SparqlEngineInterface), request/response envelopes, |
+|                                                         | feature matrix, extensibility seams                                                                                     |
+| [04 — Source Map](04-source-map.md)                     | Directory walkthrough, file → symbol → doc mapping                                                                      |
+| [05 — Verification & Testing](05-testing.md)            | Unit/parity/[W3C](https://www.w3.org/) suites, benchmarking, debugging                                                  |
+| [06 — Supplemental Context](06-supplemental-context.md) | Datasets, W3C suite notes, divergences, metadata                                                                        |
+| [08 — Wiki Maintenance](08-maintenance.md)              | The sync procedure: keep this wiki truthful to `main`                                                                   |
 
 Related in-repo documents:
 [ARCHITECTURE.md](https://github.com/wazootech/sparql-engine/blob/main/ARCHITECTURE.md)
