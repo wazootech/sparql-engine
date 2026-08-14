@@ -37,7 +37,7 @@ Every layer runs in CI (`.github/workflows/ci.yml`): the `ci` job runs
 | `deno task test:rdf11`        | `test/w3c/rdf-differential.ts` | RDF 1.1 Turtle/TriG/N-Triples/N-Quads vs n3                     | ci                         |
 | `deno task test:rdf12`        | `test/w3c/rdf-classify.ts`     | RDF 1.2 syntax classifier                                       | ci                         |
 | `deno task ci`                | —                              | All of the above in dependency order                            | ci job                     |
-| `deno task test:w3c`          | `test/w3c/w3c-main.ts`         | SPARQL 1.1 evaluation-core differential vs Comunica (336 tests) | w3c-parity job             |
+| `deno task test:w3c`          | `test/w3c/w3c-main.ts`         | SPARQL 1.1 evaluation-core differential vs Comunica (345 tests) | w3c-parity job             |
 | `deno task test:ref`          | `test/w3c/ref-crosscheck.ts`   | Allowlisted divergence audit vs Oxigraph + N3.js                | manual (on grammar change) |
 | `deno task bench`             | `deno bench --allow-all`       | Three-engine benchmarks                                         | manual                     |
 | `deno task publish:dry`       | `deno publish --dry-run`       | JSR publish validation                                          | ci + publish               |
@@ -54,8 +54,9 @@ deno test -n "exists"       # filter by test name substring
 
 Covered areas: parser (`src/parser/mod.test.ts`, `turtle-parser.test.ts`), store
 semantics (`src/store/memory-store.test.ts`, `sqlite-store.test.ts`), quad-store
-adapters (`src/quad-store.test.ts`), term algebra (`src/term/term.test.ts`),
-updates (`src/evaluator/update-evaluator.test.ts`), and the 3,900-line engine
+adapters (`src/quad-store.test.ts`), the join engine
+(`src/evaluator/join.test.ts`), term algebra (`src/term/term.test.ts`), updates
+(`src/evaluator/update-evaluator.test.ts`), and the 3,900-line engine
 integration suite (`src/wazoo-sparql-engine.test.ts`) — including the
 concurrent-`execute()` isolation tests for the EXISTS snapshot (issue #72).
 
@@ -90,8 +91,8 @@ The parity contract is **behavioral equivalence with
 
 ## W3C suites
 
-`deno task test:w3c` runs the vendored W3C SPARQL 1.1 **evaluation-core** (336
-tests across 23 categories: aggregates, bind, bindings, cast, construct, exists,
+`deno task test:w3c` runs the vendored W3C SPARQL 1.1 **evaluation-core** (345
+tests across 31 categories: aggregates, bind, bindings, cast, construct, exists,
 functions, grouping, negation, project-expression, property-path, subquery, and
 the update categories) **differentially**: every query runs through both
 Comunica and the native engine, and observable results are compared. Categories
@@ -245,7 +246,7 @@ console.log(store.getQuads(null, null, null, null));
 '
 ```
 
-`GraphScopedStore` (`src/quad-store.ts` L134) is a view that fixes the graph
+`GraphScopedStore` (`src/quad-store.ts` L147) is a view that fixes the graph
 term — to trace `GRAPH ?g` scoping, check which graph term the store view
 carries.
 
@@ -255,7 +256,7 @@ carries.
   (`src/evaluator/bgp-evaluator.ts`) and `estimateJoinCost()` print the
   estimated cost per remaining pattern; toggle `reorderPatterns: false` in
   `WazooSparqlEngineOptions` to compare written order vs planned order.
-- **Hash join**: `joinTriplePattern()` (`src/evaluator/join.ts` L213) shows
+- **Hash join**: `joinTriplePattern()` (`src/evaluator/join.ts` L520) shows
   candidate probing; `ScanEntry.candidates.length` is the true store cardinality
   the planner uses.
 - **Expressions**: `ExpressionEvaluator.evaluate()` returns `undefined` for type

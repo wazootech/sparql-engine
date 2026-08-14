@@ -186,7 +186,7 @@ export type QuadWriteStore = rdfjs.Store & {
 Provide `createTransaction` to make updates atomic and durable:
 
 ```typescript
-// src/wazoo-sparql-engine.ts L15
+// src/wazoo-sparql-engine.ts L16
 export interface WazooSparqlTransaction {
   add(quad: rdfjs.Quad): unknown; // buffer an insert
   delete(quad: rdfjs.Quad): unknown; // buffer a delete
