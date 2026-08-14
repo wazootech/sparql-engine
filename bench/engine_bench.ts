@@ -26,6 +26,7 @@ import type { CanonicalTerm } from "@/term/mod.ts";
 const { blankNode, literal, namedNode, quad } = DataFactory;
 
 const PERSON_COUNT = 400;
+const LARGE_PERSON_COUNT = 10_000;
 const foafName = namedNode("http://xmlns.com/foaf/0.1/name");
 const foafKnows = namedNode("http://xmlns.com/foaf/0.1/knows");
 const foafAge = namedNode("http://xmlns.com/foaf/0.1/age");
@@ -40,12 +41,15 @@ const g1Graph = namedNode("http://example.org/g1");
 const g2Graph = namedNode("http://example.org/g2");
 
 /**
- * buildDataset generates the shared benchmark graph: a ring of people, each
- * with a name, an integer age, a blank node pet, and a knows edge.
+ * buildPeopleDataset generates a ring of people, each with a name, an integer
+ * age, a blank node pet, a knows edge, a city tag (5 distinct values), and a
+ * spouse edge on even-indexed people only. The 400-person shared benchmark
+ * graph and the 10k-subject scaling graph are the same shape at different
+ * sizes, so EXISTS rows compare like for like.
  */
-function buildDataset(): rdfjs.Quad[] {
+function buildPeopleDataset(count: number): rdfjs.Quad[] {
   const quads: rdfjs.Quad[] = [];
-  for (let index = 0; index < PERSON_COUNT; index++) {
+  for (let index = 0; index < count; index++) {
     const person = examplePerson(index);
     quads.push(quad(person, foafName, literal(`Person ${index}`)));
     quads.push(
@@ -60,7 +64,7 @@ function buildDataset(): rdfjs.Quad[] {
       quad(
         person,
         foafKnows,
-        examplePerson((index + 1) % PERSON_COUNT),
+        examplePerson((index + 1) % count),
       ),
     );
     // City tag (5 distinct values) — grouping/filter/distinct material.
@@ -71,6 +75,13 @@ function buildDataset(): rdfjs.Quad[] {
     }
   }
   return quads;
+}
+
+/**
+ * buildDataset generates the shared 400-person benchmark graph.
+ */
+function buildDataset(): rdfjs.Quad[] {
+  return buildPeopleDataset(PERSON_COUNT);
 }
 
 /**
@@ -186,6 +197,14 @@ const nativeEngineNoReorder = new WazooSparqlEngine({
   reorderPatterns: false,
 });
 const comunicaEngine = getComunicaEngine();
+
+// 10k-subject scaling group: the same person-ring shape at 25x the main
+// dataset, to validate that EXISTS probe cost stays proportional to the
+// candidate bucket rather than the dataset size.
+const largeDataset = buildPeopleDataset(LARGE_PERSON_COUNT);
+const largeMemoryStore = seedStore(largeDataset);
+const largeOxigraphStore = seedOxigraphStore(largeDataset);
+const largeNativeEngine = new WazooSparqlEngine({ store: largeMemoryStore });
 
 // GRAPH / FROM groups run against their own named-graph stores; the update
 // verification keeps the main dataset default-graph-only so its graph-blind
@@ -593,6 +612,11 @@ const mainTrio: EngineTrio = {
   comunicaStore: memoryStore,
   oxigraph: oxigraphStore,
 };
+const largeTrio: EngineTrio = {
+  native: largeNativeEngine,
+  comunicaStore: largeMemoryStore,
+  oxigraph: largeOxigraphStore,
+};
 const graphTrio: EngineTrio = {
   native: graphNativeEngine,
   comunicaStore: graphMemoryStore,
@@ -847,6 +871,16 @@ await verifySelectEquality(existsQuery, "exists");
 await verifySelectEquality(notExistsQuery, "not-exists");
 await verifySelectEquality(nestedExistsQuery, "nested-exists");
 await verifySelectEquality(nestedNotExistsQuery, "nested-not-exists");
+// The same EXISTS queries must agree on the 10k-subject dataset before the
+// scaling timings compare equivalent work across engines.
+await verifySelectEquality(existsQuery, "exists-large", largeTrio);
+await verifySelectEquality(notExistsQuery, "not-exists-large", largeTrio);
+await verifySelectEquality(nestedExistsQuery, "nested-exists-large", largeTrio);
+await verifySelectEquality(
+  nestedNotExistsQuery,
+  "nested-not-exists-large",
+  largeTrio,
+);
 await verifySelectEquality(castNumericQuery, "cast-numeric");
 await verifySelectEquality(castBooleanQuery, "cast-boolean");
 await verifySelectEquality(castDateTimeQuery, "cast-dateTime");
@@ -1268,6 +1302,37 @@ benchSelectTrio(
   "nested-not-exists",
   mainTrio,
   EXISTS_BENCH_OPTIONS,
+);
+// 10k-subject scaling rows: each iteration is ~25x heavier than the 400-person
+// rows, so fewer samples suffice for stable numbers.
+const LARGE_EXISTS_BENCH_OPTIONS = { warmup: 2_000, iterations: 10 };
+benchSelectTrio(
+  "exists-large",
+  existsQuery,
+  "exists",
+  largeTrio,
+  LARGE_EXISTS_BENCH_OPTIONS,
+);
+benchSelectTrio(
+  "exists-large",
+  notExistsQuery,
+  "not-exists",
+  largeTrio,
+  LARGE_EXISTS_BENCH_OPTIONS,
+);
+benchSelectTrio(
+  "exists-large",
+  nestedExistsQuery,
+  "nested-exists",
+  largeTrio,
+  LARGE_EXISTS_BENCH_OPTIONS,
+);
+benchSelectTrio(
+  "exists-large",
+  nestedNotExistsQuery,
+  "nested-not-exists",
+  largeTrio,
+  LARGE_EXISTS_BENCH_OPTIONS,
 );
 benchSelectTrio("cast", castNumericQuery, "cast-numeric");
 benchSelectTrio("cast", castBooleanQuery, "cast-boolean");
