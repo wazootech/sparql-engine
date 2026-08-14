@@ -163,7 +163,8 @@ deno task test:ref     # allowlisted-divergence audit vs Oxigraph + N3.js
 ```bash
 deno task bench        # wazoo vs Comunica vs Oxigraph, verification-first
 deno task bench:check  # regression budget gate (bench/budget.ts)
-deno task bench:size   # on-disk library footprint → docs/assets/treemap-library-size.svg
+deno task bench:size   # on-disk library footprint → docs/assets/chart-library-size.svg
+deno task bench:size:closures # per-entrypoint import closure → docs/assets/chart-closures.svg
 deno task bench:memory # peak heap per engine → docs/assets/treemap-memory.svg
 ```
 

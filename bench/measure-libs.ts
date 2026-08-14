@@ -185,11 +185,12 @@ function comunicaArtifact(): Sized {
 /* ------------------------------------------------------------------ */
 
 /** Files excluded from the JSR artifact via publish.exclude (mirrors
- * deno.json) — build-time grammar sources and unreachable Node-only code. */
+ * deno.json) — build-time grammar sources and unreachable Node-only code.
+ * Paths are relative to src/ (the walk below starts at src/). */
 const ARTIFACT_EXCLUDED_SUFFIXES = [".test.ts", ".jison"];
 const ARTIFACT_EXCLUDED_FILES = [
-  "src/parser/generate-parser.ts",
-  "src/store/sqlite-store.ts",
+  "parser/generate-parser.ts",
+  "store/sqlite-store.ts",
 ];
 
 function isExcluded(relPath: string): boolean {
@@ -247,18 +248,19 @@ async function gzipBytesOf(files: string[]): Promise<number> {
 function wazooArtifact(): Sized {
   const root = join(Deno.cwd());
   const files = artifactFiles();
-  const byTop = new Map<string, number>();
-  for (const file of files) {
-    const rel = file.slice(root.length + 1);
-    const top = rel.includes("/") ? rel.slice(0, rel.indexOf("/")) : rel;
-    byTop.set(top, (byTop.get(top) ?? 0) + Deno.statSync(file).size);
-  }
+  // Per-file children with POSIX-style names, so the treemap breaks the
+  // artifact into its largest files identically on every platform (the
+  // layout caps the labeled tiles at 8 + an "other deps" aggregate).
+  const children = files
+    .map((file) => ({
+      name: file.slice(root.length + 1).replaceAll("\\", "/"),
+      bytes: Deno.statSync(file).size,
+    }))
+    .sort((a, b) => b.bytes - a.bytes);
   return {
     name: "wazoo",
-    bytes: [...byTop.values()].reduce((a, b) => a + b, 0),
-    children: [...byTop.entries()]
-      .map(([name, bytes]) => ({ name, bytes }))
-      .sort((a, b) => b.bytes - a.bytes),
+    bytes: children.reduce((sum, c) => sum + c.bytes, 0),
+    children,
   };
 }
 

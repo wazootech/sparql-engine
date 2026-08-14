@@ -1,144 +1,136 @@
 {
-  "generatedAt": "2026-08-14T18:50:35.246Z",
+  "generatedAt": "2026-08-14T21:26:46.705Z",
   "engines": [
     {
       "name": "wazoo",
-      "bytes": 641468,
+      "bytes": 632215,
       "children": [
         {
-          "name": "src\\parser\\parser.ts",
+          "name": "src/parser/parser.ts",
           "bytes": 206696
         },
         {
-          "name": "src\\evaluator\\expression-evaluator.ts",
+          "name": "src/evaluator/expression-evaluator.ts",
           "bytes": 69041
         },
         {
-          "name": "src\\parser\\turtle-generated.ts",
+          "name": "src/parser/turtle-generated.ts",
           "bytes": 68910
         },
         {
-          "name": "src\\evaluator\\join.ts",
+          "name": "src/evaluator/join.ts",
           "bytes": 48988
         },
         {
-          "name": "src\\evaluator\\bgp-evaluator.ts",
+          "name": "src/evaluator/bgp-evaluator.ts",
           "bytes": 38988
         },
         {
-          "name": "src\\evaluator\\update-evaluator.ts",
+          "name": "src/evaluator/update-evaluator.ts",
           "bytes": 27696
         },
         {
-          "name": "src\\evaluator\\sparql-evaluator.ts",
+          "name": "README.md",
+          "bytes": 21315
+        },
+        {
+          "name": "src/evaluator/sparql-evaluator.ts",
           "bytes": 19032
         },
         {
-          "name": "src\\term\\hash.ts",
+          "name": "src/term/hash.ts",
           "bytes": 13921
         },
         {
-          "name": "README.md",
-          "bytes": 13162
-        },
-        {
-          "name": "src\\store\\memory-store.ts",
+          "name": "src/store/memory-store.ts",
           "bytes": 13124
         },
         {
-          "name": "src\\store\\sqlite-store.ts",
-          "bytes": 11035
+          "name": "src/parser/README.md",
+          "bytes": 10925
         },
         {
-          "name": "src\\parser\\README.md",
-          "bytes": 10928
-        },
-        {
-          "name": "src\\evaluator\\aggregate.ts",
+          "name": "src/evaluator/aggregate.ts",
           "bytes": 10690
         },
         {
-          "name": "src\\evaluator\\select-pipeline.ts",
+          "name": "src/evaluator/select-pipeline.ts",
           "bytes": 10653
         },
         {
-          "name": "src\\quad-store.ts",
+          "name": "src/quad-store.ts",
           "bytes": 7738
         },
         {
-          "name": "src\\term\\data-factory.ts",
+          "name": "src/term/data-factory.ts",
           "bytes": 7634
         },
         {
-          "name": "src\\parser\\generate-parser.ts",
-          "bytes": 6438
-        },
-        {
-          "name": "src\\parser\\ast.ts",
+          "name": "src/parser/ast.ts",
           "bytes": 5651
         },
         {
-          "name": "src\\serialize\\xml-results.ts",
+          "name": "src/serialize/xml-results.ts",
           "bytes": 5214
         },
         {
-          "name": "src\\parser\\mod.ts",
+          "name": "src/parser/mod.ts",
           "bytes": 4626
         },
         {
-          "name": "src\\evaluator\\reified.ts",
+          "name": "src/evaluator/reified.ts",
           "bytes": 4612
         },
         {
-          "name": "src\\term\\ordering.ts",
+          "name": "src/term/ordering.ts",
           "bytes": 4130
         },
         {
-          "name": "src\\wazoo-sparql-engine.ts",
-          "bytes": 3874
+          "name": "src/wazoo-sparql-engine.ts",
+          "bytes": 3867
         },
         {
-          "name": "src\\term\\numeric.ts",
+          "name": "src/term/numeric.ts",
           "bytes": 3463
         },
         {
-          "name": "src\\term\\canonical.ts",
-          "bytes": 3206
+          "name": "src/term/canonical.ts",
+          "bytes": 3203
         },
         {
-          "name": "src\\term\\datetime.ts",
+          "name": "src/term/datetime.ts",
           "bytes": 2977
         },
         {
-          "name": "src\\term\\convert.ts",
+          "name": "src/term/convert.ts",
           "bytes": 2583
         },
         {
-          "name": "src\\parser\\turtle-parser.ts",
+          "name": "src/parser/turtle-parser.ts",
           "bytes": 2435
         },
         {
-          "name": "src\\sparql-engine-interface.ts",
+          "name": "src/sparql-engine-interface.ts",
           "bytes": 2429
         },
         {
-          "name": "src\\term\\identity.ts",
+          "name": "src/term/identity.ts",
           "bytes": 2416
         },
         {
-          "name": "src\\serialize\\json-results.ts",
+          "name": "src/serialize/json-results.ts",
           "bytes": 2248
         },
         {
-          "name": "src\\evaluator\\expression-utils.ts",
+          "name": "src/evaluator/expression-utils.ts",
           "bytes": 1706
         },
         {
-          "name": "src\\parser\\LICENSE",
+          "name": "src/parser/LICENSE",
           "bytes": 1088
         },
         {
-          "name": "src\\parser\\sparql-parser.ts",
+          "name": "src/parser/sparql-parser.ts",
           "bytes": 1075
         },
         {
@@ -146,12 +138,16 @@
           "bytes": 1075
         },
         {
-          "name": "src\\mod.ts",
-          "bytes": 1039
+          "name": "src/mod.ts",
+          "bytes": 985
         },
         {
-          "name": "src\\term\\mod.ts",
+          "name": "src/term/mod.ts",
           "bytes": 947
+        },
+        {
+          "name": "src/serialize/mod.ts",
+          "bytes": 134
         }
       ]
     },
@@ -905,8 +901,8 @@
     }
   ],
   "wazoo": {
-    "artifactBytes": 641468,
-    "gzipBytes": 137507,
-    "files": 37
+    "artifactBytes": 632215,
+    "gzipBytes": 135178,
+    "files": 36
   }
 }

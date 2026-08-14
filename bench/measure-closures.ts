@@ -12,7 +12,7 @@
 // counted. Specifier parsing is regex-based — fine for this codebase's
 // straightforward import forms (barrels included).
 //
-// Run: deno run --allow-read bench/measure-closures.ts
+// Run: deno run --allow-read --allow-write bench/measure-closures.ts
 import { dirname, join, resolve } from "@std/path";
 
 const CWD = Deno.cwd();
@@ -117,7 +117,12 @@ const entries = ENTRIES.map((entry) => ({
 }));
 
 const result = { generatedAt: new Date().toISOString(), entries };
-console.log(JSON.stringify(result, null, 2));
+// Write the machine-readable snapshot for bench/treemap.ts (the closures
+// bar chart), then print the human summary.
+Deno.writeTextFileSync(
+  join(Deno.cwd(), "bench", "closures-data.json"),
+  JSON.stringify(result, null, 2) + "\n",
+);
 
 for (const entry of entries) {
   console.log(

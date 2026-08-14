@@ -4,43 +4,43 @@
   <text x="12" y="20" font-size="13" font-weight="bold"
     fill="#212529">Peak heap during execution (10k-person graph)</text>
   <text x="12" y="34" font-size="9"
-    fill="#868e96">Isolated Deno subprocess per engine; peak Deno.memoryUsage().heapUsed over 5 runs; ~65 MB runtime baseline excluded from comparison by symmetry</text>
+    fill="#868e96">Isolated Deno subprocess per engine; peak Deno.memoryUsage().heapUsed over 5 runs; ~62 MiB runtime baseline excluded from comparison by symmetry</text>
   <rect x="12.0" y="44.0" width="342.0" height="244.0" fill="#f1f3f5"
     stroke="#dee2e6" stroke-width="1" />
   <text x="18.0" y="60.0" font-family="sans-serif" font-size="10"
     font-weight="bold" fill="#495057">full scan (55k rows materialized)</text>
-  <rect x="14.0" y="68.0" width="141.4" height="218.0" fill="#f08c00"
+  <rect x="14.0" y="68.0" width="139.4" height="218.0" fill="#1971c2"
     stroke="#ffffff" stroke-width="1" />
-  <text x="84.7" y="180.0" text-anchor="middle" font-family="sans-serif"
+  <text x="83.7" y="180.0" text-anchor="middle" font-family="sans-serif"
     font-size="10"
-    fill="#fff">oxigraph<tspan x="84.7" dy="12" font-size="8" fill="#ffffffcc">250.60 MiB</tspan></text>
-  <rect x="155.4" y="68.0" width="196.6" height="134.0" fill="#1971c2"
+    fill="#fff">oxigraph<tspan x="83.7" dy="12" font-size="8" fill="#ffffffcc">255.26 MiB</tspan></text>
+  <rect x="153.4" y="68.0" width="198.6" height="128.2" fill="#f08c00"
     stroke="#ffffff" stroke-width="1" />
-  <text x="253.7" y="138.0" text-anchor="middle" font-family="sans-serif"
+  <text x="252.7" y="135.1" text-anchor="middle" font-family="sans-serif"
     font-size="10"
-    fill="#fff">comunica<tspan x="253.7" dy="12" font-size="8" fill="#ffffffcc">214.25 MiB</tspan></text>
-  <rect x="155.4" y="202.0" width="196.6" height="84.0" fill="#2f9e44"
+    fill="#fff">comunica<tspan x="252.7" dy="12" font-size="8" fill="#ffffffcc">213.93 MiB</tspan></text>
+  <rect x="153.4" y="196.2" width="198.6" height="89.8" fill="#2f9e44"
     stroke="#ffffff" stroke-width="1" />
-  <text x="253.7" y="247.0" text-anchor="middle" font-family="sans-serif"
+  <text x="252.7" y="244.1" text-anchor="middle" font-family="sans-serif"
     font-size="10"
-    fill="#fff">wazoo<tspan x="253.7" dy="12" font-size="8" fill="#ffffffcc">134.37 MiB</tspan></text>
+    fill="#fff">wazoo<tspan x="252.7" dy="12" font-size="8" fill="#ffffffcc">149.88 MiB</tspan></text>
   <rect x="360.0" y="44.0" width="342.0" height="244.0" fill="#f1f3f5"
     stroke="#dee2e6" stroke-width="1" />
   <text x="366.0" y="60.0" font-family="sans-serif" font-size="10"
     font-weight="bold" fill="#495057">nested EXISTS</text>
-  <rect x="362.0" y="68.0" width="198.8" height="218.0" fill="#1971c2"
+  <rect x="362.0" y="68.0" width="200.0" height="218.0" fill="#f08c00"
     stroke="#ffffff" stroke-width="1" />
-  <text x="461.4" y="180.0" text-anchor="middle" font-family="sans-serif"
+  <text x="462.0" y="180.0" text-anchor="middle" font-family="sans-serif"
     font-size="10"
-    fill="#fff">comunica<tspan x="461.4" dy="12" font-size="8" fill="#ffffffcc">271.11 MiB</tspan></text>
-  <rect x="560.8" y="68.0" width="139.2" height="124.4" fill="#f08c00"
+    fill="#fff">comunica<tspan x="462.0" dy="12" font-size="8" fill="#ffffffcc">272.59 MiB</tspan></text>
+  <rect x="562.0" y="68.0" width="138.0" height="125.8" fill="#1971c2"
     stroke="#ffffff" stroke-width="1" />
-  <text x="630.4" y="133.2" text-anchor="middle" font-family="sans-serif"
+  <text x="631.0" y="133.9" text-anchor="middle" font-family="sans-serif"
     font-size="10"
-    fill="#fff">oxigraph<tspan x="630.4" dy="12" font-size="8" fill="#ffffffcc">108.31 MiB</tspan></text>
-  <rect x="560.8" y="192.4" width="139.2" height="93.6" fill="#2f9e44"
+    fill="#fff">oxigraph<tspan x="631.0" dy="12" font-size="8" fill="#ffffffcc">108.55 MiB</tspan></text>
+  <rect x="562.0" y="193.8" width="138.0" height="92.2" fill="#2f9e44"
     stroke="#ffffff" stroke-width="1" />
-  <text x="630.4" y="242.2" text-anchor="middle" font-family="sans-serif"
+  <text x="631.0" y="242.9" text-anchor="middle" font-family="sans-serif"
     font-size="10"
-    fill="#fff">wazoo<tspan x="630.4" dy="12" font-size="8" fill="#ffffffcc">81.49 MiB</tspan></text>
+    fill="#fff">wazoo<tspan x="631.0" dy="12" font-size="8" fill="#ffffffcc">79.49 MiB</tspan></text>
 </svg>

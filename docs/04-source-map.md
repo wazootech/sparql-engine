@@ -36,9 +36,9 @@ sparql-engine/
 
 ### Entry point
 
-| File         | Symbols (line)                       | Role                                                                                                          |
-| ------------ | ------------------------------------ | ------------------------------------------------------------------------------------------------------------- |
-| `src/mod.ts` | re-exports everything public (L1–40) | The only public entrypoint (`exports["."]` in `deno.json`). Anything not re-exported here is private surface. |
+| File         | Symbols (line)                       | Role                                                                                                                                                                                                                                                                                                                         |
+| ------------ | ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/mod.ts` | re-exports everything public (L1–40) | The full-engine entrypoint (`exports["."]` in `deno.json`). `deno.json` also exposes subpath entrypoints: `./term` → `src/term/mod.ts`, `./store` → `src/store/memory-store.ts`, `./parser` → `src/parser/mod.ts`, `./serialize` → `src/serialize/mod.ts`. Anything not re-exported through one of these is private surface. |
 
 ### Engine core
 
@@ -91,6 +91,15 @@ sparql-engine/
 | `sqlite-store.ts`      | `SqliteStoreOptions` L120, `SqliteStore` L196         | Durable store over `node:sqlite`; server-only, deep-import, not in `src/mod.ts`. |
 | `sqlite-store.test.ts` | —                                                     | Durability/atomicity tests.                                                      |
 
+### `src/serialize/` — results serializers
+
+| File                                           | Symbols (line)             | Role                                                                                |
+| ---------------------------------------------- | -------------------------- | ----------------------------------------------------------------------------------- |
+| `mod.ts`                                       | re-exports both writers    | The `./serialize` subpath entrypoint (`exports["./serialize"]` in `deno.json`).     |
+| `json-results.ts`                              | `serializeJsonResults` L39 | SPARQL results JSON (`.srj`) writer over the wire value shapes.                     |
+| `xml-results.ts`                               | `serializeXmlResults` L40  | SPARQL results XML (`.srx`) writer; both writers only import types from the engine. |
+| `json-results.test.ts` / `xml-results.test.ts` | —                          | Round-trip writer tests.                                                            |
+
 ### `src/term/` — term algebra
 
 | File              | Symbols (line)                                                                                                                   | Role                                                            |
@@ -126,17 +135,17 @@ sparql-engine/
 
 ## `bench/`
 
-| File                                       | Role                                                                                                                       |
-| ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------- |
-| `bench/engine_bench.ts`                    | Three-engine benchmark (wazoo / Comunica / Oxigraph) with verification-first equality asserts                              |
-| `bench/budget.ts`                          | Regression budget gate (`deno task bench:check`): avg ms/iter against `bench/baseline.json`                                |
-| `bench/baseline.json`                      | `maxAllowedMs: 50`, `maxRegressionRatio: 0.15`                                                                             |
-| `bench/concurrency-probe.ts`               | EXISTS concurrency stress probe (issue #72): shuffled `Promise.all` rounds + update interleaving, exit 1 on error/mismatch |
-| `bench/measure-libs.ts`                    | On-disk footprint of wazoo JSR artifact vs Oxigraph npm vs Comunica transitive closure → `bench/size-data.json`            |
-| `bench/collect-memory.ts`                  | Spawns `bench/memory-probe.ts` per engine × workload, merges peak-heap results → `bench/memory-data.json`                  |
-| `bench/memory-probe.ts`                    | Peak `heapUsed` per engine (wazoo/Comunica/Oxigraph) on full-scan + nested-EXISTS workloads over a 10k-person graph        |
-| `bench/treemap.ts`                         | Renders `bench/*-data.json` into `docs/assets/treemap-{library-size,memory}.svg`                                           |
-| `bench/size-data.json`, `memory-data.json` | Measured snapshots consumed by `bench/treemap.ts` and the root `README.md` (Size & memory footprint)                       |
+| File                                                             | Role                                                                                                                       |
+| ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `bench/engine_bench.ts`                                          | Three-engine benchmark (wazoo / Comunica / Oxigraph) with verification-first equality asserts                              |
+| `bench/budget.ts`                                                | Regression budget gate (`deno task bench:check`): avg ms/iter against `bench/baseline.json`                                |
+| `bench/baseline.json`                                            | `maxAllowedMs: 50`, `maxRegressionRatio: 0.15`                                                                             |
+| `bench/concurrency-probe.ts`                                     | EXISTS concurrency stress probe (issue #72): shuffled `Promise.all` rounds + update interleaving, exit 1 on error/mismatch |
+| `bench/measure-libs.ts`                                          | On-disk footprint of wazoo JSR artifact vs Oxigraph npm vs Comunica transitive closure → `bench/size-data.json`            |
+| `bench/measure-closures.ts`                                      | Per-entrypoint value-import closure (`.` + `./term`/`./store`/`./parser`/`./serialize`) → `bench/closures-data.json`       |
+| `bench/collect-memory.ts`                                        | Spawns `bench/memory-probe.ts` per engine × workload, merges peak-heap results → `bench/memory-data.json`                  |
+| `bench/memory-probe.ts`                                          | Peak `heapUsed` per engine (wazoo/Comunica/Oxigraph) on full-scan + nested-EXISTS workloads over a 10k-person graph        |
+| `bench/size-data.json`, `memory-data.json`, `closures-data.json` | Measured snapshots consumed by `bench/treemap.ts` and the root `README.md` (Size & memory footprint)                       |
 
 ## `docs/` — this wiki ↔ source mapping
 

@@ -56,19 +56,33 @@ Updates take a parallel path through `UpdateEvaluator.executeUpdate()`
 
 ## Footprint at a glance
 
-Two treemaps summarize what the engine costs to ship and run versus the
-reference engines (area ∝ size; full methodology and tables in
-[07 — Benchmarking & Performance](07-benchmarking.md)):
+Three figures summarize what the engine costs to ship and run versus the
+reference engines (bar length is proportional to size; full methodology and
+tables in [07 — Benchmarking & Performance](07-benchmarking.md)):
 
-|                          | wazoo                    | oxigraph | comunica                |
-| ------------------------ | ------------------------ | -------- | ----------------------- |
-| on-disk footprint        | **0.67 MiB** (zero deps) | 7.9 MiB  | 28.3 MiB (368 packages) |
-| peak heap, full scan     | **134 MB**               | 251 MB   | 214 MB                  |
-| peak heap, nested EXISTS | **82 MB**                | 108 MB   | 271 MB                  |
+|                          | wazoo                      | oxigraph | comunica                |
+| ------------------------ | -------------------------- | -------- | ----------------------- |
+| on-disk footprint        | **0.60 MiB** (zero deps)   | 7.9 MiB  | 28.3 MiB (368 packages) |
+| smallest subpath import  | **7.4 KiB** (`/serialize`) | —        | —                       |
+| peak heap, full scan     | **150 MiB**                | 255 MiB  | 214 MiB                 |
+| peak heap, nested EXISTS | **80 MiB**                 | 109 MiB  | 273 MiB                 |
 
-![Library size treemap](assets/treemap-library-size.svg)
+<figure>
+  <img src="assets/chart-library-size.svg" alt="Bar chart of engine footprints on disk">
+  <figcaption><b>Fig 1 — Library size on disk.</b> One bar per engine; bar
+  length is proportional to total installed size (values in binary MiB, share
+  of the combined total in parentheses). Wazoo (green) is the whole JSR
+  artifact at 0.60 MiB — a sliver against comunica’s 28.3 MiB closure (orange);
+  oxigraph (blue) sits between.</figcaption>
+</figure>
 
-![Memory treemap](assets/treemap-memory.svg)
+<figure>
+  <img src="assets/treemap-memory.svg" alt="Treemap of peak heap per engine and workload">
+  <figcaption><b>Fig 2 — Peak heap during execution</b> (10k-person graph).
+  One panel per workload (full scan, nested EXISTS); within each, the three
+  engines’ tiles are scaled by their peak `heapUsed` (values in MiB). Wazoo
+  (green) is the smallest tile in both panels.</figcaption>
+</figure>
 
 **Latency at a glance** — avg ms/iter per query class, lower is better (full
 methodology and tables in
