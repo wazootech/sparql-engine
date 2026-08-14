@@ -3240,6 +3240,43 @@ Deno.test("WazooSparqlEngine - NOT EXISTS and EXISTS nest inside EXISTS subqueri
   );
 });
 
+Deno.test("WazooSparqlEngine - EXISTS snapshot cache sees store mutations between queries", async () => {
+  // The EXISTS synchronous snapshot is cached across queries and must be
+  // invalidated when the store changes: a query, then a mutation, then the
+  // same query again must observe the new data.
+  const store = new Store();
+  const ex = (local: string) => namedNode(`http://example.org/${local}`);
+  store.addQuad(quad(ex("a"), ex("p"), literal("x")));
+  store.addQuad(quad(ex("b"), ex("p"), literal("y")));
+  store.addQuad(quad(ex("a"), ex("q"), literal("1")));
+  const engine = new WazooSparqlEngine({ store });
+
+  async function projected(variable: string): Promise<string[]> {
+    const result = await engine.execute({
+      query: "SELECT ?s WHERE { ?s <http://example.org/p> ?o " +
+        "FILTER EXISTS { ?s <http://example.org/q> ?z } }",
+    });
+    if (result.kind !== "select") {
+      throw new Error(`expected select, got ${result.kind}`);
+    }
+    return result.data.results.bindings.map((b) =>
+      String((b[variable] as { value: string }).value)
+    ).sort();
+  }
+
+  // Only a has a q edge: EXISTS keeps a. A second identical query (cache
+  // hit) must return the same result.
+  assertEquals(await projected("s"), ["http://example.org/a"]);
+  assertEquals(await projected("s"), ["http://example.org/a"]);
+  // Mutate the store, then re-run: the cached snapshot must be rebuilt, so
+  // b now passes the EXISTS filter too.
+  store.addQuad(quad(ex("b"), ex("q"), literal("2")));
+  assertEquals(
+    await projected("s"),
+    ["http://example.org/a", "http://example.org/b"],
+  );
+});
+
 Deno.test("WazooSparqlEngine - COALESCE, IF, IN, NOT IN, SAMETERM", async () => {
   const engine = emptyEngine();
   const coalesce = await bindValue(

@@ -16,9 +16,9 @@ import {
   GraphScopedStore,
   matchQuads,
   namedGraphs,
-  probeQuadIndex,
   type QuadIndex,
   simplePredicate,
+  storeVersion,
 } from "@/quad-store.ts";
 
 const { defaultGraph } = DataFactory;
@@ -79,10 +79,13 @@ export class BgpEvaluator {
   /**
    * existsQuads and existsIndex are the drained, indexed snapshot of the
    * evaluator's store that the synchronous EXISTS hooks probe. They are
-   * rebuilt per query by prepareExistsIndex when any pattern uses EXISTS.
+   * cached across queries and rebuilt by prepareExistsIndex only when the
+   * store's mutation version changes (or when the store exposes no version).
    */
   private existsQuads: rdfjs.Quad[] | null = null;
   private existsIndex: QuadIndex | null = null;
+  /** existsVersion is the store version the snapshot was drained from. */
+  private existsVersion: number | null = null;
 
   /** expressionEvaluator evaluates FILTER expressions against solutions. */
   private readonly expressionEvaluator = new ExpressionEvaluator();
@@ -101,10 +104,10 @@ export class BgpEvaluator {
   public async evaluateBgp(patterns: Pattern[]): Promise<TermBinding[]> {
     // EXISTS support: when any pattern in the tree uses EXISTS/NOT EXISTS,
     // the store's quads are drained once into a synchronous index that the
-    // injected hooks probe (the decided sync-hook contract). Rebuilt per
-    // query, so updates between queries never see a stale snapshot.
-    this.existsIndex = null;
-    this.existsQuads = null;
+    // injected hooks probe (the decided sync-hook contract). The snapshot is
+    // cached across queries and invalidated by the store's mutation version,
+    // so updates between queries never see stale data and repeated queries
+    // against an unchanged store skip the drain entirely.
     if (patternListContainsExists(patterns)) {
       await this.prepareExistsIndex();
     }
@@ -124,12 +127,17 @@ export class BgpEvaluator {
    * though the WHERE clause does not.
    */
   public async prepareExistsIndex(): Promise<void> {
-    if (this.existsIndex !== null) {
+    const version = storeVersion(this.store);
+    if (
+      this.existsIndex !== null && this.existsQuads !== null &&
+      version !== null && this.existsVersion === version
+    ) {
       return;
     }
     const quads = await matchQuads(this.store, null, null, null);
     this.existsQuads = quads;
     this.existsIndex = buildQuadIndex(quads);
+    this.existsVersion = version;
   }
 
   /**
@@ -244,9 +252,11 @@ export class BgpEvaluator {
             reifies,
             tripleTermObject,
             // probeQuadIndex checks only s/p/o, so the graph scope is
-            // enforced afterwards over the probed candidates. Reifies
-            // patterns scan every `rdf:reifies` statement in the scope, and
-            // triple-term objects scan every quad with a triple-term object.
+            // enforced on the probed matches via the join's graphScope (the
+            // prebuilt snapshot index spans every graph). Reifies patterns
+            // scan every `rdf:reifies` statement in the scope, and
+            // triple-term objects scan every quad with a triple-term object
+            // (both subsets of the scoped candidates).
             candidates: reifies
               ? candidates.filter((item) =>
                 item.predicate.termType === "NamedNode" &&
@@ -254,21 +264,13 @@ export class BgpEvaluator {
               )
               : tripleTermObject
               ? candidates.filter((item) => item.object.termType === "Quad")
-              : probeQuadIndex(
-                this.existsIndex!,
-                candidates,
-                triple.subject.termType === "Variable"
-                  ? null
-                  : sparqlTermToRdfTerm(triple.subject),
-                predicate.termType === "Variable"
-                  ? null
-                  : sparqlTermToRdfTerm(predicate),
-                triple.object.termType === "Variable"
-                  ? null
-                  : sparqlTermToRdfTerm(triple.object),
-              ).filter((item) => sameRdfTerm(item.graph, graph)),
+              : candidates,
           };
-          result = joinTriplePattern(result, entry);
+          // The join probes the once-per-query snapshot index with each
+          // solution's resolved positions (constants and bound variables)
+          // instead of rebuilding an index over the probed bucket per
+          // solution — the EXISTS hook joins one solution at a time.
+          result = joinTriplePattern(result, entry, this.existsIndex!, graph);
         }
         return result;
       }

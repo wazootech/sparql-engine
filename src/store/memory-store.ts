@@ -229,6 +229,16 @@ export class MemoryStream implements rdfjs.Stream<rdfjs.Quad> {
  */
 export class MemoryStore implements rdfjs.Store<rdfjs.Quad> {
   private quads: Map<string, rdfjs.Quad> = new Map();
+  private _version = 0;
+
+  /**
+   * version increments on every mutation, letting caches that snapshot the
+   * store (the EXISTS synchronous index) detect staleness and rebuild only
+   * when the data actually changed.
+   */
+  public get version(): number {
+    return this._version;
+  }
 
   public constructor(initialQuads?: rdfjs.Quad[]) {
     if (initialQuads) {
@@ -260,11 +270,13 @@ export class MemoryStore implements rdfjs.Store<rdfjs.Quad> {
       )
       : quadOrSubject as rdfjs.Quad;
     this.quads.set(quadKey(quad), quad);
+    this._version++;
     return this;
   }
 
   public removeQuad(quad: rdfjs.Quad): this {
     this.quads.delete(quadKey(quad));
+    this._version++;
     return this;
   }
 
