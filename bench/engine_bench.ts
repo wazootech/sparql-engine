@@ -1185,6 +1185,26 @@ Deno.bench({ name: "oxigraph - update", group: "update" }, async () => {
   await oxigraphStore.update(rewriteUpdateQuery);
 });
 
+/* ------------------------------------------------------------------ */
+/* Inventory mode (bench:latency:check)                              */
+/* ------------------------------------------------------------------ */
+
+/**
+ * BENCH_INVENTORY runs every registered bench exactly once with no warmup, so
+ * the CI staleness check (`deno task bench:latency:check`) can compare the
+ * suite's bench inventory against the committed bench/latency-data.json
+ * snapshot without paying for full timing runs. Timings under this mode are
+ * meaningless — only the registered (group, name, baseline) set is used.
+ */
+const BENCH_INVENTORY = Deno.env.get("BENCH_INVENTORY") === "1";
+const INVENTORY_BENCH_OPTIONS = { warmup: 0, iterations: 1 } as const;
+
+function benchOptions(
+  options?: { warmup?: number; iterations?: number },
+): { warmup?: number; iterations?: number } {
+  return BENCH_INVENTORY ? INVENTORY_BENCH_OPTIONS : (options ?? {});
+}
+
 /**
  * benchSelectTrio registers the wazoo/comunica/oxigraph bench trio for one
  * SELECT group. Wazoo is the baseline; each body asserts a non-empty result
@@ -1198,7 +1218,12 @@ function benchSelectTrio(
   options?: { warmup?: number; iterations?: number },
 ): void {
   Deno.bench(
-    { name: `wazoo - ${label}`, group, baseline: true, ...options },
+    {
+      name: `wazoo - ${label}`,
+      group,
+      baseline: true,
+      ...benchOptions(options),
+    },
     async () => {
       const result = await trio.wazoo.execute({ query });
       if (
@@ -1210,22 +1235,28 @@ function benchSelectTrio(
     },
   );
 
-  Deno.bench({ name: `comunica - ${label}`, group }, async () => {
-    const stream = await comunicaEngine.queryBindings(query, {
-      sources: [trio.comunicaStore],
-    });
-    const bindings = await stream.toArray();
-    if (bindings.length === 0) {
-      throw new Error(`comunica ${label} returned no bindings`);
-    }
-  });
+  Deno.bench(
+    { name: `comunica - ${label}`, group, ...benchOptions() },
+    async () => {
+      const stream = await comunicaEngine.queryBindings(query, {
+        sources: [trio.comunicaStore],
+      });
+      const bindings = await stream.toArray();
+      if (bindings.length === 0) {
+        throw new Error(`comunica ${label} returned no bindings`);
+      }
+    },
+  );
 
-  Deno.bench({ name: `oxigraph - ${label}`, group }, () => {
-    const result = trio.oxigraph.query(query) as unknown as OxigraphBinding[];
-    if (result.length === 0) {
-      throw new Error(`oxigraph ${label} returned no bindings`);
-    }
-  });
+  Deno.bench(
+    { name: `oxigraph - ${label}`, group, ...benchOptions() },
+    () => {
+      const result = trio.oxigraph.query(query) as unknown as OxigraphBinding[];
+      if (result.length === 0) {
+        throw new Error(`oxigraph ${label} returned no bindings`);
+      }
+    },
+  );
 }
 
 /**
@@ -1239,7 +1270,7 @@ function benchConstructTrio(
   label: string,
 ): void {
   Deno.bench(
-    { name: `wazoo - ${label}`, group, baseline: true },
+    { name: `wazoo - ${label}`, group, baseline: true, ...benchOptions() },
     async () => {
       const result = await wazooEngine.execute({ query });
       if (result.kind !== "construct" || result.data.quads.length === 0) {
@@ -1248,22 +1279,28 @@ function benchConstructTrio(
     },
   );
 
-  Deno.bench({ name: `comunica - ${label}`, group }, async () => {
-    const stream = await comunicaEngine.queryQuads(query, {
-      sources: [memoryStore],
-    });
-    const quads = await stream.toArray();
-    if (quads.length === 0) {
-      throw new Error(`comunica ${label} returned no quads`);
-    }
-  });
+  Deno.bench(
+    { name: `comunica - ${label}`, group, ...benchOptions() },
+    async () => {
+      const stream = await comunicaEngine.queryQuads(query, {
+        sources: [memoryStore],
+      });
+      const quads = await stream.toArray();
+      if (quads.length === 0) {
+        throw new Error(`comunica ${label} returned no quads`);
+      }
+    },
+  );
 
-  Deno.bench({ name: `oxigraph - ${label}`, group }, () => {
-    const result = oxigraphStore.query(query) as unknown as rdfjs.Quad[];
-    if (result.length === 0) {
-      throw new Error(`oxigraph ${label} returned no quads`);
-    }
-  });
+  Deno.bench(
+    { name: `oxigraph - ${label}`, group, ...benchOptions() },
+    () => {
+      const result = oxigraphStore.query(query) as unknown as rdfjs.Quad[];
+      if (result.length === 0) {
+        throw new Error(`oxigraph ${label} returned no quads`);
+      }
+    },
+  );
 }
 
 /**
@@ -1279,7 +1316,7 @@ function benchUpdateTrio(
   seed: rdfjs.Quad[],
 ): void {
   Deno.bench(
-    { name: `wazoo - ${label}`, group, baseline: true },
+    { name: `wazoo - ${label}`, group, baseline: true, ...benchOptions() },
     async () => {
       const store = seedStore(seed);
       const engine = new WazooSparqlEngine({ store });
@@ -1290,15 +1327,21 @@ function benchUpdateTrio(
     },
   );
 
-  Deno.bench({ name: `comunica - ${label}`, group }, async () => {
-    const store = seedStore(seed);
-    await comunicaEngine.queryVoid(query, { sources: [store] });
-  });
+  Deno.bench(
+    { name: `comunica - ${label}`, group, ...benchOptions() },
+    async () => {
+      const store = seedStore(seed);
+      await comunicaEngine.queryVoid(query, { sources: [store] });
+    },
+  );
 
-  Deno.bench({ name: `oxigraph - ${label}`, group }, async () => {
-    const store = seedOxigraphStore(seed);
-    await store.update(query);
-  });
+  Deno.bench(
+    { name: `oxigraph - ${label}`, group, ...benchOptions() },
+    async () => {
+      const store = seedOxigraphStore(seed);
+      await store.update(query);
+    },
+  );
 }
 
 benchSelectTrio("optional", optionalQuery, "optional");

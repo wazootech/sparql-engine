@@ -36,6 +36,7 @@
     "bench:size:closures": "deno run --allow-read bench/measure-closures.ts",
     "bench:memory": "deno run --allow-all bench/collect-memory.ts && deno run --allow-read --allow-write bench/treemap.ts && deno fmt docs/assets/treemap-*.svg",
     "bench:latency": "deno bench --allow-all --json bench/engine_bench.ts > bench/latency-data.json && deno run --allow-read --allow-write bench/latency-chart.ts && deno fmt docs/assets/chart-latency.svg",
+    "bench:latency:check": "BENCH_INVENTORY=1 deno bench --allow-all --json bench/engine_bench.ts | deno run --allow-read bench/latency-check.ts",
     "check": "deno check",
     "ci": {
       "description": "Formats, lints, checks, and tests the code",
