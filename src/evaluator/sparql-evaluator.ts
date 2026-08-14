@@ -17,14 +17,14 @@ import type {
   SparqlResponse,
   SparqlSelectResults,
 } from "@/sparql-engine-interface.ts";
-import { aggregateValue, groupSolutions } from "@/evaluator/aggregate.ts";
-import { innerJoin } from "@/evaluator/join.ts";
+import { aggregateValue } from "@/evaluator/aggregate.ts";
 import { expandReifiedTriples } from "@/evaluator/reified.ts";
-import {
-  BgpEvaluator,
-  expressionContainsExists,
-} from "@/evaluator/bgp-evaluator.ts";
+import { BgpEvaluator } from "@/evaluator/bgp-evaluator.ts";
 import type { TermBinding } from "@/evaluator/bgp-evaluator.ts";
+import {
+  applySelectPipeline,
+  pipelineNeedsExistsIndex,
+} from "@/evaluator/select-pipeline.ts";
 import {
   buildDatasetStore,
   matchQuads,
@@ -149,139 +149,25 @@ export class SparqlEvaluator {
     query: SelectQuery,
   ): Promise<TermBinding[]> {
     const evaluator = await this.bgpEvaluatorFor(query.from);
-    let rawBindings = await evaluator.evaluateBgp(query.where || []);
-
-    if (query.values !== undefined && query.values.length > 0) {
-      const rows: TermBinding[] = query.values.map((row) => {
-        const binding: TermBinding = {};
-        for (const name of Object.keys(row)) {
-          const term = row[name];
-          if (term !== undefined) {
-            binding[name.slice(1)] = sparqlTermToRdfTerm(term);
-          }
-        }
-        return binding;
-      });
-      rawBindings = innerJoin(rawBindings, rows);
-    }
-    const vars: string[] = [];
-    const projections = new Map<string, Expression>();
-    let wildcard = false;
-
-    for (const v of query.variables) {
-      if (typeof v === "string") {
-        vars.push(v);
-      } else if ("termType" in v && v.termType === "Variable") {
-        vars.push(v.value);
-      } else if ("variable" in v && v.variable) {
-        vars.push(v.variable.value);
-        projections.set(v.variable.value, v.expression);
-      } else {
-        wildcard = true;
-      }
-    }
-
-    if (
-      [...projections.values()].some(expressionContainsExists) ||
-      (query.order ?? []).some((clause) =>
-        expressionContainsExists(clause.expression)
-      ) ||
-      (query.having ?? []).some(expressionContainsExists)
-    ) {
-      await evaluator.prepareExistsIndex();
-    }
+    const rawBindings = await evaluator.evaluateBgp(query.where || []);
     const existsContext: ExpressionEvaluationContext = {
       evaluateExists: (pattern, solution) =>
         evaluator.evaluateExists(pattern, solution),
       baseIri: query.base,
     };
-
-    const grouping = query.group ?? [];
-    const hasGrouping = grouping.length > 0;
-    const hasAggregates =
-      [...projections.values()].some((expression) =>
-        expressionContainsAggregate(expression)
-      ) ||
-      (query.order ?? []).some((clause) =>
-        expressionContainsAggregate(clause.expression)
-      ) ||
-      (query.having ?? []).some(expressionContainsAggregate);
-    let solutions: SelectSolution[];
-    if (hasGrouping || hasAggregates) {
-      const groups = hasGrouping
-        ? groupSolutions(
-          rawBindings,
-          grouping,
-          (expression, binding) =>
-            this.expressionEvaluator.evaluate(
-              expression,
-              binding,
-              existsContext,
-            ),
-        )
-        : [{ key: {}, solutions: rawBindings }];
-      const grouped: SelectSolution[] = groups.map((group) => ({
-        binding: group.key,
-        group: group.solutions,
-      }));
-      solutions = query.having !== undefined && query.having.length > 0
-        ? grouped.filter((solution) =>
-          query.having!.every((expression) =>
-            this.havingPasses(expression, solution, existsContext)
-          )
-        )
-        : grouped;
-    } else {
-      solutions = rawBindings.map((binding) => ({
-        binding,
-        group: null,
-      }));
+    if (pipelineNeedsExistsIndex(query)) {
+      await evaluator.prepareExistsIndex();
     }
-
-    const ordered = query.order?.length
-      ? this.orderBindings(solutions, query.order, existsContext)
-      : solutions;
-
-    const projected: TermBinding[] = ordered.map((solution) =>
-      this.projectSolutionToTermBinding(
-        solution,
-        wildcard,
-        vars,
-        projections,
-        existsContext,
-      )
+    // The post-BGP SELECT pipeline (VALUES, grouping/aggregates, HAVING,
+    // ORDER BY, projection, DISTINCT/REDUCED, OFFSET/LIMIT) is shared with
+    // the synchronous EXISTS subquery path — one implementation, two call
+    // sites.
+    return applySelectPipeline(
+      rawBindings,
+      query,
+      this.expressionEvaluator,
+      existsContext,
     );
-
-    let filteredBindings = projected;
-    // REDUCED is a permitted hint to drop duplicates; per the REDUCED decision
-    // it is implemented as full dedup (REDUCED ≡ DISTINCT), which is strictly
-    // stronger than the spec floor and matches Comunica/Oxigraph on ≤100-
-    // distinct inputs.
-    if (query.distinct || query.reduced) {
-      const seen = new Set<string>();
-      filteredBindings = filteredBindings.filter((b) => {
-        const key = Object.keys(b).sort().map((k) => `${k}:${termKey(b[k])}`)
-          .join("\u0000");
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      });
-    }
-    if (query.offset !== undefined) {
-      filteredBindings = filteredBindings.slice(query.offset);
-    }
-    if (query.limit !== undefined) {
-      filteredBindings = filteredBindings.slice(0, query.limit);
-    }
-    return filteredBindings.map((b) => {
-      const clean: TermBinding = {};
-      for (const k of Object.keys(b)) {
-        if (!k.startsWith("_:")) {
-          clean[k] = b[k];
-        }
-      }
-      return clean;
-    });
   }
 
   private async evaluateSelect(
