@@ -8,22 +8,21 @@ interface BudgetTest {
   name: string;
   query: string;
   /**
-   * Per-test ceiling in ms/iter. Calibrated to ~3x the steady-state baseline on a
-   * quiet machine, so a ~3x regression on any row trips the gate while shared-CI
-   * noise (typically 2-3x slower runners) still passes.
+   * Per-test ceiling in ms/iter, calibrated to ~2.5x the baseline measured on the
+   * GitHub Actions runner (the environment bench:check actually gates in), so a
+   * ~3x regression on any row trips the gate while run-to-run CI noise passes.
    *
-   * Baselines (ms/iter, 50-iteration loop after 5-iteration warmup, quiet machine):
-   *   BGP 2-pattern join: 0.34-0.44 (noisiest row) -> budget 2.0 (~4.5x)
-   *   Reorder chain join: 0.29-0.39               -> budget 1.0 (~2.6-3.4x)
-   *   EXISTS filter:      0.33-0.39               -> budget 1.0 (~2.6-3.0x)
-   *   Nested EXISTS:      0.46-0.52               -> budget 1.6 (~3.1-3.5x)
+   * CI-runner baselines (ms/iter, 50-iteration loop after 5-iteration warmup):
+   *   BGP 2-pattern join: 1.30 -> budget 3.5 (~2.7x)
+   *   Reorder chain join: 0.82 -> budget 2.0 (~2.4x)
+   *   EXISTS filter:      1.16 -> budget 3.0 (~2.6x)
+   *   Nested EXISTS:      1.61 -> budget 4.0 (~2.5x)
    *
-   * A regression of ~3x trips the chain/exists/nested rows; the join row needs
-   * ~4.5x (it shows the most run-to-run variance, so it gets extra headroom).
-   * Note: at this sub-ms scale, per-iteration cost is partly fixed parse/setup
-   * overhead, so a small multiplicative filter regression lands under 3x and
-   * correctly stays under budget - the gate catches the algorithmic regressions
-   * that matter (e.g. EXISTS per-probe re-indexing was 480x at its worst).
+   * Note: GitHub runners are ~3x slower than a quiet dev machine (this machine
+   * measures the same rows at 0.3-0.5 ms), so budgets must not be calibrated
+   * locally. A regression of ~2.5-3x trips the gate; catastrophic algorithmic
+   * regressions (e.g. EXISTS per-probe re-indexing was ~480x at its worst) trip
+   * instantly.
    */
   budgetMs: number;
 }
@@ -36,26 +35,26 @@ const tests: BudgetTest[] = [
     name: "BGP 2-pattern join",
     query:
       "SELECT ?s ?name WHERE { ?s <http://xmlns.com/foaf/0.1/name> ?name . ?s <http://example.org/p> ?o }",
-    budgetMs: 2.0,
+    budgetMs: 3.5,
   },
   {
     name: "Reorder chain join",
     query:
       "SELECT ?s WHERE { ?s <http://example.org/p1> ?o1 . ?o1 <http://example.org/p2> ?o2 }",
-    budgetMs: 1.0,
+    budgetMs: 2.0,
   },
   {
     name: "EXISTS filter",
     query: "SELECT ?s WHERE { ?s <http://xmlns.com/foaf/0.1/name> ?n " +
       "FILTER EXISTS { ?s <http://example.org/p> ?o } }",
-    budgetMs: 1.0,
+    budgetMs: 3.0,
   },
   {
     name: "Nested EXISTS filter",
     query: "SELECT ?s WHERE { ?s <http://xmlns.com/foaf/0.1/name> ?n " +
       "FILTER EXISTS { ?s <http://example.org/p1> ?o . " +
       "FILTER EXISTS { ?o <http://example.org/p2> ?x } } }",
-    budgetMs: 1.6,
+    budgetMs: 4.0,
   },
 ];
 
