@@ -1,10 +1,16 @@
 import type * as rdfjs from "@rdfjs/types";
-import type { Expression, Pattern, Triple } from "@/parser/sparql-parser.ts";
+import type {
+  Expression,
+  Pattern,
+  SelectQuery,
+  Triple,
+} from "@/parser/sparql-parser.ts";
 import { DataFactory } from "@/term/mod.ts";
 import {
   type ExpressionEvaluationContext,
   ExpressionEvaluator,
 } from "@/evaluator/expression-evaluator.ts";
+import { expressionContainsExists } from "@/evaluator/expression-utils.ts";
 import {
   buildQuadIndex,
   GraphScopedStore,
@@ -27,6 +33,7 @@ import {
   scanPathEntry,
   scanPathEntrySync,
 } from "@/evaluator/join.ts";
+import { applySelectPipeline } from "@/evaluator/select-pipeline.ts";
 import type { ScanEntry, TermBinding } from "@/evaluator/join.ts";
 import { sameRdfTerm, sparqlTermToRdfTerm, termKey } from "@/term/mod.ts";
 import {
@@ -162,8 +169,8 @@ export class BgpEvaluator {
    * forms the W3C EXISTS surface exercises (BGP, FILTER, GRAPH, BIND,
    * VALUES, OPTIONAL, MINUS, UNION, property paths, and nested EXISTS —
    * all over the graph-scoped candidate set, reusing the same join.ts
-   * primitives as the main path). Only subqueries inside EXISTS still
-   * raise a clear error rather than silently returning a wrong answer.
+   * primitives as the main path). Every pattern form the grammar allows
+   * inside a group — including subqueries — evaluates here.
    */
   private evaluateExistsGroup(
     patterns: Pattern[],
@@ -398,10 +405,38 @@ export class BgpEvaluator {
           candidates,
           graph,
         );
-      case "query":
-        throw new Error(
-          `Graph pattern ${pattern.type} inside EXISTS is not supported yet`,
+      case "query": {
+        // A subquery inside EXISTS evaluates independently of the enclosing
+        // solutions (SPARQL 1.1 §18.2.4: subqueries are evaluated first,
+        // then joined), mirroring the main path's fresh SparqlEvaluator.
+        // Its WHERE runs over the graph-scoped candidate snapshot with the
+        // same synchronous exists machinery, and the select pipeline
+        // (VALUES, grouping, aggregates, HAVING, ORDER BY, projection,
+        // DISTINCT/REDUCED, OFFSET, LIMIT) runs exactly as it does for the
+        // main path via the shared applySelectPipeline.
+        const selectQuery = pattern as unknown as SelectQuery;
+        const subContext: ExpressionEvaluationContext = {
+          evaluateExists: (subPattern, solution) =>
+            this.evaluateExists(subPattern, solution, graph),
+          baseIri: selectQuery.base,
+        };
+        const subRaw = this.evaluateExistsGroup(
+          selectQuery.where ?? [],
+          [{}],
+          candidates,
+          graph,
         );
+        // The synchronous EXISTS index is guaranteed prepared here — this
+        // code only runs from evaluateExists, which guards on it — so
+        // EXISTS in the subquery's projection/ORDER BY/HAVING resolves.
+        const subResults = applySelectPipeline(
+          subRaw,
+          selectQuery,
+          this.expressionEvaluator,
+          subContext,
+        );
+        return innerJoin(bindings, subResults);
+      }
       default:
         throw new Error(
           `Unsupported graph pattern inside EXISTS: ` +
@@ -807,39 +842,6 @@ function patternContainsExists(pattern: Pattern): boolean {
     default:
       return false;
   }
-}
-
-/**
- * expressionContainsExists reports whether an expression tree contains an
- * EXISTS or NOT EXISTS operator, used by the SparqlEvaluator to prepare the
- * EXISTS index for projection / ORDER BY / HAVING expressions even when the
- * WHERE clause itself has none.
- */
-export function expressionContainsExists(expression: Expression): boolean {
-  if ("termType" in expression || !("type" in expression)) {
-    return false;
-  }
-  if (expression.type === "operation") {
-    if (
-      expression.operator === "exists" ||
-      expression.operator === "notexists"
-    ) {
-      return true;
-    }
-    return expression.args.some((arg) =>
-      expressionContainsExists(arg as Expression)
-    );
-  }
-  if (expression.type === "functionCall") {
-    return expression.args.some(expressionContainsExists);
-  }
-  if (expression.type === "aggregate") {
-    return (
-      expression.expression !== undefined &&
-      expressionContainsExists(expression.expression as Expression)
-    );
-  }
-  return false;
 }
 
 /**

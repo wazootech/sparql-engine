@@ -3083,6 +3083,106 @@ Deno.test("WazooSparqlEngine - OPTIONAL, MINUS, UNION inside EXISTS reuse the jo
   );
 });
 
+Deno.test("WazooSparqlEngine - subqueries inside EXISTS evaluate over the graph-scoped snapshot", async () => {
+  // Default graph: s -p-> a, t -p-> b, u -p-> c; s and t also have q edges,
+  // u does not. This mirrors the cross-engine validation dataset.
+  const store = new Store();
+  const ex = (local: string) => namedNode(`http://example.org/${local}`);
+  const add = (s: string, p: string, o: string) =>
+    store.addQuad(quad(ex(s), ex(p), ex(o)));
+  add("s", "p", "a");
+  add("t", "p", "b");
+  add("u", "p", "c");
+  store.addQuad(quad(ex("s"), ex("q"), literal("x")));
+  store.addQuad(quad(ex("t"), ex("q"), literal("y")));
+  const engine = new WazooSparqlEngine({ store });
+
+  async function projected(query: string, variable: string): Promise<string[]> {
+    const result = await engine.execute({ query });
+    if (result.kind !== "select") {
+      throw new Error(`expected select, got ${result.kind}`);
+    }
+    return result.data.results.bindings.map((b) =>
+      String((b[variable] as { value: string }).value)
+    ).sort();
+  }
+
+  // Basic subquery: EXISTS holds whenever the subquery has any result, so
+  // all three subjects pass.
+  assertEquals(
+    await projected(
+      "SELECT ?s WHERE { ?s <http://example.org/p> ?v " +
+        "FILTER EXISTS { SELECT ?x WHERE { ?x <http://example.org/q> ?w } } }",
+      "s",
+    ),
+    ["http://example.org/s", "http://example.org/t", "http://example.org/u"],
+  );
+  // NOT EXISTS: the subquery's WHERE matches nothing, so the negation holds
+  // for every subject.
+  assertEquals(
+    await projected(
+      "SELECT ?s WHERE { ?s <http://example.org/p> ?v " +
+        "FILTER NOT EXISTS { SELECT ?x WHERE { ?x <http://example.org/q> ?w . " +
+        "?x <http://example.org/z> ?zz } } }",
+      "s",
+    ),
+    ["http://example.org/s", "http://example.org/t", "http://example.org/u"],
+  );
+  // Aggregates and HAVING run inside the subquery: COUNT = 2 passes the
+  // HAVING, so EXISTS holds.
+  assertEquals(
+    await projected(
+      "SELECT ?s WHERE { ?s <http://example.org/p> ?v " +
+        "FILTER EXISTS { SELECT (COUNT(?x) AS ?c) WHERE { ?x <http://example.org/q> ?w } " +
+        "HAVING (COUNT(?x) >= 2) } }",
+      "s",
+    ),
+    ["http://example.org/s", "http://example.org/t", "http://example.org/u"],
+  );
+  // DISTINCT dedups the subquery's projection.
+  assertEquals(
+    await projected(
+      "SELECT ?s WHERE { ?s <http://example.org/p> ?v " +
+        "FILTER EXISTS { SELECT DISTINCT ?x WHERE { ?x <http://example.org/q> ?w } } }",
+      "s",
+    ),
+    ["http://example.org/s", "http://example.org/t", "http://example.org/u"],
+  );
+  // Projection expressions evaluate inside the subquery.
+  assertEquals(
+    await projected(
+      "SELECT ?s WHERE { ?s <http://example.org/p> ?v " +
+        "FILTER EXISTS { SELECT (UCASE(?w) AS ?u) WHERE { ?x <http://example.org/q> ?w " +
+        'FILTER (UCASE(?w) = "X") } } }',
+      "s",
+    ),
+    ["http://example.org/s", "http://example.org/t", "http://example.org/u"],
+  );
+  // Subqueries evaluate independently of the enclosing solution (SPARQL 1.1
+  // §18.2.4): the inner FILTER referencing the outer ?s is unbound inside
+  // the subquery, so the subquery yields nothing and EXISTS is false.
+  assertEquals(
+    await projected(
+      "SELECT ?s WHERE { ?s <http://example.org/p> ?v " +
+        "FILTER EXISTS { SELECT ?x WHERE { ?x <http://example.org/q> ?w . " +
+        "FILTER(?x = ?s) } } }",
+      "s",
+    ),
+    [],
+  );
+  // ORDER BY and LIMIT run inside the subquery; the single result keeps
+  // EXISTS true.
+  assertEquals(
+    await projected(
+      "SELECT ?s WHERE { ?s <http://example.org/p> ?v " +
+        "FILTER EXISTS { SELECT ?x WHERE { ?x <http://example.org/q> ?w } " +
+        "ORDER BY DESC(?w) LIMIT 1 } }",
+      "s",
+    ),
+    ["http://example.org/s", "http://example.org/t", "http://example.org/u"],
+  );
+});
+
 Deno.test("WazooSparqlEngine - COALESCE, IF, IN, NOT IN, SAMETERM", async () => {
   const engine = emptyEngine();
   const coalesce = await bindValue(
