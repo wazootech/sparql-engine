@@ -37,7 +37,7 @@ Every layer runs in CI (`.github/workflows/ci.yml`): the `ci` job runs
 | `deno task test:rdf11`        | `test/w3c/rdf-differential.ts` | RDF 1.1 Turtle/TriG/N-Triples/N-Quads vs n3                     | ci                         |
 | `deno task test:rdf12`        | `test/w3c/rdf-classify.ts`     | RDF 1.2 syntax classifier                                       | ci                         |
 | `deno task ci`                | —                              | All of the above in dependency order                            | ci job                     |
-| `deno task test:w3c`          | `test/w3c/w3c-main.ts`         | SPARQL 1.1 evaluation-core differential vs Comunica (336 tests) | w3c-parity job             |
+| `deno task test:w3c`          | `test/w3c/w3c-main.ts`         | SPARQL 1.1 evaluation-core differential vs Comunica (345 tests) | w3c-parity job             |
 | `deno task test:ref`          | `test/w3c/ref-crosscheck.ts`   | Allowlisted divergence audit vs Oxigraph + N3.js                | manual (on grammar change) |
 | `deno task bench`             | `deno bench --allow-all`       | Three-engine benchmarks                                         | manual                     |
 | `deno task publish:dry`       | `deno publish --dry-run`       | JSR publish validation                                          | ci + publish               |
@@ -54,8 +54,9 @@ deno test -n "exists"       # filter by test name substring
 
 Covered areas: parser (`src/parser/mod.test.ts`, `turtle-parser.test.ts`), store
 semantics (`src/store/memory-store.test.ts`, `sqlite-store.test.ts`), quad-store
-adapters (`src/quad-store.test.ts`), term algebra (`src/term/term.test.ts`),
-updates (`src/evaluator/update-evaluator.test.ts`), and the 3,900-line engine
+adapters (`src/quad-store.test.ts`), the join engine
+(`src/evaluator/join.test.ts`), term algebra (`src/term/term.test.ts`), updates
+(`src/evaluator/update-evaluator.test.ts`), and the 3,900-line engine
 integration suite (`src/wazoo-sparql-engine.test.ts`) — including the
 concurrent-`execute()` isolation tests for the EXISTS snapshot (issue #72).
 
@@ -75,6 +76,11 @@ The parity contract is **behavioral equivalence with
   SPARQL 1.1 result semantics treat labels as scoped and opaque. A dedicated
   test locks in this known difference against real Comunica output, so the
   normalization stays verified rather than assumed.
+- The canonicalization itself is unit-tested:
+  `test/parity/canonical-store.test.ts` locks in `canonicalStoreQuads`'
+  blank-node substitution — repeated placeholders within one quad (`replaceAll`,
+  e.g. the same blank node bound as subject and object), distinct-node
+  preservation, and multi-quad isomorphism under relabeling.
 - Updates canonicalize stores up to blank-node relabeling — two stores pass when
   they agree exactly modulo label identity (the SPARQL contract, since INSERT
   DATA mints fresh labels per execution).
@@ -85,8 +91,8 @@ The parity contract is **behavioral equivalence with
 
 ## W3C suites
 
-`deno task test:w3c` runs the vendored W3C SPARQL 1.1 **evaluation-core** (336
-tests across 23 categories: aggregates, bind, bindings, cast, construct, exists,
+`deno task test:w3c` runs the vendored W3C SPARQL 1.1 **evaluation-core** (345
+tests across 31 categories: aggregates, bind, bindings, cast, construct, exists,
 functions, grouping, negation, project-expression, property-path, subquery, and
 the update categories) **differentially**: every query runs through both
 Comunica and the native engine, and observable results are compared. Categories
@@ -120,6 +126,11 @@ refresh instructions live in `test/w3c/README.md`.
 
 ## Benchmarking
 
+Each tool's methodology and the known measured results (latency tables, size and
+memory numbers) are on the dedicated
+[07 — Benchmarking & Performance](07-benchmarking.md) page; this section covers
+how to run each tool and what it gates.
+
 ### `deno task bench` — three-engine comparison
 
 `bench/engine_bench.ts` compares the native engine against
@@ -141,7 +152,7 @@ Groups cover the feature surface: scan, join, asym-join (reorder on/off),
 reorder-chain, ask, construct, update, optional, minus, union, path,
 group-aggregate, filter-expr, order-limit, distinct, values-bind, graph, from,
 subquery, exists, cast, string-fn, having, reduced, update-ops. The
-`reorder-chain` group demonstrates the dynamic join planner: ~32× faster with
+`reorder-chain` group demonstrates the dynamic join planner: ~90× faster with
 reordering enabled, at parity with Oxigraph.
 
 ### `deno task bench:check` — regression budget
@@ -172,6 +183,31 @@ deno run --allow-all bench/concurrency-probe.ts
 
 The same guarantees are locked in as unit tests in
 `src/wazoo-sparql-engine.test.ts`.
+
+### `deno task bench:size` / `bench:memory` — footprint measurement
+
+Latency is only half the story: the engine is also benchmarked on what it costs
+to ship and run (root `README.md` → _Size & memory footprint_):
+
+- `bench:size` — `bench/measure-libs.ts` measures the on-disk footprint a
+  consumer must install: the native JSR artifact (0.67 MiB, zero runtime deps)
+  vs the Oxigraph npm package (7.9 MiB) vs Comunica's full transitive closure
+  (28.3 MiB) → `bench/size-data.json`.
+- `bench:memory` — `bench/collect-memory.ts` spawns `bench/memory-probe.ts` per
+  engine in an **isolated Deno subprocess** (so only the target engine is
+  loaded), reporting peak `Deno.memoryUsage().heapUsed` over 5 runs on a
+  10k-person graph (~55k quads), across a full-scan and a nested-EXISTS workload
+  → `bench/memory-data.json`. Native is lowest on both (134 / 82 MB vs Comunica
+  214 / 271 MB, Oxigraph 251 / 108 MB).
+- `bench/treemap.ts` renders both JSON snapshots into
+  `docs/assets/treemap-*.svg` (area ∝ size):
+
+![Library size treemap](assets/treemap-library-size.svg)
+
+![Memory treemap](assets/treemap-memory.svg)
+
+These are machine-specific snapshots (Deno 2.9.5, Windows), not guarantees —
+regenerate with the two tasks above and commit the updated SVGs.
 
 ## Debugging guide
 
@@ -210,7 +246,7 @@ console.log(store.getQuads(null, null, null, null));
 '
 ```
 
-`GraphScopedStore` (`src/quad-store.ts` L134) is a view that fixes the graph
+`GraphScopedStore` (`src/quad-store.ts` L147) is a view that fixes the graph
 term — to trace `GRAPH ?g` scoping, check which graph term the store view
 carries.
 
@@ -220,7 +256,7 @@ carries.
   (`src/evaluator/bgp-evaluator.ts`) and `estimateJoinCost()` print the
   estimated cost per remaining pattern; toggle `reorderPatterns: false` in
   `WazooSparqlEngineOptions` to compare written order vs planned order.
-- **Hash join**: `joinTriplePattern()` (`src/evaluator/join.ts` L213) shows
+- **Hash join**: `joinTriplePattern()` (`src/evaluator/join.ts` L520) shows
   candidate probing; `ScanEntry.candidates.length` is the true store cardinality
   the planner uses.
 - **Expressions**: `ExpressionEvaluator.evaluate()` returns `undefined` for type

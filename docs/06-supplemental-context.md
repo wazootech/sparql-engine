@@ -37,8 +37,9 @@ engine is generated or vendored:
 | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------- |
 | `bench/engine_bench.ts` (`buildDataset`)                               | Generated ring of 400 people: foaf:name, xsd:integer age, blank-node pets, knows edges, 5 city tags, spouse edges on even indices (~1,600 quads) | All three-engine benchmarks                    |
 | `bench/engine_bench.ts` (`buildGraphDataset` / `buildGraphOpsDataset`) | 200 person quads in `<http://example.org/g1>`; g1 + 50-quad g2 for ADD/COPY/MOVE/CLEAR/DROP                                                      | GRAPH/FROM benchmarks and graph-op updates     |
+| `bench/memory-probe.ts` (`buildPeopleDataset`)                         | 10,000-person graph, ~55k quads (foaf:name/age, pets, cities, spouses) — the peak-memory workload                                                | `deno task bench:memory`                       |
 | `test/parity/parity-fixtures.ts` (`createQuadStore`)                   | Small seeded stores for differential parity cases                                                                                                | `test/parity/*.test.ts`                        |
-| `test/w3c/fixtures/sparql11/`                                          | W3C SPARQL 1.1 evaluation-core (~2.6 MB, 336 tests, 23 categories)                                                                               | `deno task test:w3c`                           |
+| `test/w3c/fixtures/sparql11/`                                          | W3C SPARQL 1.1 evaluation-core (~2.6 MB, 345 tests, 31 categories)                                                                               | `deno task test:w3c`                           |
 | `test/w3c/fixtures/sparql12/`                                          | W3C SPARQL 1.2 evaluation suite (249 tests) + triple-terms gap suite (41)                                                                        | `deno task test:sparql12`, `test:sparql12:gap` |
 | `test/w3c/fixtures/rdf/`                                               | RDF 1.1 + 1.2 Turtle/TriG/N-Triples/N-Quads syntax suites (~2.5 MB)                                                                              | `deno task test:rdf11`, `test:rdf12`           |
 | `test/w3c/exists-ref.ts`                                               | Small inline Turtle graph (7 triples) cross-checked vs Oxigraph                                                                                  | `deno task test:exists-ref`                    |
@@ -70,7 +71,7 @@ results as a secondary check. The posture is:
    against Oxigraph and N3.js by `deno task test:ref` (45/45 endorsed).
 
 Current standing: **249/249** SPARQL 1.2 evaluation (differential vs Comunica),
-**41/41** RDF 1.2 eval-triple-terms gap suite, **336/336** SPARQL 1.1
+**41/41** RDF 1.2 eval-triple-terms gap suite, **345/345** SPARQL 1.1
 evaluation-core for the w3c-parity job, plus the RDF 1.1/1.2 syntax gates and
 the Oxigraph EXISTS cross-check. These numbers are asserted by the runners
 themselves on every CI run — treat the README's "currently N/N" as a snapshot,

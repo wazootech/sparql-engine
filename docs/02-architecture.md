@@ -17,7 +17,7 @@ SPARQL string (request.query)
   │
   ▼
 ┌───────────────────────────────────────────────────────────────┐
-│ WazooSparqlEngine.execute()   src/wazoo-sparql-engine.ts L55  │
+│ WazooSparqlEngine.execute()   src/wazoo-sparql-engine.ts L56  │
 │   raw = request.query ?? request.update                        │
 │   ast  = parser.parse(raw)                                     │
 │   update? → UpdateEvaluator.executeUpdate(ast)   → {kind:"void"}│
@@ -152,14 +152,14 @@ comments cite the spec section for each mapping:
 
 | AST pattern (`type`) | Algebra operator (SPARQL 1.1 §18.2)               | Code                                              |
 | -------------------- | ------------------------------------------------- | ------------------------------------------------- |
-| `bgp`                | Join over triple patterns (hash join)             | `joinTriplePattern`, `src/evaluator/join.ts` L213 |
+| `bgp`                | Join over triple patterns (hash join)             | `joinTriplePattern`, `src/evaluator/join.ts` L520 |
 | `filter`             | Filter                                            | `ExpressionEvaluator.filterPasses()`              |
 | `bind`               | Extend(P, var, expr) — §18.2.2.2                  | `evaluatePattern` `"bind"` case                   |
 | `values`             | Join(P, Values(...)) — multiset natural join      | `innerJoin`                                       |
-| `optional`           | LeftJoin(P1, P2, F) — FILTERs hoisted to the join | `leftJoin`, `src/evaluator/join.ts` L78           |
-| `minus`              | Minus — §18.2.2.9, shared-variable anti-join      | `minus`, `src/evaluator/join.ts` L131             |
+| `optional`           | LeftJoin(P1, P2, F) — FILTERs hoisted to the join | `leftJoin`, `src/evaluator/join.ts` L82           |
+| `minus`              | Minus — §18.2.2.9, shared-variable anti-join      | `minus`, `src/evaluator/join.ts` L202             |
 | `union`              | Join(P, Union(Q1, Q2))                            | `innerJoin` over branch results                   |
-| `graph`              | Graph-scoped evaluation over a `GraphScopedStore` | `src/quad-store.ts` L134                          |
+| `graph`              | Graph-scoped evaluation over a `GraphScopedStore` | `src/quad-store.ts` L147                          |
 | `query` (subquery)   | Evaluated first, then joined — §18.2.4            | fresh `SparqlEvaluator` + `innerJoin`             |
 | `service`            | Evaluated locally (SILENT swallows errors)        | `"service"` case                                  |
 | `group`              | Nested group → Join with the outer solutions      | recursive `evaluateGroup`                         |
@@ -199,11 +199,41 @@ engine's optimizer. It is a _dynamic_ greedy planner, not a static rewrite:
      is probed, costing `bindings.length × average bucket size`
      (`candidates.length ÷ distinct bound values`).
 
-This is what makes the benchmark `chainQuery` ~32× faster with reordering
-enabled: a three-pattern chain written in worst-case order collapses a 400×400
-intermediate to 400 (see `bench/engine_bench.ts`, group `reorder-chain`).
-Setting `reorderPatterns: false` in `WazooSparqlEngineOptions` preserves written
-order exactly.
+### Worked example: the `reorder-chain` benchmark
+
+The `chainQuery` in `bench/engine_bench.ts` is a three-pattern chain written in
+worst-case order for a naive planner. Each pattern has exactly one constant (the
+predicate), so a constant-count heuristic would keep the written order:
+
+```sparql
+SELECT ?s ?grand ?n WHERE {
+  ?s     <http://xmlns.com/foaf/0.1/knows> ?friend .  -- P1: binds ?s, ?friend
+  ?grand <http://xmlns.com/foaf/0.1/name>  ?n .       -- P2: binds ?grand, ?n
+  ?friend <http://xmlns.com/foaf/0.1/knows> ?grand .  -- P3: binds ?friend, ?grand
+}
+```
+
+On the 400-person ring dataset, every scan yields 400 candidates and the initial
+bindings are empty — the greedy loop breaks the first tie (all costs 0) by
+picking the first pattern, so both plans start with P1. The choice happens at
+step 2:
+
+| Step | Written order (P1 → P2 → P3)                        | Reordered (P1 → P3 → P2)                           |
+| ---- | --------------------------------------------------- | -------------------------------------------------- |
+| 1    | scan P1 → 400 bindings                              | scan P1 → 400 bindings                             |
+| 2    | P2: `?grand`/`?n` unbound → 400 × 400 = **160,000** | P3: `?friend` bound (400 distinct) → 400 × 1 = 400 |
+| 3    | P3: `?friend` bound → 400 × 1 = 400                 | P2: `?grand` bound (400 distinct) → 400 × 1 = 400  |
+| work | ≈ 160,800 quad iterations                           | ≈ 1,200 quad iterations                            |
+
+At step 2 the written order joins the `name` pattern, where neither variable is
+bound yet, so every one of the 400 bindings must iterate all 400 `name`
+candidates — a 400×400 intermediate. The planner instead picks the `knows`
+pattern whose `?friend` variable **is** bound in the incoming solutions: the
+positional index is probed, costing `bindings.length × average bucket size` =
+400 × (400 ÷ 400) = 400. The 400×400 intermediate never materializes; total work
+drops from ~160,800 to ~1,200 quad iterations, which is the ~90× gap (136.5 ms →
+1.5 ms) the benchmark measures. Setting `reorderPatterns: false` in
+`WazooSparqlEngineOptions` preserves written order exactly.
 
 ## Stage 4 — Execute (storage scans & joins)
 
@@ -224,20 +254,20 @@ The engine never owns data. It binds to any `rdfjs.Source` / `rdfjs.Store`:
 
 | Function                     | Role                                                                                                  |
 | ---------------------------- | ----------------------------------------------------------------------------------------------------- |
-| `matchQuads(store, s,p,o,g)` | Resolves the store's `match()` **stream** into an array (L89)                                         |
+| `matchQuads(store, s,p,o,g)` | Resolves the store's `match()` **stream** into an array (L102)                                        |
 | `buildQuadIndex(quads)`      | O(1) positional buckets `bySubject/byPredicate/byObject` keyed by `termKey` (L21)                     |
 | `probeQuadIndex(index, ...)` | Picks the smallest constrained bucket, filters the rest positionally (L56)                            |
-| `GraphScopedStore`           | Read-only view fixing the graph term of every scan — GRAPH scoping with no call-site awareness (L134) |
-| `namedGraphs(store)`         | Enumerates `GRAPH ?g` candidates (L157)                                                               |
-| `buildDatasetStore(...)`     | Materializes the active dataset for `FROM`/`FROM NAMED` into a fresh `MemoryStore` (L180)             |
+| `GraphScopedStore`           | Read-only view fixing the graph term of every scan — GRAPH scoping with no call-site awareness (L147) |
+| `namedGraphs(store)`         | Enumerates `GRAPH ?g` candidates (L176)                                                               |
+| `buildDatasetStore(...)`     | Materializes the active dataset for `FROM`/`FROM NAMED` into a fresh `MemoryStore` (L199)             |
 
 ### Scan → hash join
 
-`scanEntry()` (`src/evaluator/join.ts` L157) resolves a triple pattern
+`scanEntry()` (`src/evaluator/join.ts` L454) resolves a triple pattern
 (subject/predicate/object), runs **one** `matchQuads` scan for its constant
 positions, and returns a `ScanEntry` carrying the pre-fetched `candidates`.
 
-`joinTriplePattern()` (L213) is a hash join over those candidates:
+`joinTriplePattern()` (L520) is a hash join over those candidates:
 
 1. If any incoming binding already binds a pattern variable, the candidates are
    indexed once with `buildQuadIndex`.
@@ -297,7 +327,7 @@ the incoming bindings.
   raw solutions. The engine favors pre-fetched + indexed scans over per-binding
   stream round trips.
 - **Streams only at the store boundary.** `rdfjs.Stream` is consumed exactly
-  once, in `matchQuads` (`src/quad-store.ts` L89), using the standard
+  once, in `matchQuads` (`src/quad-store.ts` L102), using the standard
   `data`/`end`/`error` event protocol. `MemoryStream` implements that protocol
   with zero dependencies (flow mode on `data`, pull mode on `read`/`readable`,
   completion-only on bare `end`), keeping the package browser-friendly.

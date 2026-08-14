@@ -22,6 +22,9 @@
 - title: Supplemental Context
   num: "06"
   url: /06-supplemental-context.html
-- title: Durable Transactions
+- title: Benchmarking & Performance
   num: "07"
+  url: /07-benchmarking.html
+- title: Durable Transactions
+  num: "08"
   url: /durable-transactions.html

@@ -25,6 +25,7 @@ relative to the repository root.
 | [04 — Source Map](04-source-map.md)                     | Directory walkthrough, file → symbol → doc mapping     |
 | [05 — Verification & Testing](05-testing.md)            | Unit/parity/W3C suites, benchmarking, debugging        |
 | [06 — Supplemental Context](06-supplemental-context.md) | Datasets, W3C suite notes, divergences, metadata       |
+| [07 — Benchmarking & Performance](07-benchmarking.md)   | Methodology + known results for every benchmark tool   |
 
 Related in-repo documents: [ARCHITECTURE.md](../ARCHITECTURE.md) (topology and
 `@worlds/client` relationship), [CONTEXT.md](../CONTEXT.md) (glossary), and
@@ -50,6 +51,22 @@ rdfjs.Store (MemoryStore, SqliteStore, any)  src/store/, src/quad-store.ts
 
 Updates take a parallel path through `UpdateEvaluator.executeUpdate()`
 (`src/evaluator/update-evaluator.ts`) with optional atomic transactions.
+
+## Footprint at a glance
+
+Two treemaps summarize what the engine costs to ship and run versus the
+reference engines (area ∝ size; full methodology and tables in
+[07 — Benchmarking & Performance](07-benchmarking.md)):
+
+|                          | native                   | oxigraph | comunica                |
+| ------------------------ | ------------------------ | -------- | ----------------------- |
+| on-disk footprint        | **0.67 MiB** (zero deps) | 7.9 MiB  | 28.3 MiB (368 packages) |
+| peak heap, full scan     | **134 MB**               | 251 MB   | 214 MB                  |
+| peak heap, nested EXISTS | **82 MB**                | 108 MB   | 271 MB                  |
+
+![Library size treemap](assets/treemap-library-size.svg)
+
+![Memory treemap](assets/treemap-memory.svg)
 
 ## GitHub Pages setup
 
