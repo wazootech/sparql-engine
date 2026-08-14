@@ -101,7 +101,8 @@ label identity.
 - **Pattern-evaluation hook** — the injected
   `evaluateExists(pattern,
   solution) => boolean` seam binding the pure
-  expression layer to the graph scope and active dataset.
+  expression layer to the graph scope and active dataset. Backed by a per-call
+  `ExistsSnapshot` (issue #72), so concurrent evaluations stay isolated.
 - **Correlated evaluation** — inner patterns see the outer solution's bindings;
   inner bindings never leak out.
 

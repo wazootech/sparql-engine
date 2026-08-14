@@ -50,8 +50,9 @@ deno test -n "exists"       # filter by test name substring
 Covered areas: parser (`src/parser/mod.test.ts`, `turtle-parser.test.ts`), store
 semantics (`src/store/memory-store.test.ts`, `sqlite-store.test.ts`), quad-store
 adapters (`src/quad-store.test.ts`), term algebra (`src/term/term.test.ts`),
-updates (`src/evaluator/update-evaluator.test.ts`), and the 3,700-line engine
-integration suite (`src/wazoo-sparql-engine.test.ts`).
+updates (`src/evaluator/update-evaluator.test.ts`), and the 3,900-line engine
+integration suite (`src/wazoo-sparql-engine.test.ts`) — including the
+concurrent-`execute()` isolation tests for the EXISTS snapshot (issue #72).
 
 ## Differential parity (the project's core test)
 
@@ -143,6 +144,29 @@ reordering enabled, at parity with Oxigraph.
 `bench/budget.ts` runs two queries (a 2-pattern BGP join and a reorder chain)
 50× against a 100-subject store and fails if average latency exceeds
 `maxAllowedMs: 50` from `bench/baseline.json`. This is the CI perf gate.
+
+### `bench/concurrency-probe.ts` — EXISTS concurrency stress
+
+Standalone probe for issue #72 (a concurrent `execute()` must never observe
+another call's EXISTS snapshot rebuild). Five queries cover the EXISTS surface —
+flat, `NOT EXISTS`, nested, `ORDER BY`, and `GROUP BY` + `OPTIONAL` — over a
+300-subject store:
+
+1. **Static-store concurrency** — 40 rounds of the shuffled query mix run via
+   `Promise.all`, asserting every round matches the sequential baseline
+   byte-for-byte.
+2. **Update interleaving** — 20 rounds of a self-restoring DELETE/INSERT UPDATE
+   running concurrently with EXISTS queries, asserting no call errors (exact
+   results are undefined mid-mutation).
+
+Any error or divergence exits 1:
+
+```bash
+deno run --allow-all bench/concurrency-probe.ts
+```
+
+The same guarantees are locked in as unit tests in
+`src/wazoo-sparql-engine.test.ts`.
 
 ## Debugging guide
 

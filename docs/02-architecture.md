@@ -36,7 +36,7 @@ SPARQL string (request.query)
                 ▼
 ┌───────────────────────────────────────────────────────────────┐
 │ BgpEvaluator.evaluateBgp()  src/evaluator/bgp-evaluator.ts    │
-│   prepareExistsIndex()  (only when EXISTS/NOT EXISTS present) │
+│   resolve EXISTS snapshot  (when EXISTS/NOT EXISTS present)   │
 │   evaluateGroup(): walk patterns, thread solution bindings    │
 │     bgp      → joinBgp()   → scanEntry / joinTriplePattern    │
 │     path     → scanPathEntry / joinPathPattern                │
@@ -296,11 +296,16 @@ the incoming bindings.
   `data`/`end`/`error` event protocol. `MemoryStream` implements that protocol
   with zero dependencies (flow mode on `data`, pull mode on `read`/`readable`,
   completion-only on bare `end`), keeping the package browser-friendly.
-- **EXISTS snapshot.** Queries containing `EXISTS`/`NOT EXISTS` drain the store
-  once per query into `existsQuads` + `existsIndex` via
-  `BgpEvaluator.prepareExistsIndex()` (`src/evaluator/bgp-evaluator.ts`), which
-  the **synchronous** `evaluateExists` hook probes. The snapshot is rebuilt per
-  query, so updates between queries never see a stale picture.
+- **EXISTS snapshot.** Queries containing `EXISTS`/`NOT EXISTS` resolve a
+  synchronous snapshot (`quads` + `QuadIndex` + store `version`) once per
+  evaluation via `BgpEvaluator.prepareExistsIndex()` L150 in
+  `src/evaluator/bgp-evaluator.ts` — the **synchronous** `evaluateExists` hook
+  probes it. The resolved snapshot is captured for the call and threaded
+  explicitly through every EXISTS hook, so a concurrent `execute()` whose cache
+  rebuilds can never swap it mid-evaluation (issue #72). The store's mutation
+  version still invalidates the cache, so updates between queries never see
+  stale data, and repeat evaluations of an unchanged store skip the drain
+  entirely.
 - **Identity & hashing.** `termKey` (`src/term/identity.ts` L8) is a sound
   RDF-term equality key used for all hashing (quad indexes, dataset dedup,
   DISTINCT, grouping); `sameRdfTerm` does structural comparison, including RDF

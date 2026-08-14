@@ -218,6 +218,13 @@ ORDER BY, HAVING, projection) with the current graph scope, so EXISTS works
 uniformly in every expression position — nested `&&`, inside OPTIONAL,
 EXISTS-inside-EXISTS, and subqueries inside EXISTS.
 
+The hooks evaluate against a **per-call snapshot**: `prepareExistsIndex()`
+returns `Promise<ExistsSnapshot>` (an internal `quads` + `QuadIndex` + `version`
+record; previously `Promise<void>`), and the private context builders —
+`scopedExistsContext(store, snapshot)`, `pipelineExistsContext(snapshot)` —
+capture it once so a concurrent `execute()`'s cache rebuild is never observable
+mid-evaluation (issue #72).
+
 ### 4. Custom functions & operators
 
 There is **no plugin registry** for user-defined functions: the operator and
