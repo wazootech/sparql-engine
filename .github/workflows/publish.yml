@@ -17,4 +17,15 @@ jobs:
           deno-version: v2.x
       - run: deno task ci
       - run: deno task publish:dry
-      - run: deno publish
+      # deno publish exits 0 when the version is already on JSR, so a stale
+      # version would otherwise make this workflow a silent no-op (which is
+      # how 0.1.0 shipped without the MemoryStore export). Fail loudly instead:
+      # bump deno.json version before merging to main.
+      - name: Publish to JSR
+        run: |
+          output=$(deno publish 2>&1)
+          echo "$output"
+          if echo "$output" | grep -q "already published"; then
+            echo "::error::deno publish skipped: version already on JSR. Bump the version in deno.json before merging to main."
+            exit 1
+          fi

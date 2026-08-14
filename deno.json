@@ -1,10 +1,14 @@
 {
   "name": "@wazoo/sparql-engine",
   "description": "Zero-dependency SPARQL 1.1 & 1.2 query and update engine over RDF/JS Quad Stores.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "license": "MIT",
   "exports": {
     ".": "./src/mod.ts"
+  },
+  "publish": {
+    "include": ["src/", "README.md", "LICENSE"],
+    "exclude": ["src/**/*.test.ts"]
   },
   "imports": {
     "@/": "./src/",
