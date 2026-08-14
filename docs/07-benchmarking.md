@@ -113,6 +113,7 @@ ms/iter within the row:
 ### Reading the numbers
 
 - **Core joins**: wazoo is fastest on every scan/join row, with the asymmetric
+
   join ~16× faster than Comunica.
 - **Join scaling is sub-quadratic.** The wazoo hash join probes an indexed right
   side per left binding instead of scanning it: the nested-loop before-state of
@@ -127,6 +128,7 @@ ms/iter within the row:
   engine with native indexes, which stays ahead on the reorder-chain row).
 - **The dynamic join planner is worth ~80×** on the worst-case-ordered
   three-pattern chain (97.4 ms → 1.2 ms) — see
+
   [02 — System Architecture & Query Pipeline](02-architecture.md), Stage 3.
 
 ## `deno task bench:check` — regression budget
