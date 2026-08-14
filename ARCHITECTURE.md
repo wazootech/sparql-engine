@@ -50,6 +50,6 @@ transaction objects.
 The interface is intentionally duplicated in both packages under an
 identical-spec policy: the two copies must stay identical. Behavioral deltas
 today: `ComunicaSparqlEngine` enforces `timeoutMs` and accepts a request-level
-`baseIri`, while the native engine derives the base IRI from the query's `BASE`
+`baseIri`, while the wazoo engine derives the base IRI from the query's `BASE`
 directive and does not yet enforce a timeout. Keep these differences in mind
 when swapping engines.

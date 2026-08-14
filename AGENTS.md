@@ -13,7 +13,7 @@ repository in the Wazoo multi-repo workspace.
 - **Zero cryptic abbreviations:** Never utilize ambiguous shorthand (`rs`,
   `res`, `q`, `err`). Use `resultSet`, `response`, `quad`, `error`.
 - **Direct file-symbol alignment:** Source filenames must match exported primary
-  symbols using lowercase kebab-case (e.g. `native-sparql-engine.ts`).
+  symbols using lowercase kebab-case (e.g. `wazoo-sparql-engine.ts`).
 - **JSDoc semantics:** JSDoc comments for all exported symbols MUST begin
   directly with the symbol's exact name.
 

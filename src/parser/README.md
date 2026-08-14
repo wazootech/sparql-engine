@@ -8,11 +8,11 @@ that upstream's grammar does not whitelist.
 
 The parity contract is behavioral equivalence with
 `@comunica/query-sparql-rdfjs-lite`, and the target is a superset: anything
-Comunica can run, the native engine must run. Comunica 5.x parses SPARQL with
-`@traqula/parser-sparql-1-2`, which accepts `LANGDIR(...)` — but the native
+Comunica can run, the wazoo engine must run. Comunica 5.x parses SPARQL with
+`@traqula/parser-sparql-1-2`, which accepts `LANGDIR(...)` — but the wazoo
 engine's sparqljs 3.7.4 grammar rejects **all four** SPARQL 1.2
 direction-function names (they are not in its builtin whitelist), so `LANGDIR`
-was a real, reachable parity gap: Comunica ran it, native could not even parse
+was a real, reachable parity gap: Comunica ran it, wazoo could not even parse
 it.
 
 Rather than depend on upstream sparqljs's release cadence, the parser is

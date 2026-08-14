@@ -42,7 +42,7 @@ export interface ParityTestCase {
  * Comunica's query-source skolemization applies to results. Comunica rewrites
  * blank nodes into "bc_<sourceId>_<label>" (BlankNodeScoped) so that identical
  * labels from different sources stay distinct. Blank node labels are opaque per
- * SPARQL 1.1 result semantics, and the native engine deliberately returns the
+ * SPARQL 1.1 result semantics, and the wazoo engine deliberately returns the
  * store's own labels, so the prefix is removed before comparison.
  */
 function normalizeComunicaBlankNodeLabel(label: string): string {
@@ -273,18 +273,18 @@ async function runComunicaConstruct(
 
 /**
  * compareResult runs the given test case against the Comunica engine and
- * compares its observable output with the native engine's result.
+ * compares its observable output with the wazoo engine's result.
  */
 async function compareResult(
   testCase: ParityTestCase,
   comunicaEngine: QueryEngine,
   comunicaStore: Store,
-  nativeResult: SparqlResponse,
+  wazooResult: SparqlResponse,
 ): Promise<string | null> {
   switch (testCase.kind) {
     case "select": {
-      if (nativeResult.kind !== "select") {
-        return `Native engine returned ${nativeResult.kind} instead of select`;
+      if (wazooResult.kind !== "select") {
+        return `Wazoo engine returned ${wazooResult.kind} instead of select`;
       }
       const comunicaBindings = await runComunicaSelect(
         comunicaEngine,
@@ -293,12 +293,12 @@ async function compareResult(
       );
       const varsMismatch = compareVars(
         extractSelectVars(testCase.query),
-        nativeResult.data.head.vars,
+        wazooResult.data.head.vars,
       );
       if (varsMismatch !== null) {
         return varsMismatch;
       }
-      const nativeBindings = nativeResult.data.results.bindings.map(
+      const wazooBindings = wazooResult.data.results.bindings.map(
         (binding) => {
           const canonical: Record<string, CanonicalTerm> = {};
           for (const name of Object.keys(binding)) {
@@ -308,48 +308,48 @@ async function compareResult(
         },
       );
       return testCase.orderSensitive === true
-        ? compareOrdered(comunicaBindings, nativeBindings, "SELECT bindings")
-        : compareMultisets(comunicaBindings, nativeBindings, "SELECT bindings");
+        ? compareOrdered(comunicaBindings, wazooBindings, "SELECT bindings")
+        : compareMultisets(comunicaBindings, wazooBindings, "SELECT bindings");
     }
     case "ask": {
-      if (nativeResult.kind !== "ask") {
-        return `Native engine returned ${nativeResult.kind} instead of ask`;
+      if (wazooResult.kind !== "ask") {
+        return `Wazoo engine returned ${wazooResult.kind} instead of ask`;
       }
       const comunicaBoolean = await comunicaEngine.queryBoolean(
         testCase.query,
         { sources: [comunicaStore] },
       );
-      if (comunicaBoolean !== nativeResult.data.boolean) {
+      if (comunicaBoolean !== wazooResult.data.boolean) {
         return (
           `ASK mismatch: expected ${comunicaBoolean} ` +
-          `but got ${nativeResult.data.boolean}`
+          `but got ${wazooResult.data.boolean}`
         );
       }
       return null;
     }
     case "construct": {
-      if (nativeResult.kind !== "construct") {
-        return `Native engine returned ${nativeResult.kind} instead of construct`;
+      if (wazooResult.kind !== "construct") {
+        return `Wazoo engine returned ${wazooResult.kind} instead of construct`;
       }
       const comunicaQuads = await runComunicaConstruct(
         comunicaEngine,
         testCase.query,
         comunicaStore,
       );
-      const nativeQuads = nativeResult.data.quads.map(canonicalQuadString);
+      const wazooQuads = wazooResult.data.quads.map(canonicalQuadString);
       // Issue #87 contract: the reference side is normalized to graph
       // content (Comunica's stream may repeat a triple its graph would
-      // not), while the native side is compared as-emitted — a conforming
+      // not), while the wazoo side is compared as-emitted — a conforming
       // engine emits no duplicate quads, so a duplicate regression fails.
       return compareMultisets(
         [...new Set(comunicaQuads)],
-        nativeQuads,
+        wazooQuads,
         "CONSTRUCT quads",
       );
     }
     case "describe": {
-      if (nativeResult.kind !== "construct") {
-        return `Native engine returned ${nativeResult.kind} instead of construct (DESCRIBE)`;
+      if (wazooResult.kind !== "construct") {
+        return `Wazoo engine returned ${wazooResult.kind} instead of construct (DESCRIBE)`;
       }
       const comunicaQuads = await runComunicaConstruct(
         comunicaEngine,
@@ -359,10 +359,10 @@ async function compareResult(
       // DESCRIBE results are graphs (sets): Comunica's stream may repeat a
       // resource's arcs, so both sides are deduplicated before comparing.
       const comunicaSet = [...new Set(comunicaQuads)];
-      const nativeSet = [
-        ...new Set(nativeResult.data.quads.map(canonicalQuadString)),
+      const wazooSet = [
+        ...new Set(wazooResult.data.quads.map(canonicalQuadString)),
       ];
-      return compareMultisets(comunicaSet, nativeSet, "DESCRIBE quads");
+      return compareMultisets(comunicaSet, wazooSet, "DESCRIBE quads");
     }
   }
 }
@@ -376,16 +376,16 @@ export async function assertQueryParity(
 ): Promise<void> {
   const comunicaEngine = getComunicaEngine();
   const comunicaStore = createQuadStore(testCase.quads);
-  const nativeEngine = new WazooSparqlEngine({
+  const wazooEngine = new WazooSparqlEngine({
     store: createQuadStore(testCase.quads),
   });
 
-  const nativeResult = await nativeEngine.execute({ query: testCase.query });
+  const wazooResult = await wazooEngine.execute({ query: testCase.query });
   const mismatch = await compareResult(
     testCase,
     comunicaEngine,
     comunicaStore,
-    nativeResult,
+    wazooResult,
   );
   if (mismatch !== null) {
     fail(`${mismatch}\n\nQuery: ${testCase.query}`);
@@ -412,7 +412,7 @@ export interface ParityUpdateCase {
  * canonicalStoreQuads renders a store's full contents as a deterministic
  * multiset of canonical quad strings, normalizing blank node labels by
  * position. Blank node labels are opaque: INSERT DATA mints fresh labels per
- * execution (Comunica emits e_<label>NN, the native engine u<N>), so the
+ * execution (Comunica emits e_<label>NN, the wazoo engine u<N>), so the
  * comparison must treat two stores as equal when they agree up to blank node
  * relabeling. Quads are sorted by their label-independent structural form
  * first, then labels are canonicalized in order of first appearance, which
@@ -470,13 +470,13 @@ export async function assertUpdateParity(
 ): Promise<void> {
   const comunicaEngine = getComunicaEngine();
   const comunicaStore = createQuadStore(testCase.quads);
-  const nativeStore = createQuadStore(testCase.quads);
-  const nativeEngine = new WazooSparqlEngine({ store: nativeStore });
+  const wazooStore = createQuadStore(testCase.quads);
+  const wazooEngine = new WazooSparqlEngine({ store: wazooStore });
 
-  const nativeResult = await nativeEngine.execute({ query: testCase.update });
-  if (nativeResult.kind !== "void") {
+  const wazooResult = await wazooEngine.execute({ query: testCase.update });
+  if (wazooResult.kind !== "void") {
     fail(
-      `${testCase.name}: native engine returned ${nativeResult.kind} ` +
+      `${testCase.name}: wazoo engine returned ${wazooResult.kind} ` +
         `instead of void for update`,
     );
   }
@@ -486,7 +486,7 @@ export async function assertUpdateParity(
 
   const mismatch = compareMultisets(
     canonicalStoreQuads(comunicaStore),
-    canonicalStoreQuads(nativeStore),
+    canonicalStoreQuads(wazooStore),
     "final store quads",
   );
   if (mismatch !== null) {

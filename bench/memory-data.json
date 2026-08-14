@@ -4,7 +4,7 @@
   "dataset": "10,000-person graph (~55,000 quads)",
   "measurement": "isolated Deno subprocess per engine, Deno.memoryUsage() peak after each run",
   "engines": {
-    "native": {
+    "wazoo": {
       "scan": {
         "peakHeap": 140895480,
         "peakRss": 263184384,

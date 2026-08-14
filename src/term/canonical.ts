@@ -4,7 +4,7 @@ import { XSD_STRING } from "./numeric.ts";
 
 /**
  * CanonicalTerm is a serialization-stable projection of an RDF term that is
- * produced identically from Comunica terms, native SparqlValue objects, and
+ * produced identically from Comunica terms, wazoo SparqlValue objects, and
  * other RDF/JS-shaped terms such as Oxigraph's. Two terms canonicalize to the
  * same CanonicalTerm exactly when they are the same RDF term.
  */
@@ -59,8 +59,8 @@ export function canonicalizeRdfTerm(term: rdfjs.Term): CanonicalTerm {
 }
 
 /**
- * canonicalizeSparqlValue normalizes a native SparqlValue into a
- * CanonicalTerm, so native results compare structurally with RDF/JS-shaped
+ * canonicalizeSparqlValue normalizes a wazoo SparqlValue into a
+ * CanonicalTerm, so wazoo results compare structurally with RDF/JS-shaped
  * results from other engines.
  */
 export function canonicalizeSparqlValue(value: SparqlValue): CanonicalTerm {

@@ -5,7 +5,7 @@
 // Run: deno run --allow-all --allow-write --allow-read bench/collect-memory.ts
 import { join } from "@std/path";
 
-const ENGINES = ["native", "comunica", "oxigraph"];
+const ENGINES = ["wazoo", "comunica", "oxigraph"];
 const WORKLOADS = ["scan", "exists"] as const;
 
 const engines: Record<string, Record<string, unknown>> = {};

@@ -244,10 +244,10 @@ async function evaluate(testCase: W3cTestCase): Promise<Verdict> {
   }
 
   const store = loadStore(testCase);
-  let nativeResult: SparqlResponse;
+  let wazooResult: SparqlResponse;
   try {
-    const native = new WazooSparqlEngine({ store });
-    nativeResult = await native.execute({ query });
+    const wazoo = new WazooSparqlEngine({ store });
+    wazooResult = await wazoo.execute({ query });
   } catch (error) {
     return {
       status: "error",
@@ -273,9 +273,9 @@ async function evaluate(testCase: W3cTestCase): Promise<Verdict> {
           canonicalizeRdfTerm(q.object),
         ],
       );
-      const actualQuads = nativeResult.kind === "construct"
-        ? nativeResult.data.quads
-        : (nativeResult.kind === "void"
+      const actualQuads = wazooResult.kind === "construct"
+        ? wazooResult.data.quads
+        : (wazooResult.kind === "void"
           ? store.getQuads(null, null, null, null)
           : []);
       const actualRecords = actualQuads.map(

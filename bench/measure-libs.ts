@@ -1,7 +1,7 @@
 // Library-size measurement for the README's size comparison. Measures what a
 // consumer must have on disk for each engine:
 //
-//   - native:  the JSR publish artifact (src/ + README.md + LICENSE), broken
+//   - wazoo:  the JSR publish artifact (src/ + README.md + LICENSE), broken
 //              down by top-level module.
 //   - oxigraph: the installed npm package, broken down into the WASM binary
 //              vs the JS glue.
@@ -181,7 +181,7 @@ function comunicaArtifact(): Sized {
 }
 
 /* ------------------------------------------------------------------ */
-/* native + oxigraph                                                  */
+/* wazoo + oxigraph                                                  */
 /* ------------------------------------------------------------------ */
 
 /** Files excluded from the JSR artifact via publish.exclude (mirrors
@@ -244,7 +244,7 @@ async function gzipBytesOf(files: string[]): Promise<number> {
   return total;
 }
 
-function nativeArtifact(): Sized {
+function wazooArtifact(): Sized {
   const root = join(Deno.cwd());
   const files = artifactFiles();
   const byTop = new Map<string, number>();
@@ -254,7 +254,7 @@ function nativeArtifact(): Sized {
     byTop.set(top, (byTop.get(top) ?? 0) + Deno.statSync(file).size);
   }
   return {
-    name: "native",
+    name: "wazoo",
     bytes: [...byTop.values()].reduce((a, b) => a + b, 0),
     children: [...byTop.entries()]
       .map(([name, bytes]) => ({ name, bytes }))
@@ -296,13 +296,13 @@ function oxigraphArtifact(): Sized {
 }
 
 scanInstalled();
-const native = nativeArtifact();
+const wazoo = wazooArtifact();
 const artifact = artifactFiles();
 const result = {
   generatedAt: new Date().toISOString(),
-  engines: [native, oxigraphArtifact(), comunicaArtifact()],
-  native: {
-    artifactBytes: native.bytes,
+  engines: [wazoo, oxigraphArtifact(), comunicaArtifact()],
+  wazoo: {
+    artifactBytes: wazoo.bytes,
     gzipBytes: await gzipBytesOf(artifact),
     files: artifact.length,
   },

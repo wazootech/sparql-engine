@@ -21,8 +21,8 @@ export interface SparqlEngineInterface {
 export interface SparqlRequest {
   query?: string; // raw SPARQL query string
   update?: string; // raw SPARQL update string
-  baseIri?: string; // accepted; native engine derives base from BASE directive
-  timeoutMs?: number; // accepted; not yet enforced by the native engine
+  baseIri?: string; // accepted; wazoo engine derives base from BASE directive
+  timeoutMs?: number; // accepted; not yet enforced by the wazoo engine
 }
 ```
 
