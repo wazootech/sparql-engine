@@ -6,6 +6,10 @@
   "exports": {
     ".": "./src/mod.ts"
   },
+  "publish": {
+    "include": ["src/", "README.md", "LICENSE"],
+    "exclude": ["src/**/*.test.ts"]
+  },
   "imports": {
     "@/": "./src/",
     "@comunica/query-sparql-rdfjs-lite": "npm:@comunica/query-sparql-rdfjs-lite@^5.1.3",
