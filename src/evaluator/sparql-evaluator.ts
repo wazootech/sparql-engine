@@ -155,14 +155,16 @@ export class SparqlEvaluator {
     // re-filtering the snapshot per expression evaluation. Only queries that
     // actually use EXISTS in the pipeline prepare the index.
     const needsPipelineExists = pipelineNeedsExistsIndex(query);
-    if (needsPipelineExists) {
-      await evaluator.prepareExistsIndex();
-    }
+    const pipelineSnapshot = needsPipelineExists
+      ? await evaluator.prepareExistsIndex()
+      : null;
     const existsContext: ExpressionEvaluationContext = {
-      ...(needsPipelineExists ? evaluator.pipelineExistsContext() : {
-        evaluateExists: (pattern: Pattern, solution: TermBinding) =>
-          evaluator.evaluateExists(pattern, solution),
-      }),
+      ...(needsPipelineExists
+        ? evaluator.pipelineExistsContext(pipelineSnapshot!)
+        : {
+          evaluateExists: (pattern: Pattern, solution: TermBinding) =>
+            evaluator.evaluateExists(pattern, solution),
+        }),
       baseIri: query.base,
     };
     // The post-BGP SELECT pipeline (VALUES, grouping/aggregates, HAVING,

@@ -2999,6 +2999,118 @@ Deno.test("WazooSparqlEngine - main-path joins never leak named graphs when EXIS
   ]);
 });
 
+Deno.test("WazooSparqlEngine - concurrent execute() calls are isolated from each other", async () => {
+  // One engine over one static store: concurrent EXISTS queries must return
+  // the same results as sequential execution (issue #72) — each call
+  // captures its own snapshot, so a concurrent call can never swap the
+  // EXISTS index mid-evaluation.
+  const store = new Store();
+  const ex = (local: string) => namedNode(`http://example.org/${local}`);
+  for (let i = 0; i < 200; i++) {
+    const s = namedNode(`http://example.org/s${i}`);
+    store.addQuad(quad(s, ex("name"), literal(`Name ${i}`)));
+    if (i % 2 === 0) {
+      store.addQuad(
+        quad(
+          s,
+          ex("spouse"),
+          namedNode(`http://example.org/s${(i + 1) % 200}`),
+        ),
+      );
+    }
+  }
+  const engine = new WazooSparqlEngine({ store });
+
+  const queries = [
+    "SELECT ?s WHERE { ?s <http://example.org/name> ?n " +
+    "FILTER EXISTS { ?s <http://example.org/spouse> ?spouse } }",
+    "SELECT ?s WHERE { ?s <http://example.org/name> ?n " +
+    "FILTER NOT EXISTS { ?s <http://example.org/spouse> ?spouse } }",
+    "SELECT ?s WHERE { ?s <http://example.org/name> ?n " +
+    "FILTER EXISTS { ?s <http://example.org/spouse> ?spouse . " +
+    "FILTER EXISTS { ?spouse <http://example.org/name> ?n2 } } }",
+    "SELECT ?s (COUNT(?o) AS ?c) WHERE { ?s <http://example.org/name> ?n " +
+    "OPTIONAL { ?s <http://example.org/spouse> ?spouse . " +
+    "FILTER EXISTS { ?spouse <http://example.org/name> ?n2 } } } " +
+    "GROUP BY ?s",
+  ];
+
+  async function resultOf(query: string): Promise<string> {
+    const result = await engine.execute({ query });
+    if (result.kind !== "select") {
+      throw new Error(`expected select, got ${result.kind}`);
+    }
+    return JSON.stringify(
+      result.data.results.bindings.map((binding) => {
+        const record: Record<string, unknown> = {};
+        for (const name of Object.keys(binding)) {
+          record[name] = binding[name];
+        }
+        return record;
+      }).sort((a, b) => JSON.stringify(a) < JSON.stringify(b) ? -1 : 1),
+    );
+  }
+
+  const sequential = new Map<string, string>();
+  for (const query of queries) {
+    sequential.set(query, await resultOf(query));
+  }
+
+  for (let round = 0; round < 6; round++) {
+    const shuffled = [...queries].sort(() => Math.random() - 0.5);
+    const concurrent = await Promise.all(shuffled.map(resultOf));
+    for (let i = 0; i < concurrent.length; i++) {
+      assertEquals(
+        concurrent[i],
+        sequential.get(shuffled[i]),
+        `round ${round}: concurrent result diverged from sequential`,
+      );
+    }
+  }
+});
+
+Deno.test("WazooSparqlEngine - concurrent updates never corrupt in-flight EXISTS evaluation", async () => {
+  // A self-restoring update interleaved with EXISTS queries: the store
+  // version churns, so the shared snapshot cache is rebuilt while queries
+  // are mid-flight. No query may error — each call uses its own captured
+  // snapshot — even though the mutation makes exact results undefined.
+  const store = new Store();
+  const ex = (local: string) => namedNode(`http://example.org/${local}`);
+  for (let i = 0; i < 200; i++) {
+    const s = namedNode(`http://example.org/s${i}`);
+    store.addQuad(quad(s, ex("name"), literal(`Name ${i}`)));
+    if (i % 2 === 0) {
+      store.addQuad(
+        quad(
+          s,
+          ex("spouse"),
+          namedNode(`http://example.org/s${(i + 1) % 200}`),
+        ),
+      );
+    }
+  }
+  const engine = new WazooSparqlEngine({ store });
+
+  const existsQuery = "SELECT ?s WHERE { ?s <http://example.org/name> ?n " +
+    "FILTER EXISTS { ?s <http://example.org/spouse> ?spouse } }";
+  const rewrite = "DELETE { ?s <http://example.org/spouse> ?spouse } " +
+    "INSERT { ?s <http://example.org/spouse> ?spouse } " +
+    "WHERE { ?s <http://example.org/spouse> ?spouse }";
+
+  for (let round = 0; round < 5; round++) {
+    const results = await Promise.all([
+      engine.execute({ query: rewrite }),
+      engine.execute({ query: existsQuery }),
+      engine.execute({ query: existsQuery }),
+    ]);
+    for (const result of results) {
+      if (result.kind !== "select" && result.kind !== "void") {
+        throw new Error(`unexpected kind ${result.kind}`);
+      }
+    }
+  }
+});
+
 Deno.test("WazooSparqlEngine - OPTIONAL, MINUS, UNION inside EXISTS reuse the join algebra", async () => {
   // Default graph: a -p-> b -q-> c -q-> d, b -r-> c, and a -p-> e (e has no q
   // or r edges). Named graph g1: a -p-> b -q-> c; g2: a -p-> b (no q).

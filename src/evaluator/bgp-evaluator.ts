@@ -45,6 +45,20 @@ import {
 export type { TermBinding } from "@/evaluator/join.ts";
 
 /**
+ * ExistsSnapshot is one drained, indexed view of the evaluator's store. Each
+ * query evaluation resolves its own snapshot once (from the version-cached
+ * fields or a fresh drain) and threads it explicitly through the EXISTS
+ * hooks — never re-reading the shared cache mid-evaluation — so concurrent
+ * execute() calls on one engine cannot swap the snapshot out from under each
+ * other (issue #72).
+ */
+interface ExistsSnapshot {
+  quads: rdfjs.Quad[];
+  index: QuadIndex;
+  version: number | null;
+}
+
+/**
  * BgpEvaluatorOptions configures BgpEvaluator.
  */
 export interface BgpEvaluatorOptions {
@@ -107,7 +121,9 @@ export class BgpEvaluator {
     // injected hooks probe (the decided sync-hook contract). The snapshot is
     // cached across queries and invalidated by the store's mutation version,
     // so updates between queries never see stale data and repeated queries
-    // against an unchanged store skip the drain entirely.
+    // against an unchanged store skip the drain entirely. The resolved
+    // snapshot is captured for this call and threaded down — a concurrent
+    // call's rebuild never swaps it mid-evaluation.
     if (patternListContainsExists(patterns)) {
       await this.prepareExistsIndex();
     }
@@ -121,23 +137,34 @@ export class BgpEvaluator {
   }
 
   /**
-   * prepareExistsIndex drains the evaluator's store into the synchronous
-   * QuadIndex used by the EXISTS hooks. The SparqlEvaluator calls it for
-   * projection / ORDER BY / HAVING expressions when they contain EXISTS even
-   * though the WHERE clause does not.
+   * prepareExistsIndex resolves the synchronous QuadIndex snapshot used by
+   * the EXISTS hooks, draining the store only when the cached snapshot is
+   * missing or stale (mutation version changed, or the store exposes no
+   * version). It returns the snapshot so callers hold their own reference
+   * instead of re-reading the shared cache mid-evaluation; concurrent calls
+   * resolving at the same time each drain and keep their own snapshot.
+   * The SparqlEvaluator calls it for projection / ORDER BY / HAVING
+   * expressions when they contain EXISTS even though the WHERE clause does
+   * not.
    */
-  public async prepareExistsIndex(): Promise<void> {
+  public async prepareExistsIndex(): Promise<ExistsSnapshot> {
     const version = storeVersion(this.store);
     if (
       this.existsIndex !== null && this.existsQuads !== null &&
       version !== null && this.existsVersion === version
     ) {
-      return;
+      return {
+        quads: this.existsQuads,
+        index: this.existsIndex,
+        version: this.existsVersion,
+      };
     }
     const quads = await matchQuads(this.store, null, null, null);
+    const index = buildQuadIndex(quads);
     this.existsQuads = quads;
-    this.existsIndex = buildQuadIndex(quads);
+    this.existsIndex = index;
     this.existsVersion = version;
+    return { quads, index, version };
   }
 
   /**
@@ -153,8 +180,9 @@ export class BgpEvaluator {
    */
   private existsIndexForScope(
     store: rdfjs.Source<rdfjs.Quad>,
+    snapshot: ExistsSnapshot | null,
   ): QuadIndex | null {
-    if (this.existsIndex === null || this.existsQuads === null) {
+    if (snapshot === null) {
       return null;
     }
     if (
@@ -163,12 +191,10 @@ export class BgpEvaluator {
     ) {
       return null;
     }
-    if (
-      this.existsQuads.some((item) => item.graph.termType !== "DefaultGraph")
-    ) {
+    if (snapshot.quads.some((item) => item.graph.termType !== "DefaultGraph")) {
       return null;
     }
-    return this.existsIndex;
+    return snapshot.index;
   }
 
   /**
@@ -184,7 +210,11 @@ export class BgpEvaluator {
     solution: TermBinding,
     graph?: rdfjs.Term,
   ): boolean {
-    if (this.existsIndex === null || this.existsQuads === null) {
+    // Capture the current snapshot once at entry, so a concurrent call's
+    // rebuild (issue #72) cannot swap it while this probe is in flight.
+    const index = this.existsIndex;
+    const quads = this.existsQuads;
+    if (index === null || quads === null) {
       throw new Error(
         "EXISTS requires a prepared pattern index: call prepareExistsIndex() first",
       );
@@ -193,7 +223,7 @@ export class BgpEvaluator {
     // The snapshot is filtered to the graph scope exactly once per
     // evaluateExists call; the recursive probes reuse these candidates (see
     // evaluateExistsScoped) instead of re-filtering per nested EXISTS.
-    const candidates = this.existsQuads.filter((item) =>
+    const candidates = quads.filter((item) =>
       sameRdfTerm(item.graph, scopeGraph)
     );
     return this.evaluateExistsScoped(
@@ -201,6 +231,8 @@ export class BgpEvaluator {
       solution,
       candidates,
       scopeGraph,
+      index,
+      quads,
     );
   }
 
@@ -216,10 +248,18 @@ export class BgpEvaluator {
     solution: TermBinding,
     candidates: rdfjs.Quad[],
     graph: rdfjs.Term,
+    index: QuadIndex,
+    quads: rdfjs.Quad[],
   ): boolean {
     const patterns = pattern.type === "group" ? pattern.patterns : [pattern];
-    return this.evaluateExistsGroup(patterns, [solution], candidates, graph)
-      .length > 0;
+    return this.evaluateExistsGroup(
+      patterns,
+      [solution],
+      candidates,
+      graph,
+      index,
+      quads,
+    ).length > 0;
   }
 
   /**
@@ -236,10 +276,19 @@ export class BgpEvaluator {
     bindings: TermBinding[],
     candidates: rdfjs.Quad[],
     graph: rdfjs.Term,
+    index: QuadIndex,
+    quads: rdfjs.Quad[],
   ): TermBinding[] {
     let result = bindings;
     for (const pattern of patterns) {
-      result = this.evaluateExistsPattern(pattern, result, candidates, graph);
+      result = this.evaluateExistsPattern(
+        pattern,
+        result,
+        candidates,
+        graph,
+        index,
+        quads,
+      );
     }
     return result;
   }
@@ -249,10 +298,19 @@ export class BgpEvaluator {
     bindings: TermBinding[],
     candidates: rdfjs.Quad[],
     graph: rdfjs.Term,
+    index: QuadIndex,
+    quads: rdfjs.Quad[],
   ): TermBinding[] {
     const context: ExpressionEvaluationContext = {
       evaluateExists: (subPattern, solution) =>
-        this.evaluateExistsScoped(subPattern, solution, candidates, graph),
+        this.evaluateExistsScoped(
+          subPattern,
+          solution,
+          candidates,
+          graph,
+          index,
+          quads,
+        ),
     };
     switch (pattern.type) {
       case "bgp": {
@@ -300,8 +358,10 @@ export class BgpEvaluator {
           // The join probes the once-per-query snapshot index with each
           // solution's resolved positions (constants and bound variables)
           // instead of rebuilding an index over the probed bucket per
-          // solution — the EXISTS hook joins one solution at a time.
-          result = joinTriplePattern(result, entry, this.existsIndex!, graph);
+          // solution — the EXISTS hook joins one solution at a time. The
+          // index is the call's captured snapshot, never re-read from the
+          // shared cache mid-evaluation (issue #72).
+          result = joinTriplePattern(result, entry, index, graph);
         }
         return result;
       }
@@ -317,7 +377,7 @@ export class BgpEvaluator {
         const name = pattern.name;
         if (name.termType === "NamedNode") {
           const graphTerm = sparqlTermToRdfTerm(name);
-          const scopedCandidates = this.existsQuads!.filter((item) =>
+          const scopedCandidates = quads.filter((item) =>
             sameRdfTerm(item.graph, graphTerm)
           );
           return this.evaluateExistsGroup(
@@ -325,6 +385,8 @@ export class BgpEvaluator {
             bindings,
             scopedCandidates,
             graphTerm,
+            index,
+            quads,
           );
         }
         if (name.termType === "Variable") {
@@ -335,7 +397,7 @@ export class BgpEvaluator {
           for (const binding of bindings) {
             const boundGraph = binding[name.value];
             if (boundGraph !== undefined) {
-              const scopedCandidates = this.existsQuads!.filter((item) =>
+              const scopedCandidates = quads.filter((item) =>
                 sameRdfTerm(item.graph, boundGraph)
               );
               result.push(
@@ -344,11 +406,13 @@ export class BgpEvaluator {
                   [binding],
                   scopedCandidates,
                   boundGraph,
+                  index,
+                  quads,
                 ),
               );
             } else {
-              for (const graphTerm of namedGraphTerms(this.existsQuads!)) {
-                const scopedCandidates = this.existsQuads!.filter((item) =>
+              for (const graphTerm of namedGraphTerms(quads)) {
+                const scopedCandidates = quads.filter((item) =>
                   sameRdfTerm(item.graph, graphTerm)
                 );
                 const inner = this.evaluateExistsGroup(
@@ -356,6 +420,8 @@ export class BgpEvaluator {
                   [binding],
                   scopedCandidates,
                   graphTerm,
+                  index,
+                  quads,
                 );
                 for (const innerBinding of inner) {
                   innerBinding[name.value] = graphTerm;
@@ -419,6 +485,8 @@ export class BgpEvaluator {
           [{}],
           candidates,
           graph,
+          index,
+          quads,
         );
         return leftJoin(
           bindings,
@@ -434,6 +502,8 @@ export class BgpEvaluator {
           [{}],
           candidates,
           graph,
+          index,
+          quads,
         );
         return minus(bindings, right);
       }
@@ -444,7 +514,14 @@ export class BgpEvaluator {
         const branchResults: TermBinding[][] = [];
         for (const branch of pattern.patterns) {
           branchResults.push(
-            this.evaluateExistsGroup([branch], [{}], candidates, graph),
+            this.evaluateExistsGroup(
+              [branch],
+              [{}],
+              candidates,
+              graph,
+              index,
+              quads,
+            ),
           );
         }
         return innerJoin(bindings, branchResults.flat());
@@ -457,6 +534,8 @@ export class BgpEvaluator {
           bindings,
           candidates,
           graph,
+          index,
+          quads,
         );
       case "query": {
         // A subquery inside EXISTS evaluates independently of the enclosing
@@ -470,7 +549,14 @@ export class BgpEvaluator {
         const selectQuery = pattern as unknown as SelectQuery;
         const subContext: ExpressionEvaluationContext = {
           evaluateExists: (subPattern, solution) =>
-            this.evaluateExistsScoped(subPattern, solution, candidates, graph),
+            this.evaluateExistsScoped(
+              subPattern,
+              solution,
+              candidates,
+              graph,
+              index,
+              quads,
+            ),
           baseIri: selectQuery.base,
         };
         const subRaw = this.evaluateExistsGroup(
@@ -478,6 +564,8 @@ export class BgpEvaluator {
           [{}],
           candidates,
           graph,
+          index,
+          quads,
         );
         // The synchronous EXISTS index is guaranteed prepared here — this
         // code only runs from evaluateExists, which guards on it — so
@@ -525,16 +613,32 @@ export class BgpEvaluator {
    */
   private scopedExistsContext(
     store: rdfjs.Source<rdfjs.Quad>,
+    snapshot: ExistsSnapshot | null,
   ): ExpressionEvaluationContext {
+    if (snapshot === null) {
+      throw new Error(
+        "EXISTS requires a prepared pattern index: call prepareExistsIndex() first",
+      );
+    }
     const graph = store instanceof GraphScopedStore
       ? store.graph
       : defaultGraph();
-    const candidates = this.existsQuads!.filter((item) =>
+    // The scoped candidates and index are captured once per context, so a
+    // concurrent call's rebuild never swaps them mid-evaluation (issue #72).
+    const candidates = snapshot.quads.filter((item) =>
       sameRdfTerm(item.graph, graph)
     );
+    const { index, quads } = snapshot;
     return {
       evaluateExists: (pattern, solution) =>
-        this.evaluateExistsScoped(pattern, solution, candidates, graph),
+        this.evaluateExistsScoped(
+          pattern,
+          solution,
+          candidates,
+          graph,
+          index,
+          quads,
+        ),
     };
   }
 
@@ -546,19 +650,24 @@ export class BgpEvaluator {
    * and every solution then shares one candidate filter per query instead of
    * re-filtering the snapshot per expression evaluation.
    */
-  public pipelineExistsContext(): ExpressionEvaluationContext {
-    if (this.existsIndex === null || this.existsQuads === null) {
-      throw new Error(
-        "EXISTS requires a prepared pattern index: call prepareExistsIndex() first",
-      );
-    }
+  public pipelineExistsContext(
+    snapshot: ExistsSnapshot,
+  ): ExpressionEvaluationContext {
     const graph = defaultGraph();
-    const candidates = this.existsQuads.filter((item) =>
+    const candidates = snapshot.quads.filter((item) =>
       sameRdfTerm(item.graph, graph)
     );
+    const { index, quads } = snapshot;
     return {
       evaluateExists: (pattern, solution) =>
-        this.evaluateExistsScoped(pattern, solution, candidates, graph),
+        this.evaluateExistsScoped(
+          pattern,
+          solution,
+          candidates,
+          graph,
+          index,
+          quads,
+        ),
     };
   }
 
@@ -584,9 +693,12 @@ export class BgpEvaluator {
     bindings: TermBinding[],
     store: rdfjs.Source<rdfjs.Quad>,
   ): Promise<TermBinding[]> {
-    if (patternListContainsExists(patterns)) {
-      await this.prepareExistsIndex();
-    }
+    // Resolve the EXISTS snapshot once for this group and thread it down, so
+    // every hook in the group shares one snapshot reference (issue #72). The
+    // version cache makes repeated resolutions cheap for the sequential case.
+    const snapshot = patternListContainsExists(patterns)
+      ? await this.prepareExistsIndex()
+      : null;
     const nonFilters: Pattern[] = [];
     const filters: Pattern[] = [];
     for (const p of patterns) {
@@ -598,10 +710,15 @@ export class BgpEvaluator {
     }
     let result = bindings;
     for (const pattern of nonFilters) {
-      result = await this.evaluatePattern(pattern, result, store);
+      result = await this.evaluatePattern(pattern, result, store, snapshot);
     }
     for (const filterPattern of filters) {
-      result = await this.evaluatePattern(filterPattern, result, store);
+      result = await this.evaluatePattern(
+        filterPattern,
+        result,
+        store,
+        snapshot,
+      );
     }
     return result;
   }
@@ -613,13 +730,14 @@ export class BgpEvaluator {
     pattern: Pattern,
     bindings: TermBinding[],
     store: rdfjs.Source<rdfjs.Quad>,
+    snapshot: ExistsSnapshot | null,
   ): Promise<TermBinding[]> {
     switch (pattern.type) {
       case "bgp":
-        return await this.joinBgp(pattern.triples, bindings, store);
+        return await this.joinBgp(pattern.triples, bindings, store, snapshot);
       case "filter": {
         const context = expressionContainsExists(pattern.expression)
-          ? this.scopedExistsContext(store)
+          ? this.scopedExistsContext(store, snapshot)
           : this.existsContext(store);
         return bindings.filter((binding) =>
           this.expressionEvaluator.filterPasses(
@@ -644,11 +762,8 @@ export class BgpEvaluator {
           }
         }
         const right = await this.evaluateGroup(innerPatterns, [{}], store);
-        if (filters.some(expressionContainsExists)) {
-          await this.prepareExistsIndex();
-        }
         const context = filters.some(expressionContainsExists)
-          ? this.scopedExistsContext(store)
+          ? this.scopedExistsContext(store, snapshot)
           : this.existsContext(store);
         return leftJoin(
           bindings,
@@ -695,7 +810,7 @@ export class BgpEvaluator {
         // evaluation error or a variable already bound (from an outer
         // scope) leaves the solution unchanged.
         const context = expressionContainsExists(pattern.expression)
-          ? this.scopedExistsContext(store)
+          ? this.scopedExistsContext(store, snapshot)
           : this.existsContext(store);
         return bindings.map((binding) => {
           const value = this.expressionEvaluator.evaluate(
@@ -805,6 +920,7 @@ export class BgpEvaluator {
     triples: Triple[],
     bindings: TermBinding[],
     store: rdfjs.Source<rdfjs.Quad>,
+    snapshot: ExistsSnapshot | null,
   ): Promise<TermBinding[]> {
     // Reified-triple patterns (`<< s p o >>`, annotation `{| ... |}`) expand
     // into plain `rdf:reifies` triples before any scanning or reordering.
@@ -815,7 +931,7 @@ export class BgpEvaluator {
     // instead of rebuilding one over each pattern's candidate bucket — the
     // snapshot is already indexed once per query, so the per-join build is
     // pure waste.
-    const prebuiltIndex = this.existsIndexForScope(store);
+    const prebuiltIndex = this.existsIndexForScope(store, snapshot);
     if (this.reorderPatterns && expanded.length > 1 && !hasPath) {
       return await this.evaluateWithReordering(
         expanded,
@@ -944,13 +1060,16 @@ function patternContainsExists(pattern: Pattern): boolean {
     case "minus":
     case "union":
     case "graph":
-    case "group":
+    case "group": {
+      // (The previous ternary here was mangled by precedence into `always []`,
+      // silently missing EXISTS inside OPTIONAL/MINUS/UNION/GRAPH/group
+      // bodies — the OPTIONAL-hoisted-filter path had to re-prepare the
+      // index itself. GRAPH's shorthand form carries plain triples, which
+      // cannot contain EXISTS, so only `patterns` is checked.)
       return patternListContainsExists(
-        pattern.patterns ??
-            (pattern as unknown as { triples?: Triple[] }).triples
-          ? []
-          : [],
+        (pattern as { patterns?: Pattern[] }).patterns,
       );
+    }
     case "query":
       return patternListContainsExists(
         (pattern as unknown as { where: Pattern[] }).where ?? [],
