@@ -2961,6 +2961,44 @@ Deno.test("WazooSparqlEngine - property paths inside EXISTS respect GRAPH scopes
   );
 });
 
+Deno.test("WazooSparqlEngine - main-path joins never leak named graphs when EXISTS is present", async () => {
+  // s lives in the default graph AND named graph g1; t lives only in g1.
+  // With EXISTS present the main path could reuse the all-graph snapshot
+  // index — the guard in existsIndexForScope must fall back to the scoped
+  // build so g1's quads stay invisible in the default-scope answer.
+  const store = new Store();
+  const ex = (local: string) => namedNode(`http://example.org/${local}`);
+  const add = (s: string, p: string, o: string, graph?: string) =>
+    store.addQuad(quad(ex(s), ex(p), ex(o), graph ? ex(graph) : undefined));
+  add("s", "name", "S");
+  add("s", "p1", "o1");
+  add("s", "p", "v1");
+  add("s", "p1", "o2", "g1");
+  add("s", "p", "v2", "g1");
+  add("t", "name", "T", "g1");
+  add("t", "p1", "o3", "g1");
+  add("t", "p", "v3", "g1");
+  const engine = new WazooSparqlEngine({ store });
+
+  // ?s p1 ?o joins against a bound ?s, so it would reuse the prebuilt index;
+  // the default-scope answer must contain only s's default-graph p1 quads.
+  const result = await engine.execute({
+    query: "SELECT ?s ?o WHERE { ?s <http://example.org/name> ?n " +
+      ". ?s <http://example.org/p1> ?o " +
+      "FILTER EXISTS { ?s <http://example.org/p> ?v } }",
+  });
+  if (result.kind !== "select") {
+    throw new Error(`expected select, got ${result.kind}`);
+  }
+  const rows = result.data.results.bindings.map((b) => [
+    String((b.s as { value: string }).value),
+    String((b.o as { value: string }).value),
+  ]).sort();
+  assertEquals(rows, [
+    ["http://example.org/s", "http://example.org/o1"],
+  ]);
+});
+
 Deno.test("WazooSparqlEngine - OPTIONAL, MINUS, UNION inside EXISTS reuse the join algebra", async () => {
   // Default graph: a -p-> b -q-> c -q-> d, b -r-> c, and a -p-> e (e has no q
   // or r edges). Named graph g1: a -p-> b -q-> c; g2: a -p-> b (no q).

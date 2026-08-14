@@ -214,9 +214,10 @@ function getQueryVarName(term: SparqlTerm): string {
  *
  * prebuiltIndex supplies an already-built QuadIndex (the EXISTS hooks' drained
  * snapshot index) so the join probes it directly instead of rebuilding an
- * index over the candidates on every call — the main path amortizes the build
- * over all bindings of one join, but the EXISTS hooks join one solution at a
- * time, so a fresh build there would re-index the candidates per probe.
+ * index over the candidates on every call — the EXISTS hooks join one
+ * solution at a time, so a fresh build there would re-index the candidates
+ * per probe, and the main path reuses the snapshot when its universe
+ * coincides with the current scope (see BgpEvaluator.existsIndexForScope).
  * graphScope filters the probed quads to one graph: the prebuilt snapshot
  * index spans every graph, so matches must be scoped before binding extension
  * (the main path's candidates are already graph-scoped via GraphScopedStore).
