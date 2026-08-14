@@ -15,6 +15,9 @@ jobs:
         with:
           deno-version: v2.x
       - run: deno task ci
+      # Explicit step (not just a deno task ci dependency) so the Oxigraph
+      # EXISTS gate runs even if the ci task's dependency list changes.
+      - run: deno task test:exists-ref
       - run: deno task publish:dry
   # W3C differential gate: native must agree with comunica on the vendored
   # SPARQL 1.1 evaluation-core suite. The pass rate is the tracked progress
