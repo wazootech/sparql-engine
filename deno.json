@@ -8,7 +8,12 @@
   },
   "publish": {
     "include": ["src/", "README.md", "LICENSE"],
-    "exclude": ["src/**/*.test.ts"]
+    "exclude": [
+      "src/**/*.test.ts",
+      "src/**/*.jison",
+      "src/parser/generate-parser.ts",
+      "src/store/sqlite-store.ts"
+    ]
   },
   "imports": {
     "@/": "./src/",

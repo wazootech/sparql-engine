@@ -184,37 +184,82 @@ function comunicaArtifact(): Sized {
 /* native + oxigraph                                                  */
 /* ------------------------------------------------------------------ */
 
-function nativeArtifact(): Sized {
-  const src = join(Deno.cwd(), "src");
-  const subtractTests = (dir: string): number => {
-    let sum = 0;
+/** Files excluded from the JSR artifact via publish.exclude (mirrors
+ * deno.json) — build-time grammar sources and unreachable Node-only code. */
+const ARTIFACT_EXCLUDED_SUFFIXES = [".test.ts", ".jison"];
+const ARTIFACT_EXCLUDED_FILES = [
+  "src/parser/generate-parser.ts",
+  "src/store/sqlite-store.ts",
+];
+
+function isExcluded(relPath: string): boolean {
+  if (ARTIFACT_EXCLUDED_FILES.includes(relPath)) {
+    return true;
+  }
+  return ARTIFACT_EXCLUDED_SUFFIXES.some((suffix) => relPath.endsWith(suffix));
+}
+
+/** artifactFiles lists every file the JSR artifact ships: src/ + README.md +
+ * LICENSE, minus the publish.exclude set. */
+function artifactFiles(): string[] {
+  const files: string[] = [];
+  const walk = (dir: string, rel: string): void => {
     for (const entry of Deno.readDirSync(dir)) {
       const path = join(dir, entry.name);
+      const relPath = rel === "" ? entry.name : `${rel}/${entry.name}`;
       if (entry.isDirectory) {
-        sum += subtractTests(path);
-      } else if (entry.name.endsWith(".test.ts")) {
-        sum += Deno.statSync(path).size;
+        walk(path, relPath);
+      } else if (!isExcluded(relPath)) {
+        files.push(path);
       }
     }
-    return sum;
   };
-  const children: Sized[] = [];
+  walk(join(Deno.cwd(), "src"), "");
+  files.push(join(Deno.cwd(), "README.md"));
+  files.push(join(Deno.cwd(), "LICENSE"));
+  return files;
+}
+
+/** gzipBytesOf compresses the given files and returns the total gzipped size
+ * (the "at the wire" transfer figure for the artifact). */
+async function gzipBytesOf(files: string[]): Promise<number> {
+  const stream = new CompressionStream("gzip");
+  const writer = stream.writable.getWriter();
   let total = 0;
-  for (const entry of Deno.readDirSync(src)) {
-    if (!entry.isDirectory) {
-      continue;
+  const reader = stream.readable.getReader();
+  const drain: Promise<void> = (async () => {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) {
+        return;
+      }
+      total += value.byteLength;
     }
-    const net = dirBytes(join(src, entry.name)) -
-      subtractTests(join(src, entry.name));
-    children.push({ name: entry.name, bytes: net });
-    total += net;
+  })();
+  for (const file of files) {
+    await writer.write(await Deno.readFile(file));
   }
-  const readmeBytes = Deno.statSync(join(Deno.cwd(), "README.md")).size;
-  const licenseBytes = Deno.statSync(join(Deno.cwd(), "LICENSE")).size;
-  children.push({ name: "README.md", bytes: readmeBytes });
-  children.push({ name: "LICENSE", bytes: licenseBytes });
-  total += readmeBytes + licenseBytes;
-  return { name: "native", bytes: total, children };
+  await writer.close();
+  await drain;
+  return total;
+}
+
+function nativeArtifact(): Sized {
+  const root = join(Deno.cwd());
+  const files = artifactFiles();
+  const byTop = new Map<string, number>();
+  for (const file of files) {
+    const rel = file.slice(root.length + 1);
+    const top = rel.includes("/") ? rel.slice(0, rel.indexOf("/")) : rel;
+    byTop.set(top, (byTop.get(top) ?? 0) + Deno.statSync(file).size);
+  }
+  return {
+    name: "native",
+    bytes: [...byTop.values()].reduce((a, b) => a + b, 0),
+    children: [...byTop.entries()]
+      .map(([name, bytes]) => ({ name, bytes }))
+      .sort((a, b) => b.bytes - a.bytes),
+  };
 }
 
 function oxigraphArtifact(): Sized {
@@ -251,8 +296,15 @@ function oxigraphArtifact(): Sized {
 }
 
 scanInstalled();
+const native = nativeArtifact();
+const artifact = artifactFiles();
 const result = {
   generatedAt: new Date().toISOString(),
-  engines: [nativeArtifact(), oxigraphArtifact(), comunicaArtifact()],
+  engines: [native, oxigraphArtifact(), comunicaArtifact()],
+  native: {
+    artifactBytes: native.bytes,
+    gzipBytes: await gzipBytesOf(artifact),
+    files: artifact.length,
+  },
 };
 console.log(JSON.stringify(result, null, 2));
