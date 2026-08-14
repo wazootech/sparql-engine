@@ -3183,6 +3183,63 @@ Deno.test("WazooSparqlEngine - subqueries inside EXISTS evaluate over the graph-
   );
 });
 
+Deno.test("WazooSparqlEngine - NOT EXISTS and EXISTS nest inside EXISTS subqueries", async () => {
+  // Same dataset as the cross-engine gate: s -p-> a, t -p-> b, u -p-> c;
+  // s and t have q edges, and s alone has an r edge (ex:s ex:r ex:z).
+  const store = new Store();
+  const ex = (local: string) => namedNode(`http://example.org/${local}`);
+  const add = (s: string, p: string, o: string) =>
+    store.addQuad(quad(ex(s), ex(p), ex(o)));
+  add("s", "p", "a");
+  add("t", "p", "b");
+  add("u", "p", "c");
+  store.addQuad(quad(ex("s"), ex("q"), literal("x")));
+  store.addQuad(quad(ex("t"), ex("q"), literal("y")));
+  store.addQuad(quad(ex("s"), ex("r"), ex("z")));
+  const engine = new WazooSparqlEngine({ store });
+
+  async function projected(query: string, variable: string): Promise<string[]> {
+    const result = await engine.execute({ query });
+    if (result.kind !== "select") {
+      throw new Error(`expected select, got ${result.kind}`);
+    }
+    return result.data.results.bindings.map((b) =>
+      String((b[variable] as { value: string }).value)
+    ).sort();
+  }
+
+  // NOT EXISTS inside the EXISTS subquery correlates with the subquery's own
+  // ?x: s has an r edge so it is filtered out, t survives. HAVING pins the
+  // surviving count to 1, so EXISTS holds and all three subjects pass. If
+  // the nested NOT EXISTS stopped filtering, the count would become 2 and
+  // the EXISTS would turn false.
+  assertEquals(
+    await projected(
+      "SELECT ?s WHERE { ?s <http://example.org/p> ?v " +
+        "FILTER EXISTS { SELECT (COUNT(?x) AS ?c) WHERE { " +
+        "?x <http://example.org/q> ?w . " +
+        "FILTER NOT EXISTS { ?x <http://example.org/r> ?z } } " +
+        "HAVING (COUNT(?x) = 1) } }",
+      "s",
+    ),
+    ["http://example.org/s", "http://example.org/t", "http://example.org/u"],
+  );
+  // EXISTS inside the EXISTS subquery requires an r edge, so only s
+  // survives; the HAVING pin keeps EXISTS true. Treating the nested EXISTS
+  // as always true would yield count 2 and fail every outer row.
+  assertEquals(
+    await projected(
+      "SELECT ?s WHERE { ?s <http://example.org/p> ?v " +
+        "FILTER EXISTS { SELECT (COUNT(?x) AS ?c) WHERE { " +
+        "?x <http://example.org/q> ?w . " +
+        "FILTER EXISTS { ?x <http://example.org/r> ?z } } " +
+        "HAVING (COUNT(?x) = 1) } }",
+      "s",
+    ),
+    ["http://example.org/s", "http://example.org/t", "http://example.org/u"],
+  );
+});
+
 Deno.test("WazooSparqlEngine - COALESCE, IF, IN, NOT IN, SAMETERM", async () => {
   const engine = emptyEngine();
   const coalesce = await bindValue(
