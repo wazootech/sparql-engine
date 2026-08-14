@@ -506,6 +506,30 @@ export class BgpEvaluator {
   }
 
   /**
+   * pipelineExistsContext builds a scoped expression context over the
+   * default graph's candidates for the SELECT pipeline (projection / HAVING
+   * / ORDER BY expressions). The caller must have prepared the EXISTS index
+   * (the pipelineNeedsExistsIndex gate) — the guard mirrors evaluateExists —
+   * and every solution then shares one candidate filter per query instead of
+   * re-filtering the snapshot per expression evaluation.
+   */
+  public pipelineExistsContext(): ExpressionEvaluationContext {
+    if (this.existsIndex === null || this.existsQuads === null) {
+      throw new Error(
+        "EXISTS requires a prepared pattern index: call prepareExistsIndex() first",
+      );
+    }
+    const graph = defaultGraph();
+    const candidates = this.existsQuads.filter((item) =>
+      sameRdfTerm(item.graph, graph)
+    );
+    return {
+      evaluateExists: (pattern, solution) =>
+        this.evaluateExistsScoped(pattern, solution, candidates, graph),
+    };
+  }
+
+  /**
    * forStore returns a fresh BgpEvaluator over the given store view with the
    * same options, used by SparqlEvaluator to evaluate a query against its
    * FROM / FROM NAMED dataset.
