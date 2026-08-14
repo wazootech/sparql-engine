@@ -31,3 +31,6 @@ jobs:
         with:
           deno-version: v2.x
       - run: deno task test:w3c
+      # Oxigraph EXISTS differential gate, tracked alongside the W3C
+      # conformance checks so a subquery-in-EXISTS regression fails here too.
+      - run: deno task test:exists-ref

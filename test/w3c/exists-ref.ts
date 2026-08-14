@@ -36,6 +36,7 @@ ex:t ex:p ex:b .
 ex:u ex:p ex:c .
 ex:s ex:q "x" .
 ex:t ex:q "y" .
+ex:s ex:r ex:z .
 `;
 
 interface Case {
@@ -100,6 +101,31 @@ const CASES: Case[] = [
       "FILTER EXISTS { SELECT ?x (COUNT(?w) AS ?c) WHERE { ?x <http://example.org/q> ?w } " +
       "GROUP BY ?x } }",
   },
+  {
+    // NOT EXISTS nested inside an EXISTS subquery. The inner FILTER NOT
+    // EXISTS correlates with the subquery's own ?x: ex:s has an r edge so it
+    // is filtered out, ex:t survives. HAVING pins the surviving count to 1;
+    // if a change stops evaluating the nested NOT EXISTS, the count becomes
+    // 2, the EXISTS turns false, and every outer row diverges.
+    name: "not-exists-inside-exists",
+    query: "SELECT ?s WHERE { ?s <http://example.org/p> ?v " +
+      "FILTER EXISTS { SELECT (COUNT(?x) AS ?c) WHERE { " +
+      "?x <http://example.org/q> ?w . " +
+      "FILTER NOT EXISTS { ?x <http://example.org/r> ?z } } " +
+      "HAVING (COUNT(?x) = 1) } }",
+  },
+  {
+    // EXISTS nested inside an EXISTS subquery. The inner FILTER EXISTS
+    // requires an r edge, so only ex:s survives (ex:t has none); HAVING pins
+    // the count to 1. Treating the nested EXISTS as always true yields count
+    // 2 and an empty EXISTS, failing every outer row.
+    name: "nested-exists",
+    query: "SELECT ?s WHERE { ?s <http://example.org/p> ?v " +
+      "FILTER EXISTS { SELECT (COUNT(?x) AS ?c) WHERE { " +
+      "?x <http://example.org/q> ?w . " +
+      "FILTER EXISTS { ?x <http://example.org/r> ?z } } " +
+      "HAVING (COUNT(?x) = 1) } }",
+  },
 ];
 
 const { namedNode, literal, quad } = DataFactory;
@@ -114,6 +140,10 @@ function nativeStore(): Store {
   add("u", "p", "c");
   store.addQuad(quad(ex("s"), ex("q"), literal("x")));
   store.addQuad(quad(ex("t"), ex("q"), literal("y")));
+  // ex:s has an r edge, ex:t does not — the nested EXISTS/NOT EXISTS cases
+  // below rely on this to filter subquery rows, so a future change that
+  // stops evaluating nested filters flips the HAVING count and diverges.
+  store.addQuad(quad(ex("s"), ex("r"), ex("z")));
   return store;
 }
 
