@@ -106,28 +106,34 @@ sparql-engine/
 
 ## `test/` — verification surface
 
-| Path                                                                    | Role                                                                              |
-| ----------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
-| `test/parity/parity.test.ts`                                            | Differential query parity vs `@comunica/query-sparql-rdfjs-lite`                  |
-| `test/parity/parity-update.test.ts`                                     | Differential update parity (final store contents, up to bnode relabeling)         |
-| `test/parity/parity-harness.ts`                                         | Shared harness: canonicalization, blank-node normalization, Comunica engine setup |
-| `test/parity/parity-fixtures.ts`                                        | Seeded stores for parity cases                                                    |
-| `test/w3c/w3c-main.ts`                                                  | SPARQL 1.1 evaluation-core differential runner (`deno task test:w3c`)             |
-| `test/w3c/sparql12-main.ts`, `sparql12-gap.ts`                          | SPARQL 1.2 suite + RDF 1.2 triple-terms gap suite                                 |
-| `test/w3c/rdf-differential.ts`, `rdf-classify.ts`                       | RDF 1.1/1.2 Turtle/TriG/N-Triples/N-Quads gates                                   |
-| `test/w3c/ref-crosscheck.ts`                                            | Allowlisted-divergence audit vs Oxigraph + N3.js                                  |
-| `test/w3c/exists-ref.ts`                                                | EXISTS subquery surface vs Oxigraph                                               |
-| `test/w3c/runner.ts`, `manifest.ts`, `divergences.ts`, `rdf-harness.ts` | W3C harness plumbing, manifest parsing, documented divergences                    |
-| `test/w3c/fixtures/`                                                    | Vendored W3C suites: `sparql11/`, `sparql12/`, `rdf/` (offline, deterministic)    |
+| Path                                                                    | Role                                                                                          |
+| ----------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `test/parity/parity.test.ts`                                            | Differential query parity vs `@comunica/query-sparql-rdfjs-lite`                              |
+| `test/parity/parity-update.test.ts`                                     | Differential update parity (final store contents, up to bnode relabeling)                     |
+| `test/parity/parity-harness.ts`                                         | Shared harness: canonicalization, blank-node normalization, Comunica engine setup             |
+| `test/parity/parity-fixtures.ts`                                        | Seeded stores for parity cases                                                                |
+| `test/parity/canonical-store.test.ts`                                   | Unit-tests `canonicalStoreQuads` blank-node substitution (repeated placeholders, isomorphism) |
+| `test/w3c/w3c-main.ts`                                                  | SPARQL 1.1 evaluation-core differential runner (`deno task test:w3c`)                         |
+| `test/w3c/sparql12-main.ts`, `sparql12-gap.ts`                          | SPARQL 1.2 suite + RDF 1.2 triple-terms gap suite                                             |
+| `test/w3c/rdf-differential.ts`, `rdf-classify.ts`                       | RDF 1.1/1.2 Turtle/TriG/N-Triples/N-Quads gates                                               |
+| `test/w3c/ref-crosscheck.ts`                                            | Allowlisted-divergence audit vs Oxigraph + N3.js                                              |
+| `test/w3c/exists-ref.ts`                                                | EXISTS subquery surface vs Oxigraph                                                           |
+| `test/w3c/runner.ts`, `manifest.ts`, `divergences.ts`, `rdf-harness.ts` | W3C harness plumbing, manifest parsing, documented divergences                                |
+| `test/w3c/fixtures/`                                                    | Vendored W3C suites: `sparql11/`, `sparql12/`, `rdf/` (offline, deterministic)                |
 
 ## `bench/`
 
-| File                         | Role                                                                                                                       |
-| ---------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| `bench/engine_bench.ts`      | Three-engine benchmark (native / Comunica / Oxigraph) with verification-first equality asserts                             |
-| `bench/budget.ts`            | Regression budget gate (`deno task bench:check`): avg ms/iter against `bench/baseline.json`                                |
-| `bench/baseline.json`        | `maxAllowedMs: 50`, `maxRegressionRatio: 0.15`                                                                             |
-| `bench/concurrency-probe.ts` | EXISTS concurrency stress probe (issue #72): shuffled `Promise.all` rounds + update interleaving, exit 1 on error/mismatch |
+| File                                       | Role                                                                                                                       |
+| ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------- |
+| `bench/engine_bench.ts`                    | Three-engine benchmark (native / Comunica / Oxigraph) with verification-first equality asserts                             |
+| `bench/budget.ts`                          | Regression budget gate (`deno task bench:check`): avg ms/iter against `bench/baseline.json`                                |
+| `bench/baseline.json`                      | `maxAllowedMs: 50`, `maxRegressionRatio: 0.15`                                                                             |
+| `bench/concurrency-probe.ts`               | EXISTS concurrency stress probe (issue #72): shuffled `Promise.all` rounds + update interleaving, exit 1 on error/mismatch |
+| `bench/measure-libs.ts`                    | On-disk footprint of native JSR artifact vs Oxigraph npm vs Comunica transitive closure → `bench/size-data.json`           |
+| `bench/collect-memory.ts`                  | Spawns `bench/memory-probe.ts` per engine × workload, merges peak-heap results → `bench/memory-data.json`                  |
+| `bench/memory-probe.ts`                    | Peak `heapUsed` per engine (native/Comunica/Oxigraph) on full-scan + nested-EXISTS workloads over a 10k-person graph       |
+| `bench/treemap.ts`                         | Renders `bench/*-data.json` into `docs/assets/treemap-{library-size,memory}.svg`                                           |
+| `bench/size-data.json`, `memory-data.json` | Measured snapshots consumed by `bench/treemap.ts` and the root `README.md` (Size & memory footprint)                       |
 
 ## `docs/` — this wiki ↔ source mapping
 

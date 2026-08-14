@@ -75,6 +75,11 @@ The parity contract is **behavioral equivalence with
   SPARQL 1.1 result semantics treat labels as scoped and opaque. A dedicated
   test locks in this known difference against real Comunica output, so the
   normalization stays verified rather than assumed.
+- The canonicalization itself is unit-tested:
+  `test/parity/canonical-store.test.ts` locks in `canonicalStoreQuads`'
+  blank-node substitution — repeated placeholders within one quad (`replaceAll`,
+  e.g. the same blank node bound as subject and object), distinct-node
+  preservation, and multi-quad isomorphism under relabeling.
 - Updates canonicalize stores up to blank-node relabeling — two stores pass when
   they agree exactly modulo label identity (the SPARQL contract, since INSERT
   DATA mints fresh labels per execution).
@@ -172,6 +177,31 @@ deno run --allow-all bench/concurrency-probe.ts
 
 The same guarantees are locked in as unit tests in
 `src/wazoo-sparql-engine.test.ts`.
+
+### `deno task bench:size` / `bench:memory` — footprint measurement
+
+Latency is only half the story: the engine is also benchmarked on what it costs
+to ship and run (root `README.md` → _Size & memory footprint_):
+
+- `bench:size` — `bench/measure-libs.ts` measures the on-disk footprint a
+  consumer must install: the native JSR artifact (0.67 MiB, zero runtime deps)
+  vs the Oxigraph npm package (7.9 MiB) vs Comunica's full transitive closure
+  (28.3 MiB) → `bench/size-data.json`.
+- `bench:memory` — `bench/collect-memory.ts` spawns `bench/memory-probe.ts` per
+  engine in an **isolated Deno subprocess** (so only the target engine is
+  loaded), reporting peak `Deno.memoryUsage().heapUsed` over 5 runs on a
+  10k-person graph (~55k quads), across a full-scan and a nested-EXISTS workload
+  → `bench/memory-data.json`. Native is lowest on both (134 / 82 MB vs Comunica
+  214 / 271 MB, Oxigraph 251 / 108 MB).
+- `bench/treemap.ts` renders both JSON snapshots into
+  `docs/assets/treemap-*.svg` (area ∝ size):
+
+![Library size treemap](assets/treemap-library-size.svg)
+
+![Memory treemap](assets/treemap-memory.svg)
+
+These are machine-specific snapshots (Deno 2.9.5, Windows), not guarantees —
+regenerate with the two tasks above and commit the updated SVGs.
 
 ## Debugging guide
 
