@@ -442,7 +442,11 @@ export function canonicalStoreQuads(store: Store): string[] {
         id = `_:c${nextId++}`;
         canonicalIds.set(label, id);
       }
-      canonical = canonical.replace(`_:b${index}`, id);
+      // replaceAll (not replace): a quad may bind the same blank node in
+      // several positions (e.g. subject and object), rendering the same
+      // `_:b<index>` placeholder more than once — every occurrence must be
+      // substituted with the canonical id.
+      canonical = canonical.replaceAll(`_:b${index}`, id);
     }
     return canonical;
   });
