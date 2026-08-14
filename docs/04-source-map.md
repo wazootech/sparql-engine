@@ -137,16 +137,17 @@ sparql-engine/
 
 ## `docs/` — this wiki ↔ source mapping
 
-| Wiki page                         | Primary sources it documents                                                       |
-| --------------------------------- | ---------------------------------------------------------------------------------- |
-| `docs/README.md`                  | Index + Pages setup                                                                |
-| `docs/01-quickstart.md`           | `src/mod.ts`, `deno.json` tasks, `README.md`                                       |
-| `docs/02-architecture.md`         | `src/wazoo-sparql-engine.ts`, `src/parser/`, `src/evaluator/`, `src/quad-store.ts` |
-| `docs/03-api-contracts.md`        | `src/sparql-engine-interface.ts`, `src/wazoo-sparql-engine.ts`, `src/term/`        |
-| `docs/04-source-map.md`           | this page — the whole tree                                                         |
-| `docs/05-testing.md`              | `test/parity/`, `test/w3c/`, `bench/`, `.github/workflows/ci.yml`                  |
-| `docs/06-supplemental-context.md` | `test/w3c/fixtures/`, `CONTEXT.md`, `ARCHITECTURE.md`                              |
-| `docs/durable-transactions.md`    | `src/store/sqlite-store.ts` (prototype notes)                                      |
+| Wiki page                         | Primary sources it documents                                                                                          |
+| --------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `docs/README.md`                  | Index + Pages setup                                                                                                   |
+| `docs/01-quickstart.md`           | `src/mod.ts`, `deno.json` tasks, `README.md`                                                                          |
+| `docs/02-architecture.md`         | `src/wazoo-sparql-engine.ts`, `src/parser/`, `src/evaluator/`, `src/quad-store.ts`                                    |
+| `docs/03-api-contracts.md`        | `src/sparql-engine-interface.ts`, `src/wazoo-sparql-engine.ts`, `src/term/`                                           |
+| `docs/04-source-map.md`           | this page — the whole tree                                                                                            |
+| `docs/05-testing.md`              | `test/parity/`, `test/w3c/`, `bench/`, `.github/workflows/ci.yml`                                                     |
+| `docs/06-supplemental-context.md` | `test/w3c/fixtures/`, `CONTEXT.md`, `ARCHITECTURE.md`                                                                 |
+| `docs/07-benchmarking.md`         | `bench/engine_bench.ts`, `bench/budget.ts`, `bench/concurrency-probe.ts`, footprint probes + `README.md` perf section |
+| `docs/durable-transactions.md`    | `src/store/sqlite-store.ts` (prototype notes)                                                                         |
 
 ## Where to change what
 

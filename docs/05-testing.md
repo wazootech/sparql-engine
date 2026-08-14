@@ -125,6 +125,11 @@ refresh instructions live in `test/w3c/README.md`.
 
 ## Benchmarking
 
+Each tool's methodology and the known measured results (latency tables, size and
+memory numbers) are on the dedicated
+[07 — Benchmarking & Performance](07-benchmarking.md) page; this section covers
+how to run each tool and what it gates.
+
 ### `deno task bench` — three-engine comparison
 
 `bench/engine_bench.ts` compares the native engine against
@@ -146,7 +151,7 @@ Groups cover the feature surface: scan, join, asym-join (reorder on/off),
 reorder-chain, ask, construct, update, optional, minus, union, path,
 group-aggregate, filter-expr, order-limit, distinct, values-bind, graph, from,
 subquery, exists, cast, string-fn, having, reduced, update-ops. The
-`reorder-chain` group demonstrates the dynamic join planner: ~32× faster with
+`reorder-chain` group demonstrates the dynamic join planner: ~90× faster with
 reordering enabled, at parity with Oxigraph.
 
 ### `deno task bench:check` — regression budget

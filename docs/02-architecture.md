@@ -199,11 +199,12 @@ engine's optimizer. It is a _dynamic_ greedy planner, not a static rewrite:
      is probed, costing `bindings.length × average bucket size`
      (`candidates.length ÷ distinct bound values`).
 
-This is what makes the benchmark `chainQuery` ~32× faster with reordering
+This is what makes the benchmark `chainQuery` ~90× faster with reordering
 enabled: a three-pattern chain written in worst-case order collapses a 400×400
-intermediate to 400 (see `bench/engine_bench.ts`, group `reorder-chain`).
-Setting `reorderPatterns: false` in `WazooSparqlEngineOptions` preserves written
-order exactly.
+intermediate to 400 (see `bench/engine_bench.ts`, group `reorder-chain`, and
+[07 — Benchmarking & Performance](07-benchmarking.md) for the timings). Setting
+`reorderPatterns: false` in `WazooSparqlEngineOptions` preserves written order
+exactly.
 
 ## Stage 4 — Execute (storage scans & joins)
 
