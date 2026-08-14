@@ -1,0 +1,783 @@
+{
+  "generatedAt": "2026-08-14T17:04:07.834Z",
+  "engines": [
+    {
+      "name": "native",
+      "bytes": 701090,
+      "children": [
+        {
+          "name": "evaluator",
+          "bytes": 231406
+        },
+        {
+          "name": "parser",
+          "bytes": 390015
+        },
+        {
+          "name": "store",
+          "bytes": 24159
+        },
+        {
+          "name": "term",
+          "bytes": 41277
+        },
+        {
+          "name": "README.md",
+          "bytes": 13158
+        },
+        {
+          "name": "LICENSE",
+          "bytes": 1075
+        }
+      ]
+    },
+    {
+      "name": "oxigraph",
+      "bytes": 8275583,
+      "children": [
+        {
+          "name": "WASM runtime",
+          "bytes": 8136195
+        },
+        {
+          "name": "JS glue + types",
+          "bytes": 139388
+        }
+      ]
+    },
+    {
+      "name": "comunica",
+      "bytes": 29693164,
+      "children": [
+        {
+          "name": "@comunica/actor-bindings-aggregator-factory-average",
+          "bytes": 14089783
+        },
+        {
+          "name": "@comunica/actor-init-query",
+          "bytes": 8283471
+        },
+        {
+          "name": "@comunica/actor-query-parse-sparql",
+          "bytes": 631259
+        },
+        {
+          "name": "@comunica/actor-function-factory-term-addition",
+          "bytes": 527307
+        },
+        {
+          "name": "@comunica/actor-expression-evaluator-factory-default",
+          "bytes": 225179
+        },
+        {
+          "name": "@comunica/actor-query-operation-join",
+          "bytes": 181369
+        },
+        {
+          "name": "@comunica/actor-query-operation-path-alt",
+          "bytes": 175846
+        },
+        {
+          "name": "@comunica/actor-function-factory-term-str-uuid",
+          "bytes": 164503
+        },
+        {
+          "name": "@comunica/actor-optimize-query-operation-group-file-sources",
+          "bytes": 114610
+        },
+        {
+          "name": "@comunica/actor-optimize-query-operation-filter-pushdown",
+          "bytes": 105850
+        },
+        {
+          "name": "@comunica/actor-query-source-identify-rdfjs",
+          "bytes": 80680
+        },
+        {
+          "name": "@comunica/actor-rdf-join-inner-hash",
+          "bytes": 77052
+        },
+        {
+          "name": "@comunica/actor-query-operation-update-clear",
+          "bytes": 76265
+        },
+        {
+          "name": "@comunica/actor-query-operation-orderby",
+          "bytes": 74012
+        },
+        {
+          "name": "@comunica/actor-function-factory-term-sha1",
+          "bytes": 68025
+        },
+        {
+          "name": "@comunica/actor-function-factory-term-md5",
+          "bytes": 65898
+        },
+        {
+          "name": "@comunica/actor-rdf-join-inner-multi-bind",
+          "bytes": 65397
+        },
+        {
+          "name": "@comunica/actor-optimize-query-operation-query-source-skolemize",
+          "bytes": 64714
+        },
+        {
+          "name": "@comunica/actor-optimize-query-operation-assign-sources-exhaustive",
+          "bytes": 57669
+        },
+        {
+          "name": "@comunica/actor-rdf-join-inner-multi-smallest-filter-bindings",
+          "bytes": 57116
+        },
+        {
+          "name": "@comunica/actor-rdf-join-selectivity-variable-counting",
+          "bytes": 56764
+        },
+        {
+          "name": "@comunica/actor-context-preprocess-convert-shortcuts",
+          "bytes": 55072
+        },
+        {
+          "name": "@comunica/actor-query-operation-group",
+          "bytes": 55069
+        },
+        {
+          "name": "@comunica/actor-query-operation-from-quad",
+          "bytes": 52497
+        },
+        {
+          "name": "@comunica/actor-optimize-query-operation-prune-empty-source-operations",
+          "bytes": 51629
+        },
+        {
+          "name": "@comunica/actor-rdf-join-inner-multi-bind-source",
+          "bytes": 51341
+        },
+        {
+          "name": "@comunica/actor-optimize-query-operation-query-source-identify",
+          "bytes": 49003
+        },
+        {
+          "name": "@comunica/actor-optimize-query-operation-group-sources",
+          "bytes": 46261
+        },
+        {
+          "name": "@comunica/actor-hash-bindings-murmur",
+          "bytes": 46082
+        },
+        {
+          "name": "@comunica/actor-rdf-join-optional-hash",
+          "bytes": 43203
+        },
+        {
+          "name": "@comunica/actor-query-operation-construct",
+          "bytes": 42759
+        },
+        {
+          "name": "@comunica/actor-query-process-sequential",
+          "bytes": 42024
+        },
+        {
+          "name": "@comunica/actor-rdf-join-inner-multi-smallest",
+          "bytes": 40221
+        },
+        {
+          "name": "@comunica/actor-rdf-join-optional-bind",
+          "bytes": 40063
+        },
+        {
+          "name": "@comunica/actor-query-operation-path-one-or-more",
+          "bytes": 38833
+        },
+        {
+          "name": "@comunica/actor-term-comparator-factory-expression-evaluator",
+          "bytes": 38375
+        },
+        {
+          "name": "@comunica/actor-query-operation-path-zero-or-more",
+          "bytes": 38290
+        },
+        {
+          "name": "@comunica/actor-hash-quads-murmur",
+          "bytes": 38148
+        },
+        {
+          "name": "@comunica/actor-function-factory-expression-bnode",
+          "bytes": 35557
+        },
+        {
+          "name": "@comunica/actor-function-factory-term-lesser-than",
+          "bytes": 35446
+        },
+        {
+          "name": "@comunica/actor-bindings-aggregator-factory-wildcard-count",
+          "bytes": 34961
+        },
+        {
+          "name": "@comunica/actor-query-operation-update-deleteinsert",
+          "bytes": 34198
+        },
+        {
+          "name": "@comunica/actor-function-factory-term-regex",
+          "bytes": 34082
+        },
+        {
+          "name": "@comunica/actor-bindings-aggregator-factory-sum",
+          "bytes": 34040
+        },
+        {
+          "name": "@comunica/actor-optimize-query-operation-distinct-terms-pushdown",
+          "bytes": 33887
+        },
+        {
+          "name": "@comunica/mediator-join-coefficients-fixed",
+          "bytes": 33671
+        },
+        {
+          "name": "@comunica/actor-bindings-aggregator-factory-group-concat",
+          "bytes": 32998
+        },
+        {
+          "name": "@comunica/actor-query-operation-path-zero-or-one",
+          "bytes": 32870
+        },
+        {
+          "name": "@comunica/actor-function-factory-term-equality",
+          "bytes": 32390
+        },
+        {
+          "name": "@comunica/actor-bindings-aggregator-factory-max",
+          "bytes": 31899
+        },
+        {
+          "name": "@comunica/actor-bindings-aggregator-factory-min",
+          "bytes": 31897
+        },
+        {
+          "name": "@comunica/actor-rdf-join-minus-hash",
+          "bytes": 31825
+        },
+        {
+          "name": "@comunica/actor-function-factory-term-replace",
+          "bytes": 31228
+        },
+        {
+          "name": "@comunica/actor-optimize-query-operation-join-connected",
+          "bytes": 31043
+        },
+        {
+          "name": "@comunica/actor-rdf-update-quads-rdfjs-store",
+          "bytes": 30989
+        },
+        {
+          "name": "@comunica/actor-query-operation-distinct-identity",
+          "bytes": 30838
+        },
+        {
+          "name": "@comunica/actor-query-operation-update-load",
+          "bytes": 30667
+        },
+        {
+          "name": "@comunica/actor-query-operation-extend",
+          "bytes": 30266
+        },
+        {
+          "name": "@comunica/actor-query-operation-reduced-hash",
+          "bytes": 30082
+        },
+        {
+          "name": "@comunica/actor-query-operation-filter",
+          "bytes": 29352
+        },
+        {
+          "name": "@comunica/actor-function-factory-term-subtraction",
+          "bytes": 29133
+        },
+        {
+          "name": "@comunica/actor-query-operation-project",
+          "bytes": 29018
+        },
+        {
+          "name": "@comunica/actor-function-factory-term-lesser-than-equal",
+          "bytes": 28808
+        },
+        {
+          "name": "@comunica/actor-optimize-query-operation-describe-to-constructs-subject",
+          "bytes": 28654
+        },
+        {
+          "name": "@comunica/actor-query-operation-path-seq",
+          "bytes": 28565
+        },
+        {
+          "name": "@comunica/actor-function-factory-expression-in",
+          "bytes": 28533
+        },
+        {
+          "name": "@comunica/actor-bindings-aggregator-factory-count",
+          "bytes": 28417
+        },
+        {
+          "name": "@comunica/actor-function-factory-expression-concat",
+          "bytes": 27588
+        },
+        {
+          "name": "@comunica/actor-query-operation-source",
+          "bytes": 27572
+        },
+        {
+          "name": "@comunica/actor-function-factory-term-sub-str",
+          "bytes": 27539
+        },
+        {
+          "name": "@comunica/actor-query-operation-slice",
+          "bytes": 27536
+        },
+        {
+          "name": "@comunica/actor-rdf-join-inner-symmetrichash",
+          "bytes": 27149
+        },
+        {
+          "name": "@comunica/actor-bindings-aggregator-factory-sample",
+          "bytes": 27146
+        },
+        {
+          "name": "@comunica/actor-function-factory-expression-extensions",
+          "bytes": 27099
+        },
+        {
+          "name": "@comunica/actor-query-operation-leftjoin",
+          "bytes": 26987
+        },
+        {
+          "name": "@comunica/actor-query-operation-values",
+          "bytes": 26920
+        },
+        {
+          "name": "@comunica/actor-optimize-query-operation-leftjoin-expression-pushdown",
+          "bytes": 26917
+        },
+        {
+          "name": "@comunica/actor-context-preprocess-set-defaults",
+          "bytes": 26777
+        },
+        {
+          "name": "@comunica/actor-rdf-join-inner-none",
+          "bytes": 26314
+        },
+        {
+          "name": "@comunica/actor-query-operation-update-drop",
+          "bytes": 25922
+        },
+        {
+          "name": "@comunica/actor-query-operation-nop",
+          "bytes": 25907
+        },
+        {
+          "name": "@comunica/actor-rdf-metadata-accumulate-cardinality",
+          "bytes": 25808
+        },
+        {
+          "name": "@comunica/actor-function-factory-expression-not-in",
+          "bytes": 25433
+        },
+        {
+          "name": "@comunica/actor-function-factory-term-langmatches",
+          "bytes": 25411
+        },
+        {
+          "name": "@comunica/actor-function-factory-term-greater-than-equal",
+          "bytes": 25189
+        },
+        {
+          "name": "@comunica/actor-query-operation-minus",
+          "bytes": 25119
+        },
+        {
+          "name": "@comunica/actor-query-operation-update-create",
+          "bytes": 24753
+        },
+        {
+          "name": "@comunica/actor-query-operation-nodes",
+          "bytes": 24664
+        },
+        {
+          "name": "@comunica/actor-function-factory-expression-logical-and",
+          "bytes": 24643
+        },
+        {
+          "name": "@comunica/actor-function-factory-term-inequality",
+          "bytes": 24627
+        },
+        {
+          "name": "@comunica/actor-function-factory-term-greater-than",
+          "bytes": 24567
+        },
+        {
+          "name": "@comunica/actor-function-factory-expression-logical-or",
+          "bytes": 24535
+        },
+        {
+          "name": "@comunica/actor-rdf-join-entries-sort-selectivity",
+          "bytes": 24513
+        },
+        {
+          "name": "@comunica/actor-rdf-join-inner-multi-empty",
+          "bytes": 23865
+        },
+        {
+          "name": "@comunica/actor-function-factory-term-xsd-to-year-month-duration",
+          "bytes": 23680
+        },
+        {
+          "name": "@comunica/actor-function-factory-term-str-before",
+          "bytes": 23660
+        },
+        {
+          "name": "@comunica/actor-function-factory-term-xsd-to-decimal",
+          "bytes": 23567
+        },
+        {
+          "name": "@comunica/actor-optimize-query-operation-rewrite-move",
+          "bytes": 23556
+        },
+        {
+          "name": "@comunica/actor-function-factory-term-str-after",
+          "bytes": 23547
+        },
+        {
+          "name": "@comunica/actor-rdf-join-optional-nestedloop",
+          "bytes": 23520
+        },
+        {
+          "name": "@comunica/actor-function-factory-term-xsd-to-boolean",
+          "bytes": 23515
+        },
+        {
+          "name": "@comunica/actor-function-factory-term-xsd-to-day-time-duration",
+          "bytes": 23458
+        },
+        {
+          "name": "@comunica/actor-function-factory-term-xsd-to-integer",
+          "bytes": 23419
+        },
+        {
+          "name": "@comunica/actor-function-factory-expression-same-term",
+          "bytes": 23388
+        },
+        {
+          "name": "@comunica/actor-optimize-query-operation-rewrite-copy",
+          "bytes": 23228
+        },
+        {
+          "name": "@comunica/actor-function-factory-expression-bound",
+          "bytes": 23187
+        },
+        {
+          "name": "@comunica/actor-optimize-query-operation-rewrite-add",
+          "bytes": 23091
+        },
+        {
+          "name": "@comunica/actor-function-factory-term-str-langdir",
+          "bytes": 23046
+        },
+        {
+          "name": "@comunica/actor-function-factory-expression-coalesce",
+          "bytes": 22983
+        },
+        {
+          "name": "@comunica/actor-function-factory-term-timezone",
+          "bytes": 22926
+        },
+        {
+          "name": "@comunica/actor-query-operation-update-compositeupdate",
+          "bytes": 22920
+        },
+        {
+          "name": "@comunica/actor-rdf-join-inner-nestedloop",
+          "bytes": 22727
+        },
+        {
+          "name": "@comunica/actor-function-factory-term-xsd-to-datetime",
+          "bytes": 22614
+        },
+        {
+          "name": "@comunica/actor-function-factory-term-xsd-to-double",
+          "bytes": 22612
+        },
+        {
+          "name": "@comunica/actor-function-factory-term-xsd-to-float",
+          "bytes": 22519
+        },
+        {
+          "name": "@comunica/actor-function-factory-term-xsd-to-duration",
+          "bytes": 22449
+        },
+        {
+          "name": "@comunica/actor-function-factory-term-iri",
+          "bytes": 22336
+        },
+        {
+          "name": "@comunica/actor-function-factory-term-str-dt",
+          "bytes": 22314
+        },
+        {
+          "name": "@comunica/actor-function-factory-term-triple",
+          "bytes": 22235
+        },
+        {
+          "name": "@comunica/actor-function-factory-expression-if",
+          "bytes": 22220
+        },
+        {
+          "name": "@comunica/actor-function-factory-term-division",
+          "bytes": 22174
+        },
+        {
+          "name": "@comunica/actor-function-factory-term-xsd-to-string",
+          "bytes": 22159
+        },
+        {
+          "name": "@comunica/actor-function-factory-term-uuid",
+          "bytes": 22151
+        },
+        {
+          "name": "@comunica/actor-query-operation-path-nps",
+          "bytes": 22095
+        },
+        {
+          "name": "@comunica/actor-function-factory-term-xsd-to-time",
+          "bytes": 22022
+        },
+        {
+          "name": "@comunica/actor-function-factory-term-xsd-to-date",
+          "bytes": 21933
+        },
+        {
+          "name": "@comunica/actor-function-factory-term-str-lang",
+          "bytes": 21849
+        },
+        {
+          "name": "@comunica/actor-query-operation-bgp-join",
+          "bytes": 21842
+        },
+        {
+          "name": "@comunica/actor-optimize-query-operation-construct-distinct",
+          "bytes": 21831
+        },
+        {
+          "name": "@comunica/actor-function-factory-term-str-starts",
+          "bytes": 21783
+        },
+        {
+          "name": "@comunica/actor-function-factory-term-lcase",
+          "bytes": 21667
+        },
+        {
+          "name": "@comunica/actor-function-factory-term-ucase",
+          "bytes": 21665
+        },
+        {
+          "name": "@comunica/actor-function-factory-term-multiplication",
+          "bytes": 21615
+        },
+        {
+          "name": "@comunica/actor-function-factory-term-encode-for-uri",
+          "bytes": 21477
+        },
+        {
+          "name": "@comunica/actor-function-factory-term-seconds",
+          "bytes": 21443
+        },
+        {
+          "name": "@comunica/actor-function-factory-term-minutes",
+          "bytes": 21431
+        },
+        {
+          "name": "@comunica/actor-function-factory-term-has-langdir",
+          "bytes": 21337
+        },
+        {
+          "name": "@comunica/actor-function-factory-term-is-numeric",
+          "bytes": 21311
+        },
+        {
+          "name": "@comunica/actor-function-factory-term-now",
+          "bytes": 21305
+        },
+        {
+          "name": "@comunica/actor-function-factory-term-hours",
+          "bytes": 21235
+        },
+        {
+          "name": "@comunica/actor-function-factory-term-month",
+          "bytes": 21235
+        },
+        {
+          "name": "@comunica/actor-function-factory-term-has-lang",
+          "bytes": 21196
+        },
+        {
+          "name": "@comunica/actor-function-factory-term-is-literal",
+          "bytes": 21175
+        },
+        {
+          "name": "@comunica/actor-function-factory-term-tz",
+          "bytes": 21168
+        },
+        {
+          "name": "@comunica/actor-function-factory-term-year",
+          "bytes": 21130
+        },
+        {
+          "name": "@comunica/actor-function-factory-term-is-triple",
+          "bytes": 21124
+        },
+        {
+          "name": "@comunica/actor-query-operation-ask",
+          "bytes": 21089
+        },
+        {
+          "name": "@comunica/actor-function-factory-term-contains",
+          "bytes": 21082
+        },
+        {
+          "name": "@comunica/actor-function-factory-term-predicate",
+          "bytes": 21077
+        },
+        {
+          "name": "@comunica/actor-function-factory-term-sha256",
+          "bytes": 21040
+        },
+        {
+          "name": "@comunica/actor-function-factory-term-sha384",
+          "bytes": 21040
+        },
+        {
+          "name": "@comunica/actor-function-factory-term-sha512",
+          "bytes": 21040
+        },
+        {
+          "name": "@comunica/actor-function-factory-term-str-ends",
+          "bytes": 21017
+        },
+        {
+          "name": "@comunica/actor-function-factory-term-day",
+          "bytes": 21015
+        },
+        {
+          "name": "@comunica/actor-function-factory-term-datatype",
+          "bytes": 21006
+        },
+        {
+          "name": "@comunica/actor-function-factory-term-is-blank",
+          "bytes": 20969
+        },
+        {
+          "name": "@comunica/actor-function-factory-term-unary-minus",
+          "bytes": 20920
+        },
+        {
+          "name": "@comunica/actor-function-factory-term-langdir",
+          "bytes": 20895
+        },
+        {
+          "name": "@comunica/actor-function-factory-term-str-len",
+          "bytes": 20884
+        },
+        {
+          "name": "@comunica/actor-rdf-join-inner-single",
+          "bytes": 20871
+        },
+        {
+          "name": "@comunica/actor-function-factory-term-subject",
+          "bytes": 20861
+        },
+        {
+          "name": "@comunica/actor-function-factory-term-is-iri",
+          "bytes": 20855
+        },
+        {
+          "name": "@comunica/actor-function-factory-term-unary-plus",
+          "bytes": 20812
+        },
+        {
+          "name": "@comunica/actor-function-factory-term-object",
+          "bytes": 20756
+        },
+        {
+          "name": "@comunica/actor-query-operation-path-link",
+          "bytes": 20697
+        },
+        {
+          "name": "@comunica/actor-optimize-query-operation-join-bgp",
+          "bytes": 20692
+        },
+        {
+          "name": "@comunica/actor-function-factory-term-floor",
+          "bytes": 20632
+        },
+        {
+          "name": "@comunica/actor-function-factory-term-round",
+          "bytes": 20632
+        },
+        {
+          "name": "@comunica/actor-function-factory-term-lang",
+          "bytes": 20596
+        },
+        {
+          "name": "@comunica/actor-function-factory-term-rand",
+          "bytes": 20582
+        },
+        {
+          "name": "@comunica/actor-context-preprocess-source-to-destination",
+          "bytes": 20573
+        },
+        {
+          "name": "@comunica/actor-function-factory-term-ceil",
+          "bytes": 20525
+        },
+        {
+          "name": "@comunica/actor-function-factory-term-str",
+          "bytes": 20464
+        },
+        {
+          "name": "@comunica/actor-function-factory-term-abs",
+          "bytes": 20416
+        },
+        {
+          "name": "@comunica/actor-rdf-metadata-accumulate-requesttime",
+          "bytes": 20386
+        },
+        {
+          "name": "@comunica/actor-query-operation-path-inv",
+          "bytes": 20311
+        },
+        {
+          "name": "@comunica/actor-function-factory-term-not",
+          "bytes": 20292
+        },
+        {
+          "name": "@comunica/actor-optimize-query-operation-bgp-to-join",
+          "bytes": 20173
+        },
+        {
+          "name": "@comunica/actor-rdf-join-entries-sort-cardinality",
+          "bytes": 20150
+        },
+        {
+          "name": "@comunica/actor-rdf-metadata-accumulate-pagesize",
+          "bytes": 20113
+        },
+        {
+          "name": "@comunica/mediator-all",
+          "bytes": 16374
+        },
+        {
+          "name": "@comunica/logger-void",
+          "bytes": 8003
+        }
+      ]
+    }
+  ]
+}

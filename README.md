@@ -164,6 +164,45 @@ sub-quadratic: the nested-loop before-state for the same UNION was ~7 s/iter
 versus 45 ms with the hash join (~150x), with OPTIONAL and MINUS showing the
 same shape (~60-80x).
 
+### Size & memory footprint
+
+The speed comparison is only half the story — engines also differ by orders of
+magnitude in what they cost to ship and to run. Two treemaps (area ∝ size)
+summarize both:
+
+**Library size on disk** — what a consumer must have installed:
+
+![Library size treemap](docs/assets/treemap-library-size.svg)
+
+| engine   | on disk      | contents                                                                                              |
+| -------- | ------------ | ----------------------------------------------------------------------------------------------------- |
+| native   | **0.67 MiB** | 38 source files (the whole JSR artifact: `src/` + `README.md` + `LICENSE`); zero runtime dependencies |
+| oxigraph | 7.9 MiB      | WASM runtime (7.8 MiB) + JS glue/types                                                                |
+| comunica | 28.3 MiB     | 368 npm packages in the transitive dependency closure                                                 |
+
+**Peak heap during execution** on the 10k-person graph (55k quads), measured in
+an isolated Deno subprocess per engine (peak `Deno.memoryUsage().heapUsed` over
+5 runs; all three share the same ~65 MB runtime baseline, so the comparison is
+symmetric):
+
+![Memory treemap](docs/assets/treemap-memory.svg)
+
+| workload             | native     | comunica | oxigraph |
+| -------------------- | ---------- | -------- | -------- |
+| full scan (55k rows) | **134 MB** | 214 MB   | 251 MB   |
+| nested EXISTS        | **82 MB**  | 271 MB   | 108 MB   |
+
+Native is the smallest on disk by 12-42x (0.67 vs 7.9 vs 28.3 MiB) and holds its
+speed advantage with the lowest peak heap on both workloads — including a peak
+roughly a third of comunica's on the nested-EXISTS surface the timings above
+highlight. Oxigraph's WASM runtime is compact on disk, but its result
+materialization peaks higher than native on both workloads.
+
+These are machine-specific snapshots (Deno 2.9.5, Windows), not guarantees.
+Regenerate them with `deno task bench:size` (library sizes, from the installed
+packages) and `deno task bench:memory` (peak memory, spawned per engine), which
+write the SVGs into `docs/assets/`.
+
 ## Development
 
 ```bash

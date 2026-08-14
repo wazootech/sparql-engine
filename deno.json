@@ -15,6 +15,7 @@
     "@comunica/query-sparql-rdfjs-lite": "npm:@comunica/query-sparql-rdfjs-lite@^5.1.3",
     "@rdfjs/types": "npm:@rdfjs/types@^2.0.1",
     "@std/assert": "jsr:@std/assert@^1.0.19",
+    "@std/path": "jsr:@std/path@^1",
     "oxigraph": "npm:oxigraph@^0.5.9",
     "@types/node": "npm:@types/node@^22.10.0"
   },
@@ -22,6 +23,8 @@
   "tasks": {
     "bench": "deno bench --allow-all",
     "bench:check": "deno run --allow-all bench/budget.ts",
+    "bench:size": "deno run --allow-read bench/measure-libs.ts > bench/size-data.json && deno run --allow-read --allow-write bench/treemap.ts",
+    "bench:memory": "deno run --allow-all bench/collect-memory.ts && deno run --allow-read --allow-write bench/treemap.ts",
     "check": "deno check",
     "ci": {
       "description": "Formats, lints, checks, and tests the code",
