@@ -148,6 +148,22 @@ oxigraph (a compiled Rust/WASM engine with native indexes, which remains ahead
 on the reorder-chain row); on the core scan/join rows native is the fastest of
 the three.
 
+Join surface, 10,000-person graph (~55,000 quads) — UNION joins 10k x 20k
+bindings on the shared subject (~200M candidate pairs); OPTIONAL and MINUS join
+10k x 5k (~50M pairs). The native engine's hash join probes an indexed right
+side per left binding instead of scanning it:
+
+| query               | native  | comunica | oxigraph |
+| ------------------- | ------- | -------- | -------- |
+| UNION (10k x 20k)   | 45.1 ms | 106.6 ms | 107.5 ms |
+| OPTIONAL (10k x 5k) | 22.1 ms | 587.9 ms | 56.5 ms  |
+| MINUS (10k x 5k)    | 18.0 ms | 41.7 ms  | 23.1 ms  |
+
+On this surface native leads all three engines, and the fan-out join scaling is
+sub-quadratic: the nested-loop before-state for the same UNION was ~7 s/iter
+versus 45 ms with the hash join (~150x), with OPTIONAL and MINUS showing the
+same shape (~60-80x).
+
 ## Development
 
 ```bash

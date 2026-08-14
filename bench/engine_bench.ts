@@ -271,6 +271,21 @@ const minusQuery =
 const unionQuery =
   "SELECT ?s WHERE { { ?s <http://xmlns.com/foaf/0.1/name> ?n } " +
   "UNION { ?s <http://example.org/pet> ?p } }";
+// 10k join-scaling queries: each joins a large accumulated binding set
+// against a large right side on the shared subject variable, so the rows
+// measure the join machinery (hash join for the native engine) rather than
+// the element evaluation. UNION joins 10k x 20k (~200M candidate pairs),
+// OPTIONAL and MINUS join 10k x 5k (~50M pairs).
+const unionJoinQuery =
+  "SELECT ?s ?a ?n WHERE { ?s <http://xmlns.com/foaf/0.1/age> ?a . " +
+  "{ ?s <http://xmlns.com/foaf/0.1/name> ?n } " +
+  "UNION { ?s <http://example.org/city> ?c } }";
+const optionalJoinQuery =
+  "SELECT ?s ?n ?sp WHERE { ?s <http://xmlns.com/foaf/0.1/name> ?n . " +
+  "OPTIONAL { ?s <http://example.org/spouse> ?sp } }";
+const minusJoinQuery =
+  "SELECT ?s ?n WHERE { ?s <http://xmlns.com/foaf/0.1/name> ?n . " +
+  "MINUS { ?s <http://example.org/spouse> ?sp } }";
 const pathSeqQuery =
   "SELECT ?person ?grand WHERE { ?person <http://xmlns.com/foaf/0.1/knows>/" +
   "<http://xmlns.com/foaf/0.1/knows> ?grand }";
@@ -881,6 +896,10 @@ await verifySelectEquality(
   "nested-not-exists-large",
   largeTrio,
 );
+// The 10k join-scaling queries must also agree across engines before timing.
+await verifySelectEquality(unionJoinQuery, "union-join-large", largeTrio);
+await verifySelectEquality(optionalJoinQuery, "optional-join-large", largeTrio);
+await verifySelectEquality(minusJoinQuery, "minus-join-large", largeTrio);
 await verifySelectEquality(castNumericQuery, "cast-numeric");
 await verifySelectEquality(castBooleanQuery, "cast-boolean");
 await verifySelectEquality(castDateTimeQuery, "cast-dateTime");
@@ -1333,6 +1352,31 @@ benchSelectTrio(
   "nested-not-exists",
   largeTrio,
   LARGE_EXISTS_BENCH_OPTIONS,
+);
+// 10k join-scaling rows: the same shared-subject join surface as the
+// 400-person rows but at 10k subjects, where the native engine's hash join
+// probes instead of scanning the whole right side per left binding.
+const LARGE_JOIN_BENCH_OPTIONS = { warmup: 2_000, iterations: 10 };
+benchSelectTrio(
+  "join-large",
+  unionJoinQuery,
+  "union",
+  largeTrio,
+  LARGE_JOIN_BENCH_OPTIONS,
+);
+benchSelectTrio(
+  "join-large",
+  optionalJoinQuery,
+  "optional",
+  largeTrio,
+  LARGE_JOIN_BENCH_OPTIONS,
+);
+benchSelectTrio(
+  "join-large",
+  minusJoinQuery,
+  "minus",
+  largeTrio,
+  LARGE_JOIN_BENCH_OPTIONS,
 );
 benchSelectTrio("cast", castNumericQuery, "cast-numeric");
 benchSelectTrio("cast", castBooleanQuery, "cast-boolean");
