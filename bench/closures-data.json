@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-14T19:51:59.603Z",
+  "generatedAt": "2026-08-14T21:26:48.918Z",
   "entries": [
     {
       "name": ".",
@@ -35,7 +35,7 @@
         "src\\term\\ordering.ts",
         "src\\wazoo-sparql-engine.ts"
       ],
-      "bytes": 589742
+      "bytes": 589732
     },
     {
       "name": "./term",
@@ -50,7 +50,7 @@
         "src\\term\\numeric.ts",
         "src\\term\\ordering.ts"
       ],
-      "bytes": 41277
+      "bytes": 41274
     },
     {
       "name": "./store",
@@ -66,7 +66,7 @@
         "src\\term\\numeric.ts",
         "src\\term\\ordering.ts"
       ],
-      "bytes": 54401
+      "bytes": 54398
     },
     {
       "name": "./parser",

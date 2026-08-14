@@ -19,9 +19,33 @@ jobs:
       # EXISTS gate runs even if the ci task's dependency list changes.
       - run: deno task test:exists-ref
       - run: deno task publish:dry
-  # W3C differential gate: native must agree with comunica on the vendored
+  # The committed bench/latency-data.json snapshot must match the current
+  # bench suite — otherwise the published latency chart shows a stale query
+  # inventory. Timings are machine-specific and never compared; the bench
+  # inventory (group/name/baseline) is deterministic, so a fresh run must
+  # match it. Runs only when the suite or snapshot could have changed
+  # (bench:latency:check; BENCH_INVENTORY=1 runs each bench once, no warmup).
+  latency-snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      # Path-gated: only bench-touching PRs pay for the (inventory-mode) run.
+      - uses: dorny/paths-filter@v3
+        id: bench-changed
+        with:
+          filters: |
+            bench:
+              - 'bench/engine_bench.ts'
+              - 'bench/latency-data.json'
+      - if: steps.bench-changed.outputs.bench == 'true'
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - if: steps.bench-changed.outputs.bench == 'true'
+        run: deno task bench:latency:check
+  # W3C differential gate: wazoo must agree with comunica on the vendored
   # SPARQL 1.1 evaluation-core suite. The pass rate is the tracked progress
-  # metric — this job goes green only on a full pass (345/345): native agrees
+  # metric — this job goes green only on a full pass (345/345): wazoo agrees
   # with comunica, or matches the W3C reference where comunica is wrong.
   w3c-parity:
     runs-on: ubuntu-latest

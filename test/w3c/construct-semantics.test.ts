@@ -5,11 +5,11 @@ import type { CanonicalTerm } from "@/term/mod.ts";
 import { compareConstructRecords, dedupeRecords } from "./runner.ts";
 
 /**
- * Issue #87 contract pins: the W3C CONSTRUCT gate compares the native result
+ * Issue #87 contract pins: the W3C CONSTRUCT gate compares the wazoo result
  * as-emitted (a conforming engine emits no duplicate quads — decision #29),
  * while the reference side is normalized to its graph content (Comunica's
  * stream may repeat a triple its graph would not). The first test is the
- * regression detector the multiset contract exists for: a future native
+ * regression detector the multiset contract exists for: a future wazoo
  * change that starts emitting duplicate quads must fail the gate, not
  * silently pass.
  */
@@ -34,10 +34,10 @@ function key(item: rdfjs.Quad): string {
 }
 
 Deno.test(
-  "CONSTRUCT gate fails when native emits a duplicate quad (issue #87 regression detector)",
+  "CONSTRUCT gate fails when wazoo emits a duplicate quad (issue #87 regression detector)",
   () => {
     const quad1 = q("s", "p", "o");
-    // Native emits the same quad twice; the reference holds it once.
+    // Wazoo emits the same quad twice; the reference holds it once.
     assertEquals(
       compareConstructRecords(
         [rec(quad1), rec(quad1)],
@@ -53,7 +53,7 @@ Deno.test(
   "CONSTRUCT gate normalizes duplicate reference-stream quads",
   () => {
     const quad1 = q("s", "p", "o");
-    // Native emits once; Comunica's stream repeats the triple — the
+    // Wazoo emits once; Comunica's stream repeats the triple — the
     // reference side is normalized, so the graphs agree.
     assertEquals(
       compareConstructRecords(

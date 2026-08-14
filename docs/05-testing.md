@@ -84,7 +84,7 @@ The parity contract is **behavioral equivalence with
 - **CONSTRUCT compares under the graph-result contract (issue #87).** A
   CONSTRUCT result is a set of triples: the reference side (Comunica) is
   normalized to graph content — its stream may repeat a triple its graph would
-  not — while the native side is compared **as-emitted**. A conforming engine
+  not — while the wazoo side is compared **as-emitted**. A conforming engine
   emits no duplicate quads (W3C decision #29), so a change that starts emitting
   duplicates fails the gate instead of silently passing;
   `test/w3c/construct-semantics.test.ts` pins the contract with unit tests on
@@ -93,7 +93,7 @@ The parity contract is **behavioral equivalence with
   they agree exactly modulo label identity (the SPARQL contract, since INSERT
   DATA mints fresh labels per execution).
 - **Spec-wins divergences**: when Comunica contradicts the spec (e.g. `LIMIT 0`
-  ignored, malformed regex throwing), the native engine implements the spec,
+  ignored, malformed regex throwing), the wazoo engine implements the spec,
   documents the divergence, and skips the parity case — see
   `test/w3c/divergences.ts`.
 
@@ -103,11 +103,11 @@ The parity contract is **behavioral equivalence with
 tests across 31 categories: aggregates, bind, bindings, cast, construct, exists,
 functions, grouping, negation, project-expression, property-path, subquery, and
 the update categories) **differentially**: every query runs through both
-Comunica and the native engine, and observable results are compared. Categories
+Comunica and the wazoo engine, and observable results are compared. Categories
 per test:
 
 - `pass` — both engines agree.
-- `gap` — native and Comunica disagree; the gap count is the tracked progress
+- `gap` — wazoo and Comunica disagree; the gap count is the tracked progress
   metric and the gate stays red until it reaches zero.
 - `error` — the runner itself failed.
 - `documented divergence` — keyed in `divergences.ts`; validated against the W3C
@@ -141,7 +141,7 @@ how to run each tool and what it gates.
 
 ### `deno task bench` — three-engine comparison
 
-`bench/engine_bench.ts` compares the native engine against
+`bench/engine_bench.ts` compares the wazoo engine against
 `@comunica/query-sparql-rdfjs-lite` and **Oxigraph (WASM)** over an identical
 generated graph (400 people, ~1,600 quads, plus named-graph datasets).
 
@@ -151,9 +151,9 @@ Two properties make the timings trustworthy:
    engines return identical results (`verifySelectEquality`,
    `verifyAskEquality`, `verifyConstructEquality`, `verifyConstructIsoEquality`
    — CONSTRUCT under the graph-result multiset contract: reference deduplicated,
-   native as-emitted (issue #87) — and every update asserts identical final
-   store contents on fresh stores (`verifyUpdateEquality`). A benchmark of a
-   broken engine fails loudly, not silently.
+   wazoo as-emitted (issue #87) — and every update asserts identical final store
+   contents on fresh stores (`verifyUpdateEquality`). A benchmark of a broken
+   engine fails loudly, not silently.
 2. **Self-restoring updates.** The timed update deletes and re-inserts the same
    quads, netting to zero per iteration, so the benchmark stores never drift.
 
@@ -199,11 +199,11 @@ Latency is only half the story: the engine is also benchmarked on what it costs
 to ship and run (root `README.md` → _Size & memory footprint_):
 
 - `bench:size` — `bench/measure-libs.ts` measures the on-disk footprint a
-  consumer must install: the native JSR artifact (0.60 MiB, zero runtime deps)
-  vs the Oxigraph npm package (7.9 MiB) vs Comunica's full transitive closure
-  (28.3 MiB) → `bench/size-data.json`. The JSR `publish.exclude` set (grammar
-  sources, `generate-parser.ts`, `sqlite-store.ts`) is applied before measuring,
-  so the number is what consumers actually install.
+  consumer must install: the wazoo JSR artifact (0.60 MiB, zero runtime deps) vs
+  the Oxigraph npm package (7.9 MiB) vs Comunica's full transitive closure (28.3
+  MiB) → `bench/size-data.json`. The JSR `publish.exclude` set (grammar sources,
+  `generate-parser.ts`, `sqlite-store.ts`) is applied before measuring, so the
+  number is what consumers actually install.
 - `bench:size:closures` — `bench/measure-closures.ts` walks the value-import
   graph of each package entrypoint (`.`, `./term`, `./store`, `./parser`,
   `./serialize`), skipping type-only imports, and reports the total local bytes
@@ -213,8 +213,8 @@ to ship and run (root `README.md` → _Size & memory footprint_):
   engine in an **isolated Deno subprocess** (so only the target engine is
   loaded), reporting peak `Deno.memoryUsage().heapUsed` over 5 runs on a
   10k-person graph (~55k quads), across a full-scan and a nested-EXISTS workload
-  → `bench/memory-data.json`. Native is lowest on both (134 / 82 MiB vs Comunica
-  214 / 271 MiB, Oxigraph 251 / 108 MiB).
+  → `bench/memory-data.json`. Wazoo is lowest on both (150 / 80 MiB vs Comunica
+  214 / 273 MiB, Oxigraph 255 / 109 MiB).
 - `bench/treemap.ts` renders the JSON snapshots into `docs/assets/chart-*.svg`
   (bar charts) and `docs/assets/treemap-memory.svg` (treemap):
 
@@ -222,7 +222,7 @@ to ship and run (root `README.md` → _Size & memory footprint_):
   <img src="assets/chart-library-size.svg" alt="Bar chart of engine footprints on disk">
   <figcaption><b>Fig — Library size on disk.</b> One bar per engine; bar
   length is proportional to total installed size (values in binary MiB, share
-  of the combined total in parentheses). Native (green) is the whole JSR
+  of the combined total in parentheses). Wazoo (green) is the whole JSR
   artifact at 0.60 MiB — a sliver against comunica’s 28.3 MiB closure (orange);
   oxigraph (blue) sits between.</figcaption>
 </figure>
@@ -231,7 +231,7 @@ to ship and run (root `README.md` → _Size & memory footprint_):
   <img src="assets/treemap-memory.svg" alt="Treemap of peak heap per engine and workload">
   <figcaption><b>Fig — Peak heap during execution</b> (10k-person graph).
   One panel per workload (full scan, nested EXISTS); within each, the three
-  engines’ tiles are scaled by their peak `heapUsed` (values in MiB). Native
+  engines’ tiles are scaled by their peak `heapUsed` (values in MiB). Wazoo
   (green) is the smallest tile in both panels.</figcaption>
 </figure>
 

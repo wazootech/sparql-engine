@@ -191,8 +191,8 @@ const dataset = buildDataset();
 const memoryStore = seedStore(dataset);
 const oxigraphStore = seedOxigraphStore(dataset);
 
-const nativeEngine = new WazooSparqlEngine({ store: memoryStore });
-const nativeEngineNoReorder = new WazooSparqlEngine({
+const wazooEngine = new WazooSparqlEngine({ store: memoryStore });
+const wazooEngineNoReorder = new WazooSparqlEngine({
   store: memoryStore,
   reorderPatterns: false,
 });
@@ -204,7 +204,7 @@ const comunicaEngine = getComunicaEngine();
 const largeDataset = buildPeopleDataset(LARGE_PERSON_COUNT);
 const largeMemoryStore = seedStore(largeDataset);
 const largeOxigraphStore = seedOxigraphStore(largeDataset);
-const largeNativeEngine = new WazooSparqlEngine({ store: largeMemoryStore });
+const largeWazooEngine = new WazooSparqlEngine({ store: largeMemoryStore });
 
 // GRAPH / FROM groups run against their own named-graph stores; the update
 // verification keeps the main dataset default-graph-only so its graph-blind
@@ -212,14 +212,14 @@ const largeNativeEngine = new WazooSparqlEngine({ store: largeMemoryStore });
 const graphDataset = buildGraphDataset();
 const graphMemoryStore = seedStore(graphDataset);
 const graphOxigraphStore = seedOxigraphStore(graphDataset);
-const graphNativeEngine = new WazooSparqlEngine({ store: graphMemoryStore });
+const graphWazooEngine = new WazooSparqlEngine({ store: graphMemoryStore });
 const graphOpsDataset = buildGraphOpsDataset();
 
 const scanQuery = "SELECT ?s ?p ?o WHERE { ?s ?p ?o }";
 const joinQuery =
   "SELECT ?friend ?name WHERE { ?person <http://xmlns.com/foaf/0.1/knows> ?friend . " +
   "?friend <http://xmlns.com/foaf/0.1/name> ?name }";
-// Written order is worst-case for the native engine: the unselective pattern
+// Written order is worst-case for the wazoo engine: the unselective pattern
 // (0 constants, matches all 1,600 quads) comes first, followed by a very
 // selective pattern (2 constants, 1 quad). Static reordering flips them.
 const asymJoinQuery = "SELECT ?s ?p ?o ?n WHERE { ?s ?p ?o . " +
@@ -273,7 +273,7 @@ const unionQuery =
   "UNION { ?s <http://example.org/pet> ?p } }";
 // 10k join-scaling queries: each joins a large accumulated binding set
 // against a large right side on the shared subject variable, so the rows
-// measure the join machinery (hash join for the native engine) rather than
+// measure the join machinery (hash join for the wazoo engine) rather than
 // the element evaluation. UNION joins 10k x 20k (~200M candidate pairs),
 // OPTIONAL and MINUS join 10k x 5k (~50M pairs).
 const unionJoinQuery =
@@ -352,7 +352,7 @@ const nestedNotExistsQuery =
 // XSD cast constructors over the integer age literal, plus boolean and
 // dateTime casts from string constants (the shared dataset carries no
 // boolean/dateTime literals). The xsd prefix is declared explicitly because
-// Oxigraph requires it for cast-function syntax. xsd:double is omitted: native
+// Oxigraph requires it for cast-function syntax. xsd:double is omitted: wazoo
 // and Comunica emit the canonical "2.0E1" lexical form while Oxigraph emits
 // "20", so a three-engine lexical comparison cannot cross-verify it.
 const castNumericQuery = "PREFIX xsd: <http://www.w3.org/2001/XMLSchema#> " +
@@ -457,7 +457,7 @@ function quadRecord(
  * dedupeRecords keeps one copy of each distinct canonical record, preserving
  * first-occurrence order. Reference-engine CONSTRUCT streams may repeat a
  * triple their graph would not, so the reference side of a cross-engine
- * comparison is normalized to graph content before comparing — the native
+ * comparison is normalized to graph content before comparing — the wazoo
  * side stays as-emitted (issue #87 contract).
  */
 function dedupeRecords<T>(records: T[]): T[] {
@@ -637,23 +637,23 @@ function oxigraphBindingRecord(binding: OxigraphBinding): string {
  * results for the given query, so benchmark timings compare like for like.
  */
 interface EngineTrio {
-  native: WazooSparqlEngine;
+  wazoo: WazooSparqlEngine;
   comunicaStore: Store;
   oxigraph: OxigraphStore;
 }
 
 const mainTrio: EngineTrio = {
-  native: nativeEngine,
+  wazoo: wazooEngine,
   comunicaStore: memoryStore,
   oxigraph: oxigraphStore,
 };
 const largeTrio: EngineTrio = {
-  native: largeNativeEngine,
+  wazoo: largeWazooEngine,
   comunicaStore: largeMemoryStore,
   oxigraph: largeOxigraphStore,
 };
 const graphTrio: EngineTrio = {
-  native: graphNativeEngine,
+  wazoo: graphWazooEngine,
   comunicaStore: graphMemoryStore,
   oxigraph: graphOxigraphStore,
 };
@@ -663,11 +663,11 @@ async function verifySelectEquality(
   label: string,
   trio: EngineTrio = mainTrio,
 ): Promise<void> {
-  const nativeResult = await trio.native.execute({ query });
-  if (nativeResult.kind !== "select") {
-    throw new Error(`${label}: native engine returned ${nativeResult.kind}`);
+  const wazooResult = await trio.wazoo.execute({ query });
+  if (wazooResult.kind !== "select") {
+    throw new Error(`${label}: wazoo engine returned ${wazooResult.kind}`);
   }
-  const nativeSet = nativeResult.data.results.bindings
+  const wazooSet = wazooResult.data.results.bindings
     .map((binding) => {
       const record: Record<string, CanonicalTerm> = {};
       for (const name of Object.keys(binding)) {
@@ -698,14 +698,14 @@ async function verifySelectEquality(
   const oxigraphSet = oxigraphBindings.map(oxigraphBindingRecord).sort();
 
   assertEquals(
-    nativeSet,
+    wazooSet,
     comunicaSet,
-    `${label}: native and comunica disagree`,
+    `${label}: wazoo and comunica disagree`,
   );
   assertEquals(
-    nativeSet,
+    wazooSet,
     oxigraphSet,
-    `${label}: native and oxigraph disagree`,
+    `${label}: wazoo and oxigraph disagree`,
   );
 }
 
@@ -713,9 +713,9 @@ async function verifySelectEquality(
  * verifyAskEquality asserts all three engines return the same ASK boolean.
  */
 async function verifyAskEquality(query: string, label: string): Promise<void> {
-  const nativeResult = await nativeEngine.execute({ query });
-  if (nativeResult.kind !== "ask") {
-    throw new Error(`${label}: native engine returned ${nativeResult.kind}`);
+  const wazooResult = await wazooEngine.execute({ query });
+  if (wazooResult.kind !== "ask") {
+    throw new Error(`${label}: wazoo engine returned ${wazooResult.kind}`);
   }
   const comunicaBoolean = await comunicaEngine.queryBoolean(query, {
     sources: [memoryStore],
@@ -723,14 +723,14 @@ async function verifyAskEquality(query: string, label: string): Promise<void> {
   const oxigraphBoolean = oxigraphStore.query(query) as boolean;
 
   assertEquals(
-    nativeResult.data.boolean,
+    wazooResult.data.boolean,
     comunicaBoolean,
-    `${label}: native and comunica disagree`,
+    `${label}: wazoo and comunica disagree`,
   );
   assertEquals(
-    nativeResult.data.boolean,
+    wazooResult.data.boolean,
     oxigraphBoolean,
-    `${label}: native and oxigraph disagree`,
+    `${label}: wazoo and oxigraph disagree`,
   );
 }
 
@@ -742,11 +742,11 @@ async function verifyConstructEquality(
   query: string,
   label: string,
 ): Promise<void> {
-  const nativeResult = await nativeEngine.execute({ query });
-  if (nativeResult.kind !== "construct") {
-    throw new Error(`${label}: native engine returned ${nativeResult.kind}`);
+  const wazooResult = await wazooEngine.execute({ query });
+  if (wazooResult.kind !== "construct") {
+    throw new Error(`${label}: wazoo engine returned ${wazooResult.kind}`);
   }
-  const nativeSet = nativeResult.data.quads
+  const wazooSet = wazooResult.data.quads
     .map((item) => quadRecord(item, canonicalizeRdfTerm))
     .sort();
 
@@ -755,7 +755,7 @@ async function verifyConstructEquality(
   });
   const comunicaQuads = await comunicaStream.toArray();
   // Reference sides are normalized to graph content (issue #87 contract);
-  // the native side above stays as-emitted.
+  // the wazoo side above stays as-emitted.
   const comunicaSet = dedupeRecords(
     comunicaQuads.map((item) => quadRecord(item, canonicalizeComunicaTerm)),
   ).sort();
@@ -768,14 +768,14 @@ async function verifyConstructEquality(
   ).sort();
 
   assertEquals(
-    nativeSet,
+    wazooSet,
     comunicaSet,
-    `${label}: native and comunica disagree`,
+    `${label}: wazoo and comunica disagree`,
   );
   assertEquals(
-    nativeSet,
+    wazooSet,
     oxigraphSet,
-    `${label}: native and oxigraph disagree`,
+    `${label}: wazoo and oxigraph disagree`,
   );
 }
 
@@ -788,12 +788,12 @@ async function verifyConstructIsoEquality(
   query: string,
   label: string,
 ): Promise<void> {
-  const nativeResult = await nativeEngine.execute({ query });
-  if (nativeResult.kind !== "construct") {
-    throw new Error(`${label}: native engine returned ${nativeResult.kind}`);
+  const wazooResult = await wazooEngine.execute({ query });
+  if (wazooResult.kind !== "construct") {
+    throw new Error(`${label}: wazoo engine returned ${wazooResult.kind}`);
   }
-  const nativeRecords = quadRecords(
-    nativeResult.data.quads,
+  const wazooRecords = quadRecords(
+    wazooResult.data.quads,
     canonicalizeRdfTerm,
   );
 
@@ -802,7 +802,7 @@ async function verifyConstructIsoEquality(
   });
   const comunicaQuads = await comunicaStream.toArray();
   // Reference sides are normalized to graph content (issue #87 contract);
-  // the native side above stays as-emitted.
+  // the wazoo side above stays as-emitted.
   const comunicaRecords = dedupeRecords(
     quadRecords(comunicaQuads, canonicalizeComunicaTerm),
   );
@@ -815,14 +815,14 @@ async function verifyConstructIsoEquality(
   );
 
   assertEquals(
-    isomorphicMultiset(nativeRecords, comunicaRecords),
+    isomorphicMultiset(wazooRecords, comunicaRecords),
     true,
-    `${label}: native and comunica disagree up to blank-node isomorphism`,
+    `${label}: wazoo and comunica disagree up to blank-node isomorphism`,
   );
   assertEquals(
-    isomorphicMultiset(nativeRecords, oxigraphRecords),
+    isomorphicMultiset(wazooRecords, oxigraphRecords),
     true,
-    `${label}: native and oxigraph disagree up to blank-node isomorphism`,
+    `${label}: wazoo and oxigraph disagree up to blank-node isomorphism`,
   );
 }
 
@@ -848,13 +848,13 @@ async function verifyUpdateEquality(
   label: string,
   seed: rdfjs.Quad[] = dataset,
 ): Promise<void> {
-  const nativeStore = seedStore(seed);
-  const nativeUpdateEngine = new WazooSparqlEngine({ store: nativeStore });
-  const nativeResult = await nativeUpdateEngine.execute({ query });
-  if (nativeResult.kind !== "void") {
-    throw new Error(`${label}: native engine returned ${nativeResult.kind}`);
+  const wazooStore = seedStore(seed);
+  const wazooUpdateEngine = new WazooSparqlEngine({ store: wazooStore });
+  const wazooResult = await wazooUpdateEngine.execute({ query });
+  if (wazooResult.kind !== "void") {
+    throw new Error(`${label}: wazoo engine returned ${wazooResult.kind}`);
   }
-  const nativeSet = storeQuadStrings(nativeStore);
+  const wazooSet = storeQuadStrings(wazooStore);
 
   const comunicaStore = seedStore(seed);
   await comunicaEngine.queryVoid(query, { sources: [comunicaStore] });
@@ -873,14 +873,14 @@ async function verifyUpdateEquality(
     .sort();
 
   assertEquals(
-    nativeSet,
+    wazooSet,
     comunicaSet,
-    `${label}: native and comunica disagree`,
+    `${label}: wazoo and comunica disagree`,
   );
   assertEquals(
-    nativeSet,
+    wazooSet,
     oxigraphSet,
-    `${label}: native and oxigraph disagree`,
+    `${label}: wazoo and oxigraph disagree`,
   );
 }
 
@@ -973,11 +973,11 @@ await verifyUpdateEquality(
 );
 
 Deno.bench(
-  { name: "native - scan", group: "scan", baseline: true },
+  { name: "wazoo - scan", group: "scan", baseline: true },
   async () => {
-    const result = await nativeEngine.execute({ query: scanQuery });
+    const result = await wazooEngine.execute({ query: scanQuery });
     if (result.kind !== "select" || result.data.results.bindings.length === 0) {
-      throw new Error("native scan returned no bindings");
+      throw new Error("wazoo scan returned no bindings");
     }
   },
 );
@@ -1000,11 +1000,11 @@ Deno.bench({ name: "oxigraph - scan", group: "scan" }, () => {
 });
 
 Deno.bench(
-  { name: "native - join", group: "join", baseline: true },
+  { name: "wazoo - join", group: "join", baseline: true },
   async () => {
-    const result = await nativeEngine.execute({ query: joinQuery });
+    const result = await wazooEngine.execute({ query: joinQuery });
     if (result.kind !== "select" || result.data.results.bindings.length === 0) {
-      throw new Error("native join returned no bindings");
+      throw new Error("wazoo join returned no bindings");
     }
   },
 );
@@ -1027,23 +1027,23 @@ Deno.bench({ name: "oxigraph - join", group: "join" }, () => {
 });
 
 Deno.bench(
-  { name: "native - asym (reorder on)", group: "asym-join", baseline: true },
+  { name: "wazoo - asym (reorder on)", group: "asym-join", baseline: true },
   async () => {
-    const result = await nativeEngine.execute({ query: asymJoinQuery });
+    const result = await wazooEngine.execute({ query: asymJoinQuery });
     if (result.kind !== "select" || result.data.results.bindings.length === 0) {
-      throw new Error("native asym join returned no bindings");
+      throw new Error("wazoo asym join returned no bindings");
     }
   },
 );
 
 Deno.bench(
-  { name: "native - asym (reorder off)", group: "asym-join" },
+  { name: "wazoo - asym (reorder off)", group: "asym-join" },
   async () => {
-    const result = await nativeEngineNoReorder.execute({
+    const result = await wazooEngineNoReorder.execute({
       query: asymJoinQuery,
     });
     if (result.kind !== "select" || result.data.results.bindings.length === 0) {
-      throw new Error("native asym join (no reorder) returned no bindings");
+      throw new Error("wazoo asym join (no reorder) returned no bindings");
     }
   },
 );
@@ -1069,24 +1069,24 @@ Deno.bench({ name: "oxigraph - asym", group: "asym-join" }, () => {
 
 Deno.bench(
   {
-    name: "native - chain (reorder on)",
+    name: "wazoo - chain (reorder on)",
     group: "reorder-chain",
     baseline: true,
   },
   async () => {
-    const result = await nativeEngine.execute({ query: chainQuery });
+    const result = await wazooEngine.execute({ query: chainQuery });
     if (result.kind !== "select" || result.data.results.bindings.length === 0) {
-      throw new Error("native chain returned no bindings");
+      throw new Error("wazoo chain returned no bindings");
     }
   },
 );
 
 Deno.bench(
-  { name: "native - chain (reorder off)", group: "reorder-chain" },
+  { name: "wazoo - chain (reorder off)", group: "reorder-chain" },
   async () => {
-    const result = await nativeEngineNoReorder.execute({ query: chainQuery });
+    const result = await wazooEngineNoReorder.execute({ query: chainQuery });
     if (result.kind !== "select" || result.data.results.bindings.length === 0) {
-      throw new Error("native chain (no reorder) returned no bindings");
+      throw new Error("wazoo chain (no reorder) returned no bindings");
     }
   },
 );
@@ -1111,11 +1111,11 @@ Deno.bench({ name: "oxigraph - chain", group: "reorder-chain" }, () => {
 });
 
 Deno.bench(
-  { name: "native - ask", group: "ask", baseline: true },
+  { name: "wazoo - ask", group: "ask", baseline: true },
   async () => {
-    const result = await nativeEngine.execute({ query: askQuery });
+    const result = await wazooEngine.execute({ query: askQuery });
     if (result.kind !== "ask" || !result.data.boolean) {
-      throw new Error("native ask returned an unexpected result");
+      throw new Error("wazoo ask returned an unexpected result");
     }
   },
 );
@@ -1137,11 +1137,11 @@ Deno.bench({ name: "oxigraph - ask", group: "ask" }, () => {
 });
 
 Deno.bench(
-  { name: "native - construct", group: "construct", baseline: true },
+  { name: "wazoo - construct", group: "construct", baseline: true },
   async () => {
-    const result = await nativeEngine.execute({ query: constructQuery });
+    const result = await wazooEngine.execute({ query: constructQuery });
     if (result.kind !== "construct" || result.data.quads.length === 0) {
-      throw new Error("native construct returned no quads");
+      throw new Error("wazoo construct returned no quads");
     }
   },
 );
@@ -1166,11 +1166,11 @@ Deno.bench({ name: "oxigraph - construct", group: "construct" }, () => {
 });
 
 Deno.bench(
-  { name: "native - update", group: "update", baseline: true },
+  { name: "wazoo - update", group: "update", baseline: true },
   async () => {
-    const result = await nativeEngine.execute({ query: rewriteUpdateQuery });
+    const result = await wazooEngine.execute({ query: rewriteUpdateQuery });
     if (result.kind !== "void") {
-      throw new Error("native update returned a non-void result");
+      throw new Error("wazoo update returned a non-void result");
     }
   },
 );
@@ -1185,9 +1185,29 @@ Deno.bench({ name: "oxigraph - update", group: "update" }, async () => {
   await oxigraphStore.update(rewriteUpdateQuery);
 });
 
+/* ------------------------------------------------------------------ */
+/* Inventory mode (bench:latency:check)                              */
+/* ------------------------------------------------------------------ */
+
 /**
- * benchSelectTrio registers the native/comunica/oxigraph bench trio for one
- * SELECT group. Native is the baseline; each body asserts a non-empty result
+ * BENCH_INVENTORY runs every registered bench exactly once with no warmup, so
+ * the CI staleness check (`deno task bench:latency:check`) can compare the
+ * suite's bench inventory against the committed bench/latency-data.json
+ * snapshot without paying for full timing runs. Timings under this mode are
+ * meaningless — only the registered (group, name, baseline) set is used.
+ */
+const BENCH_INVENTORY = Deno.env.get("BENCH_INVENTORY") === "1";
+const INVENTORY_BENCH_OPTIONS = { warmup: 0, iterations: 1 } as const;
+
+function benchOptions(
+  options?: { warmup?: number; iterations?: number },
+): { warmup?: number; iterations?: number } {
+  return BENCH_INVENTORY ? INVENTORY_BENCH_OPTIONS : (options ?? {});
+}
+
+/**
+ * benchSelectTrio registers the wazoo/comunica/oxigraph bench trio for one
+ * SELECT group. Wazoo is the baseline; each body asserts a non-empty result
  * so a silently-broken engine fails loudly mid-run.
  */
 function benchSelectTrio(
@@ -1198,39 +1218,50 @@ function benchSelectTrio(
   options?: { warmup?: number; iterations?: number },
 ): void {
   Deno.bench(
-    { name: `native - ${label}`, group, baseline: true, ...options },
+    {
+      name: `wazoo - ${label}`,
+      group,
+      baseline: true,
+      ...benchOptions(options),
+    },
     async () => {
-      const result = await trio.native.execute({ query });
+      const result = await trio.wazoo.execute({ query });
       if (
         result.kind !== "select" ||
         result.data.results.bindings.length === 0
       ) {
-        throw new Error(`native ${label} returned no bindings`);
+        throw new Error(`wazoo ${label} returned no bindings`);
       }
     },
   );
 
-  Deno.bench({ name: `comunica - ${label}`, group }, async () => {
-    const stream = await comunicaEngine.queryBindings(query, {
-      sources: [trio.comunicaStore],
-    });
-    const bindings = await stream.toArray();
-    if (bindings.length === 0) {
-      throw new Error(`comunica ${label} returned no bindings`);
-    }
-  });
+  Deno.bench(
+    { name: `comunica - ${label}`, group, ...benchOptions() },
+    async () => {
+      const stream = await comunicaEngine.queryBindings(query, {
+        sources: [trio.comunicaStore],
+      });
+      const bindings = await stream.toArray();
+      if (bindings.length === 0) {
+        throw new Error(`comunica ${label} returned no bindings`);
+      }
+    },
+  );
 
-  Deno.bench({ name: `oxigraph - ${label}`, group }, () => {
-    const result = trio.oxigraph.query(query) as unknown as OxigraphBinding[];
-    if (result.length === 0) {
-      throw new Error(`oxigraph ${label} returned no bindings`);
-    }
-  });
+  Deno.bench(
+    { name: `oxigraph - ${label}`, group, ...benchOptions() },
+    () => {
+      const result = trio.oxigraph.query(query) as unknown as OxigraphBinding[];
+      if (result.length === 0) {
+        throw new Error(`oxigraph ${label} returned no bindings`);
+      }
+    },
+  );
 }
 
 /**
- * benchConstructTrio registers the native/comunica/oxigraph bench trio for
- * one CONSTRUCT group. Native is the baseline; each body asserts a non-empty
+ * benchConstructTrio registers the wazoo/comunica/oxigraph bench trio for
+ * one CONSTRUCT group. Wazoo is the baseline; each body asserts a non-empty
  * result so a silently-broken engine fails loudly mid-run.
  */
 function benchConstructTrio(
@@ -1239,35 +1270,41 @@ function benchConstructTrio(
   label: string,
 ): void {
   Deno.bench(
-    { name: `native - ${label}`, group, baseline: true },
+    { name: `wazoo - ${label}`, group, baseline: true, ...benchOptions() },
     async () => {
-      const result = await nativeEngine.execute({ query });
+      const result = await wazooEngine.execute({ query });
       if (result.kind !== "construct" || result.data.quads.length === 0) {
-        throw new Error(`native ${label} returned no quads`);
+        throw new Error(`wazoo ${label} returned no quads`);
       }
     },
   );
 
-  Deno.bench({ name: `comunica - ${label}`, group }, async () => {
-    const stream = await comunicaEngine.queryQuads(query, {
-      sources: [memoryStore],
-    });
-    const quads = await stream.toArray();
-    if (quads.length === 0) {
-      throw new Error(`comunica ${label} returned no quads`);
-    }
-  });
+  Deno.bench(
+    { name: `comunica - ${label}`, group, ...benchOptions() },
+    async () => {
+      const stream = await comunicaEngine.queryQuads(query, {
+        sources: [memoryStore],
+      });
+      const quads = await stream.toArray();
+      if (quads.length === 0) {
+        throw new Error(`comunica ${label} returned no quads`);
+      }
+    },
+  );
 
-  Deno.bench({ name: `oxigraph - ${label}`, group }, () => {
-    const result = oxigraphStore.query(query) as unknown as rdfjs.Quad[];
-    if (result.length === 0) {
-      throw new Error(`oxigraph ${label} returned no quads`);
-    }
-  });
+  Deno.bench(
+    { name: `oxigraph - ${label}`, group, ...benchOptions() },
+    () => {
+      const result = oxigraphStore.query(query) as unknown as rdfjs.Quad[];
+      if (result.length === 0) {
+        throw new Error(`oxigraph ${label} returned no quads`);
+      }
+    },
+  );
 }
 
 /**
- * benchUpdateTrio registers the native/comunica/oxigraph bench trio for one
+ * benchUpdateTrio registers the wazoo/comunica/oxigraph bench trio for one
  * update group. Each iteration seeds a fresh store (the graph-management ops
  * are one-way mutations, unlike the self-restoring rewrite update), so the
  * timings never observe a drifted store.
@@ -1279,26 +1316,32 @@ function benchUpdateTrio(
   seed: rdfjs.Quad[],
 ): void {
   Deno.bench(
-    { name: `native - ${label}`, group, baseline: true },
+    { name: `wazoo - ${label}`, group, baseline: true, ...benchOptions() },
     async () => {
       const store = seedStore(seed);
       const engine = new WazooSparqlEngine({ store });
       const result = await engine.execute({ query });
       if (result.kind !== "void") {
-        throw new Error(`native ${label} returned a non-void result`);
+        throw new Error(`wazoo ${label} returned a non-void result`);
       }
     },
   );
 
-  Deno.bench({ name: `comunica - ${label}`, group }, async () => {
-    const store = seedStore(seed);
-    await comunicaEngine.queryVoid(query, { sources: [store] });
-  });
+  Deno.bench(
+    { name: `comunica - ${label}`, group, ...benchOptions() },
+    async () => {
+      const store = seedStore(seed);
+      await comunicaEngine.queryVoid(query, { sources: [store] });
+    },
+  );
 
-  Deno.bench({ name: `oxigraph - ${label}`, group }, async () => {
-    const store = seedOxigraphStore(seed);
-    await store.update(query);
-  });
+  Deno.bench(
+    { name: `oxigraph - ${label}`, group, ...benchOptions() },
+    async () => {
+      const store = seedOxigraphStore(seed);
+      await store.update(query);
+    },
+  );
 }
 
 benchSelectTrio("optional", optionalQuery, "optional");
@@ -1317,7 +1360,7 @@ benchSelectTrio("from", fromQuery, "from", graphTrio);
 benchSelectTrio("subquery", subqueryQuery, "subquery");
 benchSelectTrio("subquery", subqueryAggQuery, "subquery-agg");
 benchSelectTrio("subquery", subqueryNestedQuery, "subquery-nested");
-// The native EXISTS path is the suite's slowest (tens of ms/iter), so it
+// The wazoo EXISTS path is the suite's slowest (tens of ms/iter), so it
 // needs a longer warmup than the 500 ms default for stable, comparable rows
 // (V8 must finish optimizing the hot EXISTS machinery before measurement),
 // plus more samples to average out scheduler noise.
@@ -1382,9 +1425,9 @@ benchSelectTrio(
   LARGE_EXISTS_BENCH_OPTIONS,
 );
 // 10k join-scaling rows: the same shared-subject join surface as the
-// 400-person rows but at 10k subjects, where the native engine's hash join
+// 400-person rows but at 10k subjects, where the wazoo engine's hash join
 // probes instead of scanning the whole right side per left binding.
-const LARGE_JOIN_BENCH_OPTIONS = { warmup: 2_000, iterations: 10 };
+const LARGE_JOIN_BENCH_OPTIONS = { warmup: 2_000, iterations: 30 };
 benchSelectTrio(
   "join-large",
   unionJoinQuery,

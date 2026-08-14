@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-08-14T19:51:58.620Z",
+  "generatedAt": "2026-08-14T21:26:46.705Z",
   "engines": [
     {
-      "name": "native",
-      "bytes": 626854,
+      "name": "wazoo",
+      "bytes": 632215,
       "children": [
         {
           "name": "src/parser/parser.ts",
@@ -30,12 +30,12 @@
           "bytes": 27696
         },
         {
-          "name": "src/evaluator/sparql-evaluator.ts",
-          "bytes": 19032
+          "name": "README.md",
+          "bytes": 21315
         },
         {
-          "name": "README.md",
-          "bytes": 15941
+          "name": "src/evaluator/sparql-evaluator.ts",
+          "bytes": 19032
         },
         {
           "name": "src/term/hash.ts",
@@ -47,7 +47,7 @@
         },
         {
           "name": "src/parser/README.md",
-          "bytes": 10928
+          "bytes": 10925
         },
         {
           "name": "src/evaluator/aggregate.ts",
@@ -87,7 +87,7 @@
         },
         {
           "name": "src/wazoo-sparql-engine.ts",
-          "bytes": 3874
+          "bytes": 3867
         },
         {
           "name": "src/term/numeric.ts",
@@ -95,7 +95,7 @@
         },
         {
           "name": "src/term/canonical.ts",
-          "bytes": 3206
+          "bytes": 3203
         },
         {
           "name": "src/term/datetime.ts",
@@ -900,9 +900,9 @@
       ]
     }
   ],
-  "native": {
-    "artifactBytes": 626854,
-    "gzipBytes": 133539,
+  "wazoo": {
+    "artifactBytes": 632215,
+    "gzipBytes": 135178,
     "files": 36
   }
 }

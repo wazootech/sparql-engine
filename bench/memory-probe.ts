@@ -3,7 +3,7 @@
 // target engine is loaded), executes the workload several times, and reports
 // the peak heap/RSS observed.
 //
-//   deno run --allow-all bench/memory-probe.ts <native|comunica|oxigraph> <scan|exists>
+//   deno run --allow-all bench/memory-probe.ts <wazoo|comunica|oxigraph> <scan|exists>
 //
 // Prints one JSON document to stdout.
 import type * as rdfjs from "@rdfjs/types";
@@ -51,7 +51,7 @@ const NESTED_EXISTS_QUERY =
 
 const engine = Deno.args[0];
 const workload = Deno.args[1];
-if (engine !== "native" && engine !== "comunica" && engine !== "oxigraph") {
+if (engine !== "wazoo" && engine !== "comunica" && engine !== "oxigraph") {
   throw new Error(`unknown engine: ${engine}`);
 }
 if (workload !== "scan" && workload !== "exists") {
@@ -74,17 +74,17 @@ const observe = (): void => {
 };
 
 async function runWorkload(): Promise<void> {
-  if (engine === "native") {
+  if (engine === "wazoo") {
     const store = new Store();
     for (const q of dataset) {
       store.addQuad(q);
     }
     const { WazooSparqlEngine } = await import("@/wazoo-sparql-engine.ts");
-    const nativeEngine = new WazooSparqlEngine({ store });
+    const wazooEngine = new WazooSparqlEngine({ store });
     for (let i = 0; i < RUNS; i++) {
-      const result = await nativeEngine.execute({ query });
+      const result = await wazooEngine.execute({ query });
       if (result.kind !== "select") {
-        throw new Error(`native returned ${result.kind}`);
+        throw new Error(`wazoo returned ${result.kind}`);
       }
       observe();
     }

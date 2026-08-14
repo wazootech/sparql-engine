@@ -161,7 +161,7 @@ deno task test:ref     # allowlisted-divergence audit vs Oxigraph + N3.js
 ## Benchmarks
 
 ```bash
-deno task bench        # native vs Comunica vs Oxigraph, verification-first
+deno task bench        # wazoo vs Comunica vs Oxigraph, verification-first
 deno task bench:check  # regression budget gate (bench/budget.ts)
 deno task bench:size   # on-disk library footprint → docs/assets/chart-library-size.svg
 deno task bench:size:closures # per-entrypoint import closure → docs/assets/chart-closures.svg

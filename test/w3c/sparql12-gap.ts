@@ -287,7 +287,7 @@ function parseGraphReference(
   );
 }
 
-function nativeSelectRecords(result: SparqlResponse): CanonicalTerm[][] {
+function wazooSelectRecords(result: SparqlResponse): CanonicalTerm[][] {
   if (result.kind !== "select") return [];
   return result.data.results.bindings.map((binding) => {
     const record: Record<string, CanonicalTerm> = {};
@@ -298,7 +298,7 @@ function nativeSelectRecords(result: SparqlResponse): CanonicalTerm[][] {
   });
 }
 
-function nativeQuadRecords(quads: rdfjs.Quad[]): CanonicalTerm[][] {
+function wazooQuadRecords(quads: rdfjs.Quad[]): CanonicalTerm[][] {
   return quads.map((quad) =>
     [quad.subject, quad.predicate, quad.object, quad.graph].map((term) =>
       canonicalizeRdfTerm(term)
@@ -312,8 +312,8 @@ function firstDiff(a: string[], b: string[], label: string): string {
   for (let index = 0; index < Math.max(aSet.length, bSet.length); index++) {
     if (aSet[index] !== bSet[index]) {
       return (
-        `${label} diverge (native ${aSet.length}, reference ${bSet.length}):\n` +
-        `  native:    ${aSet[index] ?? "<absent>"}\n` +
+        `${label} diverge (wazoo ${aSet.length}, reference ${bSet.length}):\n` +
+        `  wazoo:    ${aSet[index] ?? "<absent>"}\n` +
         `  reference: ${bSet[index] ?? "<absent>"}`
       );
     }
@@ -334,12 +334,12 @@ function resultKind(testCase: W3cTestCase): Row["result"] {
   return "ttl";
 }
 
-async function runNative(
+async function runWazoo(
   testCase: W3cTestCase,
 ): Promise<{ store: MemoryStore; result: SparqlResponse }> {
   const store = loadStore(testCase);
-  const native = new WazooSparqlEngine({ store });
-  const result = await native.execute({ query: queryText(testCase) });
+  const wazoo = new WazooSparqlEngine({ store });
+  const result = await wazoo.execute({ query: queryText(testCase) });
   return { store, result };
 }
 
@@ -347,9 +347,9 @@ async function evaluate(testCase: W3cTestCase): Promise<Verdict> {
   const kind = resultKind(testCase);
   const resultFile = testCase.resultFile;
 
-  let native: { store: MemoryStore; result: SparqlResponse };
+  let wazoo: { store: MemoryStore; result: SparqlResponse };
   try {
-    native = await runNative(testCase);
+    wazoo = await runWazoo(testCase);
   } catch (error) {
     return {
       status: "error",
@@ -370,19 +370,19 @@ async function evaluate(testCase: W3cTestCase): Promise<Verdict> {
   }
 
   if (compareKind === "srj") {
-    if (native.result.kind !== "select") {
+    if (wazoo.result.kind !== "select") {
       return {
         status: "error",
-        detail: `expected SELECT, native returned ${native.result.kind}`,
+        detail: `expected SELECT, wazoo returned ${wazoo.result.kind}`,
       };
     }
     const reference = parseSrj(compareFile);
-    const nativeRecords = nativeSelectRecords(native.result);
+    const wazooRecords = wazooSelectRecords(wazoo.result);
     const referenceRecords = recordsOf(reference);
-    if (isomorphicMultiset(nativeRecords, referenceRecords)) {
+    if (isomorphicMultiset(wazooRecords, referenceRecords)) {
       return { status: "pass" };
     }
-    const nativeStrings = native.result.data.results.bindings.map((binding) => {
+    const wazooStrings = wazoo.result.data.results.bindings.map((binding) => {
       const record: Record<string, CanonicalTerm> = {};
       for (const name of Object.keys(binding)) {
         record[name] = canonicalizeSparqlValue(binding[name]);
@@ -392,7 +392,7 @@ async function evaluate(testCase: W3cTestCase): Promise<Verdict> {
     return {
       status: "gap",
       detail: firstDiff(
-        nativeStrings,
+        wazooStrings,
         reference.map(bindingRecord),
         "SELECT bindings",
       ),
@@ -401,26 +401,26 @@ async function evaluate(testCase: W3cTestCase): Promise<Verdict> {
 
   // ttl (CONSTRUCT) and trig (update) both compare a final graph.
   const reference = parseGraphReference(testCase, compareFile);
-  if (native.result.kind === "construct") {
-    const nativeRecords = nativeQuadRecords(native.result.data.quads);
-    if (isomorphicMultiset(nativeRecords, reference)) return { status: "pass" };
+  if (wazoo.result.kind === "construct") {
+    const wazooRecords = wazooQuadRecords(wazoo.result.data.quads);
+    if (isomorphicMultiset(wazooRecords, reference)) return { status: "pass" };
     return {
       status: "gap",
       detail: firstDiff(
-        nativeRecords.map((r) => JSON.stringify(r)),
+        wazooRecords.map((r) => JSON.stringify(r)),
         reference.map((r) => JSON.stringify(r)),
         "graph contents",
       ),
     };
   }
-  if (native.result.kind === "void") {
-    const quads = native.store.getQuads(null, null, null, null);
-    const nativeRecords = nativeQuadRecords(quads);
-    if (isomorphicMultiset(nativeRecords, reference)) return { status: "pass" };
+  if (wazoo.result.kind === "void") {
+    const quads = wazoo.store.getQuads(null, null, null, null);
+    const wazooRecords = wazooQuadRecords(quads);
+    if (isomorphicMultiset(wazooRecords, reference)) return { status: "pass" };
     return {
       status: "gap",
       detail: firstDiff(
-        nativeRecords.map((r) => JSON.stringify(r)),
+        wazooRecords.map((r) => JSON.stringify(r)),
         reference.map((r) => JSON.stringify(r)),
         "final store contents",
       ),
@@ -429,7 +429,7 @@ async function evaluate(testCase: W3cTestCase): Promise<Verdict> {
   return {
     status: "error",
     detail:
-      `unexpected native result kind ${native.result.kind} for ${kind} result`,
+      `unexpected wazoo result kind ${wazoo.result.kind} for ${kind} result`,
   };
 }
 
@@ -458,7 +458,7 @@ const error = rows.filter((r) => r.verdict.status === "error").length;
 const deferred = rows.filter((r) => r.verdict.status === "deferred").length;
 
 console.log(
-  "=== SPARQL 1.2 eval-triple-terms gap measurement (native vs W3C reference) ===",
+  "=== SPARQL 1.2 eval-triple-terms gap measurement (wazoo vs W3C reference) ===",
 );
 console.log(`total:    ${rows.length}`);
 console.log(`pass:     ${pass}`);

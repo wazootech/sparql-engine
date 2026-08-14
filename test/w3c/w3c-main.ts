@@ -78,7 +78,7 @@ function printReport(
   console.log(`skipped:    ${skipped}`);
 
   if (report.gapDetails.length > 0) {
-    console.log("\n--- parity gaps (native disagrees with comunica) ---");
+    console.log("\n--- parity gaps (wazoo disagrees with comunica) ---");
     for (const gap of report.gapDetails) {
       console.log(`\n[${gap.id}] ${gap.name}`);
       console.log(gap.detail.split("\n").map((line) => `  ${line}`).join("\n"));
@@ -92,13 +92,13 @@ function printReport(
   }
   if (report.conformance.length > 0) {
     const conforms = report.conformance.filter((c) =>
-      c.native === "conforms" && c.comunica === "conforms"
+      c.wazoo === "conforms" && c.comunica === "conforms"
     ).length;
-    const nativeConforms = report.conformance.filter((c) =>
-      c.native === "conforms"
+    const wazooConforms = report.conformance.filter((c) =>
+      c.wazoo === "conforms"
     ).length;
-    const nativeDeviations = report.conformance.filter((c) =>
-      c.native === "deviates"
+    const wazooDeviations = report.conformance.filter((c) =>
+      c.wazoo === "deviates"
     ).length;
     const comunicaDeviations = report.conformance.filter((c) =>
       c.comunica === "deviates"
@@ -107,16 +107,14 @@ function printReport(
       "\n--- conformance soft-report (parseable results only) ---",
     );
     console.log(
-      `checked: ${report.conformance.length} | native conforms: ${nativeConforms}/${report.conformance.length} | both conform: ${conforms} | ` +
-        `native deviates: ${nativeDeviations} | comunica deviates: ` +
+      `checked: ${report.conformance.length} | wazoo conforms: ${wazooConforms}/${report.conformance.length} | both conform: ${conforms} | ` +
+        `wazoo deviates: ${wazooDeviations} | comunica deviates: ` +
         `${comunicaDeviations}`,
     );
-    const asymmetric = report.conformance.filter((c) =>
-      c.native !== c.comunica
-    );
+    const asymmetric = report.conformance.filter((c) => c.wazoo !== c.comunica);
     for (const entry of asymmetric.slice(0, 10)) {
       console.log(
-        `  [${entry.id}] native=${entry.native} comunica=${entry.comunica}`,
+        `  [${entry.id}] wazoo=${entry.wazoo} comunica=${entry.comunica}`,
       );
     }
   }
@@ -135,7 +133,7 @@ if (report.pass < threshold || report.error > 0) {
     `\nW3C differential gate FAILED: ${report.pass}/${report.total} pass is ` +
       `below the ${threshold} (100%) threshold, with ${report.gap} parity ` +
       `gap(s) and ${report.error} error(s). The parity-gap count is the ` +
-      `tracked progress metric — each gap is a place native must converge ` +
+      `tracked progress metric — each gap is a place wazoo must converge ` +
       `with comunica.`,
   );
   Deno.exit(1);

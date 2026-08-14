@@ -1,42 +1,42 @@
 {
-  "generatedAt": "2026-08-14T17:05:36.921Z",
+  "generatedAt": "2026-08-14T21:28:02.208Z",
   "runs": 5,
   "dataset": "10,000-person graph (~55,000 quads)",
   "measurement": "isolated Deno subprocess per engine, Deno.memoryUsage() peak after each run",
   "engines": {
-    "native": {
+    "wazoo": {
       "scan": {
-        "peakHeap": 140895480,
-        "peakRss": 263184384,
+        "peakHeap": 157156376,
+        "peakRss": 276078592,
         "external": 317663
       },
       "exists": {
-        "peakHeap": 85451920,
-        "peakRss": 185733120,
+        "peakHeap": 83354176,
+        "peakRss": 198397952,
         "external": 317663
       }
     },
     "comunica": {
       "scan": {
-        "peakHeap": 224656320,
-        "peakRss": 376680448,
+        "peakHeap": 224318392,
+        "peakRss": 392032256,
         "external": 1703597
       },
       "exists": {
-        "peakHeap": 284281656,
-        "peakRss": 418705408,
-        "external": 2735597
+        "peakHeap": 285827720,
+        "peakRss": 448548864,
+        "external": 2621597
       }
     },
     "oxigraph": {
       "scan": {
-        "peakHeap": 262769344,
-        "peakRss": 506744832,
+        "peakHeap": 267656088,
+        "peakRss": 509505536,
         "external": 954855
       },
       "exists": {
-        "peakHeap": 113574760,
-        "peakRss": 290107392,
+        "peakHeap": 113824896,
+        "peakRss": 302903296,
         "external": 954855
       }
     }

@@ -1199,7 +1199,7 @@ Deno.test(
   async () => {
     const comunicaEngine = getComunicaEngine();
     const comunicaStore = createQuadStore([]);
-    const nativeEngine = new WazooSparqlEngine({ store: createQuadStore([]) });
+    const wazooEngine = new WazooSparqlEngine({ store: createQuadStore([]) });
     const shapeQueries = {
       bnode: "SELECT ?v WHERE { BIND(BNODE() AS ?v) }",
       bnodeLabel: 'SELECT ?v WHERE { BIND(BNODE("x") AS ?v) }',
@@ -1215,12 +1215,12 @@ Deno.test(
         comunicaStore,
       );
       const comunicaTerm = comunicaBindings[0].v;
-      const nativeResult = await nativeEngine.execute({ query });
-      assertEquals(nativeResult.kind, "select");
-      if (nativeResult.kind !== "select") {
+      const wazooResult = await wazooEngine.execute({ query });
+      assertEquals(wazooResult.kind, "select");
+      if (wazooResult.kind !== "select") {
         continue;
       }
-      const nativeTerm = nativeResult.data.results.bindings[0].v;
+      const wazooTerm = wazooResult.data.results.bindings[0].v;
       const comunicaLiteral = comunicaTerm.termType === "Literal"
         ? comunicaTerm
         : null;
@@ -1228,7 +1228,7 @@ Deno.test(
         case "bnode":
         case "bnodeLabel":
           assertEquals(comunicaTerm.termType, "BlankNode");
-          assertEquals(nativeTerm.type, "bnode");
+          assertEquals(wazooTerm.type, "bnode");
           break;
         case "struuid": {
           assertEquals(comunicaTerm.termType, "Literal");
@@ -1236,13 +1236,13 @@ Deno.test(
             comunicaLiteral?.datatype?.value,
             "http://www.w3.org/2001/XMLSchema#string",
           );
-          assertEquals(nativeTerm.type, "literal");
-          const nativeLiteral = nativeTerm as {
+          assertEquals(wazooTerm.type, "literal");
+          const wazooLiteral = wazooTerm as {
             type: "literal";
             value: string;
           };
           assertMatch(
-            nativeLiteral.value,
+            wazooLiteral.value,
             /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
           );
           break;
@@ -1250,9 +1250,9 @@ Deno.test(
         case "uuid":
           assertEquals(comunicaTerm.termType, "NamedNode");
           assertMatch(comunicaTerm.value, /^urn:uuid:/);
-          assertEquals(nativeTerm.type, "uri");
+          assertEquals(wazooTerm.type, "uri");
           assertMatch(
-            (nativeTerm as { type: "uri"; value: string }).value,
+            (wazooTerm as { type: "uri"; value: string }).value,
             /^urn:uuid:/,
           );
           break;
@@ -1262,19 +1262,19 @@ Deno.test(
             comunicaLiteral?.datatype?.value,
             "http://www.w3.org/2001/XMLSchema#double",
           );
-          const nativeLiteral = nativeTerm as {
+          const wazooLiteral = wazooTerm as {
             type: "literal";
             value: string;
             datatype?: string;
           };
-          assertEquals(nativeLiteral.type, "literal");
+          assertEquals(wazooLiteral.type, "literal");
           assertEquals(
-            nativeLiteral.datatype,
+            wazooLiteral.datatype,
             "http://www.w3.org/2001/XMLSchema#double",
           );
-          const nativeValue = Number(nativeLiteral.value);
-          if (!(nativeValue >= 0 && nativeValue < 1)) {
-            throw new Error(`RAND out of range: ${nativeValue}`);
+          const wazooValue = Number(wazooLiteral.value);
+          if (!(wazooValue >= 0 && wazooValue < 1)) {
+            throw new Error(`RAND out of range: ${wazooValue}`);
           }
           break;
         }
@@ -1284,14 +1284,14 @@ Deno.test(
             comunicaLiteral?.datatype?.value,
             "http://www.w3.org/2001/XMLSchema#dateTime",
           );
-          const nativeLiteral = nativeTerm as {
+          const wazooLiteral = wazooTerm as {
             type: "literal";
             value: string;
             datatype?: string;
           };
-          assertEquals(nativeLiteral.type, "literal");
+          assertEquals(wazooLiteral.type, "literal");
           assertEquals(
-            nativeLiteral.datatype,
+            wazooLiteral.datatype,
             "http://www.w3.org/2001/XMLSchema#dateTime",
           );
           break;
@@ -1305,7 +1305,7 @@ Deno.test(
   "parity - known difference: BNODE labels are opaque per engine",
   async () => {
     // Both engines mint a blank node for BNODE("x"), but the labels are
-    // engine-specific ("x1" scoped by Comunica, "x" by the native engine).
+    // engine-specific ("x1" scoped by Comunica, "x" by the wazoo engine).
     // Blank node labels are opaque per SPARQL 1.1, so the parity contract is
     // the term type, not the label.
     const query = `SELECT ?v WHERE { BIND(BNODE("x") AS ?v) }`;
@@ -1315,14 +1315,14 @@ Deno.test(
       query,
       createQuadStore([]),
     );
-    const nativeEngine = new WazooSparqlEngine({
+    const wazooEngine = new WazooSparqlEngine({
       store: createQuadStore([]),
     });
-    const nativeResult = await nativeEngine.execute({ query });
-    assertEquals(nativeResult.kind, "select");
-    if (nativeResult.kind === "select") {
+    const wazooResult = await wazooEngine.execute({ query });
+    assertEquals(wazooResult.kind, "select");
+    if (wazooResult.kind === "select") {
       assertEquals(comunicaBindings[0].v.termType, "BlankNode");
-      assertEquals(nativeResult.data.results.bindings[0].v.type, "bnode");
+      assertEquals(wazooResult.data.results.bindings[0].v.type, "bnode");
     }
   },
 );

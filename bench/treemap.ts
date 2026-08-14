@@ -1,10 +1,13 @@
-// Treemap SVG generator for the README's size & memory comparison.
+// Figure SVG generator for the README's size & memory comparison.
 //
-// Reads bench/size-data.json (from bench/measure-libs.ts) and
-// bench/memory-data.json (from bench/memory-probe.ts) and writes:
+// Reads bench/size-data.json (from bench/measure-libs.ts),
+// bench/memory-data.json (from bench/memory-probe.ts), and
+// bench/closures-data.json (from bench/measure-closures.ts) and writes:
 //
-//   docs/assets/treemap-library-size.svg
+//   docs/assets/chart-library-size.svg
 //   docs/assets/treemap-memory.svg
+//   docs/assets/chart-closures.svg
+//   docs/assets/treemap-submodules.svg
 //
 // Run: deno run --allow-read --allow-write bench/treemap.ts
 import { join } from "@std/path";
@@ -37,11 +40,11 @@ interface Placed {
 }
 
 /** Engine identity → color. Colors are keyed by engine name, never by sort
- * position: native is always green (the wazoo brand), oxigraph blue,
+ * position: wazoo is always green (the wazoo brand), oxigraph blue,
  * comunica orange — so in the size chart the biggest bundle (comunica) is
- * orange and native's tiny footprint reads as the small green bar. */
+ * orange and wazoo's tiny footprint reads as the small green bar. */
 const ENGINE_COLORS: Record<string, string> = {
-  native: "#2f9e44",
+  wazoo: "#2f9e44",
   oxigraph: "#1971c2",
   comunica: "#f08c00",
 };
@@ -227,8 +230,8 @@ function treemapSvg(
 /* ------------------------------------------------------------------ */
 
 /** sizeChart renders a horizontal bar chart of each engine's total installed
- * footprint — bar length ∝ total bytes, sorted ascending so native's tiny
- * green bar reads first. Colors are engine identity (native green, oxigraph
+ * footprint — bar length ∝ total bytes, sorted ascending so wazoo's tiny
+ * green bar reads first. Colors are engine identity (wazoo green, oxigraph
  * blue, comunica orange), never sort position. */
 function sizeChart(): void {
   const data = JSON.parse(
@@ -293,7 +296,7 @@ function memoryTree(): Placed[] {
       { scan: { peakHeap: number }; exists: { peakHeap: number } }
     >;
   };
-  const names = ["native", "oxigraph", "comunica"];
+  const names = ["wazoo", "comunica", "oxigraph"];
   const workloads = ["scan", "exists"] as const;
   const labels: Record<string, string> = {
     scan: "full scan (55k rows materialized)",
