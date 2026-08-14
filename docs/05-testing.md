@@ -261,8 +261,9 @@ console.log(JSON.stringify(ast, null, 2));
 ```
 
 You can see the algebra operators the evaluator will run: `group` + `having` +
-`order` + projection expressions map 1:1 onto `applySelectPipeline()` stages
-(see [02 — Architecture](02-architecture.md)).
+`order` + projection expressions map 1:1 onto
+[`applySelectPipeline()`](https://github.com/wazootech/sparql-engine/blob/main/src/evaluator/select-pipeline.ts)
+stages (see [02 — Architecture](02-architecture.md)).
 
 ### 2. Inspect what the store sees
 
@@ -280,9 +281,9 @@ console.log(store.getQuads(null, null, null, null));
 '
 ```
 
-`GraphScopedStore` (`src/quad-store.ts` L147) is a view that fixes the graph
-term — to trace `GRAPH ?g` scoping, check which graph term the store view
-carries.
+[`GraphScopedStore`](https://github.com/wazootech/sparql-engine/blob/main/src/quad-store.ts)
+(`src/quad-store.ts` L147) is a view that fixes the graph term — to trace
+`GRAPH ?g` scoping, check which graph term the store view carries.
 
 ### 3. Trace a single pipeline stage
 
@@ -291,9 +292,10 @@ carries.
   estimated cost per remaining pattern; toggle `reorderPatterns: false` in
   [`WazooSparqlEngineOptions`](https://jsr.io/@wazoo/sparql-engine/doc/~/WazooSparqlEngineOptions)
   to compare written order vs planned order.
-- **Hash join**: `joinTriplePattern()` (`src/evaluator/join.ts` L520) shows
-  candidate probing; `ScanEntry.candidates.length` is the true store cardinality
-  the planner uses.
+- **Hash join**:
+  [`joinTriplePattern()`](https://github.com/wazootech/sparql-engine/blob/main/src/evaluator/join.ts)
+  (`src/evaluator/join.ts` L520) shows candidate probing;
+  `ScanEntry.candidates.length` is the true store cardinality the planner uses.
 - **Expressions**: `ExpressionEvaluator.evaluate()` returns `undefined` for type
   errors and unbound variables — a FILTER that silently drops rows is usually an
   EBV error. `filterPasses()` (L251) is the FILTER gate.
@@ -317,6 +319,6 @@ defects.
 - The generated `src/parser/parser.ts` (9608 lines) carries `// @ts-nocheck` and
   `// deno-lint-ignore-file`; edit `sparql.jison`, not the generated file, and
   run `deno task parser:generate`.
-- `SqliteStore` imports `node:sqlite` and is intentionally **not** in the public
-  export graph — `deno task publish:dry` fails if a browser-safe module starts
-  importing it.
+- [`SqliteStore`](https://github.com/wazootech/sparql-engine/blob/main/src/store/sqlite-store.ts)
+  imports `node:sqlite` and is intentionally **not** in the public export graph
+  — `deno task publish:dry` fails if a browser-safe module starts importing it.

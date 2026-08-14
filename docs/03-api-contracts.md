@@ -177,7 +177,9 @@ sources), `CLEAR`/`DROP` (`DEFAULT`/`NAMED`/`ALL`/`GRAPH`), `CREATE`, `ADD`,
 
 Any `rdfjs.Store` with `match()` is a valid read source. To support **updates**
 without a transaction, the store must additionally expose `addQuad` /
-`removeQuad` — the `QuadWriteStore` shape:
+`removeQuad` — the
+[`QuadWriteStore`](https://github.com/wazootech/sparql-engine/blob/main/src/evaluator/update-evaluator.ts)
+shape:
 
 ```typescript
 // src/evaluator/update-evaluator.ts L34
@@ -188,9 +190,10 @@ export type QuadWriteStore = rdfjs.Store & {
 ```
 
 [`MemoryStore`](https://jsr.io/@wazoo/sparql-engine/doc/~/MemoryStore),
-`SqliteStore`, and `@worlds/client`'s `LibsqlRdfjsStore` / `DenokvRdfjsStore`
-all satisfy it. If neither `createTransaction` nor `addQuad`/`removeQuad` is
-available, updates throw a clear error.
+[`SqliteStore`](https://github.com/wazootech/sparql-engine/blob/main/src/store/sqlite-store.ts),
+and `@worlds/client`'s `LibsqlRdfjsStore` / `DenokvRdfjsStore` all satisfy it.
+If neither `createTransaction` nor `addQuad`/`removeQuad` is available, updates
+throw a clear error.
 
 ### 2. Durable transactions
 
@@ -229,15 +232,17 @@ export interface ExpressionEvaluationContext {
 }
 ```
 
-`BgpEvaluator` binds these hooks at every expression call site (FILTER, BIND,
-ORDER BY, HAVING, projection) with the current graph scope, so EXISTS works
-uniformly in every expression position — nested `&&`, inside OPTIONAL,
-EXISTS-inside-EXISTS, and subqueries inside EXISTS.
+[`BgpEvaluator`](https://github.com/wazootech/sparql-engine/blob/main/src/evaluator/bgp-evaluator.ts)
+binds these hooks at every expression call site (FILTER, BIND, ORDER BY, HAVING,
+projection) with the current graph scope, so EXISTS works uniformly in every
+expression position — nested `&&`, inside OPTIONAL, EXISTS-inside-EXISTS, and
+subqueries inside EXISTS.
 
 The hooks evaluate against a **per-call snapshot**: `prepareExistsIndex()`
-returns `Promise<ExistsSnapshot>` (an internal `quads` + `QuadIndex` + `version`
-record; previously `Promise<void>`), and the private context builders —
-`scopedExistsContext(store, snapshot)`, `pipelineExistsContext(snapshot)` —
+returns `Promise<ExistsSnapshot>` (an internal `quads` +
+[`QuadIndex`](https://github.com/wazootech/sparql-engine/blob/main/src/quad-store.ts) +
+`version` record; previously `Promise<void>`), and the private context builders
+— `scopedExistsContext(store, snapshot)`, `pipelineExistsContext(snapshot)` —
 capture it once so a concurrent `execute()`'s cache rebuild is never observable
 mid-evaluation (issue
 [#72](https://github.com/wazootech/sparql-engine/issues/72)).
@@ -249,9 +254,11 @@ function surface lives in `ExpressionEvaluator.evaluateOperation()` /
 `evaluateFunctionCall()` (`src/evaluator/expression-evaluator.ts`). The dispatch
 is a single `switch`, so extending it is a code change in one file — both the
 operation table (operators, L262) and the XSD constructor dispatch (L1173). The
-same holds for aggregates (`aggregateValue`, `src/evaluator/
-aggregate.ts`) and
-update operation types (`applyOperation`, `src/evaluator/update-evaluator.ts`).
+same holds for aggregates
+([`aggregateValue`](https://github.com/wazootech/sparql-engine/blob/main/src/evaluator/aggregate.ts),
+`src/evaluator/
+aggregate.ts`) and update operation types (`applyOperation`,
+`src/evaluator/update-evaluator.ts`).
 
 ## Term utilities (exported from `src/mod.ts`)
 
@@ -311,7 +318,10 @@ Values/classes:
 [`XSD_INTEGER`](https://jsr.io/@wazoo/sparql-engine/doc/~/XSD_INTEGER),
 [`XSD_STRING`](https://jsr.io/@wazoo/sparql-engine/doc/~/XSD_STRING).
 
-Not exported (deep-import only): `SparqlParser`, the AST types
-(`src/parser/ast.ts`), `SqliteStore` (`src/store/sqlite-store.ts`), and the
-evaluator internals — all reachable from source but outside the public surface,
-keeping the published package's runtime dependency graph empty.
+Not exported (deep-import only):
+[`SparqlParser`](https://github.com/wazootech/sparql-engine/blob/main/src/parser/sparql-parser.ts),
+the AST types (`src/parser/ast.ts`),
+[`SqliteStore`](https://github.com/wazootech/sparql-engine/blob/main/src/store/sqlite-store.ts)
+(`src/store/sqlite-store.ts`), and the evaluator internals — all reachable from
+source but outside the public surface, keeping the published package's runtime
+dependency graph empty.

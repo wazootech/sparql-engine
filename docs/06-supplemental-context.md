@@ -12,14 +12,14 @@ architecture, parsing, and execution live in
 
 ## Repository metadata
 
-| Field                 | Value                                                                                      |
-| --------------------- | ------------------------------------------------------------------------------------------ |
-| Package               | `@wazoo/sparql-engine` (JSR), version `0.1.0`, MIT                                         |
-| Runtime               | Deno 2.x (Node.js and browser via JSR; `SqliteStore` is server-only)                       |
-| Runtime dependencies  | **zero** — only type-only `@rdfjs/types`                                                   |
-| Dev/test dependencies | `@comunica/query-sparql-rdfjs-lite`, `oxigraph` (WASM), `n3`, `@std/assert`, `@types/node` |
-| Manifest              | `deno.json` (`exports["."] → ./src/mod.ts`, `@/` → `./src/`)                               |
-| CI                    | `.github/workflows/ci.yml` (`ci` + `w3c-parity` jobs), `publish.yml`                       |
+| Field                 | Value                                                                                                                                                  |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Package               | `@wazoo/sparql-engine` (JSR), version `0.1.0`, MIT                                                                                                     |
+| Runtime               | Deno 2.x (Node.js and browser via JSR; [`SqliteStore`](https://github.com/wazootech/sparql-engine/blob/main/src/store/sqlite-store.ts) is server-only) |
+| Runtime dependencies  | **zero** — only type-only `@rdfjs/types`                                                                                                               |
+| Dev/test dependencies | `@comunica/query-sparql-rdfjs-lite`, `oxigraph` (WASM), `n3`, `@std/assert`, `@types/node`                                                             |
+| Manifest              | `deno.json` (`exports["."] → ./src/mod.ts`, `@/` → `./src/`)                                                                                           |
+| CI                    | `.github/workflows/ci.yml` (`ci` + `w3c-parity` jobs), `publish.yml`                                                                                   |
 
 The "zero runtime dependencies" property is load-bearing: the package is
 browser-friendly and JSR-ready without transitive npm baggage. The vendored
@@ -108,9 +108,9 @@ label identity.
   `evaluateExists(pattern,
   solution) => boolean` seam binding the pure
   expression layer to the graph scope and active dataset. Backed by a per-call
-  `ExistsSnapshot` (issue
-  [#72](https://github.com/wazootech/sparql-engine/issues/72)), so concurrent
-  evaluations stay isolated.
+  [`ExistsSnapshot`](https://github.com/wazootech/sparql-engine/blob/main/src/evaluator/bgp-evaluator.ts)
+  (issue [#72](https://github.com/wazootech/sparql-engine/issues/72)), so
+  concurrent evaluations stay isolated.
 - **Correlated evaluation** — inner patterns see the outer solution's bindings;
   inner bindings never leak out.
 
@@ -121,7 +121,8 @@ label identity.
   accepted but not yet enforced by the wazoo engine (Comunica enforces it).
   `baseIri` is accepted; the wazoo engine derives the base from the query's
   `BASE` directive instead.
-- `SqliteStore` ships as a deep-import prototype; the durable-transactions notes
+- [`SqliteStore`](https://github.com/wazootech/sparql-engine/blob/main/src/store/sqlite-store.ts)
+  ships as a deep-import prototype; the durable-transactions notes
   (`docs/durable-transactions.md`) list next steps: a dedicated `./sqlite`
   entrypoint, fsync/busy-timeout policy, update-throughput benchmarks, and
   `INSERT … ON CONFLICT` batching.

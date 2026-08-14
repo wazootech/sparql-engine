@@ -90,11 +90,16 @@ for removed files, and confirm every path the wiki references resolves.
   the diff demands.
 - Link hygiene: every inline prose mention of an exported symbol links to its
   JSR doc page (`https://jsr.io/@wazoo/sparql-engine/doc/~/<Symbol>`);
-  `serializeJsonResults` / `serializeXmlResults` link to their source files
-  (they are not in the published root exports). Link the first prose occurrence
-  per page of `@wazoo/sparql-engine` (JSR), `Comunica`, `W3C`, and
-  `SPARQL 1.1`/`SPARQL 1.2` (spec TRs); link issue refs to the GitHub issue.
-  Never link inside code fences or HTML attributes.
+  [`serializeJsonResults`](https://github.com/wazootech/sparql-engine/blob/main/src/serialize/json-results.ts)
+  /
+  [`serializeXmlResults`](https://github.com/wazootech/sparql-engine/blob/main/src/serialize/xml-results.ts)
+  and every **deep-import symbol** (anything not in the published root exports —
+  parser, store, evaluator, and term internals) link to their GitHub blob
+  instead (`https://github.com/wazootech/sparql-engine/blob/main/src/<path>`),
+  without line anchors — the prose already carries the maintained L-numbers.
+  Link the first prose occurrence per page of `@wazoo/sparql-engine` (JSR),
+  `Comunica`, `W3C`, and `SPARQL 1.1`/`SPARQL 1.2` (spec TRs); link issue refs
+  to the GitHub issue. Never link inside code fences or HTML attributes.
 - Validate: `deno fmt --check docs/`, nav/front-matter/link checks (all
   `_data/navigation.yml` targets resolve, every page has front matter), and a
   `pandoc -f gfm -t html` render of each touched page.
