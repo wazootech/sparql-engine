@@ -57,7 +57,6 @@ run `deno task bench` for your own numbers.
 
 Core joins, 400-person graph (~2,200 quads):
 
-
 | query                        | wazoo   | comunica | oxigraph |
 | ---------------------------- | ------- | -------- | -------- |
 | full scan                    | 0.96 ms | 5.5 ms   | 12.2 ms  |
@@ -74,7 +73,6 @@ EXISTS surface, 400-person graph:
 | `FILTER NOT EXISTS` | 0.9 ms | 20.1 ms  | 1.4 ms   |
 | nested `EXISTS`     | 1.2 ms | 74.8 ms  | 1.7 ms   |
 | nested `NOT EXISTS` | 1.2 ms | 75.2 ms  | 1.8 ms   |
-
 
 EXISTS surface, 10,000-person graph (~55,000 quads):
 

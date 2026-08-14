@@ -207,7 +207,6 @@ Timings are machine-specific — run `deno task bench` for your own numbers.
 
 Core joins, 400-person graph (~2,200 quads):
 
-
 | query                        | wazoo   | comunica | oxigraph |
 | ---------------------------- | ------- | -------- | -------- |
 | full scan                    | 0.96 ms | 5.5 ms   | 12.2 ms  |
@@ -225,7 +224,6 @@ EXISTS surface, 400-person graph:
 | nested `EXISTS`     | 1.2 ms | 74.8 ms  | 1.7 ms   |
 | nested `NOT EXISTS` | 1.2 ms | 75.2 ms  | 1.8 ms   |
 
-
 EXISTS surface, 10,000-person graph (~55,000 quads):
 
 | query               | wazoo   | comunica | oxigraph |
@@ -234,7 +232,6 @@ EXISTS surface, 10,000-person graph (~55,000 quads):
 | `FILTER NOT EXISTS` | 33.2 ms | 466.2 ms | 32.9 ms  |
 | nested `EXISTS`     | 40.9 ms | 1.9 s    | 39.4 ms  |
 | nested `NOT EXISTS` | 43.0 ms | 1.8 s    | 40.6 ms  |
-
 
 Scaling the data 25x (400 → 10,000 people) grows wazoo's EXISTS cost ~35x while
 nesting stays within ~1.2x of the simple case at both scales: the snapshot is
