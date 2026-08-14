@@ -1,0 +1,98 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 320"
+  font-family="sans-serif">
+  <rect width="720" height="320" fill="#f8f9fa" />
+  <text x="12" y="20" font-size="13" font-weight="bold"
+    fill="#212529">Library size on disk</text>
+  <text x="12" y="34" font-size="9"
+    fill="#868e96">Engine package footprint, excluding the shared Deno runtime (native: JSR artifact; oxigraph: npm package; comunica: full transitive dependency closure)</text>
+  <rect x="12.0" y="44.0" width="534.4" height="264.0" fill="#2f9e44"
+    stroke="#ffffff" stroke-width="1" />
+  <text x="279.2" y="179.0" text-anchor="middle" font-family="sans-serif"
+    font-size="10"
+    fill="#fff">comunica<tspan x="279.2" dy="12" font-size="8" fill="#ffffffcc">28.32 MiB</tspan></text>
+  <rect x="14.0" y="46.0" width="253.2" height="260.0" fill="#b6ddbe"
+    stroke="#ffffff" stroke-width="1" />
+  <text x="140.6" y="43.0" text-anchor="middle" font-family="sans-serif"
+    font-size="8"
+    fill="#495057">@comunica/actor-bindings-aggregator-factory-average (13.44 MiB)</text>
+  <rect x="267.2" y="46.0" width="148.9" height="260.0" fill="#b6ddbe"
+    stroke="#ffffff" stroke-width="1" />
+  <text x="341.6" y="43.0" text-anchor="middle" font-family="sans-serif"
+    font-size="8" fill="#495057">@comunica/actor-init-query (7.90 MiB)</text>
+  <rect x="416.1" y="46.0" width="128.4" height="190.6" fill="#b6ddbe"
+    stroke="#ffffff" stroke-width="1" />
+  <text x="480.2" y="144.3" text-anchor="middle" font-family="sans-serif"
+    font-size="10"
+    fill="#fff">other deps<tspan x="480.2" dy="12" font-size="8" fill="#ffffffcc">5.00 MiB</tspan></text>
+  <rect x="416.1" y="236.6" width="42.5" height="69.4" fill="#b6ddbe"
+    stroke="#ffffff" stroke-width="1" />
+  <text x="437.3" y="233.6" text-anchor="middle" font-family="sans-serif"
+    font-size="8"
+    fill="#495057">@comunica/actor-query-parse-sparql (616 KiB)</text>
+  <rect x="458.6" y="236.6" width="35.5" height="69.4" fill="#b6ddbe"
+    stroke="#ffffff" stroke-width="1" />
+  <text x="476.4" y="233.6" text-anchor="middle" font-family="sans-serif"
+    font-size="8"
+    fill="#495057">@comunica/actor-function-factory-term-addition (515 KiB)</text>
+  <rect x="494.1" y="236.6" width="50.3" height="20.9" fill="#b6ddbe"
+    stroke="#ffffff" stroke-width="1" />
+  <text x="519.3" y="233.6" text-anchor="middle" font-family="sans-serif"
+    font-size="8"
+    fill="#495057">@comunica/actor-expression-evaluator-factory-default (220 KiB)</text>
+  <rect x="494.1" y="257.6" width="17.5" height="48.4" fill="#b6ddbe"
+    stroke="#ffffff" stroke-width="1" />
+  <text x="502.9" y="254.6" text-anchor="middle" font-family="sans-serif"
+    font-size="8"
+    fill="#495057">@comunica/actor-query-operation-join (177 KiB)</text>
+  <rect x="511.6" y="257.6" width="32.8" height="25.0" fill="#b6ddbe"
+    stroke="#ffffff" stroke-width="1" />
+  <text x="528.0" y="254.6" text-anchor="middle" font-family="sans-serif"
+    font-size="8"
+    fill="#495057">@comunica/actor-query-operation-path-alt (172 KiB)</text>
+  <rect x="511.6" y="282.6" width="32.8" height="23.4" fill="#b6ddbe"
+    stroke="#ffffff" stroke-width="1" />
+  <text x="528.0" y="279.6" text-anchor="middle" font-family="sans-serif"
+    font-size="8"
+    fill="#495057">@comunica/actor-function-factory-term-str-uuid (161 KiB)</text>
+  <rect x="546.4" y="44.0" width="161.6" height="243.4" fill="#1971c2"
+    stroke="#ffffff" stroke-width="1" />
+  <text x="627.2" y="168.7" text-anchor="middle" font-family="sans-serif"
+    font-size="10"
+    fill="#fff">oxigraph<tspan x="627.2" dy="12" font-size="8" fill="#ffffffcc">7.89 MiB</tspan></text>
+  <rect x="548.4" y="46.0" width="157.6" height="235.3" fill="#afcdea"
+    stroke="#ffffff" stroke-width="1" />
+  <text x="627.2" y="166.7" text-anchor="middle" font-family="sans-serif"
+    font-size="10"
+    fill="#fff">WASM runtime<tspan x="627.2" dy="12" font-size="8" fill="#ffffffcc">7.76 MiB</tspan></text>
+  <rect x="548.4" y="281.3" width="157.6" height="4.0" fill="#afcdea"
+    stroke="#ffffff" stroke-width="1" />
+  <text x="627.2" y="278.3" text-anchor="middle" font-family="sans-serif"
+    font-size="8" fill="#495057">JS glue + types (136 KiB)</text>
+  <rect x="546.4" y="287.4" width="161.6" height="20.6" fill="#f08c00"
+    stroke="#ffffff" stroke-width="1" />
+  <text x="627.2" y="300.7" text-anchor="middle" font-family="sans-serif"
+    font-size="10"
+    fill="#fff">native<tspan x="627.2" dy="12" font-size="8" fill="#ffffffcc">685 KiB</tspan></text>
+  <rect x="548.4" y="289.4" width="87.7" height="16.6" fill="#fad7a6"
+    stroke="#ffffff" stroke-width="1" />
+  <text x="592.3" y="286.4" text-anchor="middle" font-family="sans-serif"
+    font-size="8" fill="#495057">parser (381 KiB)</text>
+  <rect x="636.1" y="289.4" width="52.0" height="16.6" fill="#fad7a6"
+    stroke="#ffffff" stroke-width="1" />
+  <text x="662.1" y="286.4" text-anchor="middle" font-family="sans-serif"
+    font-size="8" fill="#495057">evaluator (226 KiB)</text>
+  <rect x="688.1" y="289.4" width="9.3" height="16.6" fill="#fad7a6"
+    stroke="#ffffff" stroke-width="1" />
+  <text x="692.7" y="286.4" text-anchor="middle" font-family="sans-serif"
+    font-size="8" fill="#495057">term (40 KiB)</text>
+  <rect x="697.4" y="289.4" width="8.6" height="10.5" fill="#fad7a6"
+    stroke="#ffffff" stroke-width="1" />
+  <text x="701.7" y="286.4" text-anchor="middle" font-family="sans-serif"
+    font-size="8" fill="#495057">store (24 KiB)</text>
+  <rect x="697.4" y="299.8" width="8.0" height="6.2" fill="#fad7a6"
+    stroke="#ffffff" stroke-width="1" />
+  <text x="701.4" y="296.8" text-anchor="middle" font-family="sans-serif"
+    font-size="8" fill="#495057">README.md (13 KiB)</text>
+  <rect x="705.3" y="299.8" width="0.7" height="6.2" fill="#fad7a6"
+    stroke="#ffffff" stroke-width="1" />
+</svg>

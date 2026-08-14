@@ -1,0 +1,44 @@
+{
+  "generatedAt": "2026-08-14T17:05:36.921Z",
+  "runs": 5,
+  "dataset": "10,000-person graph (~55,000 quads)",
+  "measurement": "isolated Deno subprocess per engine, Deno.memoryUsage() peak after each run",
+  "engines": {
+    "native": {
+      "scan": {
+        "peakHeap": 140895480,
+        "peakRss": 263184384,
+        "external": 317663
+      },
+      "exists": {
+        "peakHeap": 85451920,
+        "peakRss": 185733120,
+        "external": 317663
+      }
+    },
+    "comunica": {
+      "scan": {
+        "peakHeap": 224656320,
+        "peakRss": 376680448,
+        "external": 1703597
+      },
+      "exists": {
+        "peakHeap": 284281656,
+        "peakRss": 418705408,
+        "external": 2735597
+      }
+    },
+    "oxigraph": {
+      "scan": {
+        "peakHeap": 262769344,
+        "peakRss": 506744832,
+        "external": 954855
+      },
+      "exists": {
+        "peakHeap": 113574760,
+        "peakRss": 290107392,
+        "external": 954855
+      }
+    }
+  }
+}
