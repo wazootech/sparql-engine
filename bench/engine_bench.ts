@@ -300,6 +300,20 @@ const existsQuery =
 const notExistsQuery =
   "SELECT ?s WHERE { ?s <http://xmlns.com/foaf/0.1/name> ?n " +
   "FILTER NOT EXISTS { ?s <http://example.org/spouse> ?spouse } }";
+// Nested EXISTS: an EXISTS inside the EXISTS body. Every spouse (odd-indexed
+// person) has a name, so the inner EXISTS always holds and the even-indexed
+// people (who have a spouse) pass — same shape as the simple EXISTS, plus one
+// inner probe per passing solution.
+const nestedExistsQuery =
+  "SELECT ?s WHERE { ?s <http://xmlns.com/foaf/0.1/name> ?n " +
+  "FILTER EXISTS { ?s <http://example.org/spouse> ?spouse . " +
+  "FILTER EXISTS { ?spouse <http://xmlns.com/foaf/0.1/name> ?n2 } } }";
+// Nested EXISTS inside NOT EXISTS: the body matches only even-indexed people
+// (spouse present and named), so the negation keeps the odd-indexed ones.
+const nestedNotExistsQuery =
+  "SELECT ?s WHERE { ?s <http://xmlns.com/foaf/0.1/name> ?n " +
+  "FILTER NOT EXISTS { ?s <http://example.org/spouse> ?spouse . " +
+  "FILTER EXISTS { ?spouse <http://xmlns.com/foaf/0.1/name> ?n2 } } }";
 
 // XSD cast constructors over the integer age literal, plus boolean and
 // dateTime casts from string constants (the shared dataset carries no
@@ -831,6 +845,8 @@ await verifySelectEquality(subqueryAggQuery, "subquery-agg");
 await verifySelectEquality(subqueryNestedQuery, "subquery-nested");
 await verifySelectEquality(existsQuery, "exists");
 await verifySelectEquality(notExistsQuery, "not-exists");
+await verifySelectEquality(nestedExistsQuery, "nested-exists");
+await verifySelectEquality(nestedNotExistsQuery, "nested-not-exists");
 await verifySelectEquality(castNumericQuery, "cast-numeric");
 await verifySelectEquality(castBooleanQuery, "cast-boolean");
 await verifySelectEquality(castDateTimeQuery, "cast-dateTime");
@@ -1221,6 +1237,8 @@ benchSelectTrio("subquery", subqueryAggQuery, "subquery-agg");
 benchSelectTrio("subquery", subqueryNestedQuery, "subquery-nested");
 benchSelectTrio("exists", existsQuery, "exists");
 benchSelectTrio("exists", notExistsQuery, "not-exists");
+benchSelectTrio("exists", nestedExistsQuery, "nested-exists");
+benchSelectTrio("exists", nestedNotExistsQuery, "nested-not-exists");
 benchSelectTrio("cast", castNumericQuery, "cast-numeric");
 benchSelectTrio("cast", castBooleanQuery, "cast-boolean");
 benchSelectTrio("cast", castDateTimeQuery, "cast-dateTime");

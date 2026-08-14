@@ -151,16 +151,36 @@ export class BgpEvaluator {
       );
     }
     const scopeGraph = graph ?? defaultGraph();
+    // The snapshot is filtered to the graph scope exactly once per
+    // evaluateExists call; the recursive probes reuse these candidates (see
+    // evaluateExistsScoped) instead of re-filtering per nested EXISTS.
     const candidates = this.existsQuads.filter((item) =>
       sameRdfTerm(item.graph, scopeGraph)
     );
-    const patterns = pattern.type === "group" ? pattern.patterns : [pattern];
-    return this.evaluateExistsGroup(
-      patterns,
-      [solution],
+    return this.evaluateExistsScoped(
+      pattern,
+      solution,
       candidates,
       scopeGraph,
-    ).length > 0;
+    );
+  }
+
+  /**
+   * evaluateExistsScoped runs an EXISTS probe against an already
+   * graph-scoped candidate set, skipping the per-call snapshot filter. The
+   * recursive hooks (nested EXISTS/NOT EXISTS and subqueries inside EXISTS)
+   * call this with the enclosing call's candidates, so nesting costs only
+   * the extra probe work — not another O(snapshot) filter per probe.
+   */
+  private evaluateExistsScoped(
+    pattern: Pattern,
+    solution: TermBinding,
+    candidates: rdfjs.Quad[],
+    graph: rdfjs.Term,
+  ): boolean {
+    const patterns = pattern.type === "group" ? pattern.patterns : [pattern];
+    return this.evaluateExistsGroup(patterns, [solution], candidates, graph)
+      .length > 0;
   }
 
   /**
@@ -193,7 +213,7 @@ export class BgpEvaluator {
   ): TermBinding[] {
     const context: ExpressionEvaluationContext = {
       evaluateExists: (subPattern, solution) =>
-        this.evaluateExists(subPattern, solution, graph),
+        this.evaluateExistsScoped(subPattern, solution, candidates, graph),
     };
     switch (pattern.type) {
       case "bgp": {
@@ -417,7 +437,7 @@ export class BgpEvaluator {
         const selectQuery = pattern as unknown as SelectQuery;
         const subContext: ExpressionEvaluationContext = {
           evaluateExists: (subPattern, solution) =>
-            this.evaluateExists(subPattern, solution, graph),
+            this.evaluateExistsScoped(subPattern, solution, candidates, graph),
           baseIri: selectQuery.base,
         };
         const subRaw = this.evaluateExistsGroup(
