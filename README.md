@@ -153,3 +153,18 @@ the three.
 ```bash
 deno task ci
 ```
+
+## Releases
+
+Every merge to `main` runs the Publish workflow. Following the standard JSR
+publish convention — `deno publish` will not attempt to publish a version that
+is already on JSR — a release ships **only when `deno.json`'s `version` is
+bumped** to something newer than the published latest:
+
+- **Release PR** (bumps `version`): the Publish job publishes the new version;
+  if it somehow skips anyway, the job fails loudly.
+- **Routine PR** (no bump): the Publish job skips with a notice — this is
+  expected, not an error.
+
+To ship a release, bump `version` in `deno.json` (minor for additive public API,
+patch for fixes) in the same PR that should publish.
