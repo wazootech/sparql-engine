@@ -2436,6 +2436,78 @@ Deno.test("WazooSparqlEngine - RDF 1.2 directional literal functions", async () 
     ),
     { type: "literal", value: "false", datatype: `${XSD}boolean` },
   );
+
+  // hasLang(langString, language) — language tag match (case-insensitive).
+  assertEquals(
+    await bindValue(
+      engine,
+      'SELECT ?v WHERE { BIND(hasLang("abc"@en, "en") AS ?v) }',
+      "v",
+    ),
+    { type: "literal", value: "true", datatype: `${XSD}boolean` },
+  );
+  assertEquals(
+    await bindValue(
+      engine,
+      'SELECT ?v WHERE { BIND(hasLang("abc"@en, "EN") AS ?v) }',
+      "v",
+    ),
+    { type: "literal", value: "true", datatype: `${XSD}boolean` },
+  );
+  assertEquals(
+    await bindValue(
+      engine,
+      'SELECT ?v WHERE { BIND(hasLang("abc"@en, "fr") AS ?v) }',
+      "v",
+    ),
+    { type: "literal", value: "false", datatype: `${XSD}boolean` },
+  );
+  // A literal without a language tag never matches, even with a matching
+  // second argument.
+  assertEquals(
+    await bindValue(
+      engine,
+      'SELECT ?v WHERE { BIND(hasLang("abc", "en") AS ?v) }',
+      "v",
+    ),
+    { type: "literal", value: "false", datatype: `${XSD}boolean` },
+  );
+
+  // hasLang(simpleLiteral, language, direction) — tag and direction match;
+  // the direction argument is canonicalized to lowercase.
+  assertEquals(
+    await bindValue(
+      engine,
+      'SELECT ?v WHERE { BIND(hasLang("abc"@en--ltr, "en", "ltr") AS ?v) }',
+      "v",
+    ),
+    { type: "literal", value: "true", datatype: `${XSD}boolean` },
+  );
+  assertEquals(
+    await bindValue(
+      engine,
+      'SELECT ?v WHERE { BIND(hasLang("abc"@en--ltr, "en", "LTR") AS ?v) }',
+      "v",
+    ),
+    { type: "literal", value: "true", datatype: `${XSD}boolean` },
+  );
+  assertEquals(
+    await bindValue(
+      engine,
+      'SELECT ?v WHERE { BIND(hasLang("abc"@en--ltr, "en", "rtl") AS ?v) }',
+      "v",
+    ),
+    { type: "literal", value: "false", datatype: `${XSD}boolean` },
+  );
+  // A lang-tagged literal without a base direction fails the 3-arity form.
+  assertEquals(
+    await bindValue(
+      engine,
+      'SELECT ?v WHERE { BIND(hasLang("abc"@en, "en", "ltr") AS ?v) }',
+      "v",
+    ),
+    { type: "literal", value: "false", datatype: `${XSD}boolean` },
+  );
   assertEquals(
     await bindValue(
       engine,

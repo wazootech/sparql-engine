@@ -51,12 +51,14 @@ arity token (`FUNC_ARITY0/1/2/3`). The grammar productions build `functionCall`
 AST nodes generically from the lexed text (lowercased), so extending the
 whitelist is a lexer-only change:
 
-| Function                                        | Arity | Rule              | Change                                     |
-| ----------------------------------------------- | ----- | ----------------- | ------------------------------------------ |
-| `LANGDIR(literal)`                              | 1     | FUNC_ARITY1 group | added `LANGDIR` **before** `LANG`          |
-| `hasLang(term)`                                 | 1     | FUNC_ARITY1 group | appended `hasLangDir` **before** `hasLang` |
-| `hasLangDir(term)`                              | 1     | FUNC_ARITY1 group | same entry (unary, like `hasLang`)         |
-| `STRLANGDIR(simpleLiteral, langTag, direction)` | 3     | FUNC_ARITY3 rule  | added `STRLANGDIR` to the `IF` rule        |
+| Function                                        | Arity | Rule              | Change                              |
+| ----------------------------------------------- | ----- | ----------------- | ----------------------------------- |
+| `LANGDIR(literal)`                              | 1     | FUNC_ARITY1 group | added `LANGDIR` **before** `LANG`   |
+| `hasLang(term)`                                 | 1     | HASLANG token     | own lexer rule (see below)          |
+| `hasLang(langString, language)`                 | 2     | HASLANG token     | own lexer rule (superset extension) |
+| `hasLang(simpleLiteral, language, direction)`   | 3     | HASLANG token     | own lexer rule (superset extension) |
+| `hasLangDir(term)`                              | 1     | FUNC_ARITY1 group | unary, like `hasLang`               |
+| `STRLANGDIR(simpleLiteral, langTag, direction)` | 3     | FUNC_ARITY3 rule  | added `STRLANGDIR` to the `IF` rule |
 
 Two lexer subtleties matter here:
 
@@ -69,20 +71,44 @@ Two lexer subtleties matter here:
    (FUNC_ARITY2), `hasLangDir` over `hasLang`, and `LANGMATCHES` over `LANG`.
    Existing behavior is unaffected.
 
+**`hasLang` is variadic (its own token).** The published SPARQL 1.2 grammar
+(production [141] `BuiltInCall`) defines only the unary `hasLang(term)`;
+`hasLang` therefore cannot share a fixed-arity `FUNC_ARITY*` group — a
+first-rule tie-break would pin it to whichever group is listed first, making the
+other arities unreachable. Instead it lexes as a dedicated `HASLANG` token with
+three productions (1, 2, and 3 args). The binary and ternary forms are a
+**documented superset extension** (matching the earlier working drafts of the
+spec, which had binary/ternary `hasLang`):
+
+- `hasLang(langString, language)` — true iff the term is a literal whose
+  language tag equals `language` (case-insensitive).
+- `hasLang(simpleLiteral, language, direction)` — true iff the tag also matches
+  AND the literal's base direction equals `direction` (canonicalized to
+  lowercase, like `rdf:dirLangString`).
+
+The AST stays uniform across arities:
+`{ type: "operation", operator:
+"haslang", args: [..] }` with 1, 2, or 3
+entries. `hasLangDir` is unaffected — longest match keeps it on the
+`FUNC_ARITY1` token, so `hasLangDir(...)` never lexes as `hasLang`.
+
 Parse results (AST names are lowercased, matching sparqljs convention):
 
 ```ts
-LANGDIR("hello"@en)             -> { type: "functionCall", name: "langdir", args: [..] }
-hasLang("hello"@en)             -> { type: "functionCall", name: "haslang", args: [..] }
-hasLangDir("hello"@en--ltr)     -> { type: "functionCall", name: "haslangdir", args: [..] }
-STRLANGDIR("hello", "en", "ltr")-> { type: "functionCall", name: "strlangdir", args: [..] }
+LANGDIR("hello"@en)                       -> { type: "functionCall", name: "langdir", args: [..] }
+hasLang("hello"@en)                       -> { type: "functionCall", name: "haslang", args: [..] }
+hasLang("hello"@en, "en")                 -> { type: "functionCall", name: "haslang", args: [..] }
+hasLang("hello"@en--ltr, "en", "ltr")     -> { type: "functionCall", name: "haslang", args: [..] }
+hasLangDir("hello"@en--ltr)               -> { type: "functionCall", name: "haslangdir", args: [..] }
+STRLANGDIR("hello", "en", "ltr")          -> { type: "functionCall", name: "strlangdir", args: [..] }
 ```
 
-The arities match the SPARQL 1.2 grammar (production [141] `BuiltInCall`):
-`hasLang`/`hasLangDir` are unary term tests and `STRLANGDIR` takes
-`(lexicalForm, langTag, baseDirection)`. Earlier drafts of the spec had
-binary/ternary `hasLang` forms; the in-repo grammar follows the published
-grammar, matching what `@traqula/parser-sparql-1-2` accepts.
+The unary `hasLang`/`hasLangDir` term tests and `STRLANGDIR`
+`(lexicalForm, langTag, baseDirection)` match the published SPARQL 1.2 grammar
+(production [141] `BuiltInCall`) exactly — `@traqula/parser-sparql-1-2` accepts
+the same forms. The binary/ternary `hasLang` forms are the only superset
+deviation; they evaluate only when the engine's evaluator is used (neither
+sparqljs nor traqula can parse them).
 
 ### RDF 1.2 triple terms, reifiers, and annotations (grammar productions)
 

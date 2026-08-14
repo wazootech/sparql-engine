@@ -667,12 +667,45 @@ export class ExpressionEvaluator {
         );
       }
       case "haslang": {
-        // hasLANG(term): true iff the term is a literal with a language tag
+        // hasLANG(term) — true iff the term is a literal with a language tag
         // (datatype rdf:langString or rdf:dirLangString); false otherwise.
-        const val = this.evaluateWith(arg(0), binding, aggregates, context);
+        // The arity-2 and arity-3 forms are a documented superset extension
+        // (the published SPARQL 1.2 grammar defines only the unary form):
+        //   hasLANG(langString, language)                — tag equals `language`
+        //   hasLANG(simpleLiteral, language, direction)  — tag and base
+        //     direction both match (direction canonicalized to lowercase).
+        const args = operation.args as Expression[];
+        const val = this.evaluateWith(args[0], binding, aggregates, context);
+        if (
+          val === undefined || val.termType !== "Literal" ||
+          val.language === ""
+        ) {
+          return booleanLiteral(false);
+        }
+        if (args.length === 1) {
+          return booleanLiteral(true);
+        }
+        const language = this.stringTerm(args[1], binding, aggregates, context);
+        if (
+          language === undefined ||
+          language.value.toLowerCase() !== val.language.toLowerCase()
+        ) {
+          return booleanLiteral(false);
+        }
+        if (args.length === 2) {
+          return booleanLiteral(true);
+        }
+        const direction = this.stringTerm(
+          args[2],
+          binding,
+          aggregates,
+          context,
+        );
+        if (direction === undefined || val.direction == null) {
+          return booleanLiteral(false);
+        }
         return booleanLiteral(
-          val !== undefined && val.termType === "Literal" &&
-            val.language !== "",
+          direction.value.toLowerCase() === val.direction.toLowerCase(),
         );
       }
       case "langdir": {
