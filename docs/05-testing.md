@@ -5,8 +5,9 @@ layout: default
 
 # Verification & Testing
 
-How the engine is verified — unit tests, differential parity, the W3C gates,
-benchmarking, and debugging the query pipeline.
+How the engine is verified — unit tests, differential parity, the
+[W3C](https://www.w3.org/) gates, benchmarking, and debugging the query
+pipeline.
 
 ## The verification pyramid
 
@@ -23,24 +24,24 @@ Every layer runs in CI (`.github/workflows/ci.yml`): the `ci` job runs
 
 ## Task reference
 
-| Task                          | Command                        | What it runs                                                    | Gating                     |
-| ----------------------------- | ------------------------------ | --------------------------------------------------------------- | -------------------------- |
-| `deno task test`              | `deno test --allow-all`        | All unit + integration + parity `*.test.ts` files               | ci                         |
-| `deno task check`             | `deno check`                   | Typecheck the package                                           | ci                         |
-| `deno task fmt:check`         | `deno fmt --check`             | Source **and markdown** formatting (width 80)                   | ci                         |
-| `deno task lint`              | `deno lint`                    | Lint                                                            | ci                         |
-| `deno task parser:check`      | `generate-parser.ts --check`   | Generated `parser.ts` in sync with `sparql.jison`               | ci                         |
-| `deno task bench:check`       | `bench/budget.ts`              | Perf regression budget (≤50 ms/iter)                            | ci                         |
-| `deno task test:exists-ref`   | `test/w3c/exists-ref.ts`       | EXISTS/NOT EXISTS subquery surface vs Oxigraph                  | ci + w3c-parity            |
-| `deno task test:sparql12:gap` | `test/w3c/sparql12-gap.ts`     | RDF 1.2 eval-triple-terms gap suite (41/41)                     | ci                         |
-| `deno task test:sparql12`     | `test/w3c/sparql12-main.ts`    | W3C SPARQL 1.2 evaluation suite (249/249)                       | ci                         |
-| `deno task test:rdf11`        | `test/w3c/rdf-differential.ts` | RDF 1.1 Turtle/TriG/N-Triples/N-Quads vs n3                     | ci                         |
-| `deno task test:rdf12`        | `test/w3c/rdf-classify.ts`     | RDF 1.2 syntax classifier                                       | ci                         |
-| `deno task ci`                | —                              | All of the above in dependency order                            | ci job                     |
-| `deno task test:w3c`          | `test/w3c/w3c-main.ts`         | SPARQL 1.1 evaluation-core differential vs Comunica (345 tests) | w3c-parity job             |
-| `deno task test:ref`          | `test/w3c/ref-crosscheck.ts`   | Allowlisted divergence audit vs Oxigraph + N3.js                | manual (on grammar change) |
-| `deno task bench`             | `deno bench --allow-all`       | Three-engine benchmarks                                         | manual                     |
-| `deno task publish:dry`       | `deno publish --dry-run`       | JSR publish validation                                          | ci + publish               |
+| Task                          | Command                        | What it runs                                                                                                                      | Gating                     |
+| ----------------------------- | ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------- | -------------------------- |
+| `deno task test`              | `deno test --allow-all`        | All unit + integration + parity `*.test.ts` files                                                                                 | ci                         |
+| `deno task check`             | `deno check`                   | Typecheck the package                                                                                                             | ci                         |
+| `deno task fmt:check`         | `deno fmt --check`             | Source **and markdown** formatting (width 80)                                                                                     | ci                         |
+| `deno task lint`              | `deno lint`                    | Lint                                                                                                                              | ci                         |
+| `deno task parser:check`      | `generate-parser.ts --check`   | Generated `parser.ts` in sync with `sparql.jison`                                                                                 | ci                         |
+| `deno task bench:check`       | `bench/budget.ts`              | Perf regression budget (≤50 ms/iter)                                                                                              | ci                         |
+| `deno task test:exists-ref`   | `test/w3c/exists-ref.ts`       | EXISTS/NOT EXISTS subquery surface vs Oxigraph                                                                                    | ci + w3c-parity            |
+| `deno task test:sparql12:gap` | `test/w3c/sparql12-gap.ts`     | RDF 1.2 eval-triple-terms gap suite (41/41)                                                                                       | ci                         |
+| `deno task test:sparql12`     | `test/w3c/sparql12-main.ts`    | W3C [SPARQL 1.2](https://www.w3.org/TR/sparql12-query/) evaluation suite (249/249)                                                | ci                         |
+| `deno task test:rdf11`        | `test/w3c/rdf-differential.ts` | RDF 1.1 Turtle/TriG/N-Triples/N-Quads vs n3                                                                                       | ci                         |
+| `deno task test:rdf12`        | `test/w3c/rdf-classify.ts`     | RDF 1.2 syntax classifier                                                                                                         | ci                         |
+| `deno task ci`                | —                              | All of the above in dependency order                                                                                              | ci job                     |
+| `deno task test:w3c`          | `test/w3c/w3c-main.ts`         | [SPARQL 1.1](https://www.w3.org/TR/sparql11-query/) evaluation-core differential vs [Comunica](https://comunica.dev/) (345 tests) | w3c-parity job             |
+| `deno task test:ref`          | `test/w3c/ref-crosscheck.ts`   | Allowlisted divergence audit vs Oxigraph + N3.js                                                                                  | manual (on grammar change) |
+| `deno task bench`             | `deno bench --allow-all`       | Three-engine benchmarks                                                                                                           | manual                     |
+| `deno task publish:dry`       | `deno publish --dry-run`       | JSR publish validation                                                                                                            | ci + publish               |
 
 ## Unit & integration tests
 
@@ -58,7 +59,8 @@ adapters (`src/quad-store.test.ts`), the join engine
 (`src/evaluator/join.test.ts`), term algebra (`src/term/term.test.ts`), updates
 (`src/evaluator/update-evaluator.test.ts`), and the 3,900-line engine
 integration suite (`src/wazoo-sparql-engine.test.ts`) — including the
-concurrent-`execute()` isolation tests for the EXISTS snapshot (issue #72).
+concurrent-`execute()` isolation tests for the EXISTS snapshot (issue
+[#72](https://github.com/wazootech/sparql-engine/issues/72)).
 
 ## Differential parity (the project's core test)
 
@@ -81,14 +83,15 @@ The parity contract is **behavioral equivalence with
   blank-node substitution — repeated placeholders within one quad (`replaceAll`,
   e.g. the same blank node bound as subject and object), distinct-node
   preservation, and multi-quad isomorphism under relabeling.
-- **CONSTRUCT compares under the graph-result contract (issue #87).** A
-  CONSTRUCT result is a set of triples: the reference side (Comunica) is
-  normalized to graph content — its stream may repeat a triple its graph would
-  not — while the wazoo side is compared **as-emitted**. A conforming engine
-  emits no duplicate quads (W3C decision #29), so a change that starts emitting
-  duplicates fails the gate instead of silently passing;
-  `test/w3c/construct-semantics.test.ts` pins the contract with unit tests on
-  `compareConstructRecords`/`dedupeRecords` (`test/w3c/runner.ts`).
+- **CONSTRUCT compares under the graph-result contract (issue
+  [#87](https://github.com/wazootech/sparql-engine/issues/87)).** A CONSTRUCT
+  result is a set of triples: the reference side (Comunica) is normalized to
+  graph content — its stream may repeat a triple its graph would not — while the
+  wazoo side is compared **as-emitted**. A conforming engine emits no duplicate
+  quads (W3C decision #29), so a change that starts emitting duplicates fails
+  the gate instead of silently passing; `test/w3c/construct-semantics.test.ts`
+  pins the contract with unit tests on `compareConstructRecords`/`dedupeRecords`
+  (`test/w3c/runner.ts`).
 - Updates canonicalize stores up to blank-node relabeling — two stores pass when
   they agree exactly modulo label identity (the SPARQL contract, since INSERT
   DATA mints fresh labels per execution).
@@ -151,9 +154,11 @@ Two properties make the timings trustworthy:
    engines return identical results (`verifySelectEquality`,
    `verifyAskEquality`, `verifyConstructEquality`, `verifyConstructIsoEquality`
    — CONSTRUCT under the graph-result multiset contract: reference deduplicated,
-   wazoo as-emitted (issue #87) — and every update asserts identical final store
-   contents on fresh stores (`verifyUpdateEquality`). A benchmark of a broken
-   engine fails loudly, not silently.
+   wazoo as-emitted (issue
+   [#87](https://github.com/wazootech/sparql-engine/issues/87)) — and every
+   update asserts identical final store contents on fresh stores
+   (`verifyUpdateEquality`). A benchmark of a broken engine fails loudly, not
+   silently.
 2. **Self-restoring updates.** The timed update deletes and re-inserts the same
    quads, netting to zero per iteration, so the benchmark stores never drift.
 
@@ -284,7 +289,8 @@ carries.
 - **Join ordering**: `BgpEvaluator.evaluateWithReordering()`
   (`src/evaluator/bgp-evaluator.ts`) and `estimateJoinCost()` print the
   estimated cost per remaining pattern; toggle `reorderPatterns: false` in
-  `WazooSparqlEngineOptions` to compare written order vs planned order.
+  [`WazooSparqlEngineOptions`](https://jsr.io/@wazoo/sparql-engine/doc/~/WazooSparqlEngineOptions)
+  to compare written order vs planned order.
 - **Hash join**: `joinTriplePattern()` (`src/evaluator/join.ts` L520) shows
   candidate probing; `ScanEntry.candidates.length` is the true store cardinality
   the planner uses.

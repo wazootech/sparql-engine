@@ -147,9 +147,10 @@ console.log(JSON.stringify(ast, null, 2));
 ## Stage 2 — Algebra (AST → pattern evaluation)
 
 There is no separate algebra IR: the sparqljs AST **is** the algebra, and the
-translation to SPARQL 1.1 algebra operators happens inside
-`BgpEvaluator.evaluatePattern()` (`src/evaluator/bgp-evaluator.ts`). The code
-comments cite the spec section for each mapping:
+translation to [SPARQL 1.1](https://www.w3.org/TR/sparql11-query/) algebra
+operators happens inside `BgpEvaluator.evaluatePattern()`
+(`src/evaluator/bgp-evaluator.ts`). The code comments cite the spec section for
+each mapping:
 
 | AST pattern (`type`) | Algebra operator (SPARQL 1.1 §18.2)               | Code                                              |
 | -------------------- | ------------------------------------------------- | ------------------------------------------------- |
@@ -234,7 +235,8 @@ positional index is probed, costing `bindings.length × average bucket size` =
 400 × (400 ÷ 400) = 400. The 400×400 intermediate never materializes; total work
 drops from ~160,800 to ~1,200 quad iterations, which is the ~90× gap (136.5 ms →
 1.5 ms) the benchmark measures. Setting `reorderPatterns: false` in
-`WazooSparqlEngineOptions` preserves written order exactly.
+[`WazooSparqlEngineOptions`](https://jsr.io/@wazoo/sparql-engine/doc/~/WazooSparqlEngineOptions)
+preserves written order exactly.
 
 ## Stage 4 — Execute (storage scans & joins)
 
@@ -242,8 +244,10 @@ drops from ~160,800 to ~1,200 quad iterations, which is the ~90× gap (136.5 ms 
 
 The engine never owns data. It binds to any `rdfjs.Source` / `rdfjs.Store`:
 
-- `src/store/memory-store.ts` — `MemoryStore`, the default in-memory store (a
-  `Map` keyed by a four-position `quadKey`), plus `MemoryStream`, a
+- `src/store/memory-store.ts` —
+  [`MemoryStore`](https://jsr.io/@wazoo/sparql-engine/doc/~/MemoryStore), the
+  default in-memory store (a `Map` keyed by a four-position `quadKey`), plus
+  [`MemoryStream`](https://jsr.io/@wazoo/sparql-engine/doc/~/MemoryStream), a
   zero-dependency RDF/JS `Stream` implementation (flow + pull modes).
 - `src/store/sqlite-store.ts` — durable `SqliteStore` over `node:sqlite`,
   server-only, **not** exported from `src/mod.ts`; wired to the engine via
@@ -253,14 +257,14 @@ The engine never owns data. It binds to any `rdfjs.Source` / `rdfjs.Store`:
 
 `src/quad-store.ts` is the adapter layer between the evaluator and the store:
 
-| Function                     | Role                                                                                                  |
-| ---------------------------- | ----------------------------------------------------------------------------------------------------- |
-| `matchQuads(store, s,p,o,g)` | Resolves the store's `match()` **stream** into an array (L102)                                        |
-| `buildQuadIndex(quads)`      | O(1) positional buckets `bySubject/byPredicate/byObject` keyed by `termKey` (L21)                     |
-| `probeQuadIndex(index, ...)` | Picks the smallest constrained bucket, filters the rest positionally (L56)                            |
-| `GraphScopedStore`           | Read-only view fixing the graph term of every scan — GRAPH scoping with no call-site awareness (L147) |
-| `namedGraphs(store)`         | Enumerates `GRAPH ?g` candidates (L176)                                                               |
-| `buildDatasetStore(...)`     | Materializes the active dataset for `FROM`/`FROM NAMED` into a fresh `MemoryStore` (L199)             |
+| Function                     | Role                                                                                                                                               |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `matchQuads(store, s,p,o,g)` | Resolves the store's `match()` **stream** into an array (L102)                                                                                     |
+| `buildQuadIndex(quads)`      | O(1) positional buckets `bySubject/byPredicate/byObject` keyed by [`termKey`](https://jsr.io/@wazoo/sparql-engine/doc/~/termKey) (L21)             |
+| `probeQuadIndex(index, ...)` | Picks the smallest constrained bucket, filters the rest positionally (L56)                                                                         |
+| `GraphScopedStore`           | Read-only view fixing the graph term of every scan — GRAPH scoping with no call-site awareness (L147)                                              |
+| `namedGraphs(store)`         | Enumerates `GRAPH ?g` candidates (L176)                                                                                                            |
+| `buildDatasetStore(...)`     | Materializes the active dataset for `FROM`/`FROM NAMED` into a fresh [`MemoryStore`](https://jsr.io/@wazoo/sparql-engine/doc/~/MemoryStore) (L199) |
 
 ### Scan → hash join
 
@@ -275,11 +279,14 @@ positions, and returns a `ScanEntry` carrying the pre-fetched `candidates`.
 2. Each binding resolves its variable positions against the index
    (`probeQuadIndex`) instead of issuing a stream round trip per binding.
 3. New bindings extend the input binding; a variable already bound to a
-   different term invalidates the match (checked with `sameRdfTerm`).
+   different term invalidates the match (checked with
+   [`sameRdfTerm`](https://jsr.io/@wazoo/sparql-engine/doc/~/sameRdfTerm)).
 
 Result bindings are `TermBinding` (`Record<string, rdfjs.Term>`), so terms stay
-in RDF/JS space for the whole evaluation and are converted to the `SparqlValue`
-wire format exactly once, at the response boundary (`rdfTermToSparqlValue`,
+in RDF/JS space for the whole evaluation and are converted to the
+[`SparqlValue`](https://jsr.io/@wazoo/sparql-engine/doc/~/SparqlValue) wire
+format exactly once, at the response boundary
+([`rdfTermToSparqlValue`](https://jsr.io/@wazoo/sparql-engine/doc/~/rdfTermToSparqlValue),
 `src/term/convert.ts` L44).
 
 ### Property paths
@@ -308,17 +315,18 @@ the incoming bindings.
 ## Stage 5 — Result assembly
 
 - **SELECT** — `evaluateSelect()` projects `TermBinding`s with
-  `rdfTermToSparqlValue` and builds the `head.vars` list (`*` widens to the
-  union of bound variables).
+  [`rdfTermToSparqlValue`](https://jsr.io/@wazoo/sparql-engine/doc/~/rdfTermToSparqlValue)
+  and builds the `head.vars` list (`*` widens to the union of bound variables).
 - **ASK** — `bindings.length > 0` (SPARQL 1.1 §16.3).
 - **CONSTRUCT** — `evaluateConstruct()` instantiates the template per solution:
   variables resolve from the binding, template blank nodes mint fresh labels per
   solution (`c<N>`, §16.2.1), reified templates expand via
   `expandReifiedTriples` (`src/evaluator/reified.ts`), and the result is an RDF
-  graph — duplicates collapse by `termKey`.
+  graph — duplicates collapse by
+  [`termKey`](https://jsr.io/@wazoo/sparql-engine/doc/~/termKey).
 - **DESCRIBE** — `evaluateDescribe()` collects IRIs/bnodes from the DESCRIBE
   list and each solution's bindings, then emits each resource's outgoing arcs
-  (the Comunica-parity description shape).
+  (the [Comunica](https://comunica.dev/)-parity description shape).
 
 ## Memory & asynchrony model
 
@@ -329,23 +337,29 @@ the incoming bindings.
   stream round trips.
 - **Streams only at the store boundary.** `rdfjs.Stream` is consumed exactly
   once, in `matchQuads` (`src/quad-store.ts` L102), using the standard
-  `data`/`end`/`error` event protocol. `MemoryStream` implements that protocol
-  with zero dependencies (flow mode on `data`, pull mode on `read`/`readable`,
-  completion-only on bare `end`), keeping the package browser-friendly.
+  `data`/`end`/`error` event protocol.
+  [`MemoryStream`](https://jsr.io/@wazoo/sparql-engine/doc/~/MemoryStream)
+  implements that protocol with zero dependencies (flow mode on `data`, pull
+  mode on `read`/`readable`, completion-only on bare `end`), keeping the package
+  browser-friendly.
 - **EXISTS snapshot.** Queries containing `EXISTS`/`NOT EXISTS` resolve a
   synchronous snapshot (`quads` + `QuadIndex` + store `version`) once per
   evaluation via `BgpEvaluator.prepareExistsIndex()` L150 in
   `src/evaluator/bgp-evaluator.ts` — the **synchronous** `evaluateExists` hook
   probes it. The resolved snapshot is captured for the call and threaded
   explicitly through every EXISTS hook, so a concurrent `execute()` whose cache
-  rebuilds can never swap it mid-evaluation (issue #72). The store's mutation
-  version still invalidates the cache, so updates between queries never see
-  stale data, and repeat evaluations of an unchanged store skip the drain
+  rebuilds can never swap it mid-evaluation (issue
+  [#72](https://github.com/wazootech/sparql-engine/issues/72)). The store's
+  mutation version still invalidates the cache, so updates between queries never
+  see stale data, and repeat evaluations of an unchanged store skip the drain
   entirely.
-- **Identity & hashing.** `termKey` (`src/term/identity.ts` L8) is a sound
-  RDF-term equality key used for all hashing (quad indexes, dataset dedup,
-  DISTINCT, grouping); `sameRdfTerm` does structural comparison, including RDF
-  1.2 triple terms (graph is not part of triple-term identity).
+- **Identity & hashing.**
+  [`termKey`](https://jsr.io/@wazoo/sparql-engine/doc/~/termKey)
+  (`src/term/identity.ts` L8) is a sound RDF-term equality key used for all
+  hashing (quad indexes, dataset dedup, DISTINCT, grouping);
+  [`sameRdfTerm`](https://jsr.io/@wazoo/sparql-engine/doc/~/sameRdfTerm) does
+  structural comparison, including RDF 1.2 triple terms (graph is not part of
+  triple-term identity).
 - **Exact numerics.** xsd:integer arithmetic and SUM stay exact via BigInt;
   decimal SUM uses BigInt significand/scale alignment (`exactDecimalSum`,
   `src/evaluator/aggregate.ts`); the canonical XPath double lexical form comes
@@ -407,7 +421,9 @@ src/mod.ts  ── public exports ───────────────�
                hash · data-factory   (term algebra shared by every layer)
 ```
 
-The `term/` module is the shared substrate: identity (`termKey`, `sameRdfTerm`),
+The `term/` module is the shared substrate: identity
+([`termKey`](https://jsr.io/@wazoo/sparql-engine/doc/~/termKey),
+[`sameRdfTerm`](https://jsr.io/@wazoo/sparql-engine/doc/~/sameRdfTerm)),
 conversion between AST terms, RDF/JS terms, and the wire format, canonical forms
 for differential parity, numeric promotion, and the SPARQL §12.4 term ordering
 used by ORDER BY, MIN/MAX, and DISTINCT.

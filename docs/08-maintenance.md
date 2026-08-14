@@ -63,8 +63,8 @@ only the changed files.
 ## Step 3 — Verify counts by running
 
 Documented counts come from runner output. Comments and README prose have
-drifted before (the W3C 1.1 suite was documented as 336/23 while the runner
-loads 345/31):
+drifted before (the [W3C](https://www.w3.org/) 1.1 suite was documented as
+336/23 while the runner loads 345/31):
 
 ```bash
 deno task test:w3c          # record printed total/pass (345)
@@ -88,6 +88,13 @@ for removed files, and confirm every path the wiki references resolves.
 
 - Edit only the pages the classification maps to; apply additions and deletions
   the diff demands.
+- Link hygiene: every inline prose mention of an exported symbol links to its
+  JSR doc page (`https://jsr.io/@wazoo/sparql-engine/doc/~/<Symbol>`);
+  `serializeJsonResults` / `serializeXmlResults` link to their source files
+  (they are not in the published root exports). Link the first prose occurrence
+  per page of `@wazoo/sparql-engine` (JSR), `Comunica`, `W3C`, and
+  `SPARQL 1.1`/`SPARQL 1.2` (spec TRs); link issue refs to the GitHub issue.
+  Never link inside code fences or HTML attributes.
 - Validate: `deno fmt --check docs/`, nav/front-matter/link checks (all
   `_data/navigation.yml` targets resolve, every page has front matter), and a
   `pandoc -f gfm -t html` render of each touched page.

@@ -60,8 +60,9 @@ interface SparqlConstructResults {
 }
 ```
 
-`SparqlValue` is the wire value format (SPARQL 1.1 results JSON shape, plus RDF
-1.2 extensions):
+[`SparqlValue`](https://jsr.io/@wazoo/sparql-engine/doc/~/SparqlValue) is the
+wire value format ([SPARQL 1.1](https://www.w3.org/TR/sparql11-query/) results
+JSON shape, plus RDF 1.2 extensions):
 
 ```typescript
 type SparqlValue =
@@ -84,10 +85,12 @@ type SparqlValue =
   };
 ```
 
-`rdfTermToSparqlValue()` (`src/term/convert.ts` L44) is the only place RDF/JS
-terms become `SparqlValue`s. Plain string literals carry no datatype (xsd:string
-is implicit); lang-tagged literals carry `xml:lang` (+ `its:dir` for RDF 1.2
-directional literals); RDF 1.2 triple terms serialize as `type: "triple"`.
+[`rdfTermToSparqlValue()`](https://jsr.io/@wazoo/sparql-engine/doc/~/rdfTermToSparqlValue)
+(`src/term/convert.ts` L44) is the only place RDF/JS terms become
+[`SparqlValue`](https://jsr.io/@wazoo/sparql-engine/doc/~/SparqlValue)s. Plain
+string literals carry no datatype (xsd:string is implicit); lang-tagged literals
+carry `xml:lang` (+ `its:dir` for RDF 1.2 directional literals); RDF 1.2 triple
+terms serialize as `type: "triple"`.
 
 ## Constructing the engine
 
@@ -108,12 +111,12 @@ direct `addQuad`/`removeQuad` calls to one atomic transaction per request.
 
 ### Query forms
 
-| Form                                                            | Notes                                                        | Entry point                      |
-| --------------------------------------------------------------- | ------------------------------------------------------------ | -------------------------------- |
-| `SELECT` (incl. `DISTINCT`, `REDUCED`, `*`, `AS ?v` projection) | `REDUCED ≡ DISTINCT` by decision                             | `SparqlEvaluator.evaluateSelect` |
-| `ASK`                                                           | `bindings.length > 0`                                        | `evaluateAsk`                    |
-| `CONSTRUCT`                                                     | template × solutions, fresh bnodes per solution, graph dedup | `evaluateConstruct`              |
-| `DESCRIBE` (`<iri>`, `?var`, `*`)                               | outgoing-arc description (Comunica shape)                    | `evaluateDescribe`               |
+| Form                                                            | Notes                                                              | Entry point                      |
+| --------------------------------------------------------------- | ------------------------------------------------------------------ | -------------------------------- |
+| `SELECT` (incl. `DISTINCT`, `REDUCED`, `*`, `AS ?v` projection) | `REDUCED ≡ DISTINCT` by decision                                   | `SparqlEvaluator.evaluateSelect` |
+| `ASK`                                                           | `bindings.length > 0`                                              | `evaluateAsk`                    |
+| `CONSTRUCT`                                                     | template × solutions, fresh bnodes per solution, graph dedup       | `evaluateConstruct`              |
+| `DESCRIBE` (`<iri>`, `?var`, `*`)                               | outgoing-arc description ([Comunica](https://comunica.dev/) shape) | `evaluateDescribe`               |
 
 ### Graph patterns (WHERE)
 
@@ -140,9 +143,10 @@ paths: `^ / | ? * + !` (negated property sets).
 - **RDF-star / RDF 1.2**: `TRIPLE`, `SUBJECT`, `PREDICATE`, `OBJECT`,
   triple-term expressions `<<( ?s ?p ?o )>>`, and `EXISTS` / `NOT EXISTS`
   (correlated, graph-scoped).
-- **SPARQL 1.2 direction functions**: `LANGDIR`, `STRLANGDIR`, `hasLang`,
-  `hasLangDir`. `hasLang` is variadic — all three arities parse and evaluate:
-  `hasLang(langString)`, `hasLang(langString, language)`, and
+- **[SPARQL 1.2](https://www.w3.org/TR/sparql12-query/) direction functions**:
+  `LANGDIR`, `STRLANGDIR`, `hasLang`, `hasLangDir`. `hasLang` is variadic — all
+  three arities parse and evaluate: `hasLang(langString)`,
+  `hasLang(langString, language)`, and
   `hasLang(simpleLiteral, language, direction)`. The binary/ternary forms are a
   **documented superset extension** (the published SPARQL 1.2 grammar defines
   only the unary form); arity-2 matches the language tag case-insensitively and
@@ -183,9 +187,10 @@ export type QuadWriteStore = rdfjs.Store & {
 };
 ```
 
-`MemoryStore`, `SqliteStore`, and `@worlds/client`'s `LibsqlRdfjsStore` /
-`DenokvRdfjsStore` all satisfy it. If neither `createTransaction` nor
-`addQuad`/`removeQuad` is available, updates throw a clear error.
+[`MemoryStore`](https://jsr.io/@wazoo/sparql-engine/doc/~/MemoryStore),
+`SqliteStore`, and `@worlds/client`'s `LibsqlRdfjsStore` / `DenokvRdfjsStore`
+all satisfy it. If neither `createTransaction` nor `addQuad`/`removeQuad` is
+available, updates throw a clear error.
 
 ### 2. Durable transactions
 
@@ -234,7 +239,8 @@ returns `Promise<ExistsSnapshot>` (an internal `quads` + `QuadIndex` + `version`
 record; previously `Promise<void>`), and the private context builders —
 `scopedExistsContext(store, snapshot)`, `pipelineExistsContext(snapshot)` —
 capture it once so a concurrent `execute()`'s cache rebuild is never observable
-mid-evaluation (issue #72).
+mid-evaluation (issue
+[#72](https://github.com/wazootech/sparql-engine/issues/72)).
 
 ### 4. Custom functions & operators
 
@@ -252,30 +258,58 @@ update operation types (`applyOperation`, `src/evaluator/update-evaluator.ts`).
 The engine also exports its term algebra for consumers that need RDF/JS term
 handling or differential testing:
 
-| Export                                                                              | File                                 | Purpose                                                                                                          |
-| ----------------------------------------------------------------------------------- | ------------------------------------ | ---------------------------------------------------------------------------------------------------------------- |
-| `DataFactory`, `dataFactory`                                                        | `src/term/data-factory.ts` L200/L238 | zero-dependency RDF/JS factory (namedNode, blankNode, literal, variable, defaultGraph, quad, fromTerm, fromQuad) |
-| `termKey`                                                                           | `src/term/identity.ts` L8            | sound RDF-term hash key                                                                                          |
-| `sameRdfTerm`                                                                       | `src/term/identity.ts` L41           | structural term equality (incl. triple terms)                                                                    |
-| `sparqlTermToRdfTerm` / `rdfTermToSparqlValue`                                      | `src/term/convert.ts` L11/L44        | AST ⇄ RDF/JS ⇄ wire conversion                                                                                   |
-| `canonicalizeRdfTerm` / `canonicalizeSparqlValue` / `CanonicalTerm`                 | `src/term/canonical.ts`              | serialization-stable projection for cross-engine parity                                                          |
-| `numericValue`, `compareNumericValues`, `formatNumber`, `NUMERIC_DATATYPES`, `XSD*` | `src/term/numeric.ts`                | numeric value semantics                                                                                          |
-| `compareRdfTerms`                                                                   | `src/term/ordering.ts` L66           | SPARQL §12.4 term ordering (ORDER BY, MIN/MAX)                                                                   |
+| Export                                                                                                                                                                                                                                                                                                                                   | File                                 | Purpose                                                                                                          |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------ | ---------------------------------------------------------------------------------------------------------------- |
+| [`DataFactory`](https://jsr.io/@wazoo/sparql-engine/doc/~/DataFactory), [`dataFactory`](https://jsr.io/@wazoo/sparql-engine/doc/~/dataFactory)                                                                                                                                                                                           | `src/term/data-factory.ts` L200/L238 | zero-dependency RDF/JS factory (namedNode, blankNode, literal, variable, defaultGraph, quad, fromTerm, fromQuad) |
+| [`termKey`](https://jsr.io/@wazoo/sparql-engine/doc/~/termKey)                                                                                                                                                                                                                                                                           | `src/term/identity.ts` L8            | sound RDF-term hash key                                                                                          |
+| [`sameRdfTerm`](https://jsr.io/@wazoo/sparql-engine/doc/~/sameRdfTerm)                                                                                                                                                                                                                                                                   | `src/term/identity.ts` L41           | structural term equality (incl. triple terms)                                                                    |
+| [`sparqlTermToRdfTerm`](https://jsr.io/@wazoo/sparql-engine/doc/~/sparqlTermToRdfTerm) / [`rdfTermToSparqlValue`](https://jsr.io/@wazoo/sparql-engine/doc/~/rdfTermToSparqlValue)                                                                                                                                                        | `src/term/convert.ts` L11/L44        | AST ⇄ RDF/JS ⇄ wire conversion                                                                                   |
+| [`canonicalizeRdfTerm`](https://jsr.io/@wazoo/sparql-engine/doc/~/canonicalizeRdfTerm) / [`canonicalizeSparqlValue`](https://jsr.io/@wazoo/sparql-engine/doc/~/canonicalizeSparqlValue) / [`CanonicalTerm`](https://jsr.io/@wazoo/sparql-engine/doc/~/CanonicalTerm)                                                                     | `src/term/canonical.ts`              | serialization-stable projection for cross-engine parity                                                          |
+| [`numericValue`](https://jsr.io/@wazoo/sparql-engine/doc/~/numericValue), [`compareNumericValues`](https://jsr.io/@wazoo/sparql-engine/doc/~/compareNumericValues), [`formatNumber`](https://jsr.io/@wazoo/sparql-engine/doc/~/formatNumber), [`NUMERIC_DATATYPES`](https://jsr.io/@wazoo/sparql-engine/doc/~/NUMERIC_DATATYPES), `XSD*` | `src/term/numeric.ts`                | numeric value semantics                                                                                          |
+| [`compareRdfTerms`](https://jsr.io/@wazoo/sparql-engine/doc/~/compareRdfTerms)                                                                                                                                                                                                                                                           | `src/term/ordering.ts` L66           | SPARQL §12.4 term ordering (ORDER BY, MIN/MAX)                                                                   |
 
 ## Public export inventory (from `deno doc --json`)
 
-Types: `SparqlEngineInterface`, `SparqlRequest`, `SparqlResponse`,
-`SparqlSelectResults`, `SparqlAskResults`, `SparqlConstructResults`,
-`SparqlValue`, `SparqlBinding`, `WazooSparqlEngineOptions`,
-`WazooSparqlTransaction`, `CanonicalTerm`.
+Types:
+[`SparqlEngineInterface`](https://jsr.io/@wazoo/sparql-engine/doc/~/SparqlEngineInterface),
+[`SparqlRequest`](https://jsr.io/@wazoo/sparql-engine/doc/~/SparqlRequest),
+[`SparqlResponse`](https://jsr.io/@wazoo/sparql-engine/doc/~/SparqlResponse),
+[`SparqlSelectResults`](https://jsr.io/@wazoo/sparql-engine/doc/~/SparqlSelectResults),
+[`SparqlAskResults`](https://jsr.io/@wazoo/sparql-engine/doc/~/SparqlAskResults),
+[`SparqlConstructResults`](https://jsr.io/@wazoo/sparql-engine/doc/~/SparqlConstructResults),
+[`SparqlValue`](https://jsr.io/@wazoo/sparql-engine/doc/~/SparqlValue),
+[`SparqlBinding`](https://jsr.io/@wazoo/sparql-engine/doc/~/SparqlBinding),
+[`WazooSparqlEngineOptions`](https://jsr.io/@wazoo/sparql-engine/doc/~/WazooSparqlEngineOptions),
+[`WazooSparqlTransaction`](https://jsr.io/@wazoo/sparql-engine/doc/~/WazooSparqlTransaction),
+[`CanonicalTerm`](https://jsr.io/@wazoo/sparql-engine/doc/~/CanonicalTerm).
 
-Values/classes: `WazooSparqlEngine`, `MemoryStore`, `MemoryStream`,
-`DataFactory`, `dataFactory`, `canonicalizeRdfTerm`, `canonicalizeSparqlValue`,
-`compareNumericValues`, `compareRdfTerms`, `formatNumber`, `NUMERIC_DATATYPES`,
-`numericValue`, `rdfTermToSparqlValue`, `sameRdfTerm`, `sparqlTermToRdfTerm`,
-`serializeJsonResults`, `serializeXmlResults` (the writers are also re-exported
-from the `./serialize` subpath entrypoint), `termKey`, `XSD`, `XSD_BOOLEAN`,
-`XSD_DECIMAL`, `XSD_DOUBLE`, `XSD_FLOAT`, `XSD_INTEGER`, `XSD_STRING`.
+Values/classes:
+[`WazooSparqlEngine`](https://jsr.io/@wazoo/sparql-engine/doc/~/WazooSparqlEngine),
+[`MemoryStore`](https://jsr.io/@wazoo/sparql-engine/doc/~/MemoryStore),
+[`MemoryStream`](https://jsr.io/@wazoo/sparql-engine/doc/~/MemoryStream),
+[`DataFactory`](https://jsr.io/@wazoo/sparql-engine/doc/~/DataFactory),
+[`dataFactory`](https://jsr.io/@wazoo/sparql-engine/doc/~/dataFactory),
+[`canonicalizeRdfTerm`](https://jsr.io/@wazoo/sparql-engine/doc/~/canonicalizeRdfTerm),
+[`canonicalizeSparqlValue`](https://jsr.io/@wazoo/sparql-engine/doc/~/canonicalizeSparqlValue),
+[`compareNumericValues`](https://jsr.io/@wazoo/sparql-engine/doc/~/compareNumericValues),
+[`compareRdfTerms`](https://jsr.io/@wazoo/sparql-engine/doc/~/compareRdfTerms),
+[`formatNumber`](https://jsr.io/@wazoo/sparql-engine/doc/~/formatNumber),
+[`NUMERIC_DATATYPES`](https://jsr.io/@wazoo/sparql-engine/doc/~/NUMERIC_DATATYPES),
+[`numericValue`](https://jsr.io/@wazoo/sparql-engine/doc/~/numericValue),
+[`rdfTermToSparqlValue`](https://jsr.io/@wazoo/sparql-engine/doc/~/rdfTermToSparqlValue),
+[`sameRdfTerm`](https://jsr.io/@wazoo/sparql-engine/doc/~/sameRdfTerm),
+[`sparqlTermToRdfTerm`](https://jsr.io/@wazoo/sparql-engine/doc/~/sparqlTermToRdfTerm),
+[`serializeJsonResults`](https://github.com/wazootech/sparql-engine/blob/main/src/serialize/json-results.ts),
+[`serializeXmlResults`](https://github.com/wazootech/sparql-engine/blob/main/src/serialize/xml-results.ts)
+(the writers are also re-exported from the `./serialize` subpath entrypoint),
+[`termKey`](https://jsr.io/@wazoo/sparql-engine/doc/~/termKey),
+[`XSD`](https://jsr.io/@wazoo/sparql-engine/doc/~/XSD),
+[`XSD_BOOLEAN`](https://jsr.io/@wazoo/sparql-engine/doc/~/XSD_BOOLEAN),
+[`XSD_DECIMAL`](https://jsr.io/@wazoo/sparql-engine/doc/~/XSD_DECIMAL),
+[`XSD_DOUBLE`](https://jsr.io/@wazoo/sparql-engine/doc/~/XSD_DOUBLE),
+[`XSD_FLOAT`](https://jsr.io/@wazoo/sparql-engine/doc/~/XSD_FLOAT),
+[`XSD_INTEGER`](https://jsr.io/@wazoo/sparql-engine/doc/~/XSD_INTEGER),
+[`XSD_STRING`](https://jsr.io/@wazoo/sparql-engine/doc/~/XSD_STRING).
 
 Not exported (deep-import only): `SparqlParser`, the AST types
 (`src/parser/ast.ts`), `SqliteStore` (`src/store/sqlite-store.ts`), and the

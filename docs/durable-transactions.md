@@ -16,7 +16,9 @@ durable store, while keeping the published engine runtime **dependency-free**
 
 ## Why the engine already supports this
 
-`WazooSparqlEngine` has a `createTransaction` hook (`WazooSparqlTransaction`):
+[`WazooSparqlEngine`](https://jsr.io/@wazoo/sparql-engine/doc/~/WazooSparqlEngine)
+has a `createTransaction` hook
+([`WazooSparqlTransaction`](https://jsr.io/@wazoo/sparql-engine/doc/~/WazooSparqlTransaction)):
 
 ```ts
 interface WazooSparqlTransaction {
@@ -56,9 +58,11 @@ quads(skey, pkey, okey, gkey, payload)
   STRICT                                 -- typed columns
 ```
 
-- The four key columns hold `termKey` of each position — the engine's own sound
-  RDF-term equality key (`src/term/identity.ts`), so lookups and the in-memory
-  store agree on identity, including RDF 1.2 triple terms.
+- The four key columns hold
+  [`termKey`](https://jsr.io/@wazoo/sparql-engine/doc/~/termKey) of each
+  position — the engine's own sound RDF-term equality key
+  (`src/term/identity.ts`), so lookups and the in-memory store agree on
+  identity, including RDF 1.2 triple terms.
 - `payload` is a lossless JSON encoding of the quad (term type, value, literal
   language + datatype, RDF-star nesting) so `match()` reconstructs exact terms —
   a `"hola"@es` literal round-trips with its language intact.
@@ -125,9 +129,11 @@ package.
 | Deno KV (`Deno.openKv`)      | Built-in, atomic transactions, remote sync | Deno-only, eventual-consistency story |
 | Postgres via `node:postgres` | Mature, server-side                        | Heaviest integration                  |
 
-The engine-side contract (`WazooSparqlTransaction`) is intentionally minimal
-(add/delete/commit/rollback), so any of these can slot in without engine changes
-— the SQLite prototype is the reference implementation.
+The engine-side contract
+([`WazooSparqlTransaction`](https://jsr.io/@wazoo/sparql-engine/doc/~/WazooSparqlTransaction))
+is intentionally minimal (add/delete/commit/rollback), so any of these can slot
+in without engine changes — the SQLite prototype is the reference
+implementation.
 
 ## Next steps (not in this PR)
 
