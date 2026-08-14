@@ -145,7 +145,6 @@ sparql-engine/
 | `bench/measure-closures.ts`                                      | Per-entrypoint value-import closure (`.` + `./term`/`./store`/`./parser`/`./serialize`) → `bench/closures-data.json`       |
 | `bench/collect-memory.ts`                                        | Spawns `bench/memory-probe.ts` per engine × workload, merges peak-heap results → `bench/memory-data.json`                  |
 | `bench/memory-probe.ts`                                          | Peak `heapUsed` per engine (native/Comunica/Oxigraph) on full-scan + nested-EXISTS workloads over a 10k-person graph       |
-| `bench/treemap.ts`                                               | Renders `bench/*-data.json` into `docs/assets/treemap-{library-size,memory,closures}.svg`                                  |
 | `bench/size-data.json`, `memory-data.json`, `closures-data.json` | Measured snapshots consumed by `bench/treemap.ts` and the root `README.md` (Size & memory footprint)                       |
 
 ## `docs/` — this wiki ↔ source mapping

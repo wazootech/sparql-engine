@@ -32,9 +32,9 @@
   "tasks": {
     "bench": "deno bench --allow-all",
     "bench:check": "deno run --allow-all bench/budget.ts",
-    "bench:size": "deno run --allow-read bench/measure-libs.ts > bench/size-data.json && deno run --allow-read --allow-write bench/treemap.ts && deno fmt docs/assets/treemap-*.svg",
-    "bench:size:closures": "deno run --allow-read --allow-write bench/measure-closures.ts && deno run --allow-read --allow-write bench/treemap.ts && deno fmt docs/assets/treemap-*.svg",
-    "bench:memory": "deno run --allow-all bench/collect-memory.ts && deno run --allow-read --allow-write bench/treemap.ts && deno fmt docs/assets/treemap-*.svg",
+    "bench:size": "deno run --allow-read bench/measure-libs.ts > bench/size-data.json && deno run --allow-read --allow-write bench/treemap.ts && deno fmt docs/assets/chart-*.svg docs/assets/treemap-memory.svg",
+    "bench:size:closures": "deno run --allow-read --allow-write bench/measure-closures.ts && deno run --allow-read --allow-write bench/treemap.ts && deno fmt docs/assets/chart-*.svg docs/assets/treemap-memory.svg",
+    "bench:memory": "deno run --allow-all bench/collect-memory.ts && deno run --allow-read --allow-write bench/treemap.ts && deno fmt docs/assets/chart-*.svg docs/assets/treemap-memory.svg",
     "check": "deno check",
     "ci": {
       "description": "Formats, lints, checks, and tests the code",

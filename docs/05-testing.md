@@ -215,17 +215,16 @@ to ship and run (root `README.md` → _Size & memory footprint_):
   10k-person graph (~55k quads), across a full-scan and a nested-EXISTS workload
   → `bench/memory-data.json`. Native is lowest on both (134 / 82 MiB vs Comunica
   214 / 271 MiB, Oxigraph 251 / 108 MiB).
-- `bench/treemap.ts` renders the JSON snapshots into `docs/assets/treemap-*.svg`
-  (area ∝ size for the treemaps; bar chart for the closures):
+- `bench/treemap.ts` renders the JSON snapshots into `docs/assets/chart-*.svg`
+  (bar charts) and `docs/assets/treemap-memory.svg` (treemap):
 
 <figure>
-  <img src="assets/treemap-library-size.svg" alt="Treemap of engine footprints on disk">
-  <figcaption><b>Fig — Library size on disk.</b> One panel per engine; panel
-  area is proportional to installed size (values in binary MiB). Inside each
-  panel the largest files/packages are tiled with the tail aggregated as
-  “other deps” — native (green) breaks into its 8 largest source files,
-  oxigraph (blue) into its WASM runtime vs JS glue, comunica (orange) into its
-  top dependency clusters.</figcaption>
+  <img src="assets/chart-library-size.svg" alt="Bar chart of engine footprints on disk">
+  <figcaption><b>Fig — Library size on disk.</b> One bar per engine; bar
+  length is proportional to total installed size (values in binary MiB, share
+  of the combined total in parentheses). Native (green) is the whole JSR
+  artifact at 0.60 MiB — a sliver against comunica’s 28.3 MiB closure (orange);
+  oxigraph (blue) sits between.</figcaption>
 </figure>
 
 <figure>

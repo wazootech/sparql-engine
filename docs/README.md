@@ -55,8 +55,8 @@ Updates take a parallel path through `UpdateEvaluator.executeUpdate()`
 ## Footprint at a glance
 
 Three figures summarize what the engine costs to ship and run versus the
-reference engines (treemap panels are area ∝ size; full methodology and tables
-in [07 — Benchmarking & Performance](07-benchmarking.md)):
+reference engines (bar length is proportional to size; full methodology and
+tables in [07 — Benchmarking & Performance](07-benchmarking.md)):
 
 |                          | native                     | oxigraph | comunica                |
 | ------------------------ | -------------------------- | -------- | ----------------------- |
@@ -66,13 +66,12 @@ in [07 — Benchmarking & Performance](07-benchmarking.md)):
 | peak heap, nested EXISTS | **82 MiB**                 | 108 MiB  | 271 MiB                 |
 
 <figure>
-  <img src="assets/treemap-library-size.svg" alt="Treemap of engine footprints on disk">
-  <figcaption><b>Fig 1 — Library size on disk.</b> One panel per engine; panel
-  area is proportional to installed size (values in binary MiB). Inside each
-  panel the largest files/packages are tiled with the tail aggregated as
-  “other deps” — native (green) breaks into its 8 largest source files,
-  oxigraph (blue) into its WASM runtime vs JS glue, comunica (orange) into its
-  top dependency clusters.</figcaption>
+  <img src="assets/chart-library-size.svg" alt="Bar chart of engine footprints on disk">
+  <figcaption><b>Fig 1 — Library size on disk.</b> One bar per engine; bar
+  length is proportional to total installed size (values in binary MiB, share
+  of the combined total in parentheses). Native (green) is the whole JSR
+  artifact at 0.60 MiB — a sliver against comunica’s 28.3 MiB closure (orange);
+  oxigraph (blue) sits between.</figcaption>
 </figure>
 
 <figure>

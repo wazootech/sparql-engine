@@ -12,15 +12,14 @@ methodology behind each and the known results measured on the reference machine.
 Run instructions live in [05 — Verification & Testing](05-testing.md); this page
 is the "why it's trustworthy and what the numbers say" companion.
 
-| Tool                         | Task                            | Measures                                                    | Gate |
-| ---------------------------- | ------------------------------- | ----------------------------------------------------------- | ---- |
-| `bench/engine_bench.ts`      | `deno task bench`               | Query/update latency vs Comunica + Oxigraph                 | no   |
-| `bench/budget.ts`            | `deno task bench:check`         | Latency regression vs `bench/baseline.json`                 | CI   |
-| `bench/concurrency-probe.ts` | (manual)                        | EXISTS snapshot isolation under concurrency                 | no   |
-| `bench/measure-libs.ts`      | `deno task bench:size`          | On-disk footprint of each engine                            | no   |
-| `bench/measure-closures.ts`  | `deno task bench:size:closures` | Per-entrypoint import closure (what each subpath loads)     | no   |
-| `bench/collect-memory.ts`    | `deno task bench:memory`        | Peak heap during execution                                  | no   |
-| `bench/treemap.ts`           | (all three above)               | Renders the JSON snapshots into `docs/assets/treemap-*.svg` | no   |
+| Tool                         | Task                            | Measures                                                | Gate |
+| ---------------------------- | ------------------------------- | ------------------------------------------------------- | ---- |
+| `bench/engine_bench.ts`      | `deno task bench`               | Query/update latency vs Comunica + Oxigraph             | no   |
+| `bench/budget.ts`            | `deno task bench:check`         | Latency regression vs `bench/baseline.json`             | CI   |
+| `bench/concurrency-probe.ts` | (manual)                        | EXISTS snapshot isolation under concurrency             | no   |
+| `bench/measure-libs.ts`      | `deno task bench:size`          | On-disk footprint of each engine                        | no   |
+| `bench/measure-closures.ts`  | `deno task bench:size:closures` | Per-entrypoint import closure (what each subpath loads) | no   |
+| `bench/collect-memory.ts`    | `deno task bench:memory`        | Peak heap during execution                              | no   |
 
 ## `deno task bench` — three-engine latency comparison
 
@@ -161,10 +160,11 @@ in `src/wazoo-sparql-engine.test.ts`.
   engine is loaded), executing each workload 5× and reporting peak
   `Deno.memoryUsage()` (`heapUsed` + `rss` + `external`) on a 10,000-person
   graph (~55,000 quads) → `bench/memory-data.json`.
-- `bench/treemap.ts` renders both JSON snapshots into
-  `docs/assets/treemap-{library-size,memory}.svg` (area ∝ size) — the SVGs are
-  committed, so the published wiki and README stay in sync with the
-  measurements.
+- `bench/treemap.ts` renders the JSON snapshots into
+  `docs/assets/chart-library-size.svg` (bar chart),
+  `docs/assets/treemap-memory.svg` (treemap), and
+  `docs/assets/chart-closures.svg` (bar chart) — the SVGs are committed, so the
+  published wiki and README stay in sync with the measurements.
 
 ### Known results
 
@@ -177,20 +177,19 @@ On-disk footprint (what a consumer must have installed):
 | comunica | 28.3 MiB     | 368 npm packages in the transitive dependency closure                                                 |
 
 <figure>
-  <img src="assets/treemap-library-size.svg" alt="Treemap of engine footprints on disk">
-  <figcaption><b>Fig — Library size on disk.</b> One panel per engine; panel
-  area is proportional to installed size (values in binary MiB). Inside each
-  panel the largest files/packages are tiled with the tail aggregated as
-  “other deps” — native (green) breaks into its 8 largest source files,
-  oxigraph (blue) into its WASM runtime vs JS glue, comunica (orange) into its
-  top dependency clusters.</figcaption>
+  <img src="assets/chart-library-size.svg" alt="Bar chart of engine footprints on disk">
+  <figcaption><b>Fig — Library size on disk.</b> One bar per engine; bar
+  length is proportional to total installed size (values in binary MiB, share
+  of the combined total in parentheses). Native (green) is the whole JSR
+  artifact at 0.60 MiB — a sliver against comunica’s 28.3 MiB closure (orange);
+  oxigraph (blue) sits between.</figcaption>
 </figure>
 
 Native breaks down as evaluator 226 KiB, parser 294 KiB (the generated
 `parser.ts` alone is 202 KiB), term 40 KiB, store 13 KiB, serialize 7 KiB,
 README 15 KiB, LICENSE 1 KiB — the parser is the largest single module (the
 generated `parser.ts` from `sparql.jison`). The `bench:size` JSON breaks the
-artifact into per-file tiles so the treemap stays honest: the JSR
+artifact into per-file tiles so the chart stays honest: the JSR
 `publish.exclude` set (grammar sources, `generate-parser.ts`, `sqlite-store.ts`)
 is applied before measuring.
 
@@ -199,7 +198,7 @@ from the published package (value-import graph, type-only imports erased;
 measured by `deno task bench:size:closures`):
 
 <figure>
-  <img src="assets/treemap-closures.svg" alt="Bar chart of per-entrypoint import closures">
+  <img src="assets/chart-closures.svg" alt="Bar chart of per-entrypoint import closures">
   <figcaption><b>Fig — Per-entrypoint consumer closure.</b> Bar length is the
   total size of the local files each `@wazoo/sparql-engine` entrypoint actually
   loads (file count per bar). The full engine pulls in the whole 576 KiB graph;
@@ -245,13 +244,14 @@ records peak RSS in `bench/memory-data.json` for deeper analysis.
 deno task bench        # latency: prints tables, verifies results first
 deno task bench:check  # CI gate: pass/fail vs bench/baseline.json
 deno run --allow-all bench/concurrency-probe.ts   # exit 1 on any divergence
-deno task bench:size   # measure-libs → size-data.json → treemap SVGs → fmt
-deno task bench:size:closures # measure-closures → closures-data.json → closures SVG → fmt
-deno task bench:memory # collect-memory → memory-data.json → treemap SVGs → fmt
+deno task bench:size   # measure-libs → size-data.json → chart SVGs → fmt
+deno task bench:size:closures # measure-closures → closures-data.json → closures chart SVG → fmt
+deno task bench:memory # collect-memory → memory-data.json → memory treemap SVG → fmt
 ```
 
 All measurements are machine-specific snapshots (the reference numbers above are
 Deno 2.9.5 on Windows), not guarantees. When you regenerate `bench:size` or
 `bench:memory`, commit the updated `bench/*-data.json` **and** the
-`docs/assets/treemap-*.svg` together — the tasks format the SVGs, so a committed
-SVG should always be byte-identical to what `deno fmt` produces.
+`docs/assets/chart-*.svg` + `docs/assets/treemap-memory.svg` together — the
+tasks format the SVGs, so a committed SVG should always be byte-identical to
+what `deno fmt` produces.

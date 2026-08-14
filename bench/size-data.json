@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-08-14T19:36:40.616Z",
+  "generatedAt": "2026-08-14T19:51:58.620Z",
   "engines": [
     {
       "name": "native",
-      "bytes": 626897,
+      "bytes": 626854,
       "children": [
         {
           "name": "src/parser/parser.ts",
@@ -35,7 +35,7 @@
         },
         {
           "name": "README.md",
-          "bytes": 15984
+          "bytes": 15941
         },
         {
           "name": "src/term/hash.ts",
@@ -901,8 +901,8 @@
     }
   ],
   "native": {
-    "artifactBytes": 626897,
-    "gzipBytes": 133550,
+    "artifactBytes": 626854,
+    "gzipBytes": 133539,
     "files": 36
   }
 }

@@ -36,7 +36,17 @@ interface Placed {
   panel?: string;
 }
 
-const COLORS = ["#2f9e44", "#1971c2", "#f08c00"]; // native, oxigraph, comunica
+/** Engine identity → color. Colors are keyed by engine name, never by sort
+ * position: native is always green (the wazoo brand), oxigraph blue,
+ * comunica orange — so in the size chart the biggest bundle (comunica) is
+ * orange and native's tiny footprint reads as the small green bar. */
+const ENGINE_COLORS: Record<string, string> = {
+  native: "#2f9e44",
+  oxigraph: "#1971c2",
+  comunica: "#f08c00",
+};
+
+const COLORS = Object.values(ENGINE_COLORS); // retained for shade() calls
 
 function worst(row: { bytes: number }[], rect: Rect): number {
   const total = row.reduce((s, i) => s + i.bytes, 0);
@@ -218,55 +228,62 @@ function treemapSvg(
 /* Data -> placed trees                                               */
 /* ------------------------------------------------------------------ */
 
-function sizeTree(): Placed[] {
+/** sizeChart renders a horizontal bar chart of each engine's total installed
+ * footprint — bar length ∝ total bytes, sorted ascending so native's tiny
+ * green bar reads first. Colors are engine identity (native green, oxigraph
+ * blue, comunica orange), never sort position. */
+function sizeChart(): void {
   const data = JSON.parse(
     Deno.readTextFileSync(join(Deno.cwd(), "bench", "size-data.json")),
   ) as { engines: Sized[] };
-  const rootRect: Rect = { x: 12, y: 44, w: 696, h: 264 };
-  const engines = [...data.engines].sort((a, b) => b.bytes - a.bytes);
-  const roots: Placed[] = [];
-  const top: Placed[] = [];
-  const laidOut = squarify(
-    engines.map((e) => ({ name: e.name, bytes: e.bytes })),
-    rootRect,
+  const total = data.engines.reduce((s, e) => s + e.bytes, 0);
+  const entries = [...data.engines]
+    .map((e) => ({ ...e, label: e.name }))
+    .sort((a, b) => a.bytes - b.bytes);
+  const max = Math.max(...entries.map((e) => e.bytes), 1);
+  const width = 720;
+  const height = 40 + entries.length * 34 + 14;
+  const padL = 16;
+  const padR = 250; // label column
+  const barW = width - padL - padR;
+  const barH = 18;
+  const parts: string[] = [];
+  parts.push(
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" ` +
+      `font-family="sans-serif"><rect width="${width}" height="${height}" fill="#f8f9fa"/>`,
   );
-  for (let i = 0; i < engines.length; i++) {
-    const engine = engines[i];
-    const rect = laidOut.find((l) => l.name === engine.name)!.rect;
-    const children = engine.children ?? [];
-    const capped = children.slice(0, 8);
-    const otherBytes = children
-      .slice(8)
-      .reduce((s, c) => s + c.bytes, 0);
-    const items = otherBytes > 0
-      ? [...capped, { name: "other deps", bytes: otherBytes }]
-      : capped;
-    const childLayout = squarify(items, {
-      x: rect.x + 2,
-      y: rect.y + 2,
-      w: Math.max(rect.w - 4, 1),
-      h: Math.max(rect.h - 4, 1),
-    });
-    const childPlaced: Placed[] = [];
-    for (const layout of childLayout) {
-      const item = items.find((it) => it.name === layout.name)!;
-      childPlaced.push({
-        name: layout.name,
-        rect: layout.rect,
-        color: shade(COLORS[i], 0.65),
-        valueText: fmtBytes(item.bytes),
-      });
-    }
-    roots.push({
-      name: engine.name,
-      rect,
-      color: COLORS[i],
-      valueText: fmtBytes(engine.bytes),
-      children: childPlaced,
-    });
-  }
-  void top;
-  return roots;
+  parts.push(
+    `<text x="12" y="20" font-size="13" font-weight="bold" fill="#212529">` +
+      `Library size on disk</text>`,
+  );
+  parts.push(
+    `<text x="12" y="34" font-size="9" fill="#868e96">` +
+      `Engine package footprint, excluding the shared Deno runtime — bar length ∝ ` +
+      `total installed size (binary MiB)</text>`,
+  );
+  entries.forEach((entry, i) => {
+    const y = 46 + i * 34;
+    const len = Math.max((entry.bytes / max) * barW, 1);
+    const share = ((entry.bytes / total) * 100).toFixed(1);
+    const color = ENGINE_COLORS[entry.name] ?? "#1971c2";
+    parts.push(
+      `<rect x="${padL}" y="${y}" width="${len.toFixed(1)}" height="${barH}" ` +
+        `fill="${color}" rx="2"/>`,
+    );
+    parts.push(
+      `<text x="${padL + barW}" y="${(y + barH / 2 + 3).toFixed(1)}" ` +
+        `text-anchor="end" font-family="sans-serif" font-size="10" fill="#212529">` +
+        `${esc(entry.label)} — ${
+          fmtBytes(entry.bytes)
+        } (${share}% of total)</text>`,
+    );
+  });
+  parts.push("</svg>");
+  Deno.writeTextFileSync(
+    join(Deno.cwd(), "docs", "assets", "chart-library-size.svg"),
+    parts.join("\n"),
+  );
+  console.log("wrote docs/assets/chart-library-size.svg");
 }
 
 /** shade mixes a hex color toward white by `amount`. */
@@ -287,7 +304,7 @@ function memoryTree(): Placed[] {
       { scan: { peakHeap: number }; exists: { peakHeap: number } }
     >;
   };
-  const names = ["native", "comunica", "oxigraph"];
+  const names = ["native", "oxigraph", "comunica"];
   const workloads = ["scan", "exists"] as const;
   const labels: Record<string, string> = {
     scan: "full scan (55k rows materialized)",
@@ -297,10 +314,10 @@ function memoryTree(): Placed[] {
   const roots: Placed[] = [];
   for (let wi = 0; wi < workloads.length; wi++) {
     const wl = workloads[wi];
-    const items = names.map((name, i) => ({
+    const items = names.map((name) => ({
       name,
       bytes: data.engines[name][wl].peakHeap,
-      color: COLORS[i],
+      color: ENGINE_COLORS[name] ?? "#1971c2",
     }));
     const outer: Rect = { x: 12 + wi * panelW, y: 44, w: panelW - 6, h: 244 };
     const inner: Rect = {
@@ -393,24 +410,16 @@ function closuresChart(): boolean {
   });
   parts.push("</svg>");
   Deno.writeTextFileSync(
-    join(Deno.cwd(), "docs", "assets", "treemap-closures.svg"),
+    join(Deno.cwd(), "docs", "assets", "chart-closures.svg"),
     parts.join("\n"),
   );
-  console.log("wrote docs/assets/treemap-closures.svg");
+  console.log("wrote docs/assets/chart-closures.svg");
   return true;
 }
 
 /* ------------------------------------------------------------------ */
 
-const sizeSvg = treemapSvg(
-  "Library size on disk",
-  "Engine package footprint, excluding the shared Deno runtime (native: JSR artifact; oxigraph: npm package; comunica: full transitive dependency closure)",
-  sizeTree(),
-);
-Deno.writeTextFileSync(
-  join(Deno.cwd(), "docs", "assets", "treemap-library-size.svg"),
-  sizeSvg,
-);
+sizeChart();
 
 const memSvg = treemapSvg(
   "Peak heap during execution (10k-person graph)",
@@ -427,5 +436,5 @@ Deno.writeTextFileSync(
 closuresChart();
 
 console.log(
-  "wrote docs/assets/treemap-library-size.svg and treemap-memory.svg",
+  "wrote docs/assets/chart-library-size.svg, treemap-memory.svg, chart-closures.svg",
 );
