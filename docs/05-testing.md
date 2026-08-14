@@ -81,6 +81,14 @@ The parity contract is **behavioral equivalence with
   blank-node substitution — repeated placeholders within one quad (`replaceAll`,
   e.g. the same blank node bound as subject and object), distinct-node
   preservation, and multi-quad isomorphism under relabeling.
+- **CONSTRUCT compares under the graph-result contract (issue #87).** A
+  CONSTRUCT result is a set of triples: the reference side (Comunica) is
+  normalized to graph content — its stream may repeat a triple its graph would
+  not — while the native side is compared **as-emitted**. A conforming engine
+  emits no duplicate quads (W3C decision #29), so a change that starts emitting
+  duplicates fails the gate instead of silently passing;
+  `test/w3c/construct-semantics.test.ts` pins the contract with unit tests on
+  `compareConstructRecords`/`dedupeRecords` (`test/w3c/runner.ts`).
 - Updates canonicalize stores up to blank-node relabeling — two stores pass when
   they agree exactly modulo label identity (the SPARQL contract, since INSERT
   DATA mints fresh labels per execution).
@@ -141,10 +149,11 @@ Two properties make the timings trustworthy:
 
 1. **Verification first.** Before any timing, every query asserts all three
    engines return identical results (`verifySelectEquality`,
-   `verifyAskEquality`, `verifyConstructEquality`,
-   `verifyConstructIsoEquality`), and every update asserts identical final store
-   contents on fresh stores (`verifyUpdateEquality`). A benchmark of a broken
-   engine fails loudly, not silently.
+   `verifyAskEquality`, `verifyConstructEquality`, `verifyConstructIsoEquality`
+   — CONSTRUCT under the graph-result multiset contract: reference deduplicated,
+   native as-emitted (issue #87) — and every update asserts identical final
+   store contents on fresh stores (`verifyUpdateEquality`). A benchmark of a
+   broken engine fails loudly, not silently.
 2. **Self-restoring updates.** The timed update deletes and re-inserts the same
    quads, netting to zero per iteration, so the benchmark stores never drift.
 

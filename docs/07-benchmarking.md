@@ -32,10 +32,11 @@ engine as the per-group baseline.
 
 1. **Verification first.** Before any timing, every query asserts all three
    engines return identical results (`verifySelectEquality`,
-   `verifyAskEquality`, `verifyConstructEquality`,
-   `verifyConstructIsoEquality`), and every update asserts identical final store
-   contents on fresh stores (`verifyUpdateEquality`). A benchmark of a broken
-   engine fails loudly, not silently.
+   `verifyAskEquality`, `verifyConstructEquality`, `verifyConstructIsoEquality`
+   — CONSTRUCT under the graph-result multiset contract: reference deduplicated,
+   native as-emitted (issue #87) — and every update asserts identical final
+   store contents on fresh stores (`verifyUpdateEquality`). A benchmark of a
+   broken engine fails loudly, not silently.
 2. **Self-restoring updates.** The timed update deletes and re-inserts the same
    quads, netting to zero per iteration, so the benchmark stores never drift.
 3. **Per-group baselines.** Each group is timed independently; results are

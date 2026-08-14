@@ -25,6 +25,9 @@
 - title: Benchmarking & Performance
   num: "07"
   url: /07-benchmarking.html
-- title: Durable Transactions
+- title: Wiki Maintenance
   num: "08"
+  url: /08-maintenance.html
+- title: Durable Transactions
+  num: "09"
   url: /durable-transactions.html

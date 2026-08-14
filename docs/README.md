@@ -25,7 +25,7 @@ relative to the repository root.
 | [04 — Source Map](04-source-map.md)                     | Directory walkthrough, file → symbol → doc mapping     |
 | [05 — Verification & Testing](05-testing.md)            | Unit/parity/W3C suites, benchmarking, debugging        |
 | [06 — Supplemental Context](06-supplemental-context.md) | Datasets, W3C suite notes, divergences, metadata       |
-| [07 — Benchmarking & Performance](07-benchmarking.md)   | Methodology + known results for every benchmark tool   |
+| [08 — Wiki Maintenance](08-maintenance.md)              | The sync procedure: keep this wiki truthful to `main`  |
 
 Related in-repo documents: [ARCHITECTURE.md](../ARCHITECTURE.md) (topology and
 `@worlds/client` relationship), [CONTEXT.md](../CONTEXT.md) (glossary), and
@@ -67,6 +67,17 @@ reference engines (area ∝ size; full methodology and tables in
 ![Library size treemap](assets/treemap-library-size.svg)
 
 ![Memory treemap](assets/treemap-memory.svg)
+
+## Keeping this wiki in sync
+
+`docs/` is maintained by a **Git-anchored delta process** (the approach
+LangChain's OpenWiki uses): `docs/.sync-base` records the last-synced commit,
+and syncing means diffing `origin/main` forward from that anchor and editing
+only the affected pages — never regenerating. The procedure (symbol lines from
+`deno doc --json`, counts from the runners, inventory from `git ls-tree`) is
+codified as the `wiki-sync` skill and documented on
+[08 — Wiki Maintenance](08-maintenance.md). If you land a source change, sync
+the wiki the same way — it is a command, not a prompt.
 
 ## GitHub Pages setup
 
