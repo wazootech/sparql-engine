@@ -4,7 +4,11 @@
   "version": "0.2.0",
   "license": "MIT",
   "exports": {
-    ".": "./src/mod.ts"
+    ".": "./src/mod.ts",
+    "./term": "./src/term/mod.ts",
+    "./store": "./src/store/memory-store.ts",
+    "./parser": "./src/parser/mod.ts",
+    "./serialize": "./src/serialize/mod.ts"
   },
   "publish": {
     "include": ["src/", "README.md", "LICENSE"],
@@ -29,6 +33,7 @@
     "bench": "deno bench --allow-all",
     "bench:check": "deno run --allow-all bench/budget.ts",
     "bench:size": "deno run --allow-read bench/measure-libs.ts > bench/size-data.json && deno run --allow-read --allow-write bench/treemap.ts && deno fmt docs/assets/treemap-*.svg",
+    "bench:size:closures": "deno run --allow-read bench/measure-closures.ts",
     "bench:memory": "deno run --allow-all bench/collect-memory.ts && deno run --allow-read --allow-write bench/treemap.ts && deno fmt docs/assets/treemap-*.svg",
     "check": "deno check",
     "ci": {

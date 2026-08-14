@@ -187,6 +187,22 @@ Node-only `sqlite-store.ts` (~11 KiB), so consumers never install build
 artifacts; the treemap and the `bench:size` JSON both mirror that file set
 exactly.
 
+**Per-entrypoint consumer closure** — what importing a subpath actually loads
+from the published package (value-import graph, type-only imports erased;
+measured by `deno task bench:size:closures`):
+
+| import                               | closure     |
+| ------------------------------------ | ----------- |
+| `@wazoo/sparql-engine/serialize`     | **7.4 KiB** |
+| `@wazoo/sparql-engine/term`          | 40.3 KiB    |
+| `@wazoo/sparql-engine/store`         | 53.1 KiB    |
+| `@wazoo/sparql-engine/parser`        | 213.8 KiB   |
+| `@wazoo/sparql-engine` (full engine) | 575.9 KiB   |
+
+A store-only consumer pays **53 KiB instead of the whole 576 KiB engine graph**,
+and the serializers are the cheapest leaf at 7.4 KiB — just the two writers,
+since they only import types from the engine.
+
 **Peak heap during execution** on the 10k-person graph (55k quads), measured in
 an isolated Deno subprocess per engine (peak `Deno.memoryUsage().heapUsed` over
 5 runs; all three share the same ~65 MB runtime baseline, so the comparison is
