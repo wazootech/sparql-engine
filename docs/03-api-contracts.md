@@ -1,0 +1,276 @@
+---
+title: API Contracts & Interface Specs
+layout: default
+---
+
+# API Contracts & Interface Specs
+
+The public surface is small and stable: one engine class implementing one
+interface, typed request/response envelopes, two store implementations, and a
+term-utility layer. The complete export list (verified against `deno doc --json`
+of `src/mod.ts`) is at the end of this page.
+
+## The engine interface
+
+```typescript
+// src/sparql-engine-interface.ts
+export interface SparqlEngineInterface {
+  execute(request: SparqlRequest): Promise<SparqlResponse>;
+}
+
+export interface SparqlRequest {
+  query?: string; // raw SPARQL query string
+  update?: string; // raw SPARQL update string
+  baseIri?: string; // accepted; native engine derives base from BASE directive
+  timeoutMs?: number; // accepted; not yet enforced by the native engine
+}
+```
+
+`execute()` is **the** entry point. It parses the request, dispatches queries to
+`SparqlEvaluator.evaluateQuery()` and updates to
+`UpdateEvaluator.executeUpdate()`, and returns a discriminated union:
+
+```typescript
+export type SparqlResponse =
+  | { kind: "select"; data: SparqlSelectResults }
+  | { kind: "ask"; data: SparqlAskResults }
+  | { kind: "construct"; data: SparqlConstructResults }
+  | { kind: "void" }; // SPARQL updates always resolve to void
+```
+
+### Result shapes
+
+```typescript
+// SELECT
+interface SparqlSelectResults {
+  head: { vars: string[]; link?: string[] | null };
+  results: { bindings: SparqlBinding[] };
+}
+type SparqlBinding = Record<string, SparqlValue>; // variable name → value
+
+// ASK
+interface SparqlAskResults {
+  head: { link?: string[] | null };
+  boolean: boolean;
+}
+
+// CONSTRUCT / DESCRIBE
+interface SparqlConstructResults {
+  quads: rdfjs.Quad[]; // RDF/JS quads, graph deduped
+}
+```
+
+`SparqlValue` is the wire value format (SPARQL 1.1 results JSON shape, plus RDF
+1.2 extensions):
+
+```typescript
+type SparqlValue =
+  | { type: "uri"; value: string }
+  | { type: "bnode"; value: string }
+  | {
+    type: "literal";
+    value: string;
+    "xml:lang"?: string;
+    "its:dir"?: "ltr" | "rtl";
+    datatype?: string;
+  }
+  | {
+    type: "triple";
+    value: {
+      subject: SparqlValue;
+      predicate: SparqlValue;
+      object: SparqlValue;
+    };
+  };
+```
+
+`rdfTermToSparqlValue()` (`src/term/convert.ts` L44) is the only place RDF/JS
+terms become `SparqlValue`s. Plain string literals carry no datatype (xsd:string
+is implicit); lang-tagged literals carry `xml:lang` (+ `its:dir` for RDF 1.2
+directional literals); RDF 1.2 triple terms serialize as `type: "triple"`.
+
+## Constructing the engine
+
+```typescript
+// src/wazoo-sparql-engine.ts
+export interface WazooSparqlEngineOptions {
+  store: rdfjs.Store; // required: any RDF/JS store
+  createTransaction?: () => WazooSparqlTransaction; // optional: atomic updates
+  reorderPatterns?: boolean; // default true: dynamic join ordering
+}
+```
+
+`store` is the only required option. `reorderPatterns: false` preserves the
+written order of BGP triple patterns. `createTransaction` upgrades updates from
+direct `addQuad`/`removeQuad` calls to one atomic transaction per request.
+
+## Supported SPARQL surface
+
+### Query forms
+
+| Form                                                            | Notes                                                        | Entry point                      |
+| --------------------------------------------------------------- | ------------------------------------------------------------ | -------------------------------- |
+| `SELECT` (incl. `DISTINCT`, `REDUCED`, `*`, `AS ?v` projection) | `REDUCED ≡ DISTINCT` by decision                             | `SparqlEvaluator.evaluateSelect` |
+| `ASK`                                                           | `bindings.length > 0`                                        | `evaluateAsk`                    |
+| `CONSTRUCT`                                                     | template × solutions, fresh bnodes per solution, graph dedup | `evaluateConstruct`              |
+| `DESCRIBE` (`<iri>`, `?var`, `*`)                               | outgoing-arc description (Comunica shape)                    | `evaluateDescribe`               |
+
+### Graph patterns (WHERE)
+
+`bgp` (incl. reified `<< s p o >>` and annotations), `FILTER`, `BIND`, `VALUES`,
+`OPTIONAL`, `MINUS`, `UNION`, `GRAPH <g>` / `GRAPH ?g`, nested `{ }` groups,
+subqueries, `SERVICE` (evaluated locally; `SILENT` swallows errors). Property
+paths: `^ / | ? * + !` (negated property sets).
+
+### Expressions (FILTER / BIND / ORDER BY / HAVING / projection)
+
+- **Comparisons** `= != < > <= >=`; **logical** `&& || !`; **arithmetic**
+  `+ - * /` with XPath numeric promotion (integer stays exact via BigInt).
+- **Term tests**: `bound`, `isIRI`/`isURI`, `isBLANK`, `isLITERAL`, `isNUMERIC`,
+  `isTRIPLE`, `sameTerm`.
+- **Strings**: `STR`, `STRLEN`, `UCASE`, `LCASE`, `CONCAT`, `SUBSTR`, `STRDT`,
+  `STRLANG`, `REPLACE`, `REGEX`, `CONTAINS`, `STRSTARTS`, `STRENDS`,
+  `STRBEFORE`, `STRAFTER`, `ENCODE_FOR_URI`, `LANG`, `LANGMATCHES`.
+- **Misc**: `COALESCE`, `IF`, `IN`/`NOT IN`, `IRI`/`URI`, `TZ`, `BNODE`,
+  `STRUUID`, `UUID`, `RAND`, `NOW`, `ABS`/`CEIL`/`FLOOR`/`ROUND`,
+  `YEAR`/`MONTH`/`DAY`/`HOURS`/`MINUTES`/`SECONDS`/`TIMEZONE`,
+  `MD5`/`SHA1`/`SHA256`/`SHA384`/`SHA512`, `DATATYPE`.
+- **XSD constructors**: `xsd:integer`, `xsd:decimal`, `xsd:double`, `xsd:float`,
+  `xsd:string`, `xsd:boolean`, `xsd:dateTime`.
+- **RDF-star / RDF 1.2**: `TRIPLE`, `SUBJECT`, `PREDICATE`, `OBJECT`,
+  triple-term expressions `<<( ?s ?p ?o )>>`, and `EXISTS` / `NOT EXISTS`
+  (correlated, graph-scoped).
+- **SPARQL 1.2 direction functions**: `LANGDIR`, `STRLANGDIR`, `hasLang`,
+  `hasLangDir`.
+
+Unsupported expression kinds (e.g. unknown `functionCall` IRIs) raise a clear
+error rather than silently mis-evaluating.
+
+### Aggregates (GROUP BY / HAVING)
+
+`COUNT` (incl. `COUNT(*)`), `SUM`, `AVG`, `MIN`, `MAX`, `SAMPLE`, `GROUP_CONCAT`
+(with `SEPARATOR`), each with `DISTINCT`. Semantics are pinned differentially
+against Comunica: empty SUM/AVG/COUNT are `0`; SUM/AVG are unbound when any
+bound argument is non-numeric; MIN/MAX use term ordering; decimal SUM is exact
+(BigInt). See `src/evaluator/aggregate.ts`.
+
+### Updates
+
+`INSERT DATA`, `DELETE DATA`, `INSERT WHERE`, `DELETE WHERE`, `DELETE/INSERT`
+(with `WITH`/`USING`/`GRAPH`), `LOAD` (incl. `INTO GRAPH`, http(s) + local file
+sources), `CLEAR`/`DROP` (`DEFAULT`/`NAMED`/`ALL`/`GRAPH`), `CREATE`, `ADD`,
+`COPY`, `MOVE` — all with `SILENT` where the grammar allows.
+
+## Extensibility interfaces
+
+### 1. Custom quad stores (the data boundary)
+
+Any `rdfjs.Store` with `match()` is a valid read source. To support **updates**
+without a transaction, the store must additionally expose `addQuad` /
+`removeQuad` — the `QuadWriteStore` shape:
+
+```typescript
+// src/evaluator/update-evaluator.ts L34
+export type QuadWriteStore = rdfjs.Store & {
+  addQuad(item: rdfjs.Quad): unknown;
+  removeQuad(item: rdfjs.Quad): unknown;
+};
+```
+
+`MemoryStore`, `SqliteStore`, and `@worlds/client`'s `LibsqlRdfjsStore` /
+`DenokvRdfjsStore` all satisfy it. If neither `createTransaction` nor
+`addQuad`/`removeQuad` is available, updates throw a clear error.
+
+### 2. Durable transactions
+
+Provide `createTransaction` to make updates atomic and durable:
+
+```typescript
+// src/wazoo-sparql-engine.ts L15
+export interface WazooSparqlTransaction {
+  add(quad: rdfjs.Quad): unknown; // buffer an insert
+  delete(quad: rdfjs.Quad): unknown; // buffer a delete
+  commit(): Promise<void>; // persist the patch atomically
+  rollback(): void; // discard the patch
+}
+```
+
+One transaction is created per update request; every operation's writes are
+routed through it; `commit()` runs once; any error triggers `rollback()` and
+rethrows. The reference implementation is `SqliteStore.createTransaction()`
+(`src/store/sqlite-store.ts`, `BEGIN IMMEDIATE` … `COMMIT`, WAL journaling) —
+see `docs/durable-transactions.md`. The same shape is compatible with
+`@worlds/client`'s `Transaction`, so existing durable backends pass their
+transaction objects through unchanged.
+
+### 3. Pattern-evaluation hook (EXISTS)
+
+The expression layer is deliberately pure. `EXISTS`/`NOT EXISTS` evaluate
+through an injected context:
+
+```typescript
+// src/evaluator/expression-evaluator.ts L115
+export interface ExpressionEvaluationContext {
+  evaluateExists?: (pattern: Pattern, solution: TermBinding) => boolean;
+  evaluateNotExists?: (pattern: Pattern, solution: TermBinding) => boolean;
+  baseIri?: string;
+  bnodeMap?: Map<string, rdfjs.BlankNode>;
+}
+```
+
+`BgpEvaluator` binds these hooks at every expression call site (FILTER, BIND,
+ORDER BY, HAVING, projection) with the current graph scope, so EXISTS works
+uniformly in every expression position — nested `&&`, inside OPTIONAL,
+EXISTS-inside-EXISTS, and subqueries inside EXISTS.
+
+The hooks evaluate against a **per-call snapshot**: `prepareExistsIndex()`
+returns `Promise<ExistsSnapshot>` (an internal `quads` + `QuadIndex` + `version`
+record; previously `Promise<void>`), and the private context builders —
+`scopedExistsContext(store, snapshot)`, `pipelineExistsContext(snapshot)` —
+capture it once so a concurrent `execute()`'s cache rebuild is never observable
+mid-evaluation (issue #72).
+
+### 4. Custom functions & operators
+
+There is **no plugin registry** for user-defined functions: the operator and
+function surface lives in `ExpressionEvaluator.evaluateOperation()` /
+`evaluateFunctionCall()` (`src/evaluator/expression-evaluator.ts`). The dispatch
+is a single `switch`, so extending it is a code change in one file — both the
+operation table (operators, L262) and the XSD constructor dispatch (L1173). The
+same holds for aggregates (`aggregateValue`, `src/evaluator/
+aggregate.ts`) and
+update operation types (`applyOperation`, `src/evaluator/update-evaluator.ts`).
+
+## Term utilities (exported from `src/mod.ts`)
+
+The engine also exports its term algebra for consumers that need RDF/JS term
+handling or differential testing:
+
+| Export                                                                              | File                                 | Purpose                                                                                                          |
+| ----------------------------------------------------------------------------------- | ------------------------------------ | ---------------------------------------------------------------------------------------------------------------- |
+| `DataFactory`, `dataFactory`                                                        | `src/term/data-factory.ts` L200/L238 | zero-dependency RDF/JS factory (namedNode, blankNode, literal, variable, defaultGraph, quad, fromTerm, fromQuad) |
+| `termKey`                                                                           | `src/term/identity.ts` L8            | sound RDF-term hash key                                                                                          |
+| `sameRdfTerm`                                                                       | `src/term/identity.ts` L41           | structural term equality (incl. triple terms)                                                                    |
+| `sparqlTermToRdfTerm` / `rdfTermToSparqlValue`                                      | `src/term/convert.ts` L11/L44        | AST ⇄ RDF/JS ⇄ wire conversion                                                                                   |
+| `canonicalizeRdfTerm` / `canonicalizeSparqlValue` / `CanonicalTerm`                 | `src/term/canonical.ts`              | serialization-stable projection for cross-engine parity                                                          |
+| `numericValue`, `compareNumericValues`, `formatNumber`, `NUMERIC_DATATYPES`, `XSD*` | `src/term/numeric.ts`                | numeric value semantics                                                                                          |
+| `compareRdfTerms`                                                                   | `src/term/ordering.ts` L66           | SPARQL §12.4 term ordering (ORDER BY, MIN/MAX)                                                                   |
+
+## Public export inventory (from `deno doc --json`)
+
+Types: `SparqlEngineInterface`, `SparqlRequest`, `SparqlResponse`,
+`SparqlSelectResults`, `SparqlAskResults`, `SparqlConstructResults`,
+`SparqlValue`, `SparqlBinding`, `WazooSparqlEngineOptions`,
+`WazooSparqlTransaction`, `CanonicalTerm`.
+
+Values/classes: `WazooSparqlEngine`, `MemoryStore`, `MemoryStream`,
+`DataFactory`, `dataFactory`, `canonicalizeRdfTerm`, `canonicalizeSparqlValue`,
+`compareNumericValues`, `compareRdfTerms`, `formatNumber`, `NUMERIC_DATATYPES`,
+`numericValue`, `rdfTermToSparqlValue`, `sameRdfTerm`, `sparqlTermToRdfTerm`,
+`termKey`, `XSD`, `XSD_BOOLEAN`, `XSD_DECIMAL`, `XSD_DOUBLE`, `XSD_FLOAT`,
+`XSD_INTEGER`, `XSD_STRING`.
+
+Not exported (deep-import only): `SparqlParser`, the AST types
+(`src/parser/ast.ts`), `SqliteStore` (`src/store/sqlite-store.ts`), and the
+evaluator internals — all reachable from source but outside the public surface,
+keeping the published package's runtime dependency graph empty.

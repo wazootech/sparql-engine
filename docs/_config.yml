@@ -1,0 +1,23 @@
+# Jekyll configuration for the wazootech/sparql-engine code wiki.
+# GitHub Pages builds this directory (Settings → Pages → Deploy from a branch
+# → main → /docs). No remote theme is used: the wiki ships its own
+# `_layouts/default.html` + `assets/css/style.css` implementing the Wazoo
+# Design System (see wazoo.dev/DESIGN.md).
+title: "Wazoo SPARQL Engine — Code Wiki"
+description: >-
+  Developer code wiki for wazootech/sparql-engine: quickstart, architecture
+  and query pipeline, API contracts, source map, testing, and supplemental
+  context.
+lang: en
+
+markdown: kramdown
+kramdown:
+  input: GFM
+  syntax_highlighter: rouge
+  syntax_highlighter_opts:
+    block:
+      line_numbers: false
+
+# GitHub Pages serves README.md as the site index (jekyll-readme-index) and
+# rewrites relative .md links to .html (jekyll-relative-links); both are Pages
+# defaults, so no index.md is needed here.

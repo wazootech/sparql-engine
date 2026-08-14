@@ -1,0 +1,29 @@
+{% assign nav = site.data.navigation %}
+{% assign prev = nil %}
+{% assign next = nil %}
+{% for entry in nav %}
+  {% if page.url == entry.url %}
+    {% unless forloop.first %}
+      {% assign prev = nav[forloop.index0 | minus: 1] %}
+    {% endunless %}
+    {% unless forloop.last %}
+      {% assign next = nav[forloop.index] %}
+    {% endunless %}
+  {% endif %}
+{% endfor %}
+{% if prev or next %}
+  <nav class="prev-next" aria-label="Page navigation">
+    {% if prev %}
+      <a class="pn-link pn-prev" href="{{ site.baseurl }}{{ prev.url }}">
+        <span class="pn-label">← Previous</span>
+        <span class="pn-title">{{ prev.title }}</span>
+      </a>
+    {% endif %}
+    {% if next %}
+      <a class="pn-link pn-next" href="{{ site.baseurl }}{{ next.url }}">
+        <span class="pn-label">Next →</span>
+        <span class="pn-title">{{ next.title }}</span>
+      </a>
+    {% endif %}
+  </nav>
+{% endif %}

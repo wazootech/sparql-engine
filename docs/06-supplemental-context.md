@@ -1,0 +1,126 @@
+---
+title: Supplemental Context
+layout: default
+---
+
+# Supplemental Context
+
+Repository metadata, vendored datasets, W3C compliance notes, and glossary
+pointers. This page is intentionally secondary: engine architecture, parsing,
+and execution live in [02 — Architecture](02-architecture.md) and
+[04 — Source Map](04-source-map.md).
+
+## Repository metadata
+
+| Field                 | Value                                                                                      |
+| --------------------- | ------------------------------------------------------------------------------------------ |
+| Package               | `@wazoo/sparql-engine` (JSR), version `0.1.0`, MIT                                         |
+| Runtime               | Deno 2.x (Node.js and browser via JSR; `SqliteStore` is server-only)                       |
+| Runtime dependencies  | **zero** — only type-only `@rdfjs/types`                                                   |
+| Dev/test dependencies | `@comunica/query-sparql-rdfjs-lite`, `oxigraph` (WASM), `n3`, `@std/assert`, `@types/node` |
+| Manifest              | `deno.json` (`exports["."] → ./src/mod.ts`, `@/` → `./src/`)                               |
+| CI                    | `.github/workflows/ci.yml` (`ci` + `w3c-parity` jobs), `publish.yml`                       |
+
+The "zero runtime dependencies" property is load-bearing: the package is
+browser-friendly and JSR-ready without transitive npm baggage. The vendored
+parser (`src/parser/parser.ts`), the Turtle parser
+(`src/parser/turtle-generated.ts`), the RDF/JS factory
+(`src/term/data-factory.ts`), and the hash functions (`src/term/hash.ts`) all
+exist in-repo to preserve it.
+
+## Sample RDF datasets
+
+There are no hand-rolled toy datasets in the repo; the data that exercises the
+engine is generated or vendored:
+
+| Where                                                                  | What it is                                                                                                                                       | Used by                                        |
+| ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------- |
+| `bench/engine_bench.ts` (`buildDataset`)                               | Generated ring of 400 people: foaf:name, xsd:integer age, blank-node pets, knows edges, 5 city tags, spouse edges on even indices (~1,600 quads) | All three-engine benchmarks                    |
+| `bench/engine_bench.ts` (`buildGraphDataset` / `buildGraphOpsDataset`) | 200 person quads in `<http://example.org/g1>`; g1 + 50-quad g2 for ADD/COPY/MOVE/CLEAR/DROP                                                      | GRAPH/FROM benchmarks and graph-op updates     |
+| `test/parity/parity-fixtures.ts` (`createQuadStore`)                   | Small seeded stores for differential parity cases                                                                                                | `test/parity/*.test.ts`                        |
+| `test/w3c/fixtures/sparql11/`                                          | W3C SPARQL 1.1 evaluation-core (~2.6 MB, 336 tests, 23 categories)                                                                               | `deno task test:w3c`                           |
+| `test/w3c/fixtures/sparql12/`                                          | W3C SPARQL 1.2 evaluation suite (249 tests) + triple-terms gap suite (41)                                                                        | `deno task test:sparql12`, `test:sparql12:gap` |
+| `test/w3c/fixtures/rdf/`                                               | RDF 1.1 + 1.2 Turtle/TriG/N-Triples/N-Quads syntax suites (~2.5 MB)                                                                              | `deno task test:rdf11`, `test:rdf12`           |
+| `test/w3c/exists-ref.ts`                                               | Small inline Turtle graph (7 triples) cross-checked vs Oxigraph                                                                                  | `deno task test:exists-ref`                    |
+
+The W3C fixtures are vendored snapshots of `w3c/rdf-tests` (gh-pages branch) so
+CI is deterministic and offline-capable. Query and data files resolve against
+canonical `http://www.w3.org/2009/sparql/docs/tests/data-sparql11/...` URLs so
+relative IRIs (including the empty IRI `<>`) resolve identically in both
+engines. Refresh procedures are in `test/w3c/README.md`.
+
+## W3C compliance posture
+
+The project does not run the W3C suites as a pass/fail conformance oracle alone
+— it runs them **differentially against Comunica**, with the W3C reference
+results as a secondary check. The posture is:
+
+1. **Parity is the floor.** Anything the parity reference
+   (`@comunica/query-sparql-rdfjs-lite`) can do, the native engine must do.
+2. **Spec wins over the reference.** Where Comunica contradicts the spec
+   (`LIMIT 0` ignored, malformed regex throwing, EXISTS subquery correlation),
+   the native engine implements the spec and the case is keyed as a _documented
+   divergence_ in `test/w3c/divergences.ts` rather than allowlisted blindly.
+3. **Gaps are tracked, not hidden.** The `w3c-parity` CI job goes green only on
+   a full pass; the gap count is the progress metric.
+4. **RDF syntax is gated absolutely.** Negative syntax tests must be rejected
+   even when the lenient reference (n3) accepts them; the only tolerated
+   mismatches are _superset acceptances_ — the native grammar is a single
+   Turtle+TriG+N-Quads superset for `LOAD`'s content-sniffing — each audited
+   against Oxigraph and N3.js by `deno task test:ref` (45/45 endorsed).
+
+Current standing: **249/249** SPARQL 1.2 evaluation (differential vs Comunica),
+**41/41** RDF 1.2 eval-triple-terms gap suite, **336/336** SPARQL 1.1
+evaluation-core for the w3c-parity job, plus the RDF 1.1/1.2 syntax gates and
+the Oxigraph EXISTS cross-check. These numbers are asserted by the runners
+themselves on every CI run — treat the README's "currently N/N" as a snapshot,
+not a guarantee.
+
+## Blank-node semantics (a deliberate difference)
+
+SPARQL 1.1 result semantics treat blank-node labels as scoped and opaque.
+Comunica skolemizes blank nodes from query sources into prefixed labels
+(`bc_<sourceId>_<label>`); the native engine returns the store's own labels and
+deliberately does **not** replicate the prefix. The parity harness strips the
+prefix before comparing and locks the normalization with a dedicated test
+(`test/parity/parity.test.ts`). INSERT DATA mints fresh labels per execution
+(`u<N>` natively, `e_<label>NN` under Comunica); stores are compared modulo
+label identity.
+
+## Glossary (from `CONTEXT.md`)
+
+- **WazooSparqlEngine** — the in-repo engine; must be observably interchangeable
+  with the parity reference.
+- **SparqlEngineInterface** — the shared execution contract; duplicated
+  identically in `@worlds/client` under an identical-spec policy.
+- **ComunicaSparqlEngine** — the `@worlds/client` adapter the native engine is a
+  drop-in replacement for.
+- **Parity reference** — the installed `@comunica/query-sparql-rdfjs-lite`; the
+  porting surface is its lite config.
+- **Differential parity** — deep comparison of SELECT bindings, CONSTRUCT quads,
+  ASK booleans, and final update store contents across engines.
+- **Spec-wins divergence** — the reference contradicts the spec; native
+  implements the spec, documents it, and skips the parity case.
+- **Superset directive** — parity is the floor; the superset ceiling (what
+  beyond that floor the engine should carry) is an open question.
+- **Pattern-evaluation hook** — the injected
+  `evaluateExists(pattern,
+  solution) => boolean` seam binding the pure
+  expression layer to the graph scope and active dataset. Backed by a per-call
+  `ExistsSnapshot` (issue #72), so concurrent evaluations stay isolated.
+- **Correlated evaluation** — inner patterns see the outer solution's bindings;
+  inner bindings never leak out.
+
+## Known gaps and next steps
+
+- `timeoutMs` in `SparqlRequest` is accepted but not yet enforced by the native
+  engine (Comunica enforces it). `baseIri` is accepted; the native engine
+  derives the base from the query's `BASE` directive instead.
+- `SqliteStore` ships as a deep-import prototype; the durable-transactions notes
+  (`docs/durable-transactions.md`) list next steps: a dedicated `./sqlite`
+  entrypoint, fsync/busy-timeout policy, update-throughput benchmarks, and
+  `INSERT … ON CONFLICT` batching.
+- `SERVICE` patterns evaluate locally (as a plain group) rather than over the
+  network; `SILENT` swallows evaluation errors.
+- `DESCRIBE` returns each resource's outgoing arcs — the Comunica-parity shape —
+  which the spec leaves to the implementation.

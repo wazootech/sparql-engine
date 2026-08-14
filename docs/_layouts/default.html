@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>
+      {%- if page.title -%}{{ page.title }} · {{ site.title }}{%- else -%}{{ site.title }}{%- endif -%}
+    </title>
+    <meta
+      name="description"
+      content="{%- if page.description -%}{{ page.description }}{%- else -%}{{ site.description }}{%- endif -%}"
+    >
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    >
+    <link rel="stylesheet" href="{{ site.baseurl }}/assets/css/style.css">
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href="{{ site.baseurl }}/assets/favicon.svg"
+    >
+  </head>
+  <body>
+    <div class="layout">
+      <aside class="sidebar">
+        <div class="brand">
+          <a class="logo" href="{{ site.baseurl }}/" aria-label="Wiki index">
+            <img
+              class="logo-image"
+              src="{{ site.baseurl }}/assets/wazoo.svg"
+              alt="Wazoo logo"
+              width="40"
+              height="40"
+            >
+          </a>
+          <div class="brand-text">
+            <p class="eyebrow">Developer Wiki</p>
+            <p
+              class="wordmark">Wazoo <span class="accent">SPARQL&nbsp;Engine</span></p>
+          </div>
+        </div>
+
+        <button
+          class="nav-toggle"
+          type="button"
+          aria-expanded="false"
+          aria-controls="site-nav"
+          aria-label="Open navigation"
+        >
+          <span class="nav-toggle-bar"></span>
+          <span class="nav-toggle-bar"></span>
+          <span class="nav-toggle-bar"></span>
+          <span class="sr-only">Menu</span>
+        </button>
+
+        <nav class="nav" id="site-nav" aria-label="Wiki pages">
+          {% for entry in site.data.navigation %}
+            <a
+              class="nav-link{% if page.url == entry.url %} active{% endif %}"
+              href="{{ site.baseurl }}{{ entry.url }}"
+            >
+              <span class="nav-num">{{ entry.num }}</span>{{ entry.title }}
+            </a>
+          {% endfor %}
+        </nav>
+
+        <div class="sidebar-foot">
+          <a
+            class="repo-link"
+            href="https://github.com/wazootech/sparql-engine"
+            target="_blank"
+            rel="noopener noreferrer"
+          >github.com/wazootech/sparql-engine</a>
+        </div>
+      </aside>
+
+      <main class="content">
+        {{ content }}
+        {% include prev-next.html %}
+      </main>
+    </div>
+    <noscript>
+      <style>
+      /* Without JS the collapsible nav would be unreachable on phones. */
+      .nav {
+        display: flex !important;
+      }
+      .nav-toggle {
+        display: none !important;
+      }
+      </style>
+    </noscript>
+    <script>
+    // Mobile top bar: toggles the collapsible nav, keeps aria-expanded in
+    // sync, closes on link click / Escape / resize back to desktop.
+    (function () {
+      var toggle = document.querySelector(".nav-toggle");
+      var nav = document.getElementById("site-nav");
+      if (!toggle || !nav) return;
+      function setOpen(open) {
+        nav.classList.toggle("open", open);
+        toggle.setAttribute("aria-expanded", String(open));
+        toggle.setAttribute(
+          "aria-label",
+          open ? "Close navigation" : "Open navigation",
+        );
+      }
+      toggle.addEventListener("click", function () {
+        setOpen(!nav.classList.contains("open"));
+      });
+      nav.addEventListener("click", function (event) {
+        if (event.target.closest("a")) setOpen(false);
+      });
+      document.addEventListener("keydown", function (event) {
+        if (event.key === "Escape") setOpen(false);
+      });
+      window.addEventListener("resize", function () {
+        if (window.innerWidth > 900) setOpen(false);
+      });
+    })();
+    </script>
+  </body>
+</html>

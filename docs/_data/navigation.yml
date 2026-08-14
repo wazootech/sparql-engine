@@ -1,0 +1,27 @@
+# Sidebar navigation, in display order. `url` values are site-root relative
+# (site.baseurl is prepended by the layout). The index page is `/` because
+# GitHub Pages renders docs/README.md as the site index (jekyll-readme-index).
+- title: Wiki Index
+  num: "00"
+  url: /
+- title: Developer Quickstart
+  num: "01"
+  url: /01-quickstart.html
+- title: System Architecture
+  num: "02"
+  url: /02-architecture.html
+- title: API Contracts
+  num: "03"
+  url: /03-api-contracts.html
+- title: Source Map
+  num: "04"
+  url: /04-source-map.html
+- title: Verification & Testing
+  num: "05"
+  url: /05-testing.html
+- title: Supplemental Context
+  num: "06"
+  url: /06-supplemental-context.html
+- title: Durable Transactions
+  num: "07"
+  url: /durable-transactions.html
