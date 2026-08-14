@@ -1,0 +1,3747 @@
+{
+  "version": 1,
+  "runtime": "Deno/2.9.5 x86_64-pc-windows-msvc",
+  "cpu": "unknown",
+  "benches": [
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "ask",
+      "name": "comunica - ask",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 1733,
+            "min": 157500.0,
+            "max": 2250000.0,
+            "avg": 291350.0,
+            "p75": 306700.0,
+            "p99": 1209000.0,
+            "p995": 1366900.0,
+            "p999": 1754700.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "ask",
+      "name": "oxigraph - ask",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 10122,
+            "min": 26000.0,
+            "max": 36586800.0,
+            "avg": 49432.0,
+            "p75": 40100.0,
+            "p99": 156200.0,
+            "p995": 336800.0,
+            "p999": 2408300.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "ask",
+      "name": "wazoo - ask",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 28,
+            "min": 2346.02,
+            "max": 4199.86,
+            "avg": 2856.984285714286,
+            "p75": 2949.19,
+            "p99": 4199.86,
+            "p995": 4199.86,
+            "p999": 4199.86,
+            "highPrecision": false,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "asym-join",
+      "name": "comunica - asym",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 37,
+            "min": 16649800.0,
+            "max": 23325700.0,
+            "avg": 19204230.0,
+            "p75": 20030600.0,
+            "p99": 23325700.0,
+            "p995": 23325700.0,
+            "p999": 23325700.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "asym-join",
+      "name": "oxigraph - asym",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 35,
+            "min": 10856100.0,
+            "max": 53425400.0,
+            "avg": 19263729.0,
+            "p75": 17985900.0,
+            "p99": 53425400.0,
+            "p995": 53425400.0,
+            "p999": 53425400.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "asym-join",
+      "name": "wazoo - asym (reorder off)",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 380,
+            "min": 847400.0,
+            "max": 2820300.0,
+            "avg": 1357056.0,
+            "p75": 1508900.0,
+            "p99": 2472300.0,
+            "p995": 2819100.0,
+            "p999": 2820300.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "asym-join",
+      "name": "wazoo - asym (reorder on)",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 432,
+            "min": 734000.0,
+            "max": 9809500.0,
+            "avg": 1184545.0,
+            "p75": 1268800.0,
+            "p99": 2850100.0,
+            "p995": 3781000.0,
+            "p999": 9809500.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "cast",
+      "name": "comunica - cast-boolean",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 188,
+            "min": 2068300.0,
+            "max": 7649100.0,
+            "avg": 2812390.0,
+            "p75": 3118500.0,
+            "p99": 5471300.0,
+            "p995": 7649100.0,
+            "p999": 7649100.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "cast",
+      "name": "comunica - cast-dateTime",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 140,
+            "min": 2837900.0,
+            "max": 7538600.0,
+            "avg": 3871835.0,
+            "p75": 4185600.0,
+            "p99": 6680100.0,
+            "p995": 7538600.0,
+            "p999": 7538600.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "cast",
+      "name": "comunica - cast-numeric",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 74,
+            "min": 6052700.0,
+            "max": 11137800.0,
+            "avg": 7820036.0,
+            "p75": 8594100.0,
+            "p99": 11137800.0,
+            "p995": 11137800.0,
+            "p999": 11137800.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "cast",
+      "name": "oxigraph - cast-boolean",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 218,
+            "min": 1680800.0,
+            "max": 42129900.0,
+            "avg": 2534943.0,
+            "p75": 2190800.0,
+            "p99": 7919300.0,
+            "p995": 41789100.0,
+            "p999": 42129900.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "cast",
+      "name": "oxigraph - cast-dateTime",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 147,
+            "min": 2584300.0,
+            "max": 38604500.0,
+            "avg": 3608415.0,
+            "p75": 3550400.0,
+            "p99": 7534200.0,
+            "p995": 38604500.0,
+            "p999": 38604500.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "cast",
+      "name": "oxigraph - cast-numeric",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 91,
+            "min": 3815800.0,
+            "max": 42793300.0,
+            "avg": 6255376.0,
+            "p75": 5993200.0,
+            "p99": 42793300.0,
+            "p995": 42793300.0,
+            "p999": 42793300.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "cast",
+      "name": "wazoo - cast-boolean",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 1752,
+            "min": 224900.0,
+            "max": 2195000.0,
+            "avg": 286896.0,
+            "p75": 279700.0,
+            "p99": 864700.0,
+            "p995": 1045600.0,
+            "p999": 1358200.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "cast",
+      "name": "wazoo - cast-dateTime",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 1107,
+            "min": 316900.0,
+            "max": 5372800.0,
+            "avg": 454977.0,
+            "p75": 409500.0,
+            "p99": 1917300.0,
+            "p995": 3183000.0,
+            "p999": 4856700.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "cast",
+      "name": "wazoo - cast-numeric",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 567,
+            "min": 602300.0,
+            "max": 9001100.0,
+            "avg": 909376.0,
+            "p75": 851800.0,
+            "p99": 3896100.0,
+            "p995": 5390200.0,
+            "p999": 9001100.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "construct",
+      "name": "comunica - construct",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 235,
+            "min": 1644900.0,
+            "max": 3928400.0,
+            "avg": 2234012.0,
+            "p75": 2502400.0,
+            "p99": 3848300.0,
+            "p995": 3878100.0,
+            "p999": 3928400.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "construct",
+      "name": "comunica - construct-list",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 185,
+            "min": 2075600.0,
+            "max": 8127700.0,
+            "avg": 2851139.0,
+            "p75": 3155700.0,
+            "p99": 6013300.0,
+            "p995": 8127700.0,
+            "p999": 8127700.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "construct",
+      "name": "oxigraph - construct",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 391,
+            "min": 593500.0,
+            "max": 5184900.0,
+            "avg": 1360667.0,
+            "p75": 1726900.0,
+            "p99": 4497400.0,
+            "p995": 4928200.0,
+            "p999": 5184900.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "construct",
+      "name": "oxigraph - construct-list",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 93,
+            "min": 1926600.0,
+            "max": 74583500.0,
+            "avg": 5983385.0,
+            "p75": 6161600.0,
+            "p99": 74583500.0,
+            "p995": 74583500.0,
+            "p999": 74583500.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "construct",
+      "name": "wazoo - construct",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 2350,
+            "min": 134300.0,
+            "max": 1352400.0,
+            "avg": 213535.0,
+            "p75": 203700.0,
+            "p99": 738400.0,
+            "p995": 858400.0,
+            "p999": 1179300.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "construct",
+      "name": "wazoo - construct-list",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 686,
+            "min": 445100.0,
+            "max": 17541400.0,
+            "avg": 742750.0,
+            "p75": 684500.0,
+            "p99": 1935100.0,
+            "p995": 2260100.0,
+            "p999": 17541400.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "distinct",
+      "name": "comunica - distinct",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 388,
+            "min": 995400.0,
+            "max": 4559400.0,
+            "avg": 1321144.0,
+            "p75": 1369800.0,
+            "p99": 3342700.0,
+            "p995": 3816900.0,
+            "p999": 4559400.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "distinct",
+      "name": "oxigraph - distinct",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 2293,
+            "min": 128300.0,
+            "max": 2862400.0,
+            "avg": 220571.0,
+            "p75": 262900.0,
+            "p99": 744800.0,
+            "p995": 1396200.0,
+            "p999": 2348000.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "distinct",
+      "name": "wazoo - distinct",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 1695,
+            "min": 210400.0,
+            "max": 1863600.0,
+            "avg": 296574.0,
+            "p75": 293700.0,
+            "p99": 917900.0,
+            "p995": 1129300.0,
+            "p999": 1690600.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "exists",
+      "name": "comunica - exists",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 36,
+            "min": 16752200.0,
+            "max": 22937800.0,
+            "avg": 19340945.0,
+            "p75": 20135400.0,
+            "p99": 22937800.0,
+            "p995": 22937800.0,
+            "p999": 22937800.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "exists",
+      "name": "comunica - nested-exists",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 17,
+            "min": 66992600.0,
+            "max": 93518600.0,
+            "avg": 74844683.0,
+            "p75": 76921000.0,
+            "p99": 93518600.0,
+            "p995": 93518600.0,
+            "p999": 93518600.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "exists",
+      "name": "comunica - nested-not-exists",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 17,
+            "min": 65806400.0,
+            "max": 107788500.0,
+            "avg": 75186295.0,
+            "p75": 76080200.0,
+            "p99": 107788500.0,
+            "p995": 107788500.0,
+            "p999": 107788500.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "exists",
+      "name": "comunica - not-exists",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 35,
+            "min": 16388800.0,
+            "max": 25007400.0,
+            "avg": 20115300.0,
+            "p75": 21721700.0,
+            "p99": 25007400.0,
+            "p995": 25007400.0,
+            "p999": 25007400.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "exists",
+      "name": "oxigraph - exists",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 329,
+            "min": 971600.0,
+            "max": 24644200.0,
+            "avg": 1636930.0,
+            "p75": 1456300.0,
+            "p99": 5152400.0,
+            "p995": 6223400.0,
+            "p999": 24644200.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "exists",
+      "name": "oxigraph - nested-exists",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 306,
+            "min": 1081700.0,
+            "max": 47481000.0,
+            "avg": 1680352.0,
+            "p75": 1612100.0,
+            "p99": 3011000.0,
+            "p995": 5178100.0,
+            "p999": 47481000.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "exists",
+      "name": "oxigraph - nested-not-exists",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 294,
+            "min": 1182800.0,
+            "max": 24128600.0,
+            "avg": 1755672.0,
+            "p75": 1717200.0,
+            "p99": 5656800.0,
+            "p995": 7010200.0,
+            "p999": 24128600.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "exists",
+      "name": "oxigraph - not-exists",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 370,
+            "min": 921900.0,
+            "max": 23857500.0,
+            "avg": 1383136.0,
+            "p75": 1394700.0,
+            "p99": 3962200.0,
+            "p995": 5031900.0,
+            "p999": 23857500.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "exists",
+      "name": "wazoo - exists",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 515,
+            "min": 616700.0,
+            "max": 6669900.0,
+            "avg": 997412.0,
+            "p75": 939000.0,
+            "p99": 4471600.0,
+            "p995": 4710700.0,
+            "p999": 6669900.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "exists",
+      "name": "wazoo - nested-exists",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 439,
+            "min": 886800.0,
+            "max": 3145800.0,
+            "avg": 1166739.0,
+            "p75": 1183100.0,
+            "p99": 2284200.0,
+            "p995": 2410300.0,
+            "p999": 3145800.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "exists",
+      "name": "wazoo - nested-not-exists",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 420,
+            "min": 943900.0,
+            "max": 6775900.0,
+            "avg": 1217873.0,
+            "p75": 1150400.0,
+            "p99": 3924700.0,
+            "p995": 4682300.0,
+            "p999": 6775900.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "exists",
+      "name": "wazoo - not-exists",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 576,
+            "min": 614900.0,
+            "max": 5281200.0,
+            "avg": 896498.0,
+            "p75": 878400.0,
+            "p99": 3427400.0,
+            "p995": 4074100.0,
+            "p999": 5281200.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "exists-large",
+      "name": "comunica - exists",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 12,
+            "min": 424753900.0,
+            "max": 498571900.0,
+            "avg": 466057059.0,
+            "p75": 482254500.0,
+            "p99": 498571900.0,
+            "p995": 498571900.0,
+            "p999": 498571900.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "exists-large",
+      "name": "comunica - nested-exists",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 11,
+            "min": 1817166800.0,
+            "max": 1947642500.0,
+            "avg": 1878378446.0,
+            "p75": 1907352300.0,
+            "p99": 1947642500.0,
+            "p995": 1947642500.0,
+            "p999": 1947642500.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "exists-large",
+      "name": "comunica - nested-not-exists",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 11,
+            "min": 1718467900.0,
+            "max": 1986483000.0,
+            "avg": 1836040064.0,
+            "p75": 1864418700.0,
+            "p99": 1986483000.0,
+            "p995": 1986483000.0,
+            "p999": 1986483000.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "exists-large",
+      "name": "comunica - not-exists",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 12,
+            "min": 436520000.0,
+            "max": 507319600.0,
+            "avg": 466215975.0,
+            "p75": 473474300.0,
+            "p99": 507319600.0,
+            "p995": 507319600.0,
+            "p999": 507319600.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "exists-large",
+      "name": "oxigraph - exists",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 25,
+            "min": 21120200.0,
+            "max": 63025900.0,
+            "avg": 33991424.0,
+            "p75": 36486400.0,
+            "p99": 63025900.0,
+            "p995": 63025900.0,
+            "p999": 63025900.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "exists-large",
+      "name": "oxigraph - nested-exists",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 23,
+            "min": 29248600.0,
+            "max": 70035500.0,
+            "avg": 39412531.0,
+            "p75": 46646000.0,
+            "p99": 70035500.0,
+            "p995": 70035500.0,
+            "p999": 70035500.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "exists-large",
+      "name": "oxigraph - nested-not-exists",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 23,
+            "min": 33082400.0,
+            "max": 69546800.0,
+            "avg": 40554027.0,
+            "p75": 39644200.0,
+            "p99": 69546800.0,
+            "p995": 69546800.0,
+            "p999": 69546800.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "exists-large",
+      "name": "oxigraph - not-exists",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 27,
+            "min": 25423800.0,
+            "max": 49211000.0,
+            "avg": 32881175.0,
+            "p75": 37499100.0,
+            "p99": 49211000.0,
+            "p995": 49211000.0,
+            "p999": 49211000.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "exists-large",
+      "name": "wazoo - exists",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 25,
+            "min": 28364400.0,
+            "max": 48972500.0,
+            "avg": 33019284.0,
+            "p75": 33237100.0,
+            "p99": 48972500.0,
+            "p995": 48972500.0,
+            "p999": 48972500.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "exists-large",
+      "name": "wazoo - nested-exists",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 24,
+            "min": 35522900.0,
+            "max": 84792600.0,
+            "avg": 40933288.0,
+            "p75": 40274100.0,
+            "p99": 84792600.0,
+            "p995": 84792600.0,
+            "p999": 84792600.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "exists-large",
+      "name": "wazoo - nested-not-exists",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 23,
+            "min": 36741600.0,
+            "max": 67666500.0,
+            "avg": 43036566.0,
+            "p75": 43814200.0,
+            "p99": 67666500.0,
+            "p995": 67666500.0,
+            "p999": 67666500.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "exists-large",
+      "name": "wazoo - not-exists",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 25,
+            "min": 26783400.0,
+            "max": 50259600.0,
+            "avg": 33185856.0,
+            "p75": 33945600.0,
+            "p99": 50259600.0,
+            "p995": 50259600.0,
+            "p999": 50259600.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "filter-expr",
+      "name": "comunica - filter-expr",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 88,
+            "min": 4961000.0,
+            "max": 10551100.0,
+            "avg": 6576245.0,
+            "p75": 7265900.0,
+            "p99": 10551100.0,
+            "p995": 10551100.0,
+            "p999": 10551100.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "filter-expr",
+      "name": "oxigraph - filter-expr",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 436,
+            "min": 715100.0,
+            "max": 6651200.0,
+            "avg": 1177828.0,
+            "p75": 1234300.0,
+            "p99": 3258400.0,
+            "p995": 3619100.0,
+            "p999": 6651200.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "filter-expr",
+      "name": "wazoo - filter-expr",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 285,
+            "min": 1102300.0,
+            "max": 19272700.0,
+            "avg": 1859738.0,
+            "p75": 1981600.0,
+            "p99": 6418300.0,
+            "p995": 6907700.0,
+            "p999": 19272700.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "from",
+      "name": "comunica - from",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 643,
+            "min": 535900.0,
+            "max": 9077500.0,
+            "avg": 791981.0,
+            "p75": 771100.0,
+            "p99": 2260300.0,
+            "p995": 3250400.0,
+            "p999": 9077500.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "from",
+      "name": "oxigraph - from",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 561,
+            "min": 450400.0,
+            "max": 35140500.0,
+            "avg": 906407.0,
+            "p75": 821800.0,
+            "p99": 3452700.0,
+            "p995": 3842300.0,
+            "p999": 35140500.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "from",
+      "name": "wazoo - from",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 705,
+            "min": 482000.0,
+            "max": 4715000.0,
+            "avg": 719942.0,
+            "p75": 730700.0,
+            "p99": 2449900.0,
+            "p995": 2570000.0,
+            "p999": 4715000.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "graph",
+      "name": "comunica - graph",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 684,
+            "min": 511400.0,
+            "max": 2165500.0,
+            "avg": 740936.0,
+            "p75": 740500.0,
+            "p99": 1852400.0,
+            "p995": 1946900.0,
+            "p999": 2165500.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "graph",
+      "name": "oxigraph - graph",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 555,
+            "min": 465800.0,
+            "max": 57096400.0,
+            "avg": 911899.0,
+            "p75": 892400.0,
+            "p99": 2666600.0,
+            "p995": 4730800.0,
+            "p999": 57096400.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "graph",
+      "name": "wazoo - graph",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 3412,
+            "min": 92400.0,
+            "max": 3623700.0,
+            "avg": 146999.0,
+            "p75": 132400.0,
+            "p99": 763100.0,
+            "p995": 1101500.0,
+            "p999": 2537500.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "group-aggregate",
+      "name": "comunica - group-aggregate",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 80,
+            "min": 5031400.0,
+            "max": 13197900.0,
+            "avg": 6995683.0,
+            "p75": 7662400.0,
+            "p99": 13197900.0,
+            "p995": 13197900.0,
+            "p999": 13197900.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "group-aggregate",
+      "name": "comunica - having",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 213,
+            "min": 1861700.0,
+            "max": 5119200.0,
+            "avg": 2474268.0,
+            "p75": 2875100.0,
+            "p99": 4097700.0,
+            "p995": 4127000.0,
+            "p999": 5119200.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "group-aggregate",
+      "name": "oxigraph - group-aggregate",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 418,
+            "min": 707400.0,
+            "max": 5667700.0,
+            "avg": 1218089.0,
+            "p75": 1294300.0,
+            "p99": 3168400.0,
+            "p995": 3919500.0,
+            "p999": 5667700.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "group-aggregate",
+      "name": "oxigraph - having",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 1775,
+            "min": 153400.0,
+            "max": 3361500.0,
+            "avg": 284244.0,
+            "p75": 278800.0,
+            "p99": 1145600.0,
+            "p995": 1983300.0,
+            "p999": 3274600.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "group-aggregate",
+      "name": "wazoo - group-aggregate",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 270,
+            "min": 1178900.0,
+            "max": 8888900.0,
+            "avg": 1916328.0,
+            "p75": 1952800.0,
+            "p99": 6004200.0,
+            "p995": 6275900.0,
+            "p999": 8888900.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "group-aggregate",
+      "name": "wazoo - having",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 800,
+            "min": 416200.0,
+            "max": 4019700.0,
+            "avg": 644469.0,
+            "p75": 610000.0,
+            "p99": 2659100.0,
+            "p995": 3029200.0,
+            "p999": 4019700.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "join",
+      "name": "comunica - join",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 173,
+            "min": 1938700.0,
+            "max": 17783300.0,
+            "avg": 3072106.0,
+            "p75": 3383100.0,
+            "p99": 10198000.0,
+            "p995": 17783300.0,
+            "p999": 17783300.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "join",
+      "name": "oxigraph - join",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 155,
+            "min": 1766200.0,
+            "max": 35868300.0,
+            "avg": 3420502.0,
+            "p75": 3261600.0,
+            "p99": 11334300.0,
+            "p995": 35868300.0,
+            "p999": 35868300.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "join",
+      "name": "wazoo - join",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 769,
+            "min": 374600.0,
+            "max": 2982500.0,
+            "avg": 656844.0,
+            "p75": 670100.0,
+            "p99": 1957000.0,
+            "p995": 2493100.0,
+            "p999": 2982500.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "join-large",
+      "name": "comunica - minus",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 26,
+            "min": 28056200.0,
+            "max": 35640000.0,
+            "avg": 31717493.0,
+            "p75": 32706300.0,
+            "p99": 35640000.0,
+            "p995": 35640000.0,
+            "p999": 35640000.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "join-large",
+      "name": "comunica - optional",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 12,
+            "min": 420767800.0,
+            "max": 483262600.0,
+            "avg": 444388834.0,
+            "p75": 455721400.0,
+            "p99": 483262600.0,
+            "p995": 483262600.0,
+            "p999": 483262600.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "join-large",
+      "name": "comunica - union",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 16,
+            "min": 77791500.0,
+            "max": 118408900.0,
+            "avg": 87062613.0,
+            "p75": 87647400.0,
+            "p99": 118408900.0,
+            "p995": 118408900.0,
+            "p999": 118408900.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "join-large",
+      "name": "oxigraph - minus",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 39,
+            "min": 13821100.0,
+            "max": 33511300.0,
+            "avg": 17144313.0,
+            "p75": 16148500.0,
+            "p99": 33511300.0,
+            "p995": 33511300.0,
+            "p999": 33511300.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "join-large",
+      "name": "oxigraph - optional",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 21,
+            "min": 37136100.0,
+            "max": 58303200.0,
+            "avg": 46006943.0,
+            "p75": 53227300.0,
+            "p99": 58303200.0,
+            "p995": 58303200.0,
+            "p999": 58303200.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "join-large",
+      "name": "oxigraph - union",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 16,
+            "min": 77737800.0,
+            "max": 124294300.0,
+            "avg": 98151425.0,
+            "p75": 104830100.0,
+            "p99": 124294300.0,
+            "p995": 124294300.0,
+            "p999": 124294300.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "join-large",
+      "name": "wazoo - minus",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 49,
+            "min": 11198200.0,
+            "max": 17147600.0,
+            "avg": 13269180.0,
+            "p75": 14140100.0,
+            "p99": 17147600.0,
+            "p995": 17147600.0,
+            "p999": 17147600.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "join-large",
+      "name": "wazoo - optional",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 43,
+            "min": 13214000.0,
+            "max": 18959000.0,
+            "avg": 15401870.0,
+            "p75": 15818500.0,
+            "p99": 18959000.0,
+            "p995": 18959000.0,
+            "p999": 18959000.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "join-large",
+      "name": "wazoo - union",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 24,
+            "min": 34088400.0,
+            "max": 43888000.0,
+            "avg": 37902542.0,
+            "p75": 39448400.0,
+            "p99": 43888000.0,
+            "p995": 43888000.0,
+            "p999": 43888000.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "minus",
+      "name": "comunica - minus",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 270,
+            "min": 1421600.0,
+            "max": 4791700.0,
+            "avg": 1934249.0,
+            "p75": 2161100.0,
+            "p99": 4010500.0,
+            "p995": 4457200.0,
+            "p999": 4791700.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "minus",
+      "name": "oxigraph - minus",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 468,
+            "min": 597300.0,
+            "max": 35454000.0,
+            "avg": 1116118.0,
+            "p75": 1120500.0,
+            "p99": 3222900.0,
+            "p995": 4076500.0,
+            "p999": 35454000.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "minus",
+      "name": "wazoo - minus",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 728,
+            "min": 482000.0,
+            "max": 3453300.0,
+            "avg": 697401.0,
+            "p75": 695100.0,
+            "p99": 1984400.0,
+            "p995": 2476100.0,
+            "p999": 3453300.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "optional",
+      "name": "comunica - optional",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 31,
+            "min": 20571500.0,
+            "max": 32435200.0,
+            "avg": 24200075.0,
+            "p75": 25267800.0,
+            "p99": 32435200.0,
+            "p995": 32435200.0,
+            "p999": 32435200.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "optional",
+      "name": "oxigraph - optional",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 195,
+            "min": 1605700.0,
+            "max": 36283500.0,
+            "avg": 2697967.0,
+            "p75": 2407600.0,
+            "p99": 26712900.0,
+            "p995": 36283500.0,
+            "p999": 36283500.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "optional",
+      "name": "wazoo - optional",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 522,
+            "min": 563200.0,
+            "max": 4778700.0,
+            "avg": 978820.0,
+            "p75": 1020200.0,
+            "p99": 3698800.0,
+            "p995": 4493600.0,
+            "p999": 4778700.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "order-limit",
+      "name": "comunica - order-limit",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 81,
+            "min": 5756500.0,
+            "max": 10535200.0,
+            "avg": 7046421.0,
+            "p75": 7532700.0,
+            "p99": 10535200.0,
+            "p995": 10535200.0,
+            "p999": 10535200.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "order-limit",
+      "name": "oxigraph - order-limit",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 288,
+            "min": 1265700.0,
+            "max": 7725500.0,
+            "avg": 1876683.0,
+            "p75": 2026200.0,
+            "p99": 5582300.0,
+            "p995": 6290900.0,
+            "p999": 7725500.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "order-limit",
+      "name": "wazoo - order-limit",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 329,
+            "min": 866200.0,
+            "max": 9158200.0,
+            "avg": 1562209.0,
+            "p75": 1741300.0,
+            "p99": 5343100.0,
+            "p995": 5611900.0,
+            "p999": 9158200.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "path",
+      "name": "comunica - path-plus",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 28,
+            "min": 23722700.0,
+            "max": 38312900.0,
+            "avg": 27696090.0,
+            "p75": 28691000.0,
+            "p99": 38312900.0,
+            "p995": 38312900.0,
+            "p999": 38312900.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "path",
+      "name": "comunica - path-seq",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 180,
+            "min": 2066700.0,
+            "max": 5015800.0,
+            "avg": 2940747.0,
+            "p75": 3498200.0,
+            "p99": 4921000.0,
+            "p995": 5015800.0,
+            "p999": 5015800.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "path",
+      "name": "oxigraph - path-plus",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 354,
+            "min": 822000.0,
+            "max": 22555400.0,
+            "avg": 1447047.0,
+            "p75": 1301600.0,
+            "p99": 6705900.0,
+            "p995": 21313600.0,
+            "p999": 22555400.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "path",
+      "name": "oxigraph - path-seq",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 192,
+            "min": 1771500.0,
+            "max": 35475200.0,
+            "avg": 2732361.0,
+            "p75": 2817300.0,
+            "p99": 6396700.0,
+            "p995": 35475200.0,
+            "p999": 35475200.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "path",
+      "name": "wazoo - path-plus",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 281,
+            "min": 1229500.0,
+            "max": 10300300.0,
+            "avg": 1834192.0,
+            "p75": 1830000.0,
+            "p99": 6586600.0,
+            "p995": 6697600.0,
+            "p999": 10300300.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "path",
+      "name": "wazoo - path-seq",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 80,
+            "min": 3967500.0,
+            "max": 18851900.0,
+            "avg": 7101822.0,
+            "p75": 8272700.0,
+            "p99": 18851900.0,
+            "p995": 18851900.0,
+            "p999": 18851900.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "reduced",
+      "name": "comunica - reduced",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 423,
+            "min": 865400.0,
+            "max": 4252700.0,
+            "avg": 1213481.0,
+            "p75": 1281500.0,
+            "p99": 2356000.0,
+            "p995": 2518800.0,
+            "p999": 4252700.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "reduced",
+      "name": "oxigraph - reduced",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 2424,
+            "min": 106400.0,
+            "max": 1954600.0,
+            "avg": 207174.0,
+            "p75": 226700.0,
+            "p99": 764600.0,
+            "p995": 858700.0,
+            "p999": 1462200.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "reduced",
+      "name": "wazoo - reduced",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 1755,
+            "min": 198900.0,
+            "max": 2862400.0,
+            "avg": 287160.0,
+            "p75": 270700.0,
+            "p99": 1177900.0,
+            "p995": 1836400.0,
+            "p999": 2810400.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "reorder-chain",
+      "name": "comunica - chain",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 15,
+            "min": 87061800.0,
+            "max": 110806600.0,
+            "avg": 96805994.0,
+            "p75": 100454900.0,
+            "p99": 110806600.0,
+            "p995": 110806600.0,
+            "p999": 110806600.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "reorder-chain",
+      "name": "oxigraph - chain",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 137,
+            "min": 2552900.0,
+            "max": 33967200.0,
+            "avg": 4207030.0,
+            "p75": 4171600.0,
+            "p99": 12937300.0,
+            "p995": 33967200.0,
+            "p999": 33967200.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "reorder-chain",
+      "name": "wazoo - chain (reorder off)",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 15,
+            "min": 86811300.0,
+            "max": 119248000.0,
+            "avg": 97376600.0,
+            "p75": 101894000.0,
+            "p99": 119248000.0,
+            "p995": 119248000.0,
+            "p999": 119248000.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "reorder-chain",
+      "name": "wazoo - chain (reorder on)",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 432,
+            "min": 696900.0,
+            "max": 3867500.0,
+            "avg": 1189854.0,
+            "p75": 1255000.0,
+            "p99": 2385800.0,
+            "p995": 2556700.0,
+            "p999": 3867500.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "scan",
+      "name": "comunica - scan",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 100,
+            "min": 3832300.0,
+            "max": 9194900.0,
+            "avg": 5533452.0,
+            "p75": 6085700.0,
+            "p99": 9058400.0,
+            "p995": 9194900.0,
+            "p999": 9194900.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "scan",
+      "name": "oxigraph - scan",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 51,
+            "min": 7065200.0,
+            "max": 54913300.0,
+            "avg": 12211473.0,
+            "p75": 11551500.0,
+            "p99": 54913300.0,
+            "p995": 54913300.0,
+            "p999": 54913300.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "scan",
+      "name": "wazoo - scan",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 527,
+            "min": 555800.0,
+            "max": 14735800.0,
+            "avg": 963957.0,
+            "p75": 997700.0,
+            "p99": 2552900.0,
+            "p995": 6232400.0,
+            "p999": 14735800.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "string-fn",
+      "name": "comunica - string-before-after",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 110,
+            "min": 3840700.0,
+            "max": 7503400.0,
+            "avg": 4993168.0,
+            "p75": 5437800.0,
+            "p99": 6740400.0,
+            "p995": 7503400.0,
+            "p999": 7503400.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "string-fn",
+      "name": "comunica - string-concat",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 143,
+            "min": 2747600.0,
+            "max": 10172200.0,
+            "avg": 3745076.0,
+            "p75": 4088100.0,
+            "p99": 7197700.0,
+            "p995": 10172200.0,
+            "p999": 10172200.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "string-fn",
+      "name": "comunica - string-datatype",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 182,
+            "min": 2086500.0,
+            "max": 5399500.0,
+            "avg": 2898278.0,
+            "p75": 3241500.0,
+            "p99": 5307400.0,
+            "p995": 5399500.0,
+            "p999": 5399500.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "string-fn",
+      "name": "comunica - string-encode-uri",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 173,
+            "min": 2246900.0,
+            "max": 6998000.0,
+            "avg": 3090277.0,
+            "p75": 3540100.0,
+            "p99": 6180300.0,
+            "p995": 6998000.0,
+            "p999": 6998000.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "string-fn",
+      "name": "comunica - string-iri",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 115,
+            "min": 3555200.0,
+            "max": 8775200.0,
+            "avg": 4726282.0,
+            "p75": 5052000.0,
+            "p99": 7872600.0,
+            "p995": 8775200.0,
+            "p999": 8775200.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "string-fn",
+      "name": "comunica - string-lang",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 106,
+            "min": 3936800.0,
+            "max": 8758400.0,
+            "avg": 5211197.0,
+            "p75": 5829200.0,
+            "p99": 8699200.0,
+            "p995": 8758400.0,
+            "p999": 8758400.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "string-fn",
+      "name": "comunica - string-replace",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 146,
+            "min": 2824800.0,
+            "max": 5483600.0,
+            "avg": 3689771.0,
+            "p75": 4043500.0,
+            "p99": 5460200.0,
+            "p995": 5483600.0,
+            "p999": 5483600.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "string-fn",
+      "name": "oxigraph - string-before-after",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 149,
+            "min": 2246600.0,
+            "max": 48562500.0,
+            "avg": 3580207.0,
+            "p75": 3173100.0,
+            "p99": 39203700.0,
+            "p995": 48562500.0,
+            "p999": 48562500.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "string-fn",
+      "name": "oxigraph - string-concat",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 208,
+            "min": 1635600.0,
+            "max": 35810500.0,
+            "avg": 2577580.0,
+            "p75": 2351800.0,
+            "p99": 9166800.0,
+            "p995": 34170800.0,
+            "p999": 35810500.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "string-fn",
+      "name": "oxigraph - string-datatype",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 229,
+            "min": 1349600.0,
+            "max": 44066000.0,
+            "avg": 2278775.0,
+            "p75": 1993200.0,
+            "p99": 6402700.0,
+            "p995": 32533700.0,
+            "p999": 44066000.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "string-fn",
+      "name": "oxigraph - string-encode-uri",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 215,
+            "min": 1342600.0,
+            "max": 38062300.0,
+            "avg": 2414882.0,
+            "p75": 2230300.0,
+            "p99": 6879300.0,
+            "p995": 29486600.0,
+            "p999": 38062300.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "string-fn",
+      "name": "oxigraph - string-iri",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 170,
+            "min": 1829500.0,
+            "max": 31276400.0,
+            "avg": 3059771.0,
+            "p75": 2717400.0,
+            "p99": 30821200.0,
+            "p995": 31276400.0,
+            "p999": 31276400.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "string-fn",
+      "name": "oxigraph - string-lang",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 150,
+            "min": 1848900.0,
+            "max": 40236900.0,
+            "avg": 3483446.0,
+            "p75": 3040200.0,
+            "p99": 33276200.0,
+            "p995": 40236900.0,
+            "p999": 40236900.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "string-fn",
+      "name": "oxigraph - string-replace",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 146,
+            "min": 1627600.0,
+            "max": 145300300.0,
+            "avg": 3585852.0,
+            "p75": 2363100.0,
+            "p99": 38114100.0,
+            "p995": 145300300.0,
+            "p999": 145300300.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "string-fn",
+      "name": "wazoo - string-before-after",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 1035,
+            "min": 359800.0,
+            "max": 3197800.0,
+            "avg": 488166.0,
+            "p75": 436600.0,
+            "p99": 2384700.0,
+            "p995": 2741400.0,
+            "p999": 3165800.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "string-fn",
+      "name": "wazoo - string-concat",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 1514,
+            "min": 237800.0,
+            "max": 5180600.0,
+            "avg": 335797.0,
+            "p75": 297600.0,
+            "p99": 1722700.0,
+            "p995": 2588000.0,
+            "p999": 4059400.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "string-fn",
+      "name": "wazoo - string-datatype",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 1642,
+            "min": 232900.0,
+            "max": 2743600.0,
+            "avg": 306396.0,
+            "p75": 296300.0,
+            "p99": 916600.0,
+            "p995": 1112100.0,
+            "p999": 2329500.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "string-fn",
+      "name": "wazoo - string-encode-uri",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 1180,
+            "min": 286800.0,
+            "max": 16477200.0,
+            "avg": 426791.0,
+            "p75": 368000.0,
+            "p99": 1922000.0,
+            "p995": 2700400.0,
+            "p999": 4347100.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "string-fn",
+      "name": "wazoo - string-iri",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 1095,
+            "min": 325100.0,
+            "max": 3532400.0,
+            "avg": 461029.0,
+            "p75": 409100.0,
+            "p99": 2168500.0,
+            "p995": 2624500.0,
+            "p999": 3481900.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "string-fn",
+      "name": "wazoo - string-lang",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 977,
+            "min": 372600.0,
+            "max": 4440200.0,
+            "avg": 516895.0,
+            "p75": 477000.0,
+            "p99": 1987800.0,
+            "p995": 3120100.0,
+            "p999": 4440200.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "string-fn",
+      "name": "wazoo - string-replace",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 1122,
+            "min": 298900.0,
+            "max": 3435600.0,
+            "avg": 449223.0,
+            "p75": 398100.0,
+            "p99": 2049300.0,
+            "p995": 2952000.0,
+            "p999": 3396400.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "subquery",
+      "name": "comunica - subquery",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 183,
+            "min": 2046500.0,
+            "max": 5888100.0,
+            "avg": 2899921.0,
+            "p75": 3398300.0,
+            "p99": 5821700.0,
+            "p995": 5888100.0,
+            "p999": 5888100.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "subquery",
+      "name": "comunica - subquery-agg",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 178,
+            "min": 2076800.0,
+            "max": 9073000.0,
+            "avg": 2955049.0,
+            "p75": 3258500.0,
+            "p99": 6614100.0,
+            "p995": 9073000.0,
+            "p999": 9073000.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "subquery",
+      "name": "comunica - subquery-nested",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 187,
+            "min": 2097800.0,
+            "max": 6681300.0,
+            "avg": 2847449.0,
+            "p75": 3256300.0,
+            "p99": 6602100.0,
+            "p995": 6681300.0,
+            "p999": 6681300.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "subquery",
+      "name": "oxigraph - subquery",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 217,
+            "min": 1472600.0,
+            "max": 53263400.0,
+            "avg": 2439359.0,
+            "p75": 2182900.0,
+            "p99": 7017900.0,
+            "p995": 30629700.0,
+            "p999": 53263400.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "subquery",
+      "name": "oxigraph - subquery-agg",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 1416,
+            "min": 169100.0,
+            "max": 3723600.0,
+            "avg": 355608.0,
+            "p75": 375200.0,
+            "p99": 1171700.0,
+            "p995": 1959700.0,
+            "p999": 3367800.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "subquery",
+      "name": "oxigraph - subquery-nested",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 259,
+            "min": 1566900.0,
+            "max": 24061500.0,
+            "avg": 2008323.0,
+            "p75": 2030800.0,
+            "p99": 3311400.0,
+            "p995": 4041100.0,
+            "p999": 24061500.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "subquery",
+      "name": "wazoo - subquery",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 336,
+            "min": 950200.0,
+            "max": 7390600.0,
+            "avg": 1527192.0,
+            "p75": 1551500.0,
+            "p99": 5624000.0,
+            "p995": 6518600.0,
+            "p999": 7390600.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "subquery",
+      "name": "wazoo - subquery-agg",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 1467,
+            "min": 203100.0,
+            "max": 3989400.0,
+            "avg": 343161.0,
+            "p75": 316400.0,
+            "p99": 1550600.0,
+            "p995": 2396000.0,
+            "p999": 3770500.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "subquery",
+      "name": "wazoo - subquery-nested",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 363,
+            "min": 842900.0,
+            "max": 11073600.0,
+            "avg": 1429447.0,
+            "p75": 1424800.0,
+            "p99": 4145700.0,
+            "p995": 7394000.0,
+            "p999": 11073600.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "union",
+      "name": "comunica - union",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 193,
+            "min": 1984300.0,
+            "max": 12549400.0,
+            "avg": 2830639.0,
+            "p75": 3136300.0,
+            "p99": 8242400.0,
+            "p995": 12549400.0,
+            "p999": 12549400.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "union",
+      "name": "oxigraph - union",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 224,
+            "min": 1433500.0,
+            "max": 27674300.0,
+            "avg": 2358505.0,
+            "p75": 2302500.0,
+            "p99": 6380100.0,
+            "p995": 26988900.0,
+            "p999": 27674300.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "union",
+      "name": "wazoo - union",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 1005,
+            "min": 322500.0,
+            "max": 3648300.0,
+            "avg": 501749.0,
+            "p75": 475500.0,
+            "p99": 2289500.0,
+            "p995": 2525400.0,
+            "p999": 3616200.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "update",
+      "name": "comunica - update",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 14,
+            "min": 116157800.0,
+            "max": 142332100.0,
+            "avg": 123537515.0,
+            "p75": 126901600.0,
+            "p99": 142332100.0,
+            "p995": 142332100.0,
+            "p999": 142332100.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "update",
+      "name": "oxigraph - update",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 1096,
+            "min": 316800.0,
+            "max": 1892500.0,
+            "avg": 460766.0,
+            "p75": 454500.0,
+            "p99": 1219900.0,
+            "p995": 1341100.0,
+            "p999": 1703100.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "update",
+      "name": "wazoo - update",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 15,
+            "min": 113396200.0,
+            "max": 125544000.0,
+            "avg": 120540367.0,
+            "p75": 123476700.0,
+            "p99": 125544000.0,
+            "p995": 125544000.0,
+            "p999": 125544000.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "update-ops",
+      "name": "comunica - add-graph",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 257,
+            "min": 1325600.0,
+            "max": 26278700.0,
+            "avg": 2032266.0,
+            "p75": 2143100.0,
+            "p99": 4954500.0,
+            "p995": 4994000.0,
+            "p999": 26278700.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "update-ops",
+      "name": "comunica - add-graph-silent",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 264,
+            "min": 1324100.0,
+            "max": 11577900.0,
+            "avg": 1968474.0,
+            "p75": 2129100.0,
+            "p99": 5518300.0,
+            "p995": 6147200.0,
+            "p999": 11577900.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "update-ops",
+      "name": "comunica - clear-graph",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 560,
+            "min": 638600.0,
+            "max": 3476000.0,
+            "avg": 909032.0,
+            "p75": 918200.0,
+            "p99": 2194500.0,
+            "p995": 2581800.0,
+            "p999": 3476000.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "update-ops",
+      "name": "comunica - clear-graph-silent",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 576,
+            "min": 586600.0,
+            "max": 2975000.0,
+            "avg": 881293.0,
+            "p75": 882000.0,
+            "p99": 2070000.0,
+            "p995": 2421600.0,
+            "p999": 2975000.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "update-ops",
+      "name": "comunica - copy-graph",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 138,
+            "min": 2899300.0,
+            "max": 6519700.0,
+            "avg": 3925937.0,
+            "p75": 4358600.0,
+            "p99": 6312300.0,
+            "p995": 6519700.0,
+            "p999": 6519700.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "update-ops",
+      "name": "comunica - copy-graph-silent",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 138,
+            "min": 2907700.0,
+            "max": 6105900.0,
+            "avg": 3914129.0,
+            "p75": 4281200.0,
+            "p99": 6014200.0,
+            "p995": 6105900.0,
+            "p999": 6105900.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "update-ops",
+      "name": "comunica - drop-graph",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 569,
+            "min": 610000.0,
+            "max": 2824600.0,
+            "avg": 894156.0,
+            "p75": 922900.0,
+            "p99": 2303200.0,
+            "p995": 2524000.0,
+            "p999": 2824600.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "update-ops",
+      "name": "comunica - drop-graph-silent",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 580,
+            "min": 603000.0,
+            "max": 3633100.0,
+            "avg": 876407.0,
+            "p75": 871500.0,
+            "p99": 2386900.0,
+            "p995": 3031900.0,
+            "p999": 3633100.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "update-ops",
+      "name": "comunica - move-graph",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 120,
+            "min": 3381100.0,
+            "max": 8552100.0,
+            "avg": 4631380.0,
+            "p75": 4960200.0,
+            "p99": 8177800.0,
+            "p995": 8552100.0,
+            "p999": 8552100.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "update-ops",
+      "name": "comunica - move-graph-silent",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 126,
+            "min": 3419600.0,
+            "max": 6328600.0,
+            "avg": 4320153.0,
+            "p75": 4709800.0,
+            "p99": 5778100.0,
+            "p995": 6328600.0,
+            "p999": 6328600.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "update-ops",
+      "name": "oxigraph - add-graph",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 68,
+            "min": 5735900.0,
+            "max": 15250300.0,
+            "avg": 8744836.0,
+            "p75": 9416400.0,
+            "p99": 15250300.0,
+            "p995": 15250300.0,
+            "p999": 15250300.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "update-ops",
+      "name": "oxigraph - add-graph-silent",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 73,
+            "min": 5854200.0,
+            "max": 14496000.0,
+            "avg": 7983259.0,
+            "p75": 8263700.0,
+            "p99": 14496000.0,
+            "p995": 14496000.0,
+            "p999": 14496000.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "update-ops",
+      "name": "oxigraph - clear-graph",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 72,
+            "min": 5967600.0,
+            "max": 16889700.0,
+            "avg": 8014302.0,
+            "p75": 8472100.0,
+            "p99": 16889700.0,
+            "p995": 16889700.0,
+            "p999": 16889700.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "update-ops",
+      "name": "oxigraph - clear-graph-silent",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 73,
+            "min": 5154700.0,
+            "max": 15529300.0,
+            "avg": 7830847.0,
+            "p75": 8743100.0,
+            "p99": 15529300.0,
+            "p995": 15529300.0,
+            "p999": 15529300.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "update-ops",
+      "name": "oxigraph - copy-graph",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 69,
+            "min": 6096800.0,
+            "max": 16923300.0,
+            "avg": 8617429.0,
+            "p75": 9477200.0,
+            "p99": 16923300.0,
+            "p995": 16923300.0,
+            "p999": 16923300.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "update-ops",
+      "name": "oxigraph - copy-graph-silent",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 65,
+            "min": 5975300.0,
+            "max": 23939200.0,
+            "avg": 10011739.0,
+            "p75": 11163400.0,
+            "p99": 23939200.0,
+            "p995": 23939200.0,
+            "p999": 23939200.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "update-ops",
+      "name": "oxigraph - drop-graph",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 76,
+            "min": 5407500.0,
+            "max": 16407500.0,
+            "avg": 7678462.0,
+            "p75": 7779100.0,
+            "p99": 16407500.0,
+            "p995": 16407500.0,
+            "p999": 16407500.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "update-ops",
+      "name": "oxigraph - drop-graph-silent",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 73,
+            "min": 5506400.0,
+            "max": 19045700.0,
+            "avg": 8400585.0,
+            "p75": 9624800.0,
+            "p99": 19045700.0,
+            "p995": 19045700.0,
+            "p999": 19045700.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "update-ops",
+      "name": "oxigraph - move-graph",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 51,
+            "min": 6219300.0,
+            "max": 23204600.0,
+            "avg": 11720620.0,
+            "p75": 13054100.0,
+            "p99": 23204600.0,
+            "p995": 23204600.0,
+            "p999": 23204600.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "update-ops",
+      "name": "oxigraph - move-graph-silent",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 67,
+            "min": 5711000.0,
+            "max": 17124600.0,
+            "avg": 8726195.0,
+            "p75": 9444600.0,
+            "p99": 17124600.0,
+            "p995": 17124600.0,
+            "p999": 17124600.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "update-ops",
+      "name": "wazoo - add-graph",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 548,
+            "min": 614200.0,
+            "max": 5338100.0,
+            "avg": 927429.0,
+            "p75": 869800.0,
+            "p99": 3883700.0,
+            "p995": 4712800.0,
+            "p999": 5338100.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "update-ops",
+      "name": "wazoo - add-graph-silent",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 533,
+            "min": 587600.0,
+            "max": 5900600.0,
+            "avg": 953559.0,
+            "p75": 868400.0,
+            "p99": 3779000.0,
+            "p995": 4681900.0,
+            "p999": 5900600.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "update-ops",
+      "name": "wazoo - clear-graph",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 360,
+            "min": 1030200.0,
+            "max": 5883100.0,
+            "avg": 1455264.0,
+            "p75": 1539800.0,
+            "p99": 5161200.0,
+            "p995": 5869500.0,
+            "p999": 5883100.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "update-ops",
+      "name": "wazoo - clear-graph-silent",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 359,
+            "min": 995300.0,
+            "max": 6257400.0,
+            "avg": 1431979.0,
+            "p75": 1413700.0,
+            "p99": 4434600.0,
+            "p995": 5681200.0,
+            "p999": 6257400.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "update-ops",
+      "name": "wazoo - copy-graph",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 146,
+            "min": 2857100.0,
+            "max": 17166000.0,
+            "avg": 3728603.0,
+            "p75": 3672500.0,
+            "p99": 13569800.0,
+            "p995": 17166000.0,
+            "p999": 17166000.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "update-ops",
+      "name": "wazoo - copy-graph-silent",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 146,
+            "min": 2913600.0,
+            "max": 9946800.0,
+            "avg": 3844209.0,
+            "p75": 3995900.0,
+            "p99": 9377000.0,
+            "p995": 9946800.0,
+            "p999": 9946800.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "update-ops",
+      "name": "wazoo - drop-graph",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 390,
+            "min": 1002700.0,
+            "max": 4797700.0,
+            "avg": 1328457.0,
+            "p75": 1295700.0,
+            "p99": 3397900.0,
+            "p995": 3845800.0,
+            "p999": 4797700.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "update-ops",
+      "name": "wazoo - drop-graph-silent",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 365,
+            "min": 1016600.0,
+            "max": 6739200.0,
+            "avg": 1407200.0,
+            "p75": 1432700.0,
+            "p99": 3845600.0,
+            "p995": 4174600.0,
+            "p999": 6739200.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "update-ops",
+      "name": "wazoo - move-graph",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 128,
+            "min": 3469600.0,
+            "max": 8573000.0,
+            "avg": 4264267.0,
+            "p75": 4523700.0,
+            "p99": 8038900.0,
+            "p995": 8573000.0,
+            "p999": 8573000.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "update-ops",
+      "name": "wazoo - move-graph-silent",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 126,
+            "min": 3269200.0,
+            "max": 13376800.0,
+            "avg": 4318525.0,
+            "p75": 4524300.0,
+            "p99": 11344400.0,
+            "p995": 13376800.0,
+            "p999": 13376800.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "values-bind",
+      "name": "comunica - values-bind",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 463,
+            "min": 802700.0,
+            "max": 3331500.0,
+            "avg": 1110479.0,
+            "p75": 1089500.0,
+            "p99": 2637600.0,
+            "p995": 2886500.0,
+            "p999": 3331500.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "values-bind",
+      "name": "oxigraph - values-bind",
+      "baseline": false,
+      "results": [
+        {
+          "ok": {
+            "n": 4934,
+            "min": 57700.0,
+            "max": 19753600.0,
+            "avg": 103740.0,
+            "p75": 97600.0,
+            "p99": 401700.0,
+            "p995": 541800.0,
+            "p999": 1665200.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    },
+    {
+      "origin": "file:///C:/Users/ethan/Documents/wazootech/workspace/repos/sparql-engine/bench/engine_bench.ts",
+      "group": "values-bind",
+      "name": "wazoo - values-bind",
+      "baseline": true,
+      "results": [
+        {
+          "ok": {
+            "n": 1047,
+            "min": 269000.0,
+            "max": 4906300.0,
+            "avg": 481509.0,
+            "p75": 452500.0,
+            "p99": 2640300.0,
+            "p995": 3446000.0,
+            "p999": 4850900.0,
+            "highPrecision": true,
+            "usedExplicitTimers": false
+          }
+        }
+      ]
+    }
+  ]
+}
