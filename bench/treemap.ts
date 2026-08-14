@@ -46,8 +46,6 @@ const ENGINE_COLORS: Record<string, string> = {
   comunica: "#f08c00",
 };
 
-const COLORS = Object.values(ENGINE_COLORS); // retained for shade() calls
-
 function worst(row: { bytes: number }[], rect: Rect): number {
   const total = row.reduce((s, i) => s + i.bytes, 0);
   const rowW = total / rect.h; // strip width (vertical slice)
@@ -284,15 +282,6 @@ function sizeChart(): void {
     parts.join("\n"),
   );
   console.log("wrote docs/assets/chart-library-size.svg");
-}
-
-/** shade mixes a hex color toward white by `amount`. */
-function shade(hex: string, amount: number): string {
-  const n = parseInt(hex.slice(1), 16);
-  const r = Math.round(((n >> 16) & 255) + (255 - ((n >> 16) & 255)) * amount);
-  const g = Math.round(((n >> 8) & 255) + (255 - ((n >> 8) & 255)) * amount);
-  const b = Math.round((n & 255) + (255 - (n & 255)) * amount);
-  return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, "0")}`;
 }
 
 function memoryTree(): Placed[] {
