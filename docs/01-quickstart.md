@@ -124,7 +124,7 @@ const graph = await engine.execute({
 }); // { kind: "construct", data: { quads: [...] } }
 
 const patch = await engine.execute({
-  update:
+  query:
     'INSERT DATA { <https://example.org/bob> <https://xmlns.com/foaf/0.1/name> "Bob" }',
 }); // { kind: "void" } — SPARQL updates return void
 ```

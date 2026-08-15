@@ -18,7 +18,7 @@ SPARQL string (request.query)
   ▼
 ┌───────────────────────────────────────────────────────────────┐
 │ WazooSparqlEngine.execute()   src/wazoo-sparql-engine.ts L56  │
-│   raw = request.query ?? request.update                        │
+│   raw = request.query                                          │
 │   ast  = parser.parse(raw)                                     │
 │   update? → UpdateEvaluator.executeUpdate(ast)   → {kind:"void"}│
 │   query?  → SparqlEvaluator.evaluateQuery(ast)  → typed result │
@@ -399,7 +399,7 @@ negated property sets `!`.
 SPARQL updates bypass the query evaluator:
 
 ```
-SparqlRequest.update
+SparqlRequest.query
   → UpdateEvaluator.executeUpdate()   src/evaluator/update-evaluator.ts L90
       → one transaction per request (createTransaction) OR direct add/remove
       → applyOperation per UpdateOperation:

@@ -100,11 +100,11 @@ Deno.test("SqliteStore - data persists across store reopen", async () => {
   const path = tempDbPath();
   const engine = makeEngine(path);
   await engine.execute({
-    update:
+    query:
       'INSERT DATA { <http://example.org/alice> <http://example.org/name> "Alice" . }',
   });
   await engine.execute({
-    update:
+    query:
       "INSERT DATA { GRAPH <http://example.org/g/a> { <http://example.org/alice> <http://example.org/knows> <http://example.org/bob> } }",
   });
 
@@ -134,7 +134,7 @@ Deno.test("SqliteStore - update through createTransaction commits atomically", a
   const path = tempDbPath();
   const engine = makeEngine(path);
   await engine.execute({
-    update:
+    query:
       'INSERT DATA { <http://example.org/alice> <http://example.org/name> "Alice" . } ;' +
       "INSERT DATA { GRAPH <http://example.org/g/a> { <http://example.org/alice> <http://example.org/knows> <http://example.org/bob> } }",
   });
@@ -164,7 +164,7 @@ Deno.test("SqliteStore - failed commit rolls back every buffered write", async (
   await assertRejects(
     async () => {
       await engine.execute({
-        update:
+        query:
           'INSERT DATA { <http://example.org/alice> <http://example.org/name> "Alice" . } ;' +
           'INSERT DATA { <http://example.org/bob> <http://example.org/name> "Bob" . }',
       });

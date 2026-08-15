@@ -83,10 +83,7 @@ export class WazooSparqlEngine implements SparqlEngineInterface {
 
   /** execute runs a SPARQL query/update against the configured store. */
   public async execute(request: SparqlRequest): Promise<SparqlResponse> {
-    const raw = request.query ?? request.update;
-    if (!raw) {
-      throw new Error("SparqlRequest must specify either query or update");
-    }
+    const raw = request.query;
     let ast = this.queryCache.get(raw);
     if (ast === undefined) {
       ast = this.parser.parse(raw);
