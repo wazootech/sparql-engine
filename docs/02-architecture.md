@@ -202,11 +202,18 @@ engine's optimizer. It is a _dynamic_ greedy planner, not a static rewrite:
    — so the planner uses the pattern's _true_ store cardinality
    (`entry.candidates.length`), never a heuristic estimate.
 3. A greedy loop repeatedly joins the remaining pattern with the lowest
-   `estimateJoinCost()` against the current bindings:
+   estimated cost against the current bindings. The estimate comes from an
+   injectable
+   [`JoinCostEstimator`](https://jsr.io/@wazoo/sparql-engine/doc/~/JoinCostEstimator)
+   (`src/planner/join-cost-estimator.ts`; default `BaselineJoinCostEstimator`,
+   wired via `WazooSparqlEngineOptions.estimator`):
    - no pattern variable bound → `bindings.length × candidates.length`;
    - a pattern variable bound in the incoming solutions → the positional index
      is probed, costing `bindings.length × average bucket size`
      (`candidates.length ÷ distinct bound values`).
+
+   The estimate affects only join order, never results (SPARQL §18.2.2 — joins
+   commute), so an estimator swap is guarded by the W3C differential gate.
 
 ### Worked example: the `reorder-chain` benchmark
 

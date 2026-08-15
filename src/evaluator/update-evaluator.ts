@@ -23,6 +23,7 @@ import { sameRdfTerm, sparqlTermToRdfTerm, termKey } from "@/term/mod.ts";
 import { expandReifiedTriples } from "@/evaluator/reified.ts";
 import { DataFactory } from "@/term/mod.ts";
 import { parseTurtleQuads } from "@/parser/turtle-parser.ts";
+import type { JoinCostEstimator } from "@/planner/join-cost-estimator.ts";
 
 const { blankNode, quad, defaultGraph } = DataFactory;
 
@@ -57,6 +58,13 @@ export interface UpdateEvaluatorOptions {
    * the WHERE evaluation of update forms. Defaults to true.
    */
   reorderPatterns?: boolean;
+
+  /**
+   * estimator supplies the BGP join-cost estimator (see
+   * JoinCostEstimator); defaults to the baseline greedy formula. Only
+   * affects join order, never results.
+   */
+  estimator?: JoinCostEstimator;
 }
 
 type GraphRef = {
@@ -102,6 +110,7 @@ export class UpdateEvaluator {
   public constructor(private readonly options: UpdateEvaluatorOptions) {
     this.bgpEvaluator = new BgpEvaluator(options.store, {
       reorderPatterns: options.reorderPatterns,
+      estimator: options.estimator,
     });
   }
 

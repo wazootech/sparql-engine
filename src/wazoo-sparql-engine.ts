@@ -9,6 +9,7 @@ import type { SparqlQuery } from "@/parser/ast.ts";
 import { SparqlEvaluator } from "@/evaluator/sparql-evaluator.ts";
 import { UpdateEvaluator } from "@/evaluator/update-evaluator.ts";
 import type { IriFunctionMap } from "@/evaluator/expression-evaluator.ts";
+import type { JoinCostEstimator } from "@/planner/join-cost-estimator.ts";
 
 export type {
   IriFunction,
@@ -65,6 +66,15 @@ export interface WazooSparqlEngineOptions {
    * "Unsupported SPARQL expression: functionCall".
    */
   functions?: IriFunctionMap;
+
+  /**
+   * estimator supplies the BGP join-cost estimator (see JoinCostEstimator);
+   * defaults to the baseline greedy formula. The estimate affects only
+   * join order — never results (SPARQL 1.1 §18.2.2). Planner pieces 2–3
+   * (#129/#130) plug the statistics source and join-order search behind
+   * this seam.
+   */
+  estimator?: JoinCostEstimator;
 }
 
 /**
@@ -90,11 +100,13 @@ export class WazooSparqlEngine implements SparqlEngineInterface {
     this.evaluator = new SparqlEvaluator(options.store, {
       reorderPatterns: options.reorderPatterns,
       functions: options.functions,
+      estimator: options.estimator,
     });
     this.updateEvaluator = new UpdateEvaluator({
       store: options.store,
       createTransaction: options.createTransaction,
       reorderPatterns: options.reorderPatterns,
+      estimator: options.estimator,
     });
   }
 

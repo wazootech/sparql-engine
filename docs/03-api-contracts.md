@@ -100,6 +100,7 @@ export interface WazooSparqlEngineOptions {
   createTransaction?: () => WazooSparqlTransaction; // optional: atomic updates
   reorderPatterns?: boolean; // default true: dynamic join ordering
   functions?: IriFunctionMap; // optional: custom IRI function registry
+  estimator?: JoinCostEstimator; // default: baseline greedy formula
 }
 ```
 
@@ -107,7 +108,9 @@ export interface WazooSparqlEngineOptions {
 written order of BGP triple patterns. `createTransaction` upgrades updates from
 direct `addQuad`/`removeQuad` calls to one atomic transaction per request.
 `functions` registers custom IRI functions (SPARQL 1.1 §17.4.3.1); see
-[Custom functions & operators](#4-custom-functions--operators).
+[Custom functions & operators](#4-custom-functions--operators). `estimator`
+swaps the join-cost model behind the greedy reorderer (the default is the
+baseline greedy formula); see [Join-cost estimator](#5-join-cost-estimator).
 
 ## Supported SPARQL surface
 
@@ -287,6 +290,34 @@ update operation types) lives in `ExpressionEvaluator.evaluateOperation()` /
 [`aggregateValue`](https://github.com/wazootech/sparql-engine/blob/main/src/evaluator/aggregate.ts)
 / `applyOperation` (`src/evaluator/update-evaluator.ts`).
 
+### 5. Join-cost estimator
+
+The greedy BGP reorderer (`BgpEvaluator.evaluateWithReordering`) picks the next
+pattern to join by estimated cost. That estimate comes from an injectable
+`JoinCostEstimator` (`src/planner/join-cost-estimator.ts`):
+
+```typescript
+export interface JoinCostEstimator {
+  estimateJoinCost(entry: ScanEntry, bindings: TermBinding[]): number;
+}
+```
+
+The default is `BaselineJoinCostEstimator` — the shipped greedy formula: no
+bound pattern variable costs `bindings.length × candidates.length`; a bound
+pattern variable costs `bindings.length × average bucket size`
+(`candidates.length ÷ distinct bound values`, bounded below by 1), using the
+bound variable with the fewest distinct values. Swap it via
+`WazooSparqlEngineOptions.estimator`.
+
+**Contract:** the estimator receives the pattern's `ScanEntry` (whose
+`candidates` array holds the pattern's true store cardinality from the up-front
+scan) and the current bindings, and nothing else — no store access, no
+statistics beyond the entry's candidates. It must be pure and deterministic.
+Crucially, the estimate affects **only join order, never results** (SPARQL 1.1
+§18.2.2: joins commute, so every order yields the same solution multiset); the
+W3C differential gate is the guard. Planner pieces 2–3 (statistics source,
+join-order search) plug in behind this seam.
+
 ## Term utilities (exported from `src/mod.ts`)
 
 The engine also exports its term algebra for consumers that need RDF/JS term
@@ -316,10 +347,12 @@ Types:
 [`WazooSparqlEngineOptions`](https://jsr.io/@wazoo/sparql-engine/doc/~/WazooSparqlEngineOptions),
 [`WazooSparqlTransaction`](https://jsr.io/@wazoo/sparql-engine/doc/~/WazooSparqlTransaction),
 `IriFunction`, `IriFunctionMap` (link on JSR once published),
+[`JoinCostEstimator`](https://jsr.io/@wazoo/sparql-engine/doc/~/JoinCostEstimator),
 [`CanonicalTerm`](https://jsr.io/@wazoo/sparql-engine/doc/~/CanonicalTerm).
 
 Values/classes:
 [`WazooSparqlEngine`](https://jsr.io/@wazoo/sparql-engine/doc/~/WazooSparqlEngine),
+[`BaselineJoinCostEstimator`](https://jsr.io/@wazoo/sparql-engine/doc/~/BaselineJoinCostEstimator),
 [`MemoryStore`](https://jsr.io/@wazoo/sparql-engine/doc/~/MemoryStore),
 [`MemoryStream`](https://jsr.io/@wazoo/sparql-engine/doc/~/MemoryStream),
 [`DataFactory`](https://jsr.io/@wazoo/sparql-engine/doc/~/DataFactory),

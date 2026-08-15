@@ -42,6 +42,10 @@ import { applySelectPipeline } from "@/evaluator/select-pipeline.ts";
 import type { ScanEntry, TermBinding } from "@/evaluator/join.ts";
 import { sameRdfTerm, sparqlTermToRdfTerm, termKey } from "@/term/mod.ts";
 import {
+  BaselineJoinCostEstimator,
+  type JoinCostEstimator,
+} from "@/planner/join-cost-estimator.ts";
+import {
   expandReifiedTriples,
   isReifiesPattern,
   RDF_REIFIES,
@@ -86,6 +90,16 @@ export interface BgpEvaluatorOptions {
    * WazooSparqlEngineOptions.functions.
    */
   functions?: IriFunctionMap;
+
+  /**
+   * estimator supplies the join-cost estimator the greedy reorderer uses
+   * to pick the next pattern to join (see JoinCostEstimator for the
+   * contract). Defaults to BaselineJoinCostEstimator. The estimate affects
+   * only join order — never results (SPARQL 1.1 §18.2.2). Planner pieces
+   * 2–3 (#129/#130) plug the statistics source and join-order search
+   * behind this same seam.
+   */
+  estimator?: JoinCostEstimator;
 }
 
 /**
@@ -104,6 +118,9 @@ export class BgpEvaluator {
 
   /** functions is the custom IRI function registry (see options). */
   private readonly functions: IriFunctionMap;
+
+  /** estimator scores pattern joins for the greedy reorderer (see options). */
+  private readonly estimator: JoinCostEstimator;
 
   /**
    * existsQuads and existsIndex are the drained, indexed snapshot of the
@@ -125,6 +142,7 @@ export class BgpEvaluator {
   ) {
     this.reorderPatterns = options.reorderPatterns ?? true;
     this.functions = options.functions ?? {};
+    this.estimator = options.estimator ?? new BaselineJoinCostEstimator();
     this.expressionEvaluator = new ExpressionEvaluator({
       functions: options.functions,
     });
@@ -704,6 +722,7 @@ export class BgpEvaluator {
     return new BgpEvaluator(store, {
       reorderPatterns: this.reorderPatterns,
       functions: this.functions,
+      estimator: this.estimator,
     });
   }
 
@@ -938,6 +957,7 @@ export class BgpEvaluator {
         const subEvaluator = new SparqlEvaluator(store, {
           reorderPatterns: this.reorderPatterns,
           functions: this.functions,
+          estimator: this.estimator,
         });
         const subResults = await subEvaluator.evaluateSelectTermBindings(
           pattern as unknown as import("@/parser/sparql-parser.ts").SelectQuery,
@@ -1046,7 +1066,7 @@ export class BgpEvaluator {
       let bestIndex = 0;
       let bestCost = Number.POSITIVE_INFINITY;
       for (let index = 0; index < remaining.length; index++) {
-        const cost = this.estimateJoinCost(remaining[index], result);
+        const cost = this.estimator.estimateJoinCost(remaining[index], result);
         if (cost < bestCost) {
           bestCost = cost;
           bestIndex = index;
@@ -1056,52 +1076,6 @@ export class BgpEvaluator {
       result = joinTriplePattern(result, chosen, prebuiltIndex);
     }
     return result;
-  }
-
-  /**
-   * estimateJoinCost estimates the number of quad iterations joining the
-   * given pattern against the current bindings will perform. Bindings that
-   * bind no pattern variable iterate every candidate quad; bindings that bind
-   * a pattern variable probe the positional index, costing roughly the
-   * average bucket size for the most selective bound variable (candidate
-   * count divided by its number of distinct bound values).
-   */
-  private estimateJoinCost(
-    entry: ScanEntry,
-    bindings: TermBinding[],
-  ): number {
-    if (bindings.length === 0) {
-      return 0;
-    }
-    let mostSelectiveDistinct = Number.POSITIVE_INFINITY;
-    for (const term of [entry.subject, entry.predicate, entry.object]) {
-      if (term.termType !== "Variable") {
-        continue;
-      }
-      const distinct = new Set<string>();
-      for (const binding of bindings) {
-        const value = binding[term.value];
-        if (value !== undefined) {
-          distinct.add(termKey(value));
-        }
-      }
-      if (distinct.size === 0) {
-        continue;
-      }
-      if (distinct.size < mostSelectiveDistinct) {
-        mostSelectiveDistinct = distinct.size;
-      }
-    }
-    if (mostSelectiveDistinct === Number.POSITIVE_INFINITY) {
-      // No bound pattern variable: every binding iterates all candidates.
-      return bindings.length * entry.candidates.length;
-    }
-    const averageBucket = Math.max(
-      1,
-      entry.candidates.length /
-        mostSelectiveDistinct,
-    );
-    return bindings.length * averageBucket;
   }
 }
 
