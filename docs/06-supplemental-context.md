@@ -113,20 +113,3 @@ label identity.
   concurrent evaluations stay isolated.
 - **Correlated evaluation** — inner patterns see the outer solution's bindings;
   inner bindings never leak out.
-
-## Known gaps and next steps
-
-- `timeoutMs` in
-  [`SparqlRequest`](https://jsr.io/@wazoo/sparql-engine/doc/~/SparqlRequest) is
-  accepted but not yet enforced by the wazoo engine (Comunica enforces it).
-  `baseIri` is accepted; the wazoo engine derives the base from the query's
-  `BASE` directive instead.
-- [`SqliteStore`](https://github.com/wazootech/sparql-engine/blob/main/src/store/sqlite-store.ts)
-  ships as a deep-import prototype; the durable-transactions notes
-  (`docs/durable-transactions.md`) list next steps: a dedicated `./sqlite`
-  entrypoint, fsync/busy-timeout policy, update-throughput benchmarks, and
-  `INSERT … ON CONFLICT` batching.
-- `SERVICE` patterns evaluate locally (as a plain group) rather than over the
-  network; `SILENT` swallows evaluation errors.
-- `DESCRIBE` returns each resource's outgoing arcs — the Comunica-parity shape —
-  which the spec leaves to the implementation.

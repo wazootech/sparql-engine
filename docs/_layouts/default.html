@@ -66,15 +66,6 @@
             </a>
           {% endfor %}
         </nav>
-
-        <div class="sidebar-foot">
-          <a
-            class="repo-link"
-            href="https://github.com/wazootech/sparql-engine"
-            target="_blank"
-            rel="noopener noreferrer"
-          >github.com/wazootech/sparql-engine</a>
-        </div>
       </aside>
 
       <main class="content">
@@ -84,8 +75,13 @@
     </div>
 
     <footer class="site-footer">
+      <a
+        href="https://github.com/wazootech/sparql-engine"
+        target="_blank"
+        rel="noopener noreferrer"
+      >github.com/wazootech/sparql-engine</a>
       {%- if site.github and site.github.build_revision -%}
-        Generated from
+        — generated from
         <a
           href="https://github.com/wazootech/sparql-engine/commit/{{ site.github.build_revision }}"
           target="_blank"
@@ -96,7 +92,7 @@
         <a href="{{ site.baseurl }}/08-maintenance.html">08 — Wiki Maintenance</a>
         for how the docs are kept in sync with `main`.
       {%- else -%}
-        Generated {{ site.time | date: "%Y-%m-%d %H:%M" }} (local build).
+        — generated {{ site.time | date: "%Y-%m-%d %H:%M" }} (local build).
       {%- endif -%}
     </footer>
 
@@ -137,6 +133,66 @@
       });
       window.addEventListener("resize", function () {
         if (window.innerWidth > 900) setOpen(false);
+      });
+    })();
+    </script>
+    <script>
+    // Heading copy-links: clicking a heading with an id copies the page URL
+    // plus its #fragment to the clipboard and flashes a toast. Selection drags
+    // and clicks on links inside the heading are left alone.
+    (function () {
+      var headings = document.querySelectorAll(
+        "main h1[id], main h2[id], main h3[id], main h4[id], main h5[id], main h6[id]",
+      );
+      if (!headings.length) return;
+      var toast = null;
+      function showToast(text) {
+        if (!toast) {
+          toast = document.createElement("div");
+          toast.className = "copy-toast";
+          toast.setAttribute("role", "status");
+          document.body.appendChild(toast);
+        }
+        toast.textContent = text;
+        toast.classList.add("show");
+        clearTimeout(toast._timer);
+        toast._timer = setTimeout(function () {
+          toast.classList.remove("show");
+        }, 1400);
+      }
+      function copyText(text) {
+        if (navigator.clipboard && window.isSecureContext) {
+          return navigator.clipboard.writeText(text).then(function () {
+            return true;
+          });
+        }
+        var area = document.createElement("textarea");
+        area.value = text;
+        area.setAttribute("readonly", "");
+        area.style.position = "absolute";
+        area.style.left = "-9999px";
+        document.body.appendChild(area);
+        area.select();
+        var ok = false;
+        try {
+          ok = document.execCommand("copy");
+        } catch (error) {
+          ok = false;
+        }
+        document.body.removeChild(area);
+        return Promise.resolve(ok);
+      }
+      headings.forEach(function (heading) {
+        heading.addEventListener("click", function (event) {
+          if (event.target.closest("a")) return;
+          var selection = window.getSelection();
+          if (selection && selection.toString()) return;
+          var url = location.origin + location.pathname + location.search +
+            "#" + heading.id;
+          copyText(url).then(function (ok) {
+            showToast(ok ? "Link copied" : "Press Ctrl/Cmd+C to copy");
+          });
+        });
       });
     })();
     </script>

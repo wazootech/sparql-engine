@@ -15,58 +15,58 @@ backends.
 ```
 SPARQL string (request.query)
   │
-  ▼
-┌───────────────────────────────────────────────────────────────┐
-│ WazooSparqlEngine.execute()   src/wazoo-sparql-engine.ts L56  │
-│   raw = request.query                                          │
-│   ast  = parser.parse(raw)                                     │
-│   update? → UpdateEvaluator.executeUpdate(ast)   → {kind:"void"}│
-│   query?  → SparqlEvaluator.evaluateQuery(ast)  → typed result │
-└───────────────┬───────────────────────────────────────────────┘
-                ▼
-┌───────────────────────────────────────────────────────────────┐
-│ SparqlParser.parse()  src/parser/sparql-parser.ts L9          │
-│   vendored sparqljs 3.7.4 jison grammar + SPARQL 1.2 patches  │
-│   (src/parser/sparql.jison → generated src/parser/parser.ts)  │
-│   produces the sparqljs-compatible AST (src/parser/ast.ts)    │
-└───────────────┬───────────────────────────────────────────────┘
-                ▼
-┌───────────────────────────────────────────────────────────────┐
+                  ▼
+┌────────────────────────────────────────────────────────────────────┐
+│ WazooSparqlEngine.execute()   src/wazoo-sparql-engine.ts L56       │
+│   raw = request.query                                              │
+│   ast  = parser.parse(raw)                                         │
+│   update? → UpdateEvaluator.executeUpdate(ast)   → {kind:"void"}   │
+│   query?  → SparqlEvaluator.evaluateQuery(ast)  → typed result     │
+└─────────────────┬──────────────────────────────────────────────────┘
+                  ▼
+┌────────────────────────────────────────────────────────────────────┐
+│ SparqlParser.parse()  src/parser/sparql-parser.ts L9               │
+│   vendored sparqljs 3.7.4 jison grammar + SPARQL 1.2 patches       │
+│   (src/parser/sparql.jison → generated src/parser/parser.ts)       │
+│   produces the sparqljs-compatible AST (src/parser/ast.ts)         │
+└─────────────────┬──────────────────────────────────────────────────┘
+                  ▼
+┌────────────────────────────────────────────────────────────────────┐
 │ SparqlEvaluator.evaluateQuery()  src/evaluator/sparql-evaluator.ts │
-│   SELECT → evaluateSelect → evaluateSelectTermBindings         │
-│   ASK    → evaluateAsk        (bindings.length > 0)            │
-│   CONSTRUCT → evaluateConstruct (template × bindings)          │
-│   DESCRIBE  → evaluateDescribe (outgoing arcs of resources)    │
-└───────────────┬───────────────────────────────────────────────┘
-                ▼
-┌───────────────────────────────────────────────────────────────┐
-│ BgpEvaluator.evaluateBgp()  src/evaluator/bgp-evaluator.ts    │
-│   resolve EXISTS snapshot  (when EXISTS/NOT EXISTS present)   │
-│   evaluateGroup(): walk patterns, thread solution bindings    │
-│     bgp      → joinBgp()   → scanEntry / joinTriplePattern    │
-│     path     → scanPathEntry / joinPathPattern                │
-│     filter   → ExpressionEvaluator.filterPasses()             │
-│     optional → leftJoin()  (FILTERs hoisted as join filters)  │
-│     minus    → minus()     (shared-variable anti-join)        │
-│     union    → innerJoin() with branch results                │
-│     graph    → GraphScopedStore view, recursive group eval    │
-│     bind     → Extend (per-solution expression extend)        │
-│     values   → innerJoin() with the data block                │
-│     query    → fresh SparqlEvaluator, innerJoin() the results │
-└───────────────┬───────────────────────────────────────────────┘
-                ▼
-┌───────────────────────────────────────────────────────────────┐
-│ applySelectPipeline()  src/evaluator/select-pipeline.ts       │
-│   VALUES join → GROUP BY/aggregates → HAVING → ORDER BY →     │
-│   projection → DISTINCT/REDUCED → OFFSET → LIMIT              │
-└───────────────┬───────────────────────────────────────────────┘
-                ▼
-┌───────────────────────────────────────────────────────────────┐
-│ rdfTermToSparqlValue()  src/term/convert.ts L44               │
-│   TermBinding (RDF/JS terms) → SparqlValue wire format        │
-│   (uri / bnode / literal / triple)                            │
-└───────────────┬───────────────────────────────────────────────┘
-                ▼
+│   SELECT → evaluateSelect → evaluateSelectTermBindings             │
+│   ASK    → evaluateAsk        (bindings.length > 0)                │
+│   CONSTRUCT → evaluateConstruct (template × bindings)              │
+│   DESCRIBE  → evaluateDescribe (outgoing arcs of resources)        │
+└─────────────────┬──────────────────────────────────────────────────┘
+                  ▼
+┌────────────────────────────────────────────────────────────────────┐
+│ BgpEvaluator.evaluateBgp()  src/evaluator/bgp-evaluator.ts         │
+│   resolve EXISTS snapshot  (when EXISTS/NOT EXISTS present)        │
+│   evaluateGroup(): walk patterns, thread solution bindings         │
+│     bgp      → joinBgp()   → scanEntry / joinTriplePattern         │
+│     path     → scanPathEntry / joinPathPattern                     │
+│     filter   → ExpressionEvaluator.filterPasses()                  │
+│     optional → leftJoin()  (FILTERs hoisted as join filters)       │
+│     minus    → minus()     (shared-variable anti-join)             │
+│     union    → innerJoin() with branch results                     │
+│     graph    → GraphScopedStore view, recursive group eval         │
+│     bind     → Extend (per-solution expression extend)             │
+│     values   → innerJoin() with the data block                     │
+│     query    → fresh SparqlEvaluator, innerJoin() the results      │
+└─────────────────┬──────────────────────────────────────────────────┘
+                  ▼
+┌────────────────────────────────────────────────────────────────────┐
+│ applySelectPipeline()  src/evaluator/select-pipeline.ts            │
+│   VALUES join → GROUP BY/aggregates → HAVING → ORDER BY →          │
+│   projection → DISTINCT/REDUCED → OFFSET → LIMIT                   │
+└─────────────────┬──────────────────────────────────────────────────┘
+                  ▼
+┌────────────────────────────────────────────────────────────────────┐
+│ rdfTermToSparqlValue()  src/term/convert.ts L44                    │
+│   TermBinding (RDF/JS terms) → SparqlValue wire format             │
+│   (uri / bnode / literal / triple)                                 │
+└─────────────────┬──────────────────────────────────────────────────┘
+                  ▼
   SparqlResponse  {kind:"select"|"ask"|"construct"|"void"}
 ```
 
