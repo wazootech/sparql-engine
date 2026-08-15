@@ -127,6 +127,55 @@ Deno.test(
 );
 
 Deno.test(
+  "BaselineJoinCostEstimator - stats candidates and distinct counts drive the cost",
+  () => {
+    // With stats, the bucket divisor is the store's distinct count for the
+    // bound variable (4), not the 1 distinct value the bindings happen to
+    // carry: cost = 2 bindings x (200 / 4) = 100. Without stats the same
+    // bindings cost 2 x (200 / 1) = 400 (the piece-1 binding-derived bound).
+    const bindings: TermBinding[] = [
+      { x: namedNode("http://example.org/v1") },
+      { x: namedNode("http://example.org/v1") },
+    ];
+    const entry = {
+      subject: patternVar,
+      predicate: constant,
+      object: otherVar,
+      candidates: candidateQuads(200),
+    };
+    const withStats = baseline.estimateJoinCost(entry, bindings, {
+      candidates: 200,
+      distinctByVar: { x: 4, y: 100 },
+    });
+    assertEquals(withStats, 100);
+    const withoutStats = baseline.estimateJoinCost(entry, bindings);
+    assertEquals(withoutStats, 400);
+  },
+);
+
+Deno.test(
+  "BaselineJoinCostEstimator - a variable's stats are ignored while it stays unbound",
+  () => {
+    // Only ?y is bound in the bindings; ?x's (very selective) store distinct
+    // count must not be used — the join cannot probe by an unbound variable.
+    const bindings: TermBinding[] = [{ y: namedNode("http://example.org/v1") }];
+    const entry = {
+      subject: patternVar,
+      predicate: constant,
+      object: otherVar,
+      candidates: candidateQuads(200),
+    };
+    const cost = baseline.estimateJoinCost(entry, bindings, {
+      candidates: 200,
+      distinctByVar: { x: 2, y: 100 },
+    });
+    // 1 binding x (200 / y's 100 distinct) = 2. Using ?x's 2 instead would
+    // have produced 100.
+    assertEquals(cost, 2);
+  },
+);
+
+Deno.test(
   "BaselineJoinCostEstimator - fully bound constants never count as variables",
   () => {
     // Every pattern position is a constant: no bound pattern variable to

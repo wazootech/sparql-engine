@@ -1,5 +1,9 @@
 import type * as rdfjs from "@rdfjs/types";
-import type { Term as SparqlTerm } from "@/parser/sparql-parser.ts";
+import type { Term as SparqlTerm, Triple } from "@/parser/sparql-parser.ts";
+import type {
+  PatternStats,
+  StoreStatisticsHook,
+} from "@/planner/pattern-statistics.ts";
 import { MemoryStore } from "@/store/memory-store.ts";
 import { DataFactory, sameRdfTerm, termKey } from "@/term/mod.ts";
 
@@ -155,6 +159,22 @@ export class GraphScopedStore implements rdfjs.Source<rdfjs.Quad> {
    * the view (the view itself never mutates the data). */
   public get version(): number | null {
     return storeVersion(this.store);
+  }
+
+  /**
+   * estimateStats delegates to the wrapped store's statistics hook (issue
+   * #129), mirroring version. The PatternStatistics source consults it only
+   * at the default-graph scope — a named scope derives exact stats from its
+   * scoped candidates instead, since the hook cannot see the scope.
+   */
+  public estimateStats?(
+    pattern: Triple,
+  ): PatternStats | Promise<PatternStats | undefined> | undefined {
+    const hook = (this.store as StoreStatisticsHook).estimateStats;
+    if (typeof hook !== "function") {
+      return undefined;
+    }
+    return hook.call(this.store, pattern);
   }
 
   public match(

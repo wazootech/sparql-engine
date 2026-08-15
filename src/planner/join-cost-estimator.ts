@@ -1,4 +1,5 @@
 import type { ScanEntry, TermBinding } from "@/evaluator/join.ts";
+import type { PatternStats } from "@/planner/pattern-statistics.ts";
 import { termKey } from "@/term/mod.ts";
 
 /**
@@ -11,31 +12,47 @@ import { termKey } from "@/term/mod.ts";
  *
  * Contract: an estimator receives the pattern's ScanEntry — whose
  * candidates array holds the pattern's true store cardinality from the
- * up-front scan in evaluateWithReordering — plus the current bindings. It
- * may assume nothing else: no store access, and no statistics beyond the
- * entry's candidates (planner piece 2 adds an optional store statistics
- * hook that feeds richer per-pattern stats behind this same seam). The
- * estimator must be pure and deterministic: the same entry and bindings
- * always produce the same cost, and calling it must have no side effects.
+ * up-front scan in evaluateWithReordering — plus the current bindings and
+ * the pattern's statistics (planner piece 2, issue #129). Stats are
+ * optional: they carry the store's per-variable distinct-value counts (see
+ * PatternStats), and the estimator must degrade gracefully when absent (or
+ * when a variable's distinct count is unknown). It may assume nothing else:
+ * no store access. The estimator must be pure and deterministic: the same
+ * entry, bindings, and stats always produce the same cost, and calling it
+ * must have no side effects.
  */
 export interface JoinCostEstimator {
   /**
    * estimateJoinCost returns the estimated number of quad iterations
    * joining the given pattern against the current bindings will perform.
    * Lower is cheaper. A cost of 0 (for example, no bindings left to join)
-   * is valid.
+   * is valid. stats, when supplied, carries the pattern's store statistics
+   * (candidates and per-variable distinct counts); pass undefined when the
+   * caller has none.
    */
-  estimateJoinCost(entry: ScanEntry, bindings: TermBinding[]): number;
+  estimateJoinCost(
+    entry: ScanEntry,
+    bindings: TermBinding[],
+    stats?: PatternStats,
+  ): number;
 }
 
 /**
  * BaselineJoinCostEstimator is the default JoinCostEstimator: the greedy
- * formula the engine shipped before the estimator seam existed, preserved
- * behavior-identical. Bindings that bind no pattern variable iterate every
- * candidate quad; bindings that bind a pattern variable probe the
- * positional index, costing roughly the average bucket size for the bound
- * variable with the fewest distinct bound values (candidate count divided
- * by that variable's distinct count) — a conservative per-binding bound.
+ * formula the engine shipped before the estimator seam existed, extended to
+ * use the piece-2 statistics when available. Bindings that bind no pattern
+ * variable iterate every candidate quad; bindings that bind a pattern
+ * variable probe the positional index, costing roughly the average bucket
+ * size for the bound variable with the fewest distinct bound values.
+ *
+ * The average bucket is candidate count divided by that variable's distinct
+ * count. The statistics source (PatternStatistics) supplies the store's
+ * distinct-value count for the pattern's variables, which is the true bucket
+ * average across the whole store; without stats (or for a variable the store
+ * has no count for), the estimator falls back to the distinct count of the
+ * values actually bound in the current bindings — the piece-1 behavior,
+ * which adapts to the join's current state but overestimates when few
+ * bindings remain. Either way the cost is a conservative per-binding bound.
  */
 export class BaselineJoinCostEstimator implements JoinCostEstimator {
   /**
@@ -45,37 +62,47 @@ export class BaselineJoinCostEstimator implements JoinCostEstimator {
   public estimateJoinCost(
     entry: ScanEntry,
     bindings: TermBinding[],
+    stats?: PatternStats,
   ): number {
     if (bindings.length === 0) {
       return 0;
     }
+    const candidates = stats?.candidates ?? entry.candidates.length;
     let mostSelectiveDistinct = Number.POSITIVE_INFINITY;
     for (const term of [entry.subject, entry.predicate, entry.object]) {
       if (term.termType !== "Variable") {
         continue;
       }
-      const distinct = new Set<string>();
+      const name = term.value;
+      // Only a variable bound in the current bindings can probe the index.
+      const boundDistinct = new Set<string>();
       for (const binding of bindings) {
-        const value = binding[term.value];
+        const value = binding[name];
         if (value !== undefined) {
-          distinct.add(termKey(value));
+          boundDistinct.add(termKey(value));
         }
       }
-      if (distinct.size === 0) {
+      if (boundDistinct.size === 0) {
         continue;
       }
-      if (distinct.size < mostSelectiveDistinct) {
-        mostSelectiveDistinct = distinct.size;
+      // Prefer the store's distinct-value count for the variable when the
+      // stats source supplies it: it reflects the true average bucket size
+      // across the whole store. Otherwise fall back to the distinct count of
+      // the values actually bound in the current bindings (the piece-1
+      // behavior, which adapts to the join's current state).
+      const storeDistinct = stats?.distinctByVar[name];
+      const distinct = storeDistinct !== undefined && storeDistinct > 0
+        ? storeDistinct
+        : boundDistinct.size;
+      if (distinct < mostSelectiveDistinct) {
+        mostSelectiveDistinct = distinct;
       }
     }
     if (mostSelectiveDistinct === Number.POSITIVE_INFINITY) {
       // No bound pattern variable: every binding iterates all candidates.
-      return bindings.length * entry.candidates.length;
+      return bindings.length * candidates;
     }
-    const averageBucket = Math.max(
-      1,
-      entry.candidates.length / mostSelectiveDistinct,
-    );
+    const averageBucket = Math.max(1, candidates / mostSelectiveDistinct);
     return bindings.length * averageBucket;
   }
 }

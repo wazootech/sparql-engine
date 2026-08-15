@@ -20,6 +20,14 @@ export type {
 } from "@/evaluator/expression-evaluator.ts";
 export { BaselineJoinCostEstimator } from "@/planner/join-cost-estimator.ts";
 export type { JoinCostEstimator } from "@/planner/join-cost-estimator.ts";
+export {
+  DISTINCT_SAMPLE_CAP,
+  PatternStatistics,
+} from "@/planner/pattern-statistics.ts";
+export type {
+  PatternStats,
+  StoreStatisticsHook,
+} from "@/planner/pattern-statistics.ts";
 
 export { MemoryStore, MemoryStream } from "@/store/memory-store.ts";
 export { DataFactory, dataFactory } from "@/term/mod.ts";

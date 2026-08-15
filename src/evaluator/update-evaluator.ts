@@ -61,7 +61,8 @@ export interface UpdateEvaluatorOptions {
 
   /**
    * estimator supplies the BGP join-cost estimator (see
-   * JoinCostEstimator); defaults to the baseline greedy formula. Only
+   * JoinCostEstimator); defaults to the baseline greedy formula (which
+   * also consumes the per-pattern statistics source, issue #129). Only
    * affects join order, never results.
    */
   estimator?: JoinCostEstimator;

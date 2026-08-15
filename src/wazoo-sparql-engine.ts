@@ -69,10 +69,10 @@ export interface WazooSparqlEngineOptions {
 
   /**
    * estimator supplies the BGP join-cost estimator (see JoinCostEstimator);
-   * defaults to the baseline greedy formula. The estimate affects only
-   * join order — never results (SPARQL 1.1 §18.2.2). Planner pieces 2–3
-   * (#129/#130) plug the statistics source and join-order search behind
-   * this seam.
+   * defaults to the baseline greedy formula (which also consumes the
+   * per-pattern statistics source, issue #129). The estimate affects only
+   * join order — never results (SPARQL 1.1 §18.2.2). Planner piece 3
+   * (#130) plugs the join-order search behind this seam.
    */
   estimator?: JoinCostEstimator;
 }

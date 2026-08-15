@@ -45,6 +45,7 @@ import {
   BaselineJoinCostEstimator,
   type JoinCostEstimator,
 } from "@/planner/join-cost-estimator.ts";
+import { PatternStatistics } from "@/planner/pattern-statistics.ts";
 import {
   expandReifiedTriples,
   isReifiesPattern,
@@ -94,10 +95,10 @@ export interface BgpEvaluatorOptions {
   /**
    * estimator supplies the join-cost estimator the greedy reorderer uses
    * to pick the next pattern to join (see JoinCostEstimator for the
-   * contract). Defaults to BaselineJoinCostEstimator. The estimate affects
-   * only join order — never results (SPARQL 1.1 §18.2.2). Planner pieces
-   * 2–3 (#129/#130) plug the statistics source and join-order search
-   * behind this same seam.
+   * contract). Defaults to BaselineJoinCostEstimator, which also consumes
+   * the per-pattern statistics from PatternStatistics (issue #129). The
+   * estimate affects only join order — never results (SPARQL 1.1 §18.2.2).
+   * Planner piece 3 (#130) plugs the join-order search behind this seam.
    */
   estimator?: JoinCostEstimator;
 }
@@ -172,11 +173,21 @@ export class BgpEvaluator {
     }
     // The top-level evaluation runs against the default graph (matching
     // Comunica, whose plain patterns never see named-graph quads); GRAPH
-    // patterns scope further inside.
+    // patterns scope further inside. One statistics source is created per
+    // query evaluation and threaded through every group, so pattern
+    // statistics are computed once per query (issue #129) — the greedy
+    // reorder loop and repeated BGP blocks never re-derive them.
     const defaultScope = this.store instanceof GraphScopedStore
       ? this.store
       : new GraphScopedStore(this.store, defaultGraph());
-    return await this.evaluateGroup(patterns, [{}], defaultScope, baseIri);
+    const stats = new PatternStatistics(this.store);
+    return await this.evaluateGroup(
+      patterns,
+      [{}],
+      defaultScope,
+      stats,
+      baseIri,
+    );
   }
 
   /**
@@ -772,6 +783,7 @@ export class BgpEvaluator {
     patterns: Pattern[],
     bindings: TermBinding[],
     store: rdfjs.Source<rdfjs.Quad>,
+    stats: PatternStatistics,
     baseIri?: string,
   ): Promise<TermBinding[]> {
     // Resolve the EXISTS snapshot once for this group and thread it down, so
@@ -796,6 +808,7 @@ export class BgpEvaluator {
         result,
         store,
         snapshot,
+        stats,
         baseIri,
       );
     }
@@ -805,6 +818,7 @@ export class BgpEvaluator {
         result,
         store,
         snapshot,
+        stats,
         baseIri,
       );
     }
@@ -823,11 +837,18 @@ export class BgpEvaluator {
     bindings: TermBinding[] | Iterable<TermBinding>,
     store: rdfjs.Source<rdfjs.Quad>,
     snapshot: ExistsSnapshot | null,
+    stats: PatternStatistics,
     baseIri?: string,
   ): Promise<Iterable<TermBinding>> {
     switch (pattern.type) {
       case "bgp":
-        return await this.joinBgp(pattern.triples, bindings, store, snapshot);
+        return await this.joinBgp(
+          pattern.triples,
+          bindings,
+          store,
+          snapshot,
+          stats,
+        );
       case "filter": {
         const context = expressionContainsExists(pattern.expression)
           ? this.scopedExistsContext(store, snapshot, baseIri)
@@ -860,6 +881,7 @@ export class BgpEvaluator {
           innerPatterns,
           [{}],
           store,
+          stats,
           baseIri,
         );
         const context = filters.some(expressionContainsExists)
@@ -878,6 +900,7 @@ export class BgpEvaluator {
           pattern.patterns,
           [{}],
           store,
+          stats,
           baseIri,
         );
         return minus(bindings, right);
@@ -889,7 +912,7 @@ export class BgpEvaluator {
         const branchResults: TermBinding[][] = [];
         for (const branch of pattern.patterns) {
           branchResults.push(
-            await this.evaluateGroup([branch], [{}], store, baseIri),
+            await this.evaluateGroup([branch], [{}], store, stats, baseIri),
           );
         }
         return innerJoin(bindings, branchResults.flat());
@@ -967,6 +990,7 @@ export class BgpEvaluator {
             innerPatterns,
             [{}],
             scopedStore,
+            stats,
             baseIri,
           );
           for (const binding of inner) {
@@ -988,6 +1012,7 @@ export class BgpEvaluator {
           pattern.patterns,
           [{}],
           store,
+          stats,
           baseIri,
         );
         return innerJoin(bindings, groupResult);
@@ -999,6 +1024,7 @@ export class BgpEvaluator {
             pattern.patterns,
             [{}],
             store,
+            stats,
             baseIri,
           );
           return innerJoin(bindings, inner);
@@ -1043,6 +1069,7 @@ export class BgpEvaluator {
     bindings: TermBinding[] | Iterable<TermBinding>,
     store: rdfjs.Source<rdfjs.Quad>,
     snapshot: ExistsSnapshot | null,
+    stats: PatternStatistics,
   ): Promise<Iterable<TermBinding>> {
     // Reified-triple patterns (`<< s p o >>`, annotation `{| ... |}`) expand
     // into plain `rdf:reifies` triples before any scanning or reordering.
@@ -1060,6 +1087,7 @@ export class BgpEvaluator {
         bindings,
         store,
         prebuiltIndex,
+        stats,
       );
     }
     // A single-pattern BGP has no chain to stream, so it takes the eager
@@ -1112,9 +1140,15 @@ export class BgpEvaluator {
     bindings: TermBinding[] | Iterable<TermBinding>,
     store: rdfjs.Source<rdfjs.Quad>,
     prebuiltIndex: QuadIndex | null,
+    stats: PatternStatistics,
   ): Promise<TermBinding[]> {
     const remaining = await Promise.all(
       triplePatterns.map((pattern) => scanEntry(store, pattern)),
+    );
+    // Resolve each pattern's statistics once for this BGP (cached by the
+    // per-query source by pattern signature), never inside the greedy loop.
+    const perEntryStats = await Promise.all(
+      remaining.map((entry) => stats.statsFor(store, entry)),
     );
 
     let result: TermBinding[] = Array.isArray(bindings)
@@ -1124,7 +1158,11 @@ export class BgpEvaluator {
       let bestIndex = 0;
       let bestCost = Number.POSITIVE_INFINITY;
       for (let index = 0; index < remaining.length; index++) {
-        const cost = this.estimator.estimateJoinCost(remaining[index], result);
+        const cost = this.estimator.estimateJoinCost(
+          remaining[index],
+          result,
+          perEntryStats[index],
+        );
         if (cost < bestCost) {
           bestCost = cost;
           bestIndex = index;
