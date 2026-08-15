@@ -99,12 +99,15 @@ export interface WazooSparqlEngineOptions {
   store: rdfjs.Store; // required: any RDF/JS store
   createTransaction?: () => WazooSparqlTransaction; // optional: atomic updates
   reorderPatterns?: boolean; // default true: dynamic join ordering
+  functions?: IriFunctionMap; // optional: custom IRI function registry
 }
 ```
 
 `store` is the only required option. `reorderPatterns: false` preserves the
 written order of BGP triple patterns. `createTransaction` upgrades updates from
 direct `addQuad`/`removeQuad` calls to one atomic transaction per request.
+`functions` registers custom IRI functions (SPARQL 1.1 §17.4.3.1); see
+[Custom functions & operators](#4-custom-functions--operators).
 
 ## Supported SPARQL surface
 
@@ -246,18 +249,43 @@ capture it once so a concurrent `execute()`'s cache rebuild is never observable
 mid-evaluation (issue
 [#72](https://github.com/wazootech/sparql-engine/issues/72)).
 
-### 4. Custom functions & operators
+### 4. Custom functions & operatorsCustom IRI functions are registered through `WazooSparqlEngineOptions.functions`:
 
-There is **no plugin registry** for user-defined functions: the operator and
-function surface lives in `ExpressionEvaluator.evaluateOperation()` /
-`evaluateFunctionCall()` (`src/evaluator/expression-evaluator.ts`). The dispatch
-is a single `switch`, so extending it is a code change in one file — both the
-operation table (operators, L262) and the XSD constructor dispatch (L1173). The
-same holds for aggregates
-([`aggregateValue`](https://github.com/wazootech/sparql-engine/blob/main/src/evaluator/aggregate.ts),
-`src/evaluator/
-aggregate.ts`) and update operation types (`applyOperation`,
-`src/evaluator/update-evaluator.ts`).
+a map from function IRI to evaluator, injected like Comunica's function factory.
+An `IriFunction` receives the function's evaluated arguments (`undefined` for
+unbound variables and runtime type errors) and returns a result term, or
+`undefined` to signal a type error — the same contract as the builtin surface:
+FILTER drops the row, ORDER BY sorts it lowest. Registered functions win over
+the builtin XSD-constructor mapping; unregistered IRIs keep raising
+`Unsupported SPARQL expression: functionCall <iri>`.
+
+```typescript
+export type IriFunction = (
+  args: ReadonlyArray<rdfjs.Term | undefined>,
+) => rdfjs.Term | undefined;
+
+export type IriFunctionMap = Readonly<Record<string, IriFunction>>;
+
+const engine = new WazooSparqlEngine({
+  store,
+  functions: {
+    "http://example.org/startsWithA": (args) => {
+      const name = args[0];
+      if (name === undefined || name.termType !== "Literal") return undefined;
+      return literal(
+        String(name.value.startsWith("a")),
+        namedNode("http://www.w3.org/2001/XMLSchema#boolean"),
+      );
+    },
+  },
+});
+```
+
+The rest of the expression surface (operators, XSD constructors, aggregates,
+update operation types) lives in `ExpressionEvaluator.evaluateOperation()` /
+`evaluateFunctionCall()` (`src/evaluator/expression-evaluator.ts`) and
+[`aggregateValue`](https://github.com/wazootech/sparql-engine/blob/main/src/evaluator/aggregate.ts)
+/ `applyOperation` (`src/evaluator/update-evaluator.ts`).
 
 ## Term utilities (exported from `src/mod.ts`)
 
@@ -287,6 +315,7 @@ Types:
 [`SparqlBinding`](https://jsr.io/@wazoo/sparql-engine/doc/~/SparqlBinding),
 [`WazooSparqlEngineOptions`](https://jsr.io/@wazoo/sparql-engine/doc/~/WazooSparqlEngineOptions),
 [`WazooSparqlTransaction`](https://jsr.io/@wazoo/sparql-engine/doc/~/WazooSparqlTransaction),
+`IriFunction`, `IriFunctionMap` (link on JSR once published),
 [`CanonicalTerm`](https://jsr.io/@wazoo/sparql-engine/doc/~/CanonicalTerm).
 
 Values/classes:

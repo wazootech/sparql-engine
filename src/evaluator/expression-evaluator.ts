@@ -144,11 +144,47 @@ export interface ExpressionEvaluationContext {
 }
 
 /**
+ * IriFunction evaluates a custom SPARQL 1.1 extension function (§17.4.3.1)
+ * registered under a function IRI. It receives the function's evaluated
+ * arguments (undefined for unbound variables and runtime type errors) and
+ * returns a result term, or undefined to signal an error — the same
+ * contract as the builtin expression surface: FILTER drops the binding,
+ * ORDER BY sorts it lowest.
+ */
+export type IriFunction = (
+  args: ReadonlyArray<rdfjs.Term | undefined>,
+) => rdfjs.Term | undefined;
+
+/**
+ * IriFunctionMap maps function IRIs to their evaluators. Injected through
+ * WazooSparqlEngineOptions.functions; unregistered IRIs keep raising the
+ * "Unsupported SPARQL expression: functionCall <iri>" error.
+ */
+export type IriFunctionMap = Readonly<Record<string, IriFunction>>;
+
+/** ExpressionEvaluatorOptions configures ExpressionEvaluator. */
+export interface ExpressionEvaluatorOptions {
+  /**
+   * functions registers custom IRI functions (SPARQL 1.1 §17.4.3.1),
+   * mirroring Comunica's injectable function factory. Registered functions
+   * are consulted before the builtin XSD constructors.
+   */
+  functions?: IriFunctionMap;
+}
+
+/**
  * ExpressionEvaluator evaluates SPARQL 1.1 expression trees (operators,
  * functions, and constants) against a single solution binding, returning a
  * value term or a typed error term for runtime failures.
  */
 export class ExpressionEvaluator {
+  /** functions is the registry of custom IRI function evaluators. */
+  private readonly functions: IriFunctionMap;
+
+  public constructor(options: ExpressionEvaluatorOptions = {}) {
+    this.functions = options.functions ?? {};
+  }
+
   /**
    * bnodeCounter mints fresh labels for zero-argument BNODE() calls, so two
    * calls in one query produce distinct blank nodes. Labels are opaque per
@@ -1219,6 +1255,16 @@ export class ExpressionEvaluator {
       throw new Error(
         "Unsupported SPARQL expression: functionCall without an IRI function",
       );
+    }
+    // Registered custom IRI functions win over the builtin mapping: the
+    // engine options registry (SPARQL 1.1 §17.4.3.1) is an explicit
+    // injection, so it takes precedence even under a builtin namespace.
+    const registered = this.functions[fnIri];
+    if (registered !== undefined) {
+      const args = expression.args.map((arg) =>
+        this.evaluateWith(arg, binding, aggregates, context)
+      );
+      return registered(args);
     }
     const value = this.evaluateWith(
       expression.args[0] as Expression,
