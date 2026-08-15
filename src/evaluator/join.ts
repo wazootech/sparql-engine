@@ -78,51 +78,42 @@ export function bindingsCompatible(
  * the merged binding so they can reference outer variables.
  *
  * Large joins dispatch to the hash join (compatibleCandidates); small joins
- * keep the nested loop, which is faster below the hash-setup overhead.
+ * keep the nested loop, which is faster below the hash-setup overhead. Rows
+ * are emitted incrementally (issue #74 lazy slice): an array left keeps the
+ * exact pre-slice dispatch, while a streaming (generator) left runs a
+ * nested loop over small right sides and materializes only when the hash
+ * index — which is inherently eager — is required.
  */
 export function leftJoin(
-  left: TermBinding[],
+  left: TermBinding[] | Iterable<TermBinding>,
   right: TermBinding[],
   filters: BindingFilter[] = [],
-): TermBinding[] {
-  if (left.length === 0) {
-    return [];
-  }
+): Iterable<TermBinding> {
   if (right.length === 0) {
-    return left.slice();
+    // No right bindings: every left binding survives unextended. An array
+    // left is copied (as before); a streaming left passes through untouched.
+    return Array.isArray(left) ? left.slice() : left;
   }
-  if (left.length * right.length <= JOIN_PRODUCT_THRESHOLD) {
-    return leftJoinNested(left, right, filters);
-  }
-  const joinVars = sharedVars(left, right);
-  if (joinVars.length === 0) {
-    // No variable is bound on both sides: every pair is compatible.
-    return leftJoinNested(left, right, filters);
-  }
-  const index = buildHashIndex(right, joinVars);
-  const result: TermBinding[] = [];
-  for (const l of left) {
-    let matched = false;
-    for (const r of compatibleCandidates(l, joinVars, index, right)) {
-      const merged = { ...l, ...r };
-      if (filters.every((filter) => filter(merged))) {
-        result.push(merged);
-        matched = true;
-      }
+  if (Array.isArray(left)) {
+    if (left.length === 0) {
+      return EMPTY_BINDINGS;
     }
-    if (!matched) {
-      result.push(l);
+    if (left.length * right.length <= JOIN_PRODUCT_THRESHOLD) {
+      return leftJoinNested(left, right, filters);
     }
+    return leftJoinHash(left, right, filters);
   }
-  return result;
+  if (right.length <= STREAM_NESTED_THRESHOLD) {
+    return leftJoinStreamNested(left, right, filters);
+  }
+  return leftJoinHash([...left], right, filters);
 }
 
-function leftJoinNested(
+function* leftJoinNested(
   left: TermBinding[],
   right: TermBinding[],
   filters: BindingFilter[] = [],
-): TermBinding[] {
-  const result: TermBinding[] = [];
+): Generator<TermBinding> {
   for (const l of left) {
     let matched = false;
     for (const r of right) {
@@ -131,15 +122,64 @@ function leftJoinNested(
       }
       const merged = { ...l, ...r };
       if (filters.every((filter) => filter(merged))) {
-        result.push(merged);
+        yield merged;
         matched = true;
       }
     }
     if (!matched) {
-      result.push(l);
+      yield l;
     }
   }
-  return result;
+}
+
+function* leftJoinHash(
+  left: TermBinding[],
+  right: TermBinding[],
+  filters: BindingFilter[] = [],
+): Generator<TermBinding> {
+  const joinVars = sharedVars(left, right);
+  if (joinVars.length === 0) {
+    // No variable is bound on both sides: every pair is compatible.
+    yield* leftJoinNested(left, right, filters);
+    return;
+  }
+  const index = buildHashIndex(right, joinVars);
+  for (const l of left) {
+    let matched = false;
+    for (const r of compatibleCandidates(l, joinVars, index, right)) {
+      const merged = { ...l, ...r };
+      if (filters.every((filter) => filter(merged))) {
+        yield merged;
+        matched = true;
+      }
+    }
+    if (!matched) {
+      yield l;
+    }
+  }
+}
+
+function* leftJoinStreamNested(
+  left: Iterable<TermBinding>,
+  right: TermBinding[],
+  filters: BindingFilter[] = [],
+): Generator<TermBinding> {
+  for (const l of left) {
+    let matched = false;
+    for (const r of right) {
+      if (!bindingsCompatible(l, r)) {
+        continue;
+      }
+      const merged = { ...l, ...r };
+      if (filters.every((filter) => filter(merged))) {
+        yield merged;
+        matched = true;
+      }
+    }
+    if (!matched) {
+      yield l;
+    }
+  }
 }
 
 /**
@@ -150,46 +190,76 @@ function leftJoinNested(
  * Join(P, Union(Q1, Q2)) algebra translation.
  *
  * Large joins dispatch to the hash join; small joins keep the nested loop,
- * which is faster below the hash-setup overhead.
+ * which is faster below the hash-setup overhead. Rows are emitted
+ * incrementally (issue #74 lazy slice): an array left keeps the exact
+ * pre-slice dispatch, while a streaming (generator) left runs a nested loop
+ * over small right sides and materializes only when the hash index — which
+ * is inherently eager — is required.
  */
 export function innerJoin(
-  left: TermBinding[],
+  left: TermBinding[] | Iterable<TermBinding>,
   right: TermBinding[],
-): TermBinding[] {
-  if (left.length === 0 || right.length === 0) {
-    return [];
+): Iterable<TermBinding> {
+  if (right.length === 0) {
+    return EMPTY_BINDINGS;
   }
-  if (left.length * right.length <= JOIN_PRODUCT_THRESHOLD) {
-    return innerJoinNested(left, right);
-  }
-  const joinVars = sharedVars(left, right);
-  if (joinVars.length === 0) {
-    // No variable is bound on both sides: the result is a cross product.
-    return innerJoinNested(left, right);
-  }
-  const index = buildHashIndex(right, joinVars);
-  const result: TermBinding[] = [];
-  for (const l of left) {
-    for (const r of compatibleCandidates(l, joinVars, index, right)) {
-      result.push({ ...l, ...r });
+  if (Array.isArray(left)) {
+    if (left.length === 0) {
+      return EMPTY_BINDINGS;
     }
+    if (left.length * right.length <= JOIN_PRODUCT_THRESHOLD) {
+      return innerJoinNested(left, right);
+    }
+    return innerJoinHash(left, right);
   }
-  return result;
+  if (right.length <= STREAM_NESTED_THRESHOLD) {
+    return innerJoinStreamNested(left, right);
+  }
+  return innerJoinHash([...left], right);
 }
 
-function innerJoinNested(
+function* innerJoinNested(
   left: TermBinding[],
   right: TermBinding[],
-): TermBinding[] {
-  const result: TermBinding[] = [];
+): Generator<TermBinding> {
   for (const l of left) {
     for (const r of right) {
       if (bindingsCompatible(l, r)) {
-        result.push({ ...l, ...r });
+        yield { ...l, ...r };
       }
     }
   }
-  return result;
+}
+
+function* innerJoinHash(
+  left: TermBinding[],
+  right: TermBinding[],
+): Generator<TermBinding> {
+  const joinVars = sharedVars(left, right);
+  if (joinVars.length === 0) {
+    // No variable is bound on both sides: the result is a cross product.
+    yield* innerJoinNested(left, right);
+    return;
+  }
+  const index = buildHashIndex(right, joinVars);
+  for (const l of left) {
+    for (const r of compatibleCandidates(l, joinVars, index, right)) {
+      yield { ...l, ...r };
+    }
+  }
+}
+
+function* innerJoinStreamNested(
+  left: Iterable<TermBinding>,
+  right: TermBinding[],
+): Generator<TermBinding> {
+  for (const l of left) {
+    for (const r of right) {
+      if (bindingsCompatible(l, r)) {
+        yield { ...l, ...r };
+      }
+    }
+  }
 }
 
 /**
@@ -199,25 +269,56 @@ function innerJoinNested(
  * left binding never eliminate it, per SPARQL 1.1 §18.2.2.9.
  *
  * Large joins dispatch to the hash join; small joins keep the nested loop.
+ * Rows are emitted incrementally (issue #74 lazy slice): an array left
+ * keeps the exact pre-slice dispatch, while a streaming (generator) left
+ * runs a nested loop over small right sides and materializes only when the
+ * hash index — which is inherently eager — is required.
  */
 export function minus(
+  left: TermBinding[] | Iterable<TermBinding>,
+  right: TermBinding[],
+): Iterable<TermBinding> {
+  if (right.length === 0) {
+    return Array.isArray(left) ? left.slice() : left;
+  }
+  if (Array.isArray(left)) {
+    if (left.length === 0) {
+      return EMPTY_BINDINGS;
+    }
+    if (left.length * right.length <= JOIN_PRODUCT_THRESHOLD) {
+      return minusNested(left, right);
+    }
+    return minusHash(left, right);
+  }
+  if (right.length <= STREAM_NESTED_THRESHOLD) {
+    return minusStreamNested(left, right);
+  }
+  return minusHash([...left], right);
+}
+
+function* minusNested(
   left: TermBinding[],
   right: TermBinding[],
-): TermBinding[] {
-  if (left.length === 0 || right.length === 0) {
-    return left.slice();
+): Generator<TermBinding> {
+  for (const l of left) {
+    if (!right.some((r) => sharesVariable(l, r) && bindingsCompatible(l, r))) {
+      yield l;
+    }
   }
-  if (left.length * right.length <= JOIN_PRODUCT_THRESHOLD) {
-    return minusNested(left, right);
-  }
+}
+
+function* minusHash(
+  left: TermBinding[],
+  right: TermBinding[],
+): Generator<TermBinding> {
   const joinVars = sharedVars(left, right);
   if (joinVars.length === 0) {
     // No variable is bound on both sides: no right binding shares a variable
     // with any left binding, so nothing is eliminated.
-    return left.slice();
+    yield* left;
+    return;
   }
   const index = buildHashIndex(right, joinVars);
-  const result: TermBinding[] = [];
   for (const l of left) {
     let eliminated = false;
     for (const r of compatibleCandidates(l, joinVars, index, right)) {
@@ -227,19 +328,20 @@ export function minus(
       }
     }
     if (!eliminated) {
-      result.push(l);
+      yield l;
     }
   }
-  return result;
 }
 
-function minusNested(
-  left: TermBinding[],
+function* minusStreamNested(
+  left: Iterable<TermBinding>,
   right: TermBinding[],
-): TermBinding[] {
-  return left.filter((l) =>
-    !right.some((r) => sharesVariable(l, r) && bindingsCompatible(l, r))
-  );
+): Generator<TermBinding> {
+  for (const l of left) {
+    if (!right.some((r) => sharesVariable(l, r) && bindingsCompatible(l, r))) {
+      yield l;
+    }
+  }
 }
 
 /* ------------------------------------------------------------------ */
@@ -259,6 +361,46 @@ function minusNested(
  * saves for tiny joins.
  */
 const JOIN_PRODUCT_THRESHOLD = 4096;
+
+/**
+ * STREAM_NESTED_THRESHOLD bounds the right side of a nested-loop join whose
+ * left side streams as a generator (the lazy slice): the left length is
+ * unknown without materializing, so the product threshold cannot apply, but
+ * a right side this small keeps the nested loop cheap for any left length.
+ * Larger right sides dispatch to the (inherently eager) hash index.
+ */
+const STREAM_NESTED_THRESHOLD = 64;
+
+/** Shared empty result for joins with no right side (never mutated). */
+const EMPTY_BINDINGS: TermBinding[] = [];
+
+/**
+ * filterBindings applies a predicate to a binding iterable — the streaming
+ * counterpart to Array#filter, for the lazy group evaluation (issue #74).
+ */
+export function* filterBindings(
+  bindings: Iterable<TermBinding>,
+  predicate: (binding: TermBinding) => boolean,
+): Generator<TermBinding> {
+  for (const binding of bindings) {
+    if (predicate(binding)) {
+      yield binding;
+    }
+  }
+}
+
+/**
+ * mapBindings applies a transform to a binding iterable — the streaming
+ * counterpart to Array#map, for the lazy group evaluation (issue #74).
+ */
+export function* mapBindings<T>(
+  bindings: Iterable<TermBinding>,
+  transform: (binding: TermBinding) => T,
+): Generator<T> {
+  for (const binding of bindings) {
+    yield transform(binding);
+  }
+}
 
 /**
  * sharedVars returns the sorted variables bound on both sides — the join
@@ -506,7 +648,11 @@ function getQueryVarName(term: SparqlTerm): string {
  * joinTriplePattern joins the current bindings against a triple pattern with
  * a hash join: candidate quads come from the pattern's single indexed store
  * scan (performed once by the caller), and bindings probe a positional index
- * instead of issuing a stream round trip per binding.
+ * instead of issuing a stream round trip per binding. This array form is the
+ * eager path: a single-pattern BGP (where there is no chain to stream), the
+ * reordered BGP path (whose cost estimate needs the materialized result
+ * set), and the synchronous EXISTS hooks. The lazy BGP chain uses
+ * joinTriplePatternLazy instead.
  *
  * prebuiltIndex supplies an already-built QuadIndex (the EXISTS hooks' drained
  * snapshot index) so the join probes it directly instead of rebuilding an
@@ -525,10 +671,10 @@ export function joinTriplePattern(
   graphScope?: rdfjs.Term | null,
 ): TermBinding[] {
   if (entry.reifies) {
-    return joinReifiesPattern(currentBindings, entry);
+    return [...joinReifiesPattern(currentBindings, entry)];
   }
   if (entry.tripleTermObject) {
-    return joinTripleTermObject(currentBindings, entry);
+    return [...joinTripleTermObject(currentBindings, entry)];
   }
   const subject = entry.subject;
   const predicate = entry.predicate;
@@ -625,6 +771,118 @@ export function joinTriplePattern(
 }
 
 /**
+ * joinTriplePatternLazy is the generator form of joinTriplePattern (issue
+ * #74 lazy slice): it emits extended bindings one at a time, so a chain of
+ * BGP patterns streams solution bindings instead of materializing an array
+ * per pattern. The positional index is still built over the pattern's
+ * candidate bucket — the hash index build stays eager — but only on the
+ * first binding that actually binds a pattern variable (bindings binding no
+ * variable scan the candidates directly, which is exactly what the index
+ * probe returns for them).
+ */
+export function* joinTriplePatternLazy(
+  currentBindings: Iterable<TermBinding>,
+  entry: ScanEntry,
+  prebuiltIndex?: QuadIndex | null,
+  graphScope?: rdfjs.Term | null,
+): Generator<TermBinding> {
+  if (entry.reifies) {
+    yield* joinReifiesPattern(currentBindings, entry);
+    return;
+  }
+  if (entry.tripleTermObject) {
+    yield* joinTripleTermObject(currentBindings, entry);
+    return;
+  }
+  const subject = entry.subject;
+  const predicate = entry.predicate;
+  const object = entry.object;
+
+  const subjectIsVariable = isQueryVar(subject);
+  const predicateIsVariable = isQueryVar(predicate);
+  const objectIsVariable = isQueryVar(object);
+
+  const candidateQuads = entry.candidates;
+
+  let quadIndex: QuadIndex | null = prebuiltIndex ?? null;
+
+  for (const binding of currentBindings) {
+    const resolvedSubject = resolveTerm(subject, binding);
+    const resolvedPredicate = resolveTerm(predicate, binding);
+    const resolvedObject = resolveTerm(object, binding);
+
+    if (
+      quadIndex === null &&
+      ((subjectIsVariable && binding[getQueryVarName(subject)] !== undefined) ||
+        (predicateIsVariable &&
+          binding[getQueryVarName(predicate)] !== undefined) ||
+        (objectIsVariable && binding[getQueryVarName(object)] !== undefined))
+    ) {
+      quadIndex = buildQuadIndex(candidateQuads);
+    }
+
+    const matchingQuads = quadIndex === null ? candidateQuads : probeQuadIndex(
+      quadIndex,
+      candidateQuads,
+      resolvedSubject,
+      resolvedPredicate,
+      resolvedObject,
+    );
+    const scopedQuads = graphScope === undefined || graphScope === null
+      ? matchingQuads
+      : matchingQuads.filter((item) => sameRdfTerm(item.graph, graphScope));
+
+    for (const matchQuad of scopedQuads) {
+      const newBinding = { ...binding };
+      let valid = true;
+
+      if (subjectIsVariable) {
+        const varName = getQueryVarName(subject);
+        const val = matchQuad.subject;
+        if (
+          newBinding[varName] &&
+          !sameRdfTerm(newBinding[varName], val)
+        ) {
+          valid = false;
+        } else {
+          newBinding[varName] = val;
+        }
+      }
+
+      if (valid && predicateIsVariable) {
+        const varName = getQueryVarName(predicate);
+        const val = matchQuad.predicate;
+        if (
+          newBinding[varName] &&
+          !sameRdfTerm(newBinding[varName], val)
+        ) {
+          valid = false;
+        } else {
+          newBinding[varName] = val;
+        }
+      }
+
+      if (valid && objectIsVariable) {
+        const varName = getQueryVarName(object);
+        const val = matchQuad.object;
+        if (
+          newBinding[varName] &&
+          !sameRdfTerm(newBinding[varName], val)
+        ) {
+          valid = false;
+        } else {
+          newBinding[varName] = val;
+        }
+      }
+
+      if (valid) {
+        yield newBinding;
+      }
+    }
+  }
+}
+
+/**
  * matchPatternTerm matches a pattern position against a data term, extending
  * the binding: a variable position binds (or must agree with an existing
  * binding), a constant position must be the same RDF term, and a quad
@@ -669,15 +927,14 @@ function matchPatternTerm(
  * pattern. Each candidate `X rdf:reifies TT` decomposes its quoted triple term
  * TT and matches its subject/predicate/object against the pattern's three
  * positions (binding variables, recursively through nested triple terms),
- * then binds the reifier position to X.
+ * then binds the reifier position to X. Emits incrementally (issue #74).
  */
-function joinReifiesPattern(
-  currentBindings: TermBinding[],
+function* joinReifiesPattern(
+  currentBindings: Iterable<TermBinding>,
   entry: ScanEntry,
-): TermBinding[] {
+): Generator<TermBinding> {
   const reifier = entry.subject;
   const tripleTerm = entry.object as rdfjs.Quad;
-  const result: TermBinding[] = [];
   for (const binding of currentBindings) {
     for (const candidate of entry.candidates) {
       if (candidate.object.termType !== "Quad") {
@@ -710,11 +967,10 @@ function joinReifiesPattern(
       }
       const bound = matchPatternTerm(reifier, candidate.subject, extended);
       if (bound !== null) {
-        result.push(bound);
+        yield bound;
       }
     }
   }
-  return result;
 }
 
 /**
@@ -722,12 +978,12 @@ function joinReifiesPattern(
  * is a triple-term pattern `?s ?p <<( ?st ?pt ?ot )>>`. Each candidate quad
  * with a triple-term object matches the subject/predicate positionally and
  * the object recursively through the triple-term pattern's positions.
+ * Emits incrementally (issue #74).
  */
-function joinTripleTermObject(
-  currentBindings: TermBinding[],
+function* joinTripleTermObject(
+  currentBindings: Iterable<TermBinding>,
   entry: ScanEntry,
-): TermBinding[] {
-  const result: TermBinding[] = [];
+): Generator<TermBinding> {
   for (const binding of currentBindings) {
     for (const candidate of entry.candidates) {
       if (candidate.object.termType !== "Quad") {
@@ -755,11 +1011,10 @@ function joinTripleTermObject(
         extended,
       );
       if (bound !== null) {
-        result.push(bound);
+        yield bound;
       }
     }
   }
-  return result;
 }
 
 /**
@@ -876,7 +1131,9 @@ export async function scanPathEntry(
 /**
  * joinPathPattern joins the current bindings against a property-path entry:
  * each binding resolves its subject/object positions and keeps every pair
- * consistent with them, extending the binding with the pair's terms.
+ * consistent with them, extending the binding with the pair's terms. This
+ * array form is the eager path (single-pattern BGPs and the synchronous
+ * EXISTS hooks); the lazy BGP chain uses joinPathPatternLazy.
  */
 export function joinPathPattern(
   currentBindings: TermBinding[],
@@ -933,6 +1190,65 @@ export function joinPathPattern(
   }
 
   return nextBindings;
+}
+
+/**
+ * joinPathPatternLazy is the generator form of joinPathPattern (issue #74
+ * lazy slice): property paths stream inside the lazy BGP chain, so a path
+ * pattern emits extended bindings one at a time.
+ */
+export function* joinPathPatternLazy(
+  currentBindings: Iterable<TermBinding>,
+  entry: PathEntry,
+): Generator<TermBinding> {
+  const { subject, object, pairs } = entry;
+  const subjectIsVariable = subject.termType === "Variable";
+  const objectIsVariable = object.termType === "Variable";
+
+  for (const binding of currentBindings) {
+    const resolvedSubject = subjectIsVariable
+      ? binding[subject.value] ?? null
+      : sparqlTermToRdfTerm(subject);
+    const resolvedObject = objectIsVariable
+      ? binding[object.value] ?? null
+      : sparqlTermToRdfTerm(object);
+
+    for (const pair of pairs) {
+      if (
+        resolvedSubject !== null &&
+        !sameRdfTerm(pair.subject, resolvedSubject)
+      ) {
+        continue;
+      }
+      if (
+        resolvedObject !== null &&
+        !sameRdfTerm(pair.object, resolvedObject)
+      ) {
+        continue;
+      }
+      const newBinding = { ...binding };
+      let valid = true;
+      if (subjectIsVariable) {
+        const existing = newBinding[subject.value];
+        if (existing !== undefined && !sameRdfTerm(existing, pair.subject)) {
+          valid = false;
+        } else {
+          newBinding[subject.value] = pair.subject;
+        }
+      }
+      if (valid && objectIsVariable) {
+        const existing = newBinding[object.value];
+        if (existing !== undefined && !sameRdfTerm(existing, pair.object)) {
+          valid = false;
+        } else {
+          newBinding[object.value] = pair.object;
+        }
+      }
+      if (valid) {
+        yield newBinding;
+      }
+    }
+  }
 }
 
 /**

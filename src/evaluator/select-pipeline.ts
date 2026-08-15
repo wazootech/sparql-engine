@@ -74,7 +74,10 @@ export function applySelectPipeline(
       }
       return binding;
     });
-    bindings = innerJoin(bindings, rows);
+    // The join now emits incrementally (issue #74); the select pipeline's
+    // grouping/ordering steps are inherently materializing, so the streaming
+    // left is collected here.
+    bindings = [...innerJoin(bindings, rows)];
   }
 
   const vars: string[] = [];

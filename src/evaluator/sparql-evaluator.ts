@@ -426,19 +426,25 @@ export class SparqlEvaluator {
   private async evaluateConstruct(
     query: ConstructQuery,
   ): Promise<SparqlConstructResults> {
+    if (!query.template) {
+      return { quads: [] };
+    }
     const bindings = await (await this.bgpEvaluatorFor(query.from))
       .evaluateBgp(query.where || []);
-    const quads: rdfjs.Quad[] = [];
-
-    if (!query.template) {
-      return { quads };
-    }
 
     // Reified-triple templates (`<< s p o >>`, annotation `{| ... |}`)
     // expand into a reifier blank node joined to its `rdf:reifies` triple
     // term, so the template instantiates the RDF 1.2 reifier representation.
     const template = expandReifiedTriples(query.template);
 
+    // SPARQL 1.1 §16.2: the CONSTRUCT result is an RDF graph — a set of
+    // triples — so duplicate instantiations collapse. The template
+    // instantiations are emitted per solution straight into the dedup set
+    // (issue #74 lazy slice): the intermediate full-instantiation array is
+    // never materialized, so peak holds the dedup key set plus the graph
+    // instead of that plus every constructed quad.
+    const seen = new Set<string>();
+    const graph: rdfjs.Quad[] = [];
     for (const binding of bindings) {
       // Blank nodes in a CONSTRUCT template are fresh per solution mapping
       // (SPARQL 1.1 §16.2.1): the parser expands RDF collections and _:b
@@ -454,30 +460,18 @@ export class SparqlEvaluator {
         const o = this.resolveConstructTerm(t.object, binding, bnodeMap);
 
         if (s && p && o) {
-          quads.push(
-            DataFactory.quad(
-              s as rdfjs.Quad_Subject,
-              p as rdfjs.Quad_Predicate,
-              o as rdfjs.Quad_Object,
-              DataFactory.defaultGraph(),
-            ),
+          const quad = DataFactory.quad(
+            s as rdfjs.Quad_Subject,
+            p as rdfjs.Quad_Predicate,
+            o as rdfjs.Quad_Object,
+            DataFactory.defaultGraph(),
           );
+          const key = termKey(quad);
+          if (!seen.has(key)) {
+            seen.add(key);
+            graph.push(quad);
+          }
         }
-      }
-    }
-
-    // SPARQL 1.1 §16.2: the CONSTRUCT result is an RDF graph — a set of
-    // triples — so duplicate instantiations collapse. Multiple solutions can
-    // emit the same triple (e.g. an annotation pattern matching both a
-    // reifier's annotation and its own rdf:reifies statement), and RDF graph
-    // semantics remove those duplicates.
-    const seen = new Set<string>();
-    const graph: rdfjs.Quad[] = [];
-    for (const quad of quads) {
-      const key = termKey(quad);
-      if (!seen.has(key)) {
-        seen.add(key);
-        graph.push(quad);
       }
     }
     return { quads: graph };
