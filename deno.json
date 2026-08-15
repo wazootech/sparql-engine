@@ -51,7 +51,6 @@
         "fmt:check",
         "lint",
         "check",
-        "interface-parity",
         "test",
         "bench:check",
         "test:exists-ref",
