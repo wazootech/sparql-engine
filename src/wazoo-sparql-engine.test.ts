@@ -1,9 +1,29 @@
 import { assertEquals, assertRejects } from "@std/assert";
 import { DataFactory, XSD_BOOLEAN } from "@/term/mod.ts";
 import { MemoryStore as Store } from "@/store/memory-store.ts";
+import { SparqlSyntaxError } from "@/parser/syntax-error.ts";
 import { WazooSparqlEngine } from "@/wazoo-sparql-engine.ts";
 
 const { blankNode, namedNode, literal, quad } = DataFactory;
+
+Deno.test("WazooSparqlEngine - malformed queries reject with a positioned SparqlSyntaxError", async () => {
+  const engine = new WazooSparqlEngine({ store: new Store() });
+  const error = await assertRejects(
+    () =>
+      engine.execute({
+        query: "SELECT ?s WHERE { ?s <http://example.org/p> ?o } }",
+      }),
+    SparqlSyntaxError,
+  );
+  assertEquals(error.line, 1);
+  assertEquals(error.column, 50);
+  assertEquals(error.token, "}");
+  assertEquals(error.expected.includes("'EOF'"), true);
+  assertEquals(
+    error.message.startsWith("Syntax error at line 1, column 50"),
+    true,
+  );
+});
 
 Deno.test("WazooSparqlEngine - SELECT query BGP evaluation", async () => {
   const store = new Store();

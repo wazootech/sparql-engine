@@ -9,6 +9,7 @@ export type {
   SparqlValue,
 } from "@/sparql-engine-interface.ts";
 export { WazooSparqlEngine } from "@/wazoo-sparql-engine.ts";
+export { SparqlSyntaxError } from "@/parser/syntax-error.ts";
 export type {
   WazooSparqlEngineOptions,
   WazooSparqlTransaction,
