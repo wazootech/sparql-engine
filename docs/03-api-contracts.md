@@ -347,12 +347,14 @@ Types:
 [`WazooSparqlEngineOptions`](https://jsr.io/@wazoo/sparql-engine/doc/~/WazooSparqlEngineOptions),
 [`WazooSparqlTransaction`](https://jsr.io/@wazoo/sparql-engine/doc/~/WazooSparqlTransaction),
 `IriFunction`, `IriFunctionMap` (link on JSR once published),
-[`JoinCostEstimator`](https://jsr.io/@wazoo/sparql-engine/doc/~/JoinCostEstimator),
+[`JoinCostEstimator`](https://github.com/wazootech/sparql-engine/blob/main/src/planner/join-cost-estimator.ts)
+(link on JSR once published),
 [`CanonicalTerm`](https://jsr.io/@wazoo/sparql-engine/doc/~/CanonicalTerm).
 
 Values/classes:
 [`WazooSparqlEngine`](https://jsr.io/@wazoo/sparql-engine/doc/~/WazooSparqlEngine),
-[`BaselineJoinCostEstimator`](https://jsr.io/@wazoo/sparql-engine/doc/~/BaselineJoinCostEstimator),
+[`BaselineJoinCostEstimator`](https://github.com/wazootech/sparql-engine/blob/main/src/planner/join-cost-estimator.ts)
+(link on JSR once published),
 [`MemoryStore`](https://jsr.io/@wazoo/sparql-engine/doc/~/MemoryStore),
 [`MemoryStream`](https://jsr.io/@wazoo/sparql-engine/doc/~/MemoryStream),
 [`DataFactory`](https://jsr.io/@wazoo/sparql-engine/doc/~/DataFactory),
