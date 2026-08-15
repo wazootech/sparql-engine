@@ -1,5 +1,6 @@
 import { DataFactory } from "@/term/mod.ts";
 import { MemoryStore as Store } from "@/store/memory-store.ts";
+import { SqliteStore } from "@/store/sqlite-store.ts";
 import { WazooSparqlEngine } from "@/wazoo-sparql-engine.ts";
 
 const { namedNode, literal, quad } = DataFactory;
@@ -58,6 +59,64 @@ const tests: BudgetTest[] = [
   },
 ];
 
+/**
+ * sqliteTempPath returns a fresh temp db path for one store budget run.
+ */
+function sqliteTempPath(): string {
+  const dir = Deno.makeTempDirSync();
+  return `${dir}/budget.sqlite`;
+}
+
+/**
+ * SqliteStore sanity budgets (issue #56): the durable store's transactional
+ * load and full-scan match must stay within generous ceilings. Local
+ * dev-machine baselines are ~190 ms for a 5k-quad single-transaction load
+ * and ~18 ms for a 5k match; GitHub runners are ~3x slower, so the budgets
+ * carry ~4x headroom — this gate catches catastrophic regressions (per-row
+ * fsync, per-probe index rebuild, payload decode blowups), not noise.
+ */
+const storeTests: { name: string; budgetMs: number; run: () => void }[] = [
+  {
+    name: "SqliteStore bulk load 5k (one transaction)",
+    budgetMs: 2500,
+    run: () => {
+      const store = new SqliteStore({ path: sqliteTempPath() });
+      const transaction = store.createTransaction();
+      for (let index = 0; index < 5000; index++) {
+        transaction.add(
+          quad(
+            namedNode(`http://example.org/s${index}`),
+            namedNode("http://example.org/p"),
+            literal(`v${index}`),
+          ),
+        );
+      }
+      transaction.commit();
+      store.close();
+    },
+  },
+  {
+    name: "SqliteStore full match over 5k",
+    budgetMs: 2500,
+    run: () => {
+      const store = new SqliteStore({ path: sqliteTempPath() });
+      const transaction = store.createTransaction();
+      for (let index = 0; index < 5000; index++) {
+        transaction.add(
+          quad(
+            namedNode(`http://example.org/s${index}`),
+            namedNode("http://example.org/p"),
+            literal(`v${index}`),
+          ),
+        );
+      }
+      transaction.commit();
+      [...store.match()];
+      store.close();
+    },
+  },
+];
+
 async function main() {
   const store = new Store();
   for (let i = 0; i < 100; i++) {
@@ -92,6 +151,27 @@ async function main() {
   let failed = false;
 
   console.log("Running performance regression budget checks...");
+  for (const test of storeTests) {
+    // Warm up once (pays the table/index setup), then time one run.
+    test.run();
+    const start = performance.now();
+    test.run();
+    const elapsed = performance.now() - start;
+    console.log(
+      `- ${test.name}: ${
+        elapsed.toFixed(0)
+      } ms (budget: <= ${test.budgetMs} ms)`,
+    );
+    if (elapsed > test.budgetMs) {
+      console.error(
+        `  FAIL: ${test.name} exceeded performance budget (${
+          elapsed.toFixed(0)
+        } ms > ${test.budgetMs} ms)`,
+      );
+      failed = true;
+    }
+  }
+
   for (const test of tests) {
     // Warm up first: lets V8 optimize the hot path and pays the one-time
     // EXISTS snapshot drain before the timed loop, so measurements are stable.

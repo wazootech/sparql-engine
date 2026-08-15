@@ -1,4 +1,24 @@
 {
   "maxAllowedMs": 50.0,
-  "maxRegressionRatio": 0.15
+  "maxRegressionRatio": 0.15,
+  "sqlite": {
+    "notes": "Recorded baseline for the SqliteStore vs MemoryStore comparison (issue #56), measured via deno task bench:sqlite (avg over 5 fresh runs, operation-only timing) on a dev machine 2026-08-15. GitHub Actions runners are roughly 3x slower; treat absolute values as indicative, ratios as the durable-store cost story.",
+    "bulkLoad10kMemoryMs": 40.9,
+    "bulkLoad10kAutocommitMs": 16204.5,
+    "bulkLoad10kOneTransactionMs": 731.7,
+    "matchAll10kMemoryMs": 0.7,
+    "matchAll10kSqliteMs": 106.4,
+    "matchPredicate10kMemoryMs": 0.6,
+    "matchPredicate10kSqliteMs": 71.6,
+    "matchGraphScoped10kMemoryMs": 0.1,
+    "matchGraphScoped10kSqliteMs": 44.8,
+    "countQuads10kMemoryMs": 0.1,
+    "countQuads10kSqliteMs": 88.7,
+    "engineInsertData200MemoryMs": 11.6,
+    "engineInsertData200SqliteMs": 176.9,
+    "engineDeleteWhere100MemoryMs": 65.0,
+    "engineDeleteWhere100SqliteMs": 3286.7,
+    "commit1kFullMs": 52.5,
+    "commit1kNormalMs": 34.1
+  }
 }

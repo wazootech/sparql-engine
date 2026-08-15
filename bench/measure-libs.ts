@@ -190,7 +190,6 @@ function comunicaArtifact(): Sized {
 const ARTIFACT_EXCLUDED_SUFFIXES = [".test.ts", ".jison"];
 const ARTIFACT_EXCLUDED_FILES = [
   "parser/generate-parser.ts",
-  "store/sqlite-store.ts",
 ];
 
 function isExcluded(relPath: string): boolean {

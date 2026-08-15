@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-14T21:26:48.918Z",
+  "generatedAt": "2026-08-15T19:23:39.656Z",
   "entries": [
     {
       "name": ".",
@@ -17,6 +17,7 @@
         "src\\parser\\mod.ts",
         "src\\parser\\parser.ts",
         "src\\parser\\sparql-parser.ts",
+        "src\\parser\\syntax-error.ts",
         "src\\parser\\turtle-generated.ts",
         "src\\parser\\turtle-parser.ts",
         "src\\quad-store.ts",
@@ -35,7 +36,7 @@
         "src\\term\\ordering.ts",
         "src\\wazoo-sparql-engine.ts"
       ],
-      "bytes": 589732
+      "bytes": 618162
     },
     {
       "name": "./term",
@@ -69,13 +70,31 @@
       "bytes": 54398
     },
     {
+      "name": "./sqlite",
+      "files": [
+        "src\\store\\memory-store.ts",
+        "src\\store\\sqlite-store.ts",
+        "src\\term\\canonical.ts",
+        "src\\term\\convert.ts",
+        "src\\term\\data-factory.ts",
+        "src\\term\\datetime.ts",
+        "src\\term\\hash.ts",
+        "src\\term\\identity.ts",
+        "src\\term\\mod.ts",
+        "src\\term\\numeric.ts",
+        "src\\term\\ordering.ts"
+      ],
+      "bytes": 65825
+    },
+    {
       "name": "./parser",
       "files": [
         "src\\parser\\mod.ts",
         "src\\parser\\parser.ts",
+        "src\\parser\\syntax-error.ts",
         "src\\term\\data-factory.ts"
       ],
-      "bytes": 218956
+      "bytes": 229542
     },
     {
       "name": "./serialize",
