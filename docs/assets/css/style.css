@@ -262,17 +262,6 @@ a:hover {
   border-radius: 1px;
 }
 
-.sidebar-foot {
-  margin-top: auto;
-  padding-top: 1rem;
-  border-top: 1px solid var(--border);
-  font-size: var(--caption);
-}
-
-.repo-link {
-  color: var(--text-muted);
-}
-
 /* ---------- content typography ---------- */
 
 .content h1 {
@@ -459,13 +448,19 @@ pre code {
 /* ---------- tables ---------- */
 
 .content table {
+  /* Wide tables scroll horizontally on narrow (mobile) viewports instead
+   * of overflowing the page: block-display lets the table grow to its
+   * min-content width, and overflow-x makes that growth scrollable. */
+  display: block;
   border-collapse: collapse;
   width: 100%;
+  max-width: 100%;
   margin: 0 0 1.25rem;
   font-size: var(--caption);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  overflow: hidden;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .content th,
@@ -606,10 +601,6 @@ pre code {
     display: flex;
   }
 
-  .sidebar-foot {
-    display: none;
-  }
-
   .content {
     padding: 1.5rem 1.25rem 3rem;
   }
@@ -673,6 +664,69 @@ pre code {
 
 .site-footer a {
   color: var(--accent-text);
+}
+
+/* ---------- heading copy-links ---------- */
+
+.content h1[id],
+.content h2[id],
+.content h3[id],
+.content h4[id],
+.content h5[id],
+.content h6[id] {
+  position: relative;
+  cursor: pointer;
+}
+
+.content h1[id]::before,
+.content h2[id]::before,
+.content h3[id]::before,
+.content h4[id]::before,
+.content h5[id]::before,
+.content h6[id]::before {
+  content: "¶";
+  position: absolute;
+  right: 100%;
+  padding-right: 0.45em;
+  color: var(--accent-text);
+  opacity: 0;
+  visibility: hidden;
+  user-select: none;
+  transition: opacity var(--fast) ease, visibility var(--fast) ease;
+}
+
+.content h1[id]:hover::before,
+.content h2[id]:hover::before,
+.content h3[id]:hover::before,
+.content h4[id]:hover::before,
+.content h5[id]:hover::before,
+.content h6[id]:hover::before {
+  opacity: 0.7;
+  visibility: visible;
+}
+
+.copy-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 1.5rem;
+  transform: translateX(-50%) translateY(0.5rem);
+  background: var(--surface);
+  color: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.5rem 0.9rem;
+  font-family: var(--font-body);
+  font-size: var(--caption);
+  letter-spacing: -0.02em;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 50;
+  transition: opacity var(--normal) ease, transform var(--normal) ease;
+}
+
+.copy-toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
 }
 
 /* ---------- reduced motion ---------- */
