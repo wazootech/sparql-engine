@@ -3033,6 +3033,39 @@ Deno.test("WazooSparqlEngine - property paths inside EXISTS respect GRAPH scopes
   );
 });
 
+Deno.test("WazooSparqlEngine - EXISTS in the projection expression evaluates per row", async () => {
+  // s has an r edge, t and u do not — the projected EXISTS flag must be true
+  // only for s. This is the projection-phase hook the Oxigraph gate also
+  // probes (test/w3c/exists-ref.ts); previously only the Comunica parity
+  // suite covered this position, with no in-repo unit assertion.
+  const store = new Store();
+  const ex = (local: string) => namedNode(`http://example.org/${local}`);
+  const add = (s: string, p: string, o: string) =>
+    store.addQuad(quad(ex(s), ex(p), ex(o)));
+  add("s", "q", "x");
+  add("t", "q", "y");
+  add("u", "q", "z");
+  add("s", "r", "z");
+  const engine = new WazooSparqlEngine({ store });
+
+  const result = await engine.execute({
+    query: "SELECT ?s (EXISTS { ?s <http://example.org/r> ?o } AS ?flag) " +
+      "WHERE { ?s <http://example.org/q> ?w }",
+  });
+  assertEquals(result.kind, "select");
+  if (result.kind === "select") {
+    const rows = result.data.results.bindings.map((b) => ({
+      s: (b.s as { value: string }).value,
+      flag: (b.flag as { value: string }).value,
+    }));
+    assertEquals(rows.sort((a, b) => a.s.localeCompare(b.s)), [
+      { s: "http://example.org/s", flag: "true" },
+      { s: "http://example.org/t", flag: "false" },
+      { s: "http://example.org/u", flag: "false" },
+    ]);
+  }
+});
+
 Deno.test("WazooSparqlEngine - main-path joins never leak named graphs when EXISTS is present", async () => {
   // s lives in the default graph AND named graph g1; t lives only in g1.
   // With EXISTS present the main path could reuse the all-graph snapshot
