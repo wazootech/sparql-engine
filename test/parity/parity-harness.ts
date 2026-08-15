@@ -35,6 +35,12 @@ export interface ParityTestCase {
    * Set this for queries with ORDER BY, where row order is part of the contract.
    */
   orderSensitive?: boolean;
+
+  /**
+   * baseIri is the request-level base IRI sent to both engines (the query's
+   * own BASE directive, when present, wins over it).
+   */
+  baseIri?: string;
 }
 
 /**
@@ -102,7 +108,15 @@ function canonicalComunicaQuadString(item: rdfjs.Quad): string {
  * statically.
  */
 function extractSelectVars(query: string): string[] | null {
-  const ast = new SparqlJsParser().parse(query);
+  // Best-effort: queries that need a base to parse (e.g. a relative PREFIX
+  // IRI without a BASE directive) yield no static projection — the caller
+  // then skips the variable-count cross-check rather than failing the case.
+  let ast;
+  try {
+    ast = new SparqlJsParser().parse(query);
+  } catch {
+    return null;
+  }
   if (ast.type !== "query" || ast.queryType !== "SELECT") {
     return null;
   }
@@ -222,8 +236,12 @@ export async function runComunicaRawSelectBindings(
   engine: QueryEngine,
   query: string,
   store: Store,
+  baseIri?: string,
 ): Promise<Array<Record<string, rdfjs.Term>>> {
-  const stream = await engine.queryBindings(query, { sources: [store] });
+  const stream = await engine.queryBindings(query, {
+    sources: [store],
+    ...(baseIri === undefined ? {} : { baseIRI: baseIri }),
+  });
   const bindings = await stream.toArray();
   return bindings.map((binding) => {
     const record: Record<string, rdfjs.Term> = {};
@@ -246,8 +264,14 @@ async function runComunicaSelect(
   engine: QueryEngine,
   query: string,
   store: Store,
+  baseIri?: string,
 ): Promise<string[]> {
-  const rawBindings = await runComunicaRawSelectBindings(engine, query, store);
+  const rawBindings = await runComunicaRawSelectBindings(
+    engine,
+    query,
+    store,
+    baseIri,
+  );
   return rawBindings.map((record) => {
     const canonical: Record<string, CanonicalTerm> = {};
     for (const name of Object.keys(record)) {
@@ -265,8 +289,12 @@ async function runComunicaConstruct(
   engine: QueryEngine,
   query: string,
   store: Store,
+  baseIri?: string,
 ): Promise<string[]> {
-  const stream = await engine.queryQuads(query, { sources: [store] });
+  const stream = await engine.queryQuads(query, {
+    sources: [store],
+    ...(baseIri === undefined ? {} : { baseIRI: baseIri }),
+  });
   const quads = await stream.toArray();
   return quads.map(canonicalComunicaQuadString);
 }
@@ -290,6 +318,7 @@ async function compareResult(
         comunicaEngine,
         testCase.query,
         comunicaStore,
+        testCase.baseIri,
       );
       const varsMismatch = compareVars(
         extractSelectVars(testCase.query),
@@ -317,7 +346,12 @@ async function compareResult(
       }
       const comunicaBoolean = await comunicaEngine.queryBoolean(
         testCase.query,
-        { sources: [comunicaStore] },
+        {
+          sources: [comunicaStore],
+          ...(testCase.baseIri === undefined
+            ? {}
+            : { baseIRI: testCase.baseIri }),
+        },
       );
       if (comunicaBoolean !== wazooResult.data.boolean) {
         return (
@@ -335,6 +369,7 @@ async function compareResult(
         comunicaEngine,
         testCase.query,
         comunicaStore,
+        testCase.baseIri,
       );
       const wazooQuads = wazooResult.data.quads.map(canonicalQuadString);
       // Issue #87 contract: the reference side is normalized to graph
@@ -355,6 +390,7 @@ async function compareResult(
         comunicaEngine,
         testCase.query,
         comunicaStore,
+        testCase.baseIri,
       );
       // DESCRIBE results are graphs (sets): Comunica's stream may repeat a
       // resource's arcs, so both sides are deduplicated before comparing.
@@ -380,7 +416,10 @@ export async function assertQueryParity(
     store: createQuadStore(testCase.quads),
   });
 
-  const wazooResult = await wazooEngine.execute({ query: testCase.query });
+  const wazooResult = await wazooEngine.execute({
+    query: testCase.query,
+    ...(testCase.baseIri === undefined ? {} : { baseIri: testCase.baseIri }),
+  });
   const mismatch = await compareResult(
     testCase,
     comunicaEngine,

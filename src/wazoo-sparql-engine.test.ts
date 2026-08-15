@@ -4170,3 +4170,82 @@ Deno.test("WazooSparqlEngine - bare ~ matches any reifier of the triple", async 
     assertEquals(result.data.results.bindings.length, 2);
   }
 });
+
+Deno.test("WazooSparqlEngine - request baseIri resolves relative IRI() when no BASE directive", async () => {
+  const engine = new WazooSparqlEngine({ store: new Store() });
+  const result = await engine.execute({
+    query: `SELECT ?iri WHERE { BIND(IRI("rel/path") AS ?iri) }`,
+    baseIri: "http://example.org/root/",
+  });
+  assertEquals(result.kind, "select");
+  if (result.kind === "select") {
+    assertEquals(
+      result.data.results.bindings[0].iri.value,
+      "http://example.org/root/rel/path",
+    );
+  }
+});
+
+Deno.test("WazooSparqlEngine - the query's BASE directive wins over request baseIri", async () => {
+  const engine = new WazooSparqlEngine({ store: new Store() });
+  const result = await engine.execute({
+    query: `BASE <http://directive.example/>
+SELECT ?iri WHERE { BIND(IRI("rel/path") AS ?iri) }`,
+    baseIri: "http://request.example/",
+  });
+  assertEquals(result.kind, "select");
+  if (result.kind === "select") {
+    assertEquals(
+      result.data.results.bindings[0].iri.value,
+      "http://directive.example/rel/path",
+    );
+  }
+});
+
+Deno.test("WazooSparqlEngine - query cache distinguishes baseIri", async () => {
+  // The parse depends on the base (query.base and prefix resolution), so the
+  // same query string with different request bases must not share a cache
+  // entry (issue #117).
+  const engine = new WazooSparqlEngine({ store: new Store() });
+  const query = `SELECT ?iri WHERE { BIND(IRI("rel/path") AS ?iri) }`;
+  const first = await engine.execute({
+    query,
+    baseIri: "http://first.example/",
+  });
+  const second = await engine.execute({
+    query,
+    baseIri: "http://second.example/",
+  });
+  assertEquals(first.kind, "select");
+  assertEquals(second.kind, "select");
+  if (first.kind === "select" && second.kind === "select") {
+    assertEquals(
+      first.data.results.bindings[0].iri.value,
+      "http://first.example/rel/path",
+    );
+    assertEquals(
+      second.data.results.bindings[0].iri.value,
+      "http://second.example/rel/path",
+    );
+  }
+});
+
+Deno.test("WazooSparqlEngine - relative LOAD source resolves against request baseIri", async () => {
+  const dir = await Deno.makeTempDir();
+  const turtlePath = `${dir}/data.ttl`;
+  await Deno.writeTextFile(
+    turtlePath,
+    "<http://example.org/s> <p> <http://example.org/o> .\n",
+  );
+  const store = new Store();
+  const engine = new WazooSparqlEngine({ store });
+  const result = await engine.execute({
+    query: "LOAD <data.ttl>",
+    baseIri: new URL(`file:///${dir.replace(/\\/g, "/")}/`).href,
+  });
+  assertEquals(result.kind, "void");
+  const loaded = store.getQuads(null, null, null, null);
+  assertEquals(loaded.length, 1);
+  assertEquals(loaded[0].subject.value, "http://example.org/s");
+  await Deno.remove(dir, { recursive: true });
+});

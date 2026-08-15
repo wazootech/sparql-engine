@@ -22,9 +22,14 @@ export class SparqlParser {
   }
 
   /**
-   * parse converts a raw SPARQL string into a typed SparqlQuery AST.
+   * parse converts a raw SPARQL string into a typed SparqlQuery AST. The
+   * optional baseIri is the base for relative IRIs when the query has no
+   * BASE directive (the directive wins when both are present).
    */
-  public parse(query: string): SparqlQuery {
-    return this.parser.parse(query);
+  public parse(
+    query: string,
+    options?: { baseIRI?: string },
+  ): SparqlQuery {
+    return this.parser.parse(query, options);
   }
 }

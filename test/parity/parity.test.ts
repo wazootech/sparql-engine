@@ -1422,6 +1422,47 @@ Deno.test("parity - IRI and URI function", async () => {
   });
 });
 
+Deno.test("parity - request-level baseIri resolves relative IRIs (no BASE directive)", async () => {
+  const query = `SELECT ?iri WHERE { BIND(IRI("rel/path") AS ?iri) }`;
+  await assertQueryParity({
+    name: "request baseIri resolves relative IRIs",
+    kind: "select",
+    query,
+    quads: [],
+    baseIri: "http://example.org/root/",
+  });
+});
+
+Deno.test("parity - BASE directive wins over request-level baseIri", async () => {
+  const query = `BASE <http://directive.example/>
+SELECT ?iri WHERE { BIND(IRI("rel/path") AS ?iri) }`;
+  await assertQueryParity({
+    name: "BASE directive wins over request baseIri",
+    kind: "select",
+    query,
+    quads: [],
+    baseIri: "http://request.example/",
+  });
+});
+
+Deno.test("parity - relative PREFIX IRI resolves against request baseIri", async () => {
+  const query = `PREFIX ex: <relative/ns#>
+SELECT ?s WHERE { ?s ex:p ?o }`;
+  await assertQueryParity({
+    name: "relative PREFIX resolves against request baseIri",
+    kind: "select",
+    query,
+    quads: [
+      quad(
+        namedNode("http://example.org/root/relative/ns#s1"),
+        namedNode("http://example.org/root/relative/ns#p"),
+        namedNode("http://example.org/o1"),
+      ),
+    ],
+    baseIri: "http://example.org/root/",
+  });
+});
+
 Deno.test("parity - TZ function", async () => {
   const query = `PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
 SELECT ?tz1 ?tz2 WHERE {

@@ -101,10 +101,17 @@ export class WazooSparqlEngine implements SparqlEngineInterface {
   /** execute runs a SPARQL query/update against the configured store. */
   public async execute(request: SparqlRequest): Promise<SparqlResponse> {
     const raw = request.query;
-    let ast = this.queryCache.get(raw);
+    const baseIri = request.baseIri;
+    // The parse depends on the base (the grammar resolves prefix IRIs and
+    // records query.base from it), so the cache key carries it.
+    const cacheKey = baseIri === undefined ? raw : `${raw}\u0000${baseIri}`;
+    let ast = this.queryCache.get(cacheKey);
     if (ast === undefined) {
-      ast = this.parser.parse(raw);
-      this.queryCache.set(raw, ast);
+      ast = this.parser.parse(
+        raw,
+        baseIri === undefined ? undefined : { baseIRI: baseIri },
+      );
+      this.queryCache.set(cacheKey, ast);
       if (this.queryCache.size > WazooSparqlEngine.QUERY_CACHE_MAX) {
         const oldest = this.queryCache.keys().next().value;
         if (oldest !== undefined) {
@@ -113,7 +120,9 @@ export class WazooSparqlEngine implements SparqlEngineInterface {
       }
     }
     if (ast.type === "update") {
-      await this.updateEvaluator.executeUpdate(ast);
+      // The parser folds the request base into the AST when the query has
+      // no BASE directive, so ast.base is the effective base either way.
+      await this.updateEvaluator.executeUpdate(ast, ast.base ?? baseIri);
       return { kind: "void" };
     }
     return await this.evaluator.evaluateQuery(ast);

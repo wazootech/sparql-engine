@@ -75,7 +75,9 @@ export interface SparqlParserOptions {
  * during every parse.
  */
 export class Parser {
-  private readonly parser: { parse(input: string): SparqlQuery };
+  private readonly parser: {
+    parse(input: string, options?: { baseIRI?: string }): SparqlQuery;
+  };
 
   public constructor(options: SparqlParserOptions = {}) {
     const prefixes = options.prefixes ?? {};
@@ -93,8 +95,15 @@ export class Parser {
       ...prefixes,
     };
 
-    generated.parse = function (input: string): SparqlQuery {
-      GeneratedParser.base = baseIRI;
+    generated.parse = function (
+      input: string,
+      parseOptions: { baseIRI?: string } = {},
+    ): SparqlQuery {
+      // The per-parse base overrides the construction-time base, and the
+      // grammar's BASE directive action in turn overrides both (resolving
+      // the directive against the current base) — so the directive always
+      // wins and the option is the fallback, matching sparqljs upstream.
+      GeneratedParser.base = parseOptions.baseIRI ?? baseIRI;
       GeneratedParser.prefixes = Object.create(prefixTable);
       GeneratedParser.factory = DataFactory;
       GeneratedParser.sparqlStar = sparqlStar;
@@ -106,10 +115,17 @@ export class Parser {
     this.parser = generated;
   }
 
-  /** Parse a raw SPARQL query/update string into a sparqljs AST. */
-  public parse(query: string): SparqlQuery {
+  /**
+   * Parse a raw SPARQL query/update string into a sparqljs AST. The optional
+   * baseIRI is the base for relative IRIs when the query has no BASE
+   * directive (the directive wins when both are present).
+   */
+  public parse(
+    query: string,
+    options: { baseIRI?: string } = {},
+  ): SparqlQuery {
     try {
-      return this.parser.parse(query);
+      return this.parser.parse(query, options);
     } catch (error) {
       if (error instanceof SparqlSyntaxError) {
         throw error;
