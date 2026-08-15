@@ -24,11 +24,15 @@ import {
 
 const { defaultGraph } = DataFactory;
 import {
+  filterBindings,
   innerJoin,
   isPropertyPath,
   joinPathPattern,
+  joinPathPatternLazy,
   joinTriplePattern,
+  joinTriplePatternLazy,
   leftJoin,
+  mapBindings,
   minus,
   scanEntry,
   scanPathEntry,
@@ -294,6 +298,9 @@ export class BgpEvaluator {
     index: QuadIndex,
     quads: rdfjs.Quad[],
   ): TermBinding[] {
+    // The synchronous EXISTS path stays eager (the decided sync-hook
+    // contract): every pattern form returns a materialized array, including
+    // the join generators collected at each pattern's return.
     let result = bindings;
     for (const pattern of patterns) {
       result = this.evaluateExistsPattern(
@@ -375,7 +382,9 @@ export class BgpEvaluator {
           // instead of rebuilding an index over the probed bucket per
           // solution — the EXISTS hook joins one solution at a time. The
           // index is the call's captured snapshot, never re-read from the
-          // shared cache mid-evaluation (issue #72).
+          // shared cache mid-evaluation (issue #72). The group materializes
+          // the generator at the pattern boundary, so the sync path stays
+          // eager.
           result = joinTriplePattern(result, entry, index, graph);
         }
         return result;
@@ -478,7 +487,7 @@ export class BgpEvaluator {
           }
           return binding;
         });
-        return innerJoin(bindings, rows);
+        return [...innerJoin(bindings, rows)];
       }
       case "optional": {
         // The OPTIONAL group's own FILTER expressions are hoisted out and
@@ -503,13 +512,13 @@ export class BgpEvaluator {
           index,
           quads,
         );
-        return leftJoin(
+        return [...leftJoin(
           bindings,
           right,
           filters.map((expression) => (binding: TermBinding) =>
             this.expressionEvaluator.filterPasses(expression, binding, context)
           ),
-        );
+        )];
       }
       case "minus": {
         const right = this.evaluateExistsGroup(
@@ -520,7 +529,7 @@ export class BgpEvaluator {
           index,
           quads,
         );
-        return minus(bindings, right);
+        return [...minus(bindings, right)];
       }
       case "union": {
         // Each branch evaluates independently over the graph scope; the union
@@ -539,7 +548,7 @@ export class BgpEvaluator {
             ),
           );
         }
-        return innerJoin(bindings, branchResults.flat());
+        return [...innerJoin(bindings, branchResults.flat())];
       }
       case "group":
         // A nested { ... } block recurses over the same scope, mirroring the
@@ -591,7 +600,7 @@ export class BgpEvaluator {
           this.expressionEvaluator,
           subContext,
         );
-        return innerJoin(bindings, subResults);
+        return [...innerJoin(bindings, subResults)];
       }
       default:
         throw new Error(
@@ -702,7 +711,14 @@ export class BgpEvaluator {
    * evaluateGroup threads the current solutions through a pattern list in
    * written order: each pattern transforms the binding set, so BGP joins
    * constrain it, FILTERs narrow it, OPTIONALs extend it, and MINUSes
-   * eliminate it.
+   * eliminate it. The lazy slice (issue #74) keeps the solution flow as a
+   * streaming iterable between patterns — BGP triple joins, FILTER passes,
+   * BIND extensions, and OPTIONAL/MINUS/UNION/VALUES/GRAPH joins all emit
+   * incrementally — materializing exactly once at the group boundary, so a
+   * long pattern chain no longer holds an intermediate binding array per
+   * step. Nested group calls (OPTIONAL/MINUS/UNION/GRAPH bodies, subquery
+   * WHEREs) resolve their own groups eagerly here, so their results arrive
+   * as arrays; only the enclosing group's own solution flow streams.
    */
   private async evaluateGroup(
     patterns: Pattern[],
@@ -724,7 +740,7 @@ export class BgpEvaluator {
         nonFilters.push(p);
       }
     }
-    let result = bindings;
+    let result: Iterable<TermBinding> = bindings;
     for (const pattern of nonFilters) {
       result = await this.evaluatePattern(pattern, result, store, snapshot);
     }
@@ -736,18 +752,22 @@ export class BgpEvaluator {
         snapshot,
       );
     }
-    return result;
+    // Materialize exactly once at the group boundary (an array result — the
+    // single-pattern BGP fast path — passes through without a copy).
+    return Array.isArray(result) ? result : [...result];
   }
 
   /**
    * evaluatePattern applies a single graph pattern to the current solutions.
+   * The bindings may stream as an iterable (the group's lazy solution flow);
+   * the result is an iterable the next pattern consumes.
    */
   private async evaluatePattern(
     pattern: Pattern,
-    bindings: TermBinding[],
+    bindings: TermBinding[] | Iterable<TermBinding>,
     store: rdfjs.Source<rdfjs.Quad>,
     snapshot: ExistsSnapshot | null,
-  ): Promise<TermBinding[]> {
+  ): Promise<Iterable<TermBinding>> {
     switch (pattern.type) {
       case "bgp":
         return await this.joinBgp(pattern.triples, bindings, store, snapshot);
@@ -755,12 +775,14 @@ export class BgpEvaluator {
         const context = expressionContainsExists(pattern.expression)
           ? this.scopedExistsContext(store, snapshot)
           : this.existsContext(store);
-        return bindings.filter((binding) =>
-          this.expressionEvaluator.filterPasses(
-            pattern.expression,
-            binding,
-            context,
-          )
+        return filterBindings(
+          bindings,
+          (binding) =>
+            this.expressionEvaluator.filterPasses(
+              pattern.expression,
+              binding,
+              context,
+            ),
         );
       }
       case "optional": {
@@ -828,7 +850,7 @@ export class BgpEvaluator {
         const context = expressionContainsExists(pattern.expression)
           ? this.scopedExistsContext(store, snapshot)
           : this.existsContext(store);
-        return bindings.map((binding) => {
+        return mapBindings(bindings, (binding) => {
           const value = this.expressionEvaluator.evaluate(
             pattern.expression,
             binding,
@@ -931,14 +953,19 @@ export class BgpEvaluator {
 
   /**
    * joinBgp joins the current solutions against the triples of one BGP
-   * block, optionally reordering the triples by estimated join cost.
+   * block, optionally reordering the triples by estimated join cost. The
+   * written-order path returns the pattern chain as a lazy generator (issue
+   * #74): each triple's join yields extended bindings one at a time, so the
+   * intermediate per-pattern binding arrays are never held. The reordered
+   * path keeps eager per-join materialization because the cost estimate
+   * needs the current result set.
    */
   private async joinBgp(
     triples: Triple[],
-    bindings: TermBinding[],
+    bindings: TermBinding[] | Iterable<TermBinding>,
     store: rdfjs.Source<rdfjs.Quad>,
     snapshot: ExistsSnapshot | null,
-  ): Promise<TermBinding[]> {
+  ): Promise<Iterable<TermBinding>> {
     // Reified-triple patterns (`<< s p o >>`, annotation `{| ... |}`) expand
     // into plain `rdf:reifies` triples before any scanning or reordering.
     const expanded = expandReifiedTriples(triples);
@@ -957,7 +984,27 @@ export class BgpEvaluator {
         prebuiltIndex,
       );
     }
-    let result = bindings;
+    // A single-pattern BGP has no chain to stream, so it takes the eager
+    // array join (which is also measurably lighter than the generator for
+    // the unselective full-scan case). Only a multi-pattern BGP composes
+    // the lazy join chain, which streams the intermediate binding flow
+    // instead of materializing an array per pattern.
+    if (expanded.length === 1) {
+      const triple = expanded[0];
+      const input = Array.isArray(bindings) ? bindings : [...bindings];
+      if (isPropertyPath(triple.predicate)) {
+        const entry = await scanPathEntry(
+          store,
+          triple.predicate,
+          triple.subject,
+          triple.object,
+        );
+        return joinPathPattern(input, entry);
+      }
+      const entry = await scanEntry(store, triple);
+      return joinTriplePattern(input, entry, prebuiltIndex);
+    }
+    let result: Iterable<TermBinding> = bindings;
     for (const triple of expanded) {
       if (isPropertyPath(triple.predicate)) {
         const entry = await scanPathEntry(
@@ -966,10 +1013,10 @@ export class BgpEvaluator {
           triple.subject,
           triple.object,
         );
-        result = joinPathPattern(result, entry);
+        result = joinPathPatternLazy(result, entry);
       } else {
         const entry = await scanEntry(store, triple);
-        result = joinTriplePattern(result, entry, prebuiltIndex);
+        result = joinTriplePatternLazy(result, entry, prebuiltIndex);
       }
     }
     return result;
@@ -977,11 +1024,14 @@ export class BgpEvaluator {
 
   /**
    * evaluateWithReordering scans every pattern once, then greedily joins the
-   * pattern with the lowest estimated cost against the current bindings.
+   * pattern with the lowest estimated cost against the current bindings. The
+   * estimate needs the full current result set, so each join materializes
+   * here (the reordered path stays eager; the lazy chain applies to the
+   * written-order path).
    */
   private async evaluateWithReordering(
     triplePatterns: Triple[],
-    bindings: TermBinding[],
+    bindings: TermBinding[] | Iterable<TermBinding>,
     store: rdfjs.Source<rdfjs.Quad>,
     prebuiltIndex: QuadIndex | null,
   ): Promise<TermBinding[]> {
@@ -989,7 +1039,9 @@ export class BgpEvaluator {
       triplePatterns.map((pattern) => scanEntry(store, pattern)),
     );
 
-    let result = bindings;
+    let result: TermBinding[] = Array.isArray(bindings)
+      ? bindings
+      : [...bindings];
     while (remaining.length > 0) {
       let bestIndex = 0;
       let bestCost = Number.POSITIVE_INFINITY;
