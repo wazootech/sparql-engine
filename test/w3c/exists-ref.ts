@@ -5,16 +5,21 @@ import { WazooSparqlEngine } from "@/wazoo-sparql-engine.ts";
 
 /**
  * EXISTS surface cross-check: the wazoo engine must agree with Oxigraph on
- * subqueries inside EXISTS/NOT EXISTS.
+ * EXISTS/NOT EXISTS evaluation. Covered families:
+ *
+ * - subqueries inside EXISTS/NOT EXISTS (FILTER EXISTS { SELECT ... })
+ * - plain (non-subquery) FILTER EXISTS over the default graph
+ * - EXISTS in the select-pipeline projection expression
+ * - EXISTS over named graphs: GRAPH <g> (fixed) and GRAPH ?g (correlated)
  *
  * The EXISTS evaluator (src/evaluator/bgp-evaluator.ts) evaluates subqueries
  * over the graph-scoped candidate snapshot, then runs the shared select
  * pipeline (src/evaluator/select-pipeline.ts). The in-repo regression tests
  * assert wazoo semantics; this gate cross-validates them against an
  * independent SPARQL 1.1 engine — Oxigraph (Rust/WASM) — so a future change
- * that quietly breaks subquery-in-EXISTS evaluation fails CI even if the
- * unit tests are updated to match. Every case projects one variable; the
- * comparison is over the sorted set of projected values.
+ * that quietly breaks EXISTS evaluation fails CI even if the unit tests are
+ * updated to match. Every case projects one variable; the comparison is over
+ * the sorted set of projected values.
  *
  * This mirrors the earlier probe-driven validation (wazoo = Oxigraph on all
  * 9 cases, SPARQL 1.1 §18.2.4 non-correlation included) and keeps it
@@ -37,6 +42,11 @@ ex:u ex:p ex:c .
 ex:s ex:q "x" .
 ex:t ex:q "y" .
 ex:s ex:r ex:z .
+ex:s ex:inG ex:g .
+ex:t ex:inG ex:g .
+ex:u ex:inG ex:g .
+ex:g { ex:s ex:r ex:g1 . ex:t ex:r ex:g2 . }
+ex:h { ex:x1 ex:other ex:x2 . }
 `;
 
 interface Case {
@@ -126,6 +136,40 @@ const CASES: Case[] = [
       "FILTER EXISTS { ?x <http://example.org/r> ?z } } " +
       "HAVING (COUNT(?x) = 1) } }",
   },
+  {
+    // EXISTS in the projection expression (select-pipeline hook): the flag
+    // is true only for ex:s, which has an r edge. A change that stops
+    // evaluating projection-position EXISTS drops or mis-flags rows.
+    name: "projection-expr-exists",
+    query: "SELECT ?s (EXISTS { ?s <http://example.org/r> ?o } AS ?flag) " +
+      "WHERE { ?s <http://example.org/q> ?w }",
+  },
+  {
+    // Plain (non-subquery) FILTER EXISTS over the default graph — the
+    // sibling of the subquery form the other cases use. Only ex:s has an r
+    // edge, so only it survives.
+    name: "filter-exists-plain",
+    query: "SELECT ?s WHERE { ?s <http://example.org/q> ?w " +
+      "FILTER EXISTS { ?s <http://example.org/r> ?z } }",
+  },
+  {
+    // Fixed named graph with no r edges: the graph-scoped snapshot must not
+    // leak default-graph quads (ex:s ex:r ex:z) into GRAPH <h>, so the
+    // EXISTS is false and the result is empty. Leaking would return s, t, u.
+    name: "named-graph-fixed",
+    query: "SELECT ?s WHERE { ?s <http://example.org/q> ?w " +
+      "FILTER EXISTS { GRAPH <http://example.org/h> { " +
+      "?x <http://example.org/r> ?z } } }",
+  },
+  {
+    // Correlated GRAPH ?g: the graph scope follows the outer binding. s and
+    // t have r edges in ex:g, so (s, g) and (t, g) pass; u does not. Leaking
+    // into the default graph would admit only s (the sole default r edge).
+    name: "named-graph-correlated",
+    query: "SELECT ?s WHERE { ?s <http://example.org/q> ?w " +
+      ". ?s <http://example.org/inG> ?g " +
+      "FILTER EXISTS { GRAPH ?g { ?s <http://example.org/r> ?z } } }",
+  },
 ];
 
 const { namedNode, literal, quad } = DataFactory;
@@ -135,6 +179,8 @@ function wazooStore(): Store {
   const ex = (local: string) => namedNode(`http://example.org/${local}`);
   const add = (s: string, p: string, o: string) =>
     store.addQuad(quad(ex(s), ex(p), ex(o)));
+  const addG = (s: string, p: string, o: string, g: string) =>
+    store.addQuad(quad(ex(s), ex(p), ex(o), ex(g)));
   add("s", "p", "a");
   add("t", "p", "b");
   add("u", "p", "c");
@@ -144,6 +190,15 @@ function wazooStore(): Store {
   // below rely on this to filter subquery rows, so a future change that
   // stops evaluating nested filters flips the HAVING count and diverges.
   store.addQuad(quad(ex("s"), ex("r"), ex("z")));
+  // Named-graph data, mirroring the TURTLE GRAPH blocks: ex:g carries r
+  // edges for s and t (the correlated GRAPH ?g probes), ex:h carries only
+  // an unrelated triple (the fixed GRAPH <h> probe must see no r edge).
+  add("s", "inG", "g");
+  add("t", "inG", "g");
+  add("u", "inG", "g");
+  addG("s", "r", "g1", "g");
+  addG("t", "r", "g2", "g");
+  addG("x1", "other", "x2", "h");
   return store;
 }
 
@@ -165,7 +220,9 @@ async function wazooProjected(
 /** Oxigraph: query a fresh store loaded from the shared Turtle text. */
 function oxigraphProjected(query: string, variable: string): string[] {
   const store = new oxigraph.Store();
-  store.load(TURTLE, { format: "text/turtle", base_iri: BASE });
+  // The TURTLE text carries TriG named-graph blocks; oxigraph's loader needs
+  // the trig media type to parse them (text/turtle rejects the `{ }` form).
+  store.load(TURTLE, { format: "application/trig", base_iri: BASE });
   // The wasm bindings read `media_type` (the TS types are stale and only
   // advertise `results_format`); without it the query returns raw terms.
   const rows = store.query(query, {
@@ -193,7 +250,7 @@ for (const c of CASES) {
   );
 }
 
-console.log(`\n${CASES.length} EXISTS-subquery case(s) cross-checked.`);
+console.log(`\n${CASES.length} EXISTS case(s) cross-checked.`);
 if (failures > 0) {
   console.error(
     `\nCross-check FAILED: wazoo diverges from Oxigraph on ${failures} ` +
@@ -203,6 +260,6 @@ if (failures > 0) {
   Deno.exit(1);
 }
 console.log(
-  "\nCross-check passed: wazoo agrees with Oxigraph on every subquery-in-" +
-    "EXISTS case, including §18.2.4 non-correlation.",
+  "\nCross-check passed: wazoo agrees with Oxigraph on every EXISTS case," +
+    " including §18.2.4 non-correlation.",
 );
