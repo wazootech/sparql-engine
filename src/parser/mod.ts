@@ -28,6 +28,8 @@
 import { DataFactory } from "@/term/data-factory.ts";
 import type { SparqlQuery } from "./ast.ts";
 export type * from "./ast.ts";
+export { SparqlSyntaxError } from "./syntax-error.ts";
+import { SparqlSyntaxError, toSparqlSyntaxError } from "./syntax-error.ts";
 
 import generatedParser from "./parser.ts";
 
@@ -106,7 +108,21 @@ export class Parser {
 
   /** Parse a raw SPARQL query/update string into a sparqljs AST. */
   public parse(query: string): SparqlQuery {
-    return this.parser.parse(query);
+    try {
+      return this.parser.parse(query);
+    } catch (error) {
+      if (error instanceof SparqlSyntaxError) {
+        throw error;
+      }
+      // Map the generated jison parse/lex error into a typed, position-aware
+      // SparqlSyntaxError; non-syntax failures (e.g. sparqljs validation
+      // errors) propagate unchanged.
+      const syntax = toSparqlSyntaxError(query, error);
+      if (syntax !== null) {
+        throw syntax;
+      }
+      throw error;
+    }
   }
 
   /** Reset the parser's blank-node label counter between parses. */
