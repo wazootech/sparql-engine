@@ -11,6 +11,7 @@ import {
   Store as OxigraphStore,
 } from "oxigraph";
 import { WazooSparqlEngine } from "@/wazoo-sparql-engine.ts";
+import { BaselineJoinCostEstimator } from "@/planner/join-cost-estimator.ts";
 import {
   canonicalizeComunicaTerm,
   getComunicaEngine,
@@ -196,6 +197,23 @@ const wazooEngineNoReorder = new WazooSparqlEngine({
   store: memoryStore,
   reorderPatterns: false,
 });
+// The greedy surrogate engine disables the DP join-order search (issue
+// #130) while keeping the exact baseline cost formula: the DP path activates
+// only for BaselineJoinCostEstimator instances, so an estimator object
+// delegating to the baseline formula runs the piece-1/2 greedy stepwise
+// planner. The dp-join group compares the two planners on the same query.
+const wazooGreedyEngine = new WazooSparqlEngine({
+  store: memoryStore,
+  estimator: {
+    estimateJoinCost(scan, bindings, stats) {
+      return new BaselineJoinCostEstimator().estimateJoinCost(
+        scan,
+        bindings,
+        stats,
+      );
+    },
+  },
+});
 const comunicaEngine = getComunicaEngine();
 
 // 10k-subject scaling group: the same person-ring shape at 25x the main
@@ -236,6 +254,17 @@ const chainQuery =
   "SELECT ?s ?grand ?n WHERE { ?s <http://xmlns.com/foaf/0.1/knows> ?friend . " +
   "?grand <http://xmlns.com/foaf/0.1/name> ?n . " +
   "?friend <http://xmlns.com/foaf/0.1/knows> ?grand }";
+// DP-vs-greedy shape (issue #130): two patterns sharing both variables (400
+// candidates each, buckets of 1) plus a smaller unrelated pattern (200
+// spouse edges). The greedy stepwise planner joins the unrelated pattern
+// first — it is the cheapest single join — then pays the full cross product
+// twice; the DP join-order search joins the shared pair first and pays it
+// once. Written order is irrelevant: both planners reorder. Result: 400 x
+// 200 = 80,000 rows on the shared benchmark graph.
+const dpJoinQuery =
+  "SELECT ?s ?o ?n ?z ?w WHERE { ?s <http://xmlns.com/foaf/0.1/knows> ?o . " +
+  "?s <http://xmlns.com/foaf/0.1/name> ?n . " +
+  "?z <http://example.org/spouse> ?w }";
 // Mutating update: moves every name quad to a new predicate. Used for the
 // cross-engine verification, which runs on fresh throwaway stores so a
 // broken engine that silently ignores updates is caught (its store would
@@ -894,6 +923,7 @@ await verifyConstructEquality(constructQuery, "construct");
 await verifyUpdateEquality(moveUpdateQuery, "update-move");
 await verifyUpdateEquality(rewriteUpdateQuery, "update-rewrite");
 await verifySelectEquality(chainQuery, "reorder-chain");
+await verifySelectEquality(dpJoinQuery, "dp-join");
 await verifySelectEquality(optionalQuery, "optional");
 await verifySelectEquality(minusQuery, "minus");
 await verifySelectEquality(unionQuery, "union");
@@ -1107,6 +1137,64 @@ Deno.bench({ name: "oxigraph - chain", group: "reorder-chain" }, () => {
   ) as unknown as OxigraphBinding[];
   if (result.length === 0) {
     throw new Error("oxigraph chain returned no bindings");
+  }
+});
+
+// dp-join: the DP join-order search (issue #130) vs the greedy stepwise
+// planner on the two-shared-variable shape. Both wazoo rows must return the
+// full 80,000-row result; the greedy surrogate runs the identical baseline
+// cost formula with the DP path disabled, isolating the ordering win.
+Deno.bench(
+  {
+    name: "wazoo - dp-join (DP plan)",
+    group: "dp-join",
+    baseline: true,
+  },
+  async () => {
+    const result = await wazooEngine.execute({ query: dpJoinQuery });
+    if (
+      result.kind !== "select" ||
+      result.data.results.bindings.length !== 80_000
+    ) {
+      throw new Error("wazoo dp-join (DP plan) returned the wrong row count");
+    }
+  },
+);
+
+Deno.bench(
+  {
+    name: "wazoo - dp-join (greedy surrogate)",
+    group: "dp-join",
+  },
+  async () => {
+    const result = await wazooGreedyEngine.execute({ query: dpJoinQuery });
+    if (
+      result.kind !== "select" ||
+      result.data.results.bindings.length !== 80_000
+    ) {
+      throw new Error(
+        "wazoo dp-join (greedy surrogate) returned the wrong row count",
+      );
+    }
+  },
+);
+
+Deno.bench({ name: "comunica - dp-join", group: "dp-join" }, async () => {
+  const stream = await comunicaEngine.queryBindings(dpJoinQuery, {
+    sources: [memoryStore],
+  });
+  const bindings = await stream.toArray();
+  if (bindings.length === 0) {
+    throw new Error("comunica dp-join returned no bindings");
+  }
+});
+
+Deno.bench({ name: "oxigraph - dp-join", group: "dp-join" }, () => {
+  const result = oxigraphStore.query(
+    dpJoinQuery,
+  ) as unknown as OxigraphBinding[];
+  if (result.length === 0) {
+    throw new Error("oxigraph dp-join returned no bindings");
   }
 });
 

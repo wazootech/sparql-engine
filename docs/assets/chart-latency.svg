@@ -1,5 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="780" height="588"
-  viewBox="0 0 780 588" font-family="ui-sans-serif, system-ui, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" width="780" height="648"
+  viewBox="0 0 780 648" font-family="ui-sans-serif, system-ui, sans-serif">
   <text x="12" y="18" font-size="14" font-weight="600"
     fill="#212529">Query latency by class</text>
   <rect x="12" y="30" width="10" height="10" rx="2" fill="#2f9e44" />
@@ -11,143 +11,157 @@
   <text x="12" y="62" font-size="11" font-weight="600"
     fill="#868e96">Core joins — 400-person graph</text>
   <text x="12" y="83" font-size="10" fill="#343a40">full scan</text>
-  <rect x="190" y="74" width="34.732999041147615" height="7" rx="1.5"
+  <rect x="190" y="74" width="53.89062143904138" height="7" rx="1.5"
     fill="#2f9e44" />
-  <text x="640" y="80" font-size="9" fill="#495057">0.96 ms</text>
-  <rect x="190" y="83" width="199.3796227531273" height="7" rx="1.5"
+  <text x="640" y="80" font-size="9" fill="#495057">1.1 ms</text>
+  <rect x="190" y="83" width="301.5186228123572" height="7" rx="1.5"
     fill="#f08c00" />
-  <text x="640" y="89" font-size="9" fill="#495057">5.5 ms</text>
+  <text x="640" y="89" font-size="9" fill="#495057">6.0 ms</text>
   <rect x="190" y="92" width="440" height="7" rx="1.5" fill="#1971c2" />
-  <text x="640" y="98" font-size="9" fill="#495057">12.2 ms</text>
+  <text x="640" y="98" font-size="9" fill="#495057">8.8 ms</text>
   <text x="12" y="113" font-size="10" fill="#343a40">join (knows × name)</text>
-  <rect x="190" y="104" width="84.49384330136337" height="7" rx="1.5"
+  <rect x="190" y="104" width="118.44875684423833" height="7" rx="1.5"
     fill="#2f9e44" />
-  <text x="640" y="110" font-size="9" fill="#495057">0.66 ms</text>
-  <rect x="190" y="113" width="395.1837011058611" height="7" rx="1.5"
-    fill="#f08c00" />
-  <text x="640" y="119" font-size="9" fill="#495057">3.1 ms</text>
-  <rect x="190" y="122" width="440" height="7" rx="1.5" fill="#1971c2" />
-  <text x="640" y="128" font-size="9" fill="#495057">3.4 ms</text>
+  <text x="640" y="110" font-size="9" fill="#495057">0.91 ms</text>
+  <rect x="190" y="113" width="440" height="7" rx="1.5" fill="#f08c00" />
+  <text x="640" y="119" font-size="9" fill="#495057">3.4 ms</text>
+  <rect x="190" y="122" width="209.01622824132966" height="7" rx="1.5"
+    fill="#1971c2" />
+  <text x="640" y="128" font-size="9" fill="#495057">1.6 ms</text>
   <text x="12" y="143" font-size="10" fill="#343a40">asymmetric join</text>
-  <rect x="190" y="134" width="27.056018074174524" height="7" rx="1.5"
+  <rect x="190" y="134" width="32.848490474939716" height="7" rx="1.5"
     fill="#2f9e44" />
-  <text x="640" y="140" font-size="9" fill="#495057">1.2 ms</text>
-  <rect x="190" y="143" width="438.6409920945212" height="7" rx="1.5"
-    fill="#f08c00" />
-  <text x="640" y="149" font-size="9" fill="#495057">19.2 ms</text>
-  <rect x="190" y="152" width="440" height="7" rx="1.5" fill="#1971c2" />
-  <text x="640" y="158" font-size="9" fill="#495057">19.3 ms</text>
+  <text x="640" y="140" font-size="9" fill="#495057">1.7 ms</text>
+  <rect x="190" y="143" width="440" height="7" rx="1.5" fill="#f08c00" />
+  <text x="640" y="149" font-size="9" fill="#495057">23.0 ms</text>
+  <rect x="190" y="152" width="220.20067664400736" height="7" rx="1.5"
+    fill="#1971c2" />
+  <text x="640" y="158" font-size="9" fill="#495057">11.5 ms</text>
   <text x="12" y="173" font-size="10"
     fill="#343a40">3-pattern chain, written order</text>
-  <rect x="190" y="164" width="440" height="7" rx="1.5" fill="#2f9e44" />
-  <text x="640" y="170" font-size="9" fill="#495057">97.4 ms</text>
-  <rect x="190" y="173" width="437.42169432902773" height="7" rx="1.5"
-    fill="#f08c00" />
-  <text x="640" y="179" font-size="9" fill="#495057">96.8 ms</text>
-  <rect x="190" y="182" width="19.009630650484816" height="7" rx="1.5"
+  <rect x="190" y="164" width="430.65162611286945" height="7" rx="1.5"
+    fill="#2f9e44" />
+  <text x="640" y="170" font-size="9" fill="#495057">105.5 ms</text>
+  <rect x="190" y="173" width="440" height="7" rx="1.5" fill="#f08c00" />
+  <text x="640" y="179" font-size="9" fill="#495057">107.8 ms</text>
+  <rect x="190" y="182" width="8.817805695598928" height="7" rx="1.5"
     fill="#1971c2" />
-  <text x="640" y="188" font-size="9" fill="#495057">4.2 ms</text>
+  <text x="640" y="188" font-size="9" fill="#495057">2.2 ms</text>
   <text x="12" y="203" font-size="10"
     fill="#343a40">3-pattern chain, planner on</text>
   <rect x="190" y="194" width="440" height="7" rx="1.5" fill="#2f9e44" />
-  <text x="640" y="200" font-size="9" fill="#495057">1.2 ms</text>
-  <text x="12" y="233" font-size="10" fill="#343a40">ASK</text>
-  <rect x="190" y="224" width="4.314649341734293" height="7" rx="1.5"
+  <text x="640" y="200" font-size="9" fill="#495057">1.5 ms</text>
+  <text x="12" y="233" font-size="10"
+    fill="#343a40">shared-variable pair, DP plan</text>
+  <rect x="190" y="224" width="24.438278159656146" height="7" rx="1.5"
     fill="#2f9e44" />
-  <text x="640" y="230" font-size="9" fill="#495057">3 µs</text>
-  <rect x="190" y="233" width="440" height="7" rx="1.5" fill="#f08c00" />
-  <text x="640" y="239" font-size="9" fill="#495057">0.29 ms</text>
-  <rect x="190" y="242" width="74.65275441908356" height="7" rx="1.5"
-    fill="#1971c2" />
-  <text x="640" y="248" font-size="9" fill="#495057">49 µs</text>
-  <text x="12" y="263" font-size="10" fill="#343a40">CONSTRUCT</text>
-  <rect x="190" y="254" width="42.0568018434995" height="7" rx="1.5"
-    fill="#2f9e44" />
-  <text x="640" y="260" font-size="9" fill="#495057">0.21 ms</text>
-  <rect x="190" y="263" width="440" height="7" rx="1.5" fill="#f08c00" />
-  <text x="640" y="269" font-size="9" fill="#495057">2.2 ms</text>
-  <rect x="190" y="272" width="267.99027041931737" height="7" rx="1.5"
-    fill="#1971c2" />
-  <text x="640" y="278" font-size="9" fill="#495057">1.4 ms</text>
-  <text x="12" y="293" font-size="10"
-    fill="#343a40">UPDATE (self-restoring)</text>
-  <rect x="190" y="284" width="429.3251445117704" height="7" rx="1.5"
-    fill="#2f9e44" />
-  <text x="640" y="290" font-size="9" fill="#495057">120.5 ms</text>
-  <rect x="190" y="293" width="440" height="7" rx="1.5" fill="#f08c00" />
-  <text x="640" y="299" font-size="9" fill="#495057">123.5 ms</text>
-  <rect x="190" y="302" width="1.6410969574707732" height="7" rx="1.5"
-    fill="#1971c2" />
-  <text x="640" y="308" font-size="9" fill="#495057">0.46 ms</text>
-  <text x="12" y="322" font-size="11" font-weight="600"
-    fill="#868e96">EXISTS surface — 10k-person graph</text>
-  <text x="12" y="343" font-size="10" fill="#343a40">FILTER EXISTS</text>
-  <rect x="190" y="334" width="31.17318937550949" height="7" rx="1.5"
-    fill="#2f9e44" />
-  <text x="640" y="340" font-size="9" fill="#495057">33.0 ms</text>
-  <rect x="190" y="343" width="440" height="7" rx="1.5" fill="#f08c00" />
-  <text x="640" y="349" font-size="9" fill="#495057">466.1 ms</text>
-  <rect x="190" y="352" width="32.09097742686481" height="7" rx="1.5"
-    fill="#1971c2" />
-  <text x="640" y="358" font-size="9" fill="#495057">34.0 ms</text>
-  <text x="12" y="373" font-size="10" fill="#343a40">FILTER NOT EXISTS</text>
-  <rect x="190" y="364" width="31.319768997619615" height="7" rx="1.5"
-    fill="#2f9e44" />
-  <text x="640" y="370" font-size="9" fill="#495057">33.2 ms</text>
-  <rect x="190" y="373" width="440" height="7" rx="1.5" fill="#f08c00" />
-  <text x="640" y="379" font-size="9" fill="#495057">466.2 ms</text>
-  <rect x="190" y="382" width="31.032220635511255" height="7" rx="1.5"
-    fill="#1971c2" />
-  <text x="640" y="388" font-size="9" fill="#495057">32.9 ms</text>
-  <text x="12" y="403" font-size="10" fill="#343a40">nested EXISTS</text>
-  <rect x="190" y="394" width="9.588401505752797" height="7" rx="1.5"
-    fill="#2f9e44" />
-  <text x="640" y="400" font-size="9" fill="#495057">40.9 ms</text>
-  <rect x="190" y="403" width="440" height="7" rx="1.5" fill="#f08c00" />
-  <text x="640" y="409" font-size="9" fill="#495057">1.9 s</text>
-  <rect x="190" y="412" width="9.232172396850427" height="7" rx="1.5"
-    fill="#1971c2" />
-  <text x="640" y="418" font-size="9" fill="#495057">39.4 ms</text>
-  <text x="12" y="433" font-size="10" fill="#343a40">nested NOT EXISTS</text>
-  <rect x="190" y="424" width="10.313548931359266" height="7" rx="1.5"
-    fill="#2f9e44" />
-  <text x="640" y="430" font-size="9" fill="#495057">43.0 ms</text>
-  <rect x="190" y="433" width="440" height="7" rx="1.5" fill="#f08c00" />
-  <text x="640" y="439" font-size="9" fill="#495057">1.8 s</text>
-  <rect x="190" y="442" width="9.718617926629296" height="7" rx="1.5"
-    fill="#1971c2" />
-  <text x="640" y="448" font-size="9" fill="#495057">40.6 ms</text>
-  <text x="12" y="462" font-size="11" font-weight="600"
-    fill="#868e96">Join surface — 10k-person graph</text>
-  <text x="12" y="483" font-size="10" fill="#343a40">UNION (10k × 20k)</text>
-  <rect x="190" y="474" width="169.91213810701166" height="7" rx="1.5"
-    fill="#2f9e44" />
-  <text x="640" y="480" font-size="9" fill="#495057">37.9 ms</text>
-  <rect x="190" y="483" width="390.2903062283609" height="7" rx="1.5"
+  <text x="640" y="230" font-size="9" fill="#495057">62.2 ms</text>
+  <rect x="190" y="233" width="74.81866978024851" height="7" rx="1.5"
     fill="#f08c00" />
-  <text x="640" y="489" font-size="9" fill="#495057">87.1 ms</text>
-  <rect x="190" y="492" width="440" height="7" rx="1.5" fill="#1971c2" />
-  <text x="640" y="498" font-size="9" fill="#495057">98.2 ms</text>
-  <text x="12" y="513" font-size="10" fill="#343a40">OPTIONAL (10k × 5k)</text>
-  <rect x="190" y="504" width="15.249759403270698" height="7" rx="1.5"
+  <text x="640" y="239" font-size="9" fill="#495057">190.4 ms</text>
+  <rect x="190" y="242" width="440" height="7" rx="1.5" fill="#1971c2" />
+  <text x="640" y="248" font-size="9" fill="#495057">1.1 s</text>
+  <text x="12" y="263" font-size="10"
+    fill="#343a40">shared-variable pair, greedy plan</text>
+  <rect x="190" y="254" width="440" height="7" rx="1.5" fill="#2f9e44" />
+  <text x="640" y="260" font-size="9" fill="#495057">125.2 ms</text>
+  <text x="12" y="293" font-size="10" fill="#343a40">ASK</text>
+  <rect x="190" y="284" width="5.076274594875335" height="7" rx="1.5"
     fill="#2f9e44" />
-  <text x="640" y="510" font-size="9" fill="#495057">15.4 ms</text>
-  <rect x="190" y="513" width="440" height="7" rx="1.5" fill="#f08c00" />
-  <text x="640" y="519" font-size="9" fill="#495057">444.4 ms</text>
-  <rect x="190" y="522" width="45.55257326740123" height="7" rx="1.5"
+  <text x="640" y="290" font-size="9" fill="#495057">4 µs</text>
+  <rect x="190" y="293" width="440" height="7" rx="1.5" fill="#f08c00" />
+  <text x="640" y="299" font-size="9" fill="#495057">0.32 ms</text>
+  <rect x="190" y="302" width="43.23821045264388" height="7" rx="1.5"
     fill="#1971c2" />
-  <text x="640" y="528" font-size="9" fill="#495057">46.0 ms</text>
-  <text x="12" y="543" font-size="10" fill="#343a40">MINUS (10k × 5k)</text>
-  <rect x="190" y="534" width="184.07631397601318" height="7" rx="1.5"
+  <text x="640" y="308" font-size="9" fill="#495057">31 µs</text>
+  <text x="12" y="323" font-size="10" fill="#343a40">CONSTRUCT</text>
+  <rect x="190" y="314" width="40.775464448609" height="7" rx="1.5"
     fill="#2f9e44" />
-  <text x="640" y="540" font-size="9" fill="#495057">13.3 ms</text>
+  <text x="640" y="320" font-size="9" fill="#495057">0.26 ms</text>
+  <rect x="190" y="323" width="440" height="7" rx="1.5" fill="#f08c00" />
+  <text x="640" y="329" font-size="9" fill="#495057">2.8 ms</text>
+  <rect x="190" y="332" width="98.062679525468" height="7" rx="1.5"
+    fill="#1971c2" />
+  <text x="640" y="338" font-size="9" fill="#495057">0.63 ms</text>
+  <text x="12" y="353" font-size="10"
+    fill="#343a40">UPDATE (self-restoring)</text>
+  <rect x="190" y="344" width="440" height="7" rx="1.5" fill="#2f9e44" />
+  <text x="640" y="350" font-size="9" fill="#495057">149.0 ms</text>
+  <rect x="190" y="353" width="423.6757810078182" height="7" rx="1.5"
+    fill="#f08c00" />
+  <text x="640" y="359" font-size="9" fill="#495057">143.4 ms</text>
+  <rect x="190" y="362" width="1.728978606312966" height="7" rx="1.5"
+    fill="#1971c2" />
+  <text x="640" y="368" font-size="9" fill="#495057">0.59 ms</text>
+  <text x="12" y="382" font-size="11" font-weight="600"
+    fill="#868e96">EXISTS surface — 10k-person graph</text>
+  <text x="12" y="403" font-size="10" fill="#343a40">FILTER EXISTS</text>
+  <rect x="190" y="394" width="17.729817928549647" height="7" rx="1.5"
+    fill="#2f9e44" />
+  <text x="640" y="400" font-size="9" fill="#495057">20.1 ms</text>
+  <rect x="190" y="403" width="440" height="7" rx="1.5" fill="#f08c00" />
+  <text x="640" y="409" font-size="9" fill="#495057">499.0 ms</text>
+  <rect x="190" y="412" width="19.5384732023963" height="7" rx="1.5"
+    fill="#1971c2" />
+  <text x="640" y="418" font-size="9" fill="#495057">22.2 ms</text>
+  <text x="12" y="433" font-size="10" fill="#343a40">FILTER NOT EXISTS</text>
+  <rect x="190" y="424" width="17.545946811324328" height="7" rx="1.5"
+    fill="#2f9e44" />
+  <text x="640" y="430" font-size="9" fill="#495057">19.3 ms</text>
+  <rect x="190" y="433" width="440" height="7" rx="1.5" fill="#f08c00" />
+  <text x="640" y="439" font-size="9" fill="#495057">484.7 ms</text>
+  <rect x="190" y="442" width="19.451624448487166" height="7" rx="1.5"
+    fill="#1971c2" />
+  <text x="640" y="448" font-size="9" fill="#495057">21.4 ms</text>
+  <text x="12" y="463" font-size="10" fill="#343a40">nested EXISTS</text>
+  <rect x="190" y="454" width="3.734657637445656" height="7" rx="1.5"
+    fill="#2f9e44" />
+  <text x="640" y="460" font-size="9" fill="#495057">25.9 ms</text>
+  <rect x="190" y="463" width="440" height="7" rx="1.5" fill="#f08c00" />
+  <text x="640" y="469" font-size="9" fill="#495057">3.1 s</text>
+  <rect x="190" y="472" width="3.801905589996579" height="7" rx="1.5"
+    fill="#1971c2" />
+  <text x="640" y="478" font-size="9" fill="#495057">26.4 ms</text>
+  <text x="12" y="493" font-size="10" fill="#343a40">nested NOT EXISTS</text>
+  <rect x="190" y="484" width="5.321450827713012" height="7" rx="1.5"
+    fill="#2f9e44" />
+  <text x="640" y="490" font-size="9" fill="#495057">26.8 ms</text>
+  <rect x="190" y="493" width="440" height="7" rx="1.5" fill="#f08c00" />
+  <text x="640" y="499" font-size="9" fill="#495057">2.2 s</text>
+  <rect x="190" y="502" width="6.258304379665723" height="7" rx="1.5"
+    fill="#1971c2" />
+  <text x="640" y="508" font-size="9" fill="#495057">31.5 ms</text>
+  <text x="12" y="522" font-size="11" font-weight="600"
+    fill="#868e96">Join surface — 10k-person graph</text>
+  <text x="12" y="543" font-size="10" fill="#343a40">UNION (10k × 20k)</text>
+  <rect x="190" y="534" width="189.91491210480703" height="7" rx="1.5"
+    fill="#2f9e44" />
+  <text x="640" y="540" font-size="9" fill="#495057">48.0 ms</text>
   <rect x="190" y="543" width="440" height="7" rx="1.5" fill="#f08c00" />
-  <text x="640" y="549" font-size="9" fill="#495057">31.7 ms</text>
-  <rect x="190" y="552" width="237.83398391543747" height="7" rx="1.5"
+  <text x="640" y="549" font-size="9" fill="#495057">111.1 ms</text>
+  <rect x="190" y="552" width="428.3971851465033" height="7" rx="1.5"
     fill="#1971c2" />
-  <text x="640" y="558" font-size="9" fill="#495057">17.1 ms</text>
-  <text x="12" y="580" font-size="9"
+  <text x="640" y="558" font-size="9" fill="#495057">108.2 ms</text>
+  <text x="12" y="573" font-size="10" fill="#343a40">OPTIONAL (10k × 5k)</text>
+  <rect x="190" y="564" width="15.854316902731496" height="7" rx="1.5"
+    fill="#2f9e44" />
+  <text x="640" y="570" font-size="9" fill="#495057">20.8 ms</text>
+  <rect x="190" y="573" width="440" height="7" rx="1.5" fill="#f08c00" />
+  <text x="640" y="579" font-size="9" fill="#495057">576.7 ms</text>
+  <rect x="190" y="582" width="41.93047266950318" height="7" rx="1.5"
+    fill="#1971c2" />
+  <text x="640" y="588" font-size="9" fill="#495057">55.0 ms</text>
+  <text x="12" y="603" font-size="10" fill="#343a40">MINUS (10k × 5k)</text>
+  <rect x="190" y="594" width="157.01512642480435" height="7" rx="1.5"
+    fill="#2f9e44" />
+  <text x="640" y="600" font-size="9" fill="#495057">16.9 ms</text>
+  <rect x="190" y="603" width="440" height="7" rx="1.5" fill="#f08c00" />
+  <text x="640" y="609" font-size="9" fill="#495057">47.3 ms</text>
+  <rect x="190" y="612" width="201.00776421986" height="7" rx="1.5"
+    fill="#1971c2" />
+  <text x="640" y="618" font-size="9" fill="#495057">21.6 ms</text>
+  <text x="12" y="640" font-size="9"
     fill="#868e96">Average ms per iteration, lower is better — each row normalized to its slowest engine; bars are not to scale across rows.</text>
-  <text x="12" y="570" font-size="9"
+  <text x="12" y="630" font-size="9"
     fill="#adb5bd">Snapshot: Deno/2.9.5 x86_64-pc-windows-msvc — regenerate with `deno task bench:latency`.</text>
 </svg>

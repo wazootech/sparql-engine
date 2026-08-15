@@ -19,7 +19,9 @@ import { termKey } from "@/term/mod.ts";
  * when a variable's distinct count is unknown). It may assume nothing else:
  * no store access. The estimator must be pure and deterministic: the same
  * entry, bindings, and stats always produce the same cost, and calling it
- * must have no side effects.
+ * must have no side effects. The default baseline's costs are exactly the
+ * model the DP join-order search (planner piece 3, issue #130) optimizes
+ * over for small BGPs, so the two stay in agreement.
  */
 export interface JoinCostEstimator {
   /**

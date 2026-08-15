@@ -60,40 +60,42 @@ run `deno task bench` for your own numbers.
 
 Core joins, 400-person graph (~2,200 quads):
 
-| query                        | wazoo   | comunica | oxigraph |
-| ---------------------------- | ------- | -------- | -------- |
-| full scan                    | 0.96 ms | 5.5 ms   | 12.2 ms  |
-| join (knows × name)          | 0.66 ms | 3.1 ms   | 3.4 ms   |
-| asymmetric join              | 1.2 ms  | 19.2 ms  | 19.3 ms  |
-| reorder chain, written order | 97.4 ms | 96.8 ms  | 4.2 ms   |
-| reorder chain, planner on    | 1.2 ms  | —        | —        |
+| query                        | wazoo    | comunica | oxigraph |
+| ---------------------------- | -------- | -------- | -------- |
+| full scan                    | 1.1 ms   | 6.0 ms   | 8.8 ms   |
+| join (knows × name)          | 0.91 ms  | 3.4 ms   | 1.6 ms   |
+| asymmetric join              | 1.7 ms   | 23.0 ms  | 11.5 ms  |
+| reorder chain, written order | 105.5 ms | 107.8 ms | 2.2 ms   |
+| reorder chain, planner on    | 1.5 ms   | —        | —        |
+| dp-join, DP plan             | 62.2 ms  | 190.4 ms | 1120 ms  |
+| dp-join, greedy plan         | 125.2 ms | —        | —        |
 
 EXISTS surface, 400-person graph:
 
-| query               | wazoo  | comunica | oxigraph |
-| ------------------- | ------ | -------- | -------- |
-| `FILTER EXISTS`     | 1.0 ms | 19.3 ms  | 1.6 ms   |
-| `FILTER NOT EXISTS` | 0.9 ms | 20.1 ms  | 1.4 ms   |
-| nested `EXISTS`     | 1.2 ms | 74.8 ms  | 1.7 ms   |
-| nested `NOT EXISTS` | 1.2 ms | 75.2 ms  | 1.8 ms   |
+| query               | wazoo   | comunica | oxigraph |
+| ------------------- | ------- | -------- | -------- |
+| `FILTER EXISTS`     | 0.70 ms | 21.5 ms  | 0.77 ms  |
+| `FILTER NOT EXISTS` | 0.64 ms | 23.4 ms  | 0.85 ms  |
+| nested `EXISTS`     | 0.87 ms | 88.8 ms  | 0.93 ms  |
+| nested `NOT EXISTS` | 0.86 ms | 127.7 ms | 0.93 ms  |
 
 EXISTS surface, 10,000-person graph (~55,000 quads):
 
 | query               | wazoo   | comunica | oxigraph |
 | ------------------- | ------- | -------- | -------- |
-| `FILTER EXISTS`     | 33.0 ms | 466.1 ms | 34.0 ms  |
-| `FILTER NOT EXISTS` | 33.2 ms | 466.2 ms | 32.9 ms  |
-| nested `EXISTS`     | 40.9 ms | 1.9 s    | 39.4 ms  |
-| nested `NOT EXISTS` | 43.0 ms | 1.8 s    | 40.6 ms  |
+| `FILTER EXISTS`     | 20.1 ms | 499.0 ms | 22.2 ms  |
+| `FILTER NOT EXISTS` | 19.3 ms | 484.7 ms | 21.4 ms  |
+| nested `EXISTS`     | 25.9 ms | 3.1 s    | 26.4 ms  |
+| nested `NOT EXISTS` | 26.8 ms | 2.2 s    | 31.5 ms  |
 
 Join surface, 10,000-person graph — UNION joins 10k × 20k bindings on the shared
 subject (~200M candidate pairs); OPTIONAL and MINUS join 10k × 5k (~50M pairs):
 
 | query               | wazoo   | comunica | oxigraph |
 | ------------------- | ------- | -------- | -------- |
-| UNION (10k × 20k)   | 37.9 ms | 87.1 ms  | 98.2 ms  |
-| OPTIONAL (10k × 5k) | 15.4 ms | 444.4 ms | 46.0 ms  |
-| MINUS (10k × 5k)    | 13.3 ms | 31.7 ms  | 17.1 ms  |
+| UNION (10k × 20k)   | 48.0 ms | 111.1 ms | 108.2 ms |
+| OPTIONAL (10k × 5k) | 20.8 ms | 576.7 ms | 55.0 ms  |
+| MINUS (10k × 5k)    | 16.9 ms | 47.3 ms  | 21.6 ms  |
 
 The same snapshot as a chart — one row per query class, three bars per row
 (wazoo green, Comunica orange, Oxigraph blue), bar length proportional to avg
@@ -132,6 +134,15 @@ ms/iter within the row:
   three-pattern chain (97.4 ms → 1.2 ms) — see
 
   [02 — System Architecture & Query Pipeline](02-architecture.md), Stage 3.
+- **The DP join-order search halves the greedy plan on the shared-variable
+  shape** (62.2 ms vs 125.2 ms, ~2×): two medium-selectivity patterns sharing
+  both variables plus a smaller unrelated pattern. Greedy joins the unrelated
+  pattern first (cheapest single join) and pays the 400 × 200 cross product
+  twice; the subset DP (issue #130) joins the shared pair first and pays it
+  once. The same query runs 190 ms on Comunica and 1.12 s on Oxigraph — the DP
+  plan also widens wazoo's cross-engine lead on joins. The "greedy plan" row
+  runs the identical baseline cost formula with the DP disabled, so the delta
+  isolates the ordering win.
 
 ## `deno task bench:check` — regression budget
 

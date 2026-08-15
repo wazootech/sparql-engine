@@ -63,9 +63,9 @@ export interface SparqlEvaluatorOptions {
 
   /**
    * estimator supplies the BGP join-cost estimator (see
-   * JoinCostEstimator); defaults to the baseline greedy formula (which
-   * also consumes the per-pattern statistics source, issue #129). Only
-   * affects join order, never results.
+   * JoinCostEstimator); defaults to the baseline formula, whose costs
+   * match the DP join-order search (issue #130). Only affects join
+   * order, never results.
    */
   estimator?: JoinCostEstimator;
 }
