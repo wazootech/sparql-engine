@@ -1,5 +1,5 @@
 import { assertEquals, assertRejects } from "@std/assert";
-import { DataFactory } from "@/term/mod.ts";
+import { DataFactory, XSD_BOOLEAN } from "@/term/mod.ts";
 import { MemoryStore as Store } from "@/store/memory-store.ts";
 import { WazooSparqlEngine } from "@/wazoo-sparql-engine.ts";
 
@@ -478,6 +478,135 @@ Deno.test(
     );
   },
 );
+
+Deno.test("WazooSparqlEngine - custom IRI functions evaluate through the registry", async () => {
+  const store = new Store();
+  const ex = (s: string) => namedNode(`http://example.org/${s}`);
+  const addName = (s: string, o: string) =>
+    store.addQuad(quad(ex(s), ex("name"), literal(o)));
+  addName("a", "alice");
+  addName("b", "bob");
+  addName("c", "carol");
+  const engine = new WazooSparqlEngine({
+    store,
+    functions: {
+      "http://example.org/startsWithA": (args) => {
+        const name = args[0];
+        if (name === undefined || name.termType !== "Literal") {
+          return undefined;
+        }
+        return literal(
+          String(name.value.startsWith("a")),
+          namedNode(XSD_BOOLEAN),
+        );
+      },
+      "http://example.org/upper": (args) => {
+        const name = args[0];
+        if (name === undefined || name.termType !== "Literal") {
+          return undefined;
+        }
+        return literal(name.value.toUpperCase());
+      },
+      "http://example.org/tag": (args) =>
+        literal(
+          `t:${args[0]?.value ?? "?"}/${args[1]?.value ?? "?"}`,
+        ),
+    },
+  });
+
+  // FILTER: the registered function narrows the rows (alice only).
+  const filtered = await engine.execute({
+    query: "SELECT ?s WHERE { ?s <http://example.org/name> ?n " +
+      "FILTER(<http://example.org/startsWithA>(?n)) }",
+  });
+  assertEquals(filtered.kind, "select");
+  if (filtered.kind === "select") {
+    assertEquals(
+      filtered.data.results.bindings.map((b) => b.s.value),
+      ["http://example.org/a"],
+    );
+  }
+
+  // Projection expression: the function result becomes a projected value.
+  const projected = await engine.execute({
+    query: "SELECT ?s (<http://example.org/startsWithA>(?n) AS ?flag) " +
+      "WHERE { ?s <http://example.org/name> ?n }",
+  });
+  assertEquals(projected.kind, "select");
+  if (projected.kind === "select") {
+    assertEquals(
+      projected.data.results.bindings.map((b) =>
+        `${b.s.value}:${(b.flag as { value: string }).value}`
+      ).sort(),
+      [
+        "http://example.org/a:true",
+        "http://example.org/b:false",
+        "http://example.org/c:false",
+      ],
+    );
+  }
+
+  // BIND in the WHERE clause: the function binds a fresh variable.
+  const bound = await engine.execute({
+    query: "SELECT ?s WHERE { ?s <http://example.org/name> ?n " +
+      'BIND(<http://example.org/upper>(?n) AS ?u) FILTER(?u = "BOB") }',
+  });
+  assertEquals(bound.kind, "select");
+  if (bound.kind === "select") {
+    assertEquals(
+      bound.data.results.bindings.map((b) => b.s.value),
+      ["http://example.org/b"],
+    );
+  }
+
+  // ORDER BY: the function sorts without raising (descending upper-cased
+  // names: CAROL > BOB > ALICE).
+  const ordered = await engine.execute({
+    query: "SELECT ?s WHERE { ?s <http://example.org/name> ?n } " +
+      "ORDER BY DESC(<http://example.org/upper>(?n))",
+  });
+  assertEquals(ordered.kind, "select");
+  if (ordered.kind === "select") {
+    assertEquals(
+      ordered.data.results.bindings.map((b) => b.s.value),
+      ["http://example.org/c", "http://example.org/b", "http://example.org/a"],
+    );
+  }
+
+  // Multi-argument functions receive each evaluated argument.
+  const multi = await engine.execute({
+    query: "SELECT (<http://example.org/tag>(?s, ?n) AS ?t) " +
+      "WHERE { ?s <http://example.org/name> ?n } ORDER BY ?s LIMIT 1",
+  });
+  assertEquals(multi.kind, "select");
+  if (multi.kind === "select") {
+    assertEquals(
+      (multi.data.results.bindings[0].t as { value: string }).value,
+      "t:http://example.org/a/alice",
+    );
+  }
+
+  // A type error (undefined) drops the row in FILTER — the builtin contract.
+  const typeError = await engine.execute({
+    query: "SELECT ?s WHERE { ?s <http://example.org/name> ?n " +
+      "FILTER(<http://example.org/startsWithA>(?s)) }",
+  });
+  assertEquals(typeError.kind, "select");
+  if (typeError.kind === "select") {
+    assertEquals(typeError.data.results.bindings, []);
+  }
+
+  // Unregistered IRIs keep raising the clear error.
+  await assertRejects(
+    () =>
+      engine.execute({
+        query: "SELECT ?s WHERE { ?s <http://example.org/name> ?n " +
+          "FILTER(<http://example.org/notRegistered>(?n)) }",
+      }),
+    Error,
+    "Unsupported SPARQL expression: functionCall",
+  );
+});
 
 Deno.test("WazooSparqlEngine - OPTIONAL extends matches and keeps unmatched unbound", async () => {
   const store = new Store();

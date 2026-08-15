@@ -8,6 +8,12 @@ import { SparqlParser } from "@/parser/sparql-parser.ts";
 import type { SparqlQuery } from "@/parser/ast.ts";
 import { SparqlEvaluator } from "@/evaluator/sparql-evaluator.ts";
 import { UpdateEvaluator } from "@/evaluator/update-evaluator.ts";
+import type { IriFunctionMap } from "@/evaluator/expression-evaluator.ts";
+
+export type {
+  IriFunction,
+  IriFunctionMap,
+} from "@/evaluator/expression-evaluator.ts";
 
 /**
  * WazooSparqlTransaction is the minimal write contract the engine uses for updates.
@@ -49,6 +55,16 @@ export interface WazooSparqlEngineOptions {
    * first. Defaults to true. Disabling it preserves written order exactly.
    */
   reorderPatterns?: boolean;
+
+  /**
+   * functions registers custom IRI functions (SPARQL 1.1 §17.4.3.1): a map
+   * from function IRI to evaluator, injected like Comunica's function
+   * factory. A registered function receives its evaluated arguments and
+   * returns a term, or undefined for a type error (FILTER drops the row,
+   * ORDER BY sorts it lowest). Unregistered IRIs keep raising
+   * "Unsupported SPARQL expression: functionCall".
+   */
+  functions?: IriFunctionMap;
 }
 
 /**
@@ -73,6 +89,7 @@ export class WazooSparqlEngine implements SparqlEngineInterface {
     this.parser = new SparqlParser();
     this.evaluator = new SparqlEvaluator(options.store, {
       reorderPatterns: options.reorderPatterns,
+      functions: options.functions,
     });
     this.updateEvaluator = new UpdateEvaluator({
       store: options.store,

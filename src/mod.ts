@@ -13,6 +13,10 @@ export type {
   WazooSparqlEngineOptions,
   WazooSparqlTransaction,
 } from "@/wazoo-sparql-engine.ts";
+export type {
+  IriFunction,
+  IriFunctionMap,
+} from "@/evaluator/expression-evaluator.ts";
 
 export { MemoryStore, MemoryStream } from "@/store/memory-store.ts";
 export { DataFactory, dataFactory } from "@/term/mod.ts";

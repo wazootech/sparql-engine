@@ -9,6 +9,7 @@ import { DataFactory } from "@/term/mod.ts";
 import {
   type ExpressionEvaluationContext,
   ExpressionEvaluator,
+  type IriFunctionMap,
 } from "@/evaluator/expression-evaluator.ts";
 import { expressionContainsExists } from "@/evaluator/expression-utils.ts";
 import {
@@ -74,6 +75,13 @@ export interface BgpEvaluatorOptions {
    * exactly.
    */
   reorderPatterns?: boolean;
+
+  /**
+   * functions registers custom IRI functions (SPARQL 1.1 §17.4.3.1),
+   * threaded through to the expression evaluator; see
+   * WazooSparqlEngineOptions.functions.
+   */
+  functions?: IriFunctionMap;
 }
 
 /**
@@ -90,6 +98,9 @@ export interface BgpEvaluatorOptions {
 export class BgpEvaluator {
   private readonly reorderPatterns: boolean;
 
+  /** functions is the custom IRI function registry (see options). */
+  private readonly functions: IriFunctionMap;
+
   /**
    * existsQuads and existsIndex are the drained, indexed snapshot of the
    * evaluator's store that the synchronous EXISTS hooks probe. They are
@@ -102,13 +113,17 @@ export class BgpEvaluator {
   private existsVersion: number | null = null;
 
   /** expressionEvaluator evaluates FILTER expressions against solutions. */
-  private readonly expressionEvaluator = new ExpressionEvaluator();
+  private readonly expressionEvaluator: ExpressionEvaluator;
 
   public constructor(
     private readonly store: rdfjs.Source<rdfjs.Quad>,
     options: BgpEvaluatorOptions = {},
   ) {
     this.reorderPatterns = options.reorderPatterns ?? true;
+    this.functions = options.functions ?? {};
+    this.expressionEvaluator = new ExpressionEvaluator({
+      functions: options.functions,
+    });
   }
 
   /**
@@ -679,6 +694,7 @@ export class BgpEvaluator {
   public forStore(store: rdfjs.Source<rdfjs.Quad>): BgpEvaluator {
     return new BgpEvaluator(store, {
       reorderPatterns: this.reorderPatterns,
+      functions: this.functions,
     });
   }
 
@@ -899,6 +915,7 @@ export class BgpEvaluator {
         );
         const subEvaluator = new SparqlEvaluator(store, {
           reorderPatterns: this.reorderPatterns,
+          functions: this.functions,
         });
         const subResults = await subEvaluator.evaluateSelectTermBindings(
           pattern as unknown as import("@/parser/sparql-parser.ts").SelectQuery,

@@ -30,7 +30,10 @@ import {
   matchQuads,
   simplePredicate,
 } from "@/quad-store.ts";
-import { ExpressionEvaluator } from "@/evaluator/expression-evaluator.ts";
+import {
+  ExpressionEvaluator,
+  type IriFunctionMap,
+} from "@/evaluator/expression-evaluator.ts";
 import type { ExpressionEvaluationContext } from "@/evaluator/expression-evaluator.ts";
 import {
   compareRdfTerms,
@@ -49,6 +52,13 @@ export interface SparqlEvaluatorOptions {
    * joining. Defaults to true. See BgpEvaluatorOptions.reorderPatterns.
    */
   reorderPatterns?: boolean;
+
+  /**
+   * functions registers custom IRI functions (SPARQL 1.1 §17.4.3.1),
+   * threaded through to every expression evaluator; see
+   * WazooSparqlEngineOptions.functions.
+   */
+  functions?: IriFunctionMap;
 }
 
 /**
@@ -68,7 +78,7 @@ export class SparqlEvaluator {
   private readonly bgpEvaluator: BgpEvaluator;
 
   /** expressionEvaluator evaluates ORDER BY expressions against solutions. */
-  private readonly expressionEvaluator = new ExpressionEvaluator();
+  private readonly expressionEvaluator: ExpressionEvaluator;
 
   /**
    * nextConstructBnodeId mints fresh labels for CONSTRUCT template blank
@@ -83,8 +93,12 @@ export class SparqlEvaluator {
     options: SparqlEvaluatorOptions = {},
   ) {
     this.store = store;
+    this.expressionEvaluator = new ExpressionEvaluator({
+      functions: options.functions,
+    });
     this.bgpEvaluator = new BgpEvaluator(store, {
       reorderPatterns: options.reorderPatterns,
+      functions: options.functions,
     });
   }
 
