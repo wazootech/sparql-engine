@@ -353,12 +353,23 @@ function* minusStreamNested(
 /* the whole right side, turning the O(n·m) nested loop into a probe  */
 /* of O(n) buckets. Multiset semantics are preserved: every compatible */
 /* pair still produces its merged binding, duplicates included.       */
+/*                                                                    */
+/* Prior art: the build-once-index-probe-per-tuple in-memory hash     */
+/* join is the classic scheme of Shapiro (and GRACE). Full citation   */
+/* text lives in src/prior-art.ts.                                    */
+/* @cite PRIOR_ART.SHAPIRO_1986                                       */
+/* @cite PRIOR_ART.KITSURESAWA_1983                                   */
 /* ------------------------------------------------------------------ */
 
 /**
  * JOIN_PRODUCT_THRESHOLD is the pair count below which the nested loop is
  * kept: hash-setup (indexing the right side) costs more than the scan it
  * saves for tiny joins.
+ *
+ * Prior art: choosing a join method from an estimated cost (here the
+ * product of the input sizes) is cost-based join-method selection.
+ * @cite PRIOR_ART.GRAEFE_1993
+ * @cite PRIOR_ART.SELINGER_1979
  */
 const JOIN_PRODUCT_THRESHOLD = 4096;
 
@@ -368,6 +379,8 @@ const JOIN_PRODUCT_THRESHOLD = 4096;
  * unknown without materializing, so the product threshold cannot apply, but
  * a right side this small keeps the nested loop cheap for any left length.
  * Larger right sides dispatch to the (inherently eager) hash index.
+ * (Same cost-based method-selection prior art as JOIN_PRODUCT_THRESHOLD:
+ * @cite PRIOR_ART.GRAEFE_1993, @cite PRIOR_ART.SELINGER_1979.)
  */
 const STREAM_NESTED_THRESHOLD = 64;
 
@@ -513,6 +526,10 @@ function buildHashIndex(
  * construction, plus the (usually few) partial rights it agrees with. A
  * partial l probes the bucket of its most selective bound variable and
  * verifies, plus partial rights that do not bind that variable.
+ *
+ * Prior art: probing the bucket with the fewest candidates (most selective
+ * bound variable) is access-path selection on the join key.
+ * @cite PRIOR_ART.SELINGER_1979
  */
 function compatibleCandidates(
   l: TermBinding,
@@ -1080,6 +1097,11 @@ export function isMultisetPath(path: PathElement): boolean {
  * set is computed from every graph node. Pair sets are deduplicated unless the
  * path is multiset, matching SPARQL's path semantics (each pair appears once
  * regardless of how many routes connect it unless the operator is multiset).
+ *
+ * Prior art: anchoring the walk at a constant endpoint (instead of
+ * exploring every node) computes only the reachable set from the bound
+ * end — the standard directed-evaluation optimization for reachability
+ * queries. @cite PRIOR_ART.KOSTYLEV_2015 (see also pathSteps)
  */
 export async function scanPathEntry(
   store: rdfjs.Source<rdfjs.Quad>,
@@ -1273,6 +1295,14 @@ async function graphNodes(
  * In forward direction term is the path subject and the result is the set of
  * reachable objects; in backward direction term is the path object and the
  * result is the set of reachable subjects. Results are deduplicated.
+ *
+ * Prior art: the semantics are the W3C property-path semantics (SPARQL
+ * 1.1 §9.1), formalized by Kostylev et al.; the closures for the * and +
+ * operators are breadth-first traversals over the anchored node (CLRS
+ * §22.2).
+ * @cite PRIOR_ART.KOSTYLEV_2015
+ * @cite PRIOR_ART.HARRIS_SEABORNE_2013
+ * @cite PRIOR_ART.CORMEN_2009
  */
 async function pathSteps(
   store: rdfjs.Source<rdfjs.Quad>,

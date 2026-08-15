@@ -38,6 +38,12 @@ export type SolutionGroup = {
  * the same value (undefined values group together). The key binding carries
  * each group expression's value under its variable when the expression is a
  * variable or carries an AS ?v alias; bare expressions only partition.
+ *
+ * Prior art: partitioning by a hashed group key (each solution hashes its
+ * group-expression values and appends to the matching bucket) is
+ * hash-based grouping/aggregation, the classic main-memory aggregation
+ * strategy.
+ * @cite PRIOR_ART.GRAEFE_1993
  */
 export function groupSolutions(
   solutions: TermBinding[],
@@ -262,6 +268,12 @@ function numericLiteral(
  * "11.100000000000001"). Each term parses to a BigInt significand and a
  * scale; scales align to the maximum and the sum renders with trailing
  * fractional zeros stripped.
+ *
+ * Prior art: fixed-point arithmetic on (BigInt significand, scale) pairs
+ * — summing scaled integers instead of binary floats — avoids the
+ * rounding error that Goldberg's analysis shows in naive floating-point
+ * accumulation.
+ * @cite PRIOR_ART.GOLDBERG_1991
  */
 function exactDecimalSum(defined: rdfjs.Term[]): rdfjs.Literal {
   let maxScale = 0;

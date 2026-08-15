@@ -270,6 +270,14 @@ function unindexPosition(
  * map keyed by all four positions and mirrored into four positional indexes
  * (subject / predicate / object / graph), so match scans only the smallest
  * constrained bucket instead of the whole store.
+ *
+ * Prior art: the mirror-into-per-position-indexes design (any pattern
+ * resolves through one bucket rather than a full scan) is the RDF-store
+ * index pattern of RDF-3X and Hexastore, and probing the smallest
+ * constrained bucket is System R-style access-path selection.
+ * @cite PRIOR_ART.NEUMANN_WEIKUM_2008
+ * @cite PRIOR_ART.WEISS_2008
+ * @cite PRIOR_ART.SELINGER_1979
  */
 export class MemoryStore implements rdfjs.Store<rdfjs.Quad> {
   private quads: Map<string, rdfjs.Quad> = new Map();

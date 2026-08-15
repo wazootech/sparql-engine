@@ -8,6 +8,15 @@ import { DataFactory, sameRdfTerm, termKey } from "@/term/mod.ts";
  * carrying that term, enabling O(1) bucket probes per solution. It backs
  * both the BGP hash join and the batched DELETE scans, so both paths probe
  * with identical semantics.
+ *
+ * Prior art: probing a pre-built positional bucket index instead of
+ * re-scanning is the RDF-store index pattern of RDF-3X and Hexastore
+ * (every quad is mirrored into per-position indexes so any constrained
+ * pattern scans only its bucket), and picking the smallest constrained
+ * bucket to probe is System R access-path selection.
+ * @cite PRIOR_ART.NEUMANN_WEIKUM_2008
+ * @cite PRIOR_ART.WEISS_2008
+ * @cite PRIOR_ART.SELINGER_1979
  */
 export interface QuadIndex {
   bySubject: Map<string, rdfjs.Quad[]>;

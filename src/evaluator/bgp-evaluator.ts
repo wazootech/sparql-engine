@@ -77,6 +77,13 @@ export interface BgpEvaluatorOptions {
    * is already bound by earlier joins is processed early even when it has
    * many candidates. Defaults to true. Disabling it preserves written order
    * exactly.
+   *
+   * Prior art: greedy BGP join ordering driven by per-pattern selectivity
+   * estimates — each pattern scanned once, then joined in ascending
+   * estimated cost — is the approach of Stocker et al., rooted in System
+   * R's cost-based join ordering and access-path selection.
+   * @cite PRIOR_ART.STOCKER_2008
+   * @cite PRIOR_ART.SELINGER_1979
    */
   reorderPatterns?: boolean;
 
@@ -98,6 +105,14 @@ export interface BgpEvaluatorOptions {
  * extend pass, GRAPH a graph-scoped evaluation over a scoped store view,
  * and nested groups recurse. Unsupported pattern types (SERVICE) raise a
  * clear error rather than being silently dropped.
+ *
+ * Prior art: the algebra translations — OPTIONAL as LeftJoin(P1, P2, F),
+ * MINUS as a shared-variable anti-join, BIND as Extend, VALUES as a
+ * natural join, UNION as Join(P, Union(Q1, Q2)) — follow the formal SPARQL
+ * algebra of Pérez, Arenas & Gutierrez, as adopted by the SPARQL 1.1 spec
+ * §18.2.
+ * @cite PRIOR_ART.PEREZ_2009
+ * @cite PRIOR_ART.HARRIS_SEABORNE_2013
  */
 export class BgpEvaluator {
   private readonly reorderPatterns: boolean;
@@ -165,6 +180,15 @@ export class BgpEvaluator {
    * The SparqlEvaluator calls it for projection / ORDER BY / HAVING
    * expressions when they contain EXISTS even though the WHERE clause does
    * not.
+   *
+   * Prior art: evaluating a correlated EXISTS as a semi-join — probe the
+   * (once-drained, once-indexed) candidate set per outer solution instead
+   * of re-evaluating the subquery — is the semi-join reduction of
+   * Bernstein & Chiu; keeping the snapshot across queries with a
+   * mutation-version check is a materialized-view cache with lazy
+   * invalidation.
+   * @cite PRIOR_ART.BERNSTEIN_CHIU_1981
+   * @cite PRIOR_ART.GUPTA_MUMICK_1995
    */
   public async prepareExistsIndex(): Promise<ExistsSnapshot> {
     const version = storeVersion(this.store);
@@ -719,6 +743,12 @@ export class BgpEvaluator {
    * step. Nested group calls (OPTIONAL/MINUS/UNION/GRAPH bodies, subquery
    * WHEREs) resolve their own groups eagerly here, so their results arrive
    * as arrays; only the enclosing group's own solution flow streams.
+   *
+   * Prior art: pushing solutions through the pattern chain as a streaming
+   * iterator — each operator pulls rows from the previous one instead of
+   * materializing per-step arrays — is the Volcano iterator/pipeline model
+   * of query evaluation.
+   * @cite PRIOR_ART.GRAEFE_1994
    */
   private async evaluateGroup(
     patterns: Pattern[],
@@ -1028,6 +1058,9 @@ export class BgpEvaluator {
    * estimate needs the full current result set, so each join materializes
    * here (the reordered path stays eager; the lazy chain applies to the
    * written-order path).
+   * (Prior art: greedy selectivity-based BGP reordering and cost-based
+   * join ordering — see BgpEvaluatorOptions.reorderPatterns.
+   * @cite PRIOR_ART.STOCKER_2008, @cite PRIOR_ART.SELINGER_1979)
    */
   private async evaluateWithReordering(
     triplePatterns: Triple[],

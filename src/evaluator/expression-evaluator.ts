@@ -176,6 +176,14 @@ export interface ExpressionEvaluatorOptions {
  * ExpressionEvaluator evaluates SPARQL 1.1 expression trees (operators,
  * functions, and constants) against a single solution binding, returning a
  * value term or a typed error term for runtime failures.
+ *
+ * Prior art: SPARQL 1.1 §17 delegates the semantics of its built-in
+ * functions and operators to XQuery/XPath 2.0 — string, numeric, date/time
+ * and boolean functions, casts, and the canonical value-space rules (e.g.
+ * SUBSTR, REGEX, the numeric promotion rules, and the canonical double
+ * lexical form) follow that specification.
+ * @cite PRIOR_ART.MALHOTRA_2010
+ * @cite PRIOR_ART.HARRIS_SEABORNE_2013
  */
 export class ExpressionEvaluator {
   /** functions is the registry of custom IRI function evaluators. */
@@ -1100,6 +1108,8 @@ export class ExpressionEvaluator {
    * 1-based start, optional length, positions before 1 clipped, a negative
    * or zero length yielding the empty string. Non-integer positions are a
    * type error, matching the reference engines.
+   * (Prior art: XPath/XQuery F&O `fn:substring` — @cite
+   * PRIOR_ART.MALHOTRA_2010, cited on ExpressionEvaluator.)
    */
   private substr(
     expressions: Expression[],
@@ -1705,6 +1715,9 @@ export class ExpressionEvaluator {
    * pattern or flags, or a non-string argument, is an evaluation error
    * (unbound) — the reference engine throws on malformed patterns, which is
    * a deviation we deliberately do not replicate.
+   * (Prior art: XPath/XQuery F&O `fn:matches` semantics, evaluated through
+   * the host ECMAScript regex engine — @cite PRIOR_ART.MALHOTRA_2010,
+   * cited on ExpressionEvaluator.)
    */
   private regex(
     args: Expression[],

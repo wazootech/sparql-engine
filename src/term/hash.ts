@@ -4,6 +4,12 @@
  * evaluator can call them without awaiting. SHA-1/SHA-256 use 32-bit word
  * arithmetic; SHA-384/SHA-512 use BigInt for the 64-bit words. All five
  * return lowercase hexadecimal strings of the digest.
+ *
+ * Prior art: the algorithms are the standard published message digests —
+ * MD5 per IETF RFC 1321 and the SHA family per NIST FIPS 180-4 (which
+ * SPARQL 1.1 §17.4.1.7 delegates to).
+ * @cite PRIOR_ART.RIVEST_1992
+ * @cite PRIOR_ART.NIST_2015
  */
 
 const MD5_S = [
