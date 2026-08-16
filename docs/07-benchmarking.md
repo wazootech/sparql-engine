@@ -9,10 +9,17 @@ The engine ships nine benchmark surfaces — one latency comparison, one CI
 regression gate, one concurrency stress probe, three footprint measurers
 (on-disk size, per-entrypoint closure, and peak heap), a latency-chart renderer,
 a latency-snapshot freshness gate, and a durable-store benchmark. This page
-documents the methodology behind each and the known results measured on the
-reference machine. Run instructions live in
-[05 — Verification & Testing](05-testing.md); this page is the "why it's
-trustworthy and what the numbers say" companion.
+documents the methodology behind each — how a measurement is made trustworthy,
+what a gate measures, and how to run it. Run instructions live in
+[05 — Verification & Testing](05-testing.md).
+
+**The measured numbers live in the root `README.md`** (Size & memory footprint,
+Latency), regenerated from `bench/*-data.json` and rendered into the committed
+`docs/assets/*.svg` charts. The wiki deliberately does not duplicate them:
+latency, size, and peak-heap values are machine-specific snapshots (Deno
+version, hardware, run-to-run noise) that go stale without telling a reader
+anything structural. Run `deno task bench`, `deno task bench:size`, or
+`deno task bench:memory` for your own numbers.
 
 | Tool                         | Task                            | Measures                                                                              | Gate |
 | ---------------------------- | ------------------------------- | ------------------------------------------------------------------------------------- | ---- |
@@ -54,61 +61,15 @@ reorder-chain, ask, construct, update, optional, minus, union, path,
 group-aggregate, filter-expr, order-limit, distinct, values-bind, graph, from,
 subquery, exists, cast, string-fn, having, reduced, update-ops.
 
-### Known results
-
-Snapshot measured on a Windows desktop, Deno 2.9.5, wazoo engine as the
-per-group baseline. Each cell is the per-iteration average; every query was
-cross-verified identical on all three engines before timing. Machine-specific —
-run `deno task bench` for your own numbers.
-
-Core joins, 400-person graph (~2,200 quads):
-
-| query                        | wazoo    | comunica | oxigraph |
-| ---------------------------- | -------- | -------- | -------- |
-| full scan                    | 1.1 ms   | 6.0 ms   | 8.8 ms   |
-| join (knows × name)          | 0.91 ms  | 3.4 ms   | 1.6 ms   |
-| asymmetric join              | 1.7 ms   | 23.0 ms  | 11.5 ms  |
-| reorder chain, written order | 105.5 ms | 107.8 ms | 2.2 ms   |
-| reorder chain, planner on    | 1.5 ms   | —        | —        |
-| dp-join, DP plan             | 62.2 ms  | 190.4 ms | 1120 ms  |
-| dp-join, greedy plan         | 125.2 ms | —        | —        |
-
-EXISTS surface, 400-person graph:
-
-| query               | wazoo   | comunica | oxigraph |
-| ------------------- | ------- | -------- | -------- |
-| `FILTER EXISTS`     | 0.70 ms | 21.5 ms  | 0.77 ms  |
-| `FILTER NOT EXISTS` | 0.64 ms | 23.4 ms  | 0.85 ms  |
-| nested `EXISTS`     | 0.87 ms | 88.8 ms  | 0.93 ms  |
-| nested `NOT EXISTS` | 0.86 ms | 127.7 ms | 0.93 ms  |
-
-EXISTS surface, 10,000-person graph (~55,000 quads):
-
-| query               | wazoo   | comunica | oxigraph |
-| ------------------- | ------- | -------- | -------- |
-| `FILTER EXISTS`     | 20.1 ms | 499.0 ms | 22.2 ms  |
-| `FILTER NOT EXISTS` | 19.3 ms | 484.7 ms | 21.4 ms  |
-| nested `EXISTS`     | 25.9 ms | 3.1 s    | 26.4 ms  |
-| nested `NOT EXISTS` | 26.8 ms | 2.2 s    | 31.5 ms  |
-
-Join surface, 10,000-person graph — UNION joins 10k × 20k bindings on the shared
-subject (~200M candidate pairs); OPTIONAL and MINUS join 10k × 5k (~50M pairs):
-
-| query               | wazoo   | comunica | oxigraph |
-| ------------------- | ------- | -------- | -------- |
-| UNION (10k × 20k)   | 48.0 ms | 111.1 ms | 108.2 ms |
-| OPTIONAL (10k × 5k) | 20.8 ms | 576.7 ms | 55.0 ms  |
-| MINUS (10k × 5k)    | 16.9 ms | 47.3 ms  | 21.6 ms  |
-
-The same snapshot as a chart — one row per query class, three bars per row
-(wazoo green, Comunica orange, Oxigraph blue), bar length proportional to avg
-ms/iter within the row:
+The committed snapshot as a chart — one row per query class, three bars per row
+(wazoo green, Comunica orange, Oxigraph blue), bar length proportional to
+average latency within the row:
 
 <figure>
   <img src="assets/chart-latency.svg" alt="Bar chart of average query latency per query class for wazoo, Comunica, and Oxigraph">
   <figcaption><b>Fig — Query latency by class.</b> One row per query class;
-  three bars per row, bar length proportional to average ms/iter within the
-  row (each row normalized to its slowest engine — lower is better). The
+  three bars per row, bar length proportional to average latency within the row
+  (each row normalized to its slowest engine — lower is better). The
   planner-only rows (3-pattern chain, planner on) have a single wazoo bar;
   Comunica and Oxigraph have no reordering equivalent. Snapshot from
   `bench/latency-data.json`, regenerated by `deno task bench:latency`; the
@@ -117,35 +78,12 @@ ms/iter within the row:
   (add, rename, or remove a bench without regenerating).</figcaption>
 </figure>
 
-### Reading the numbers
-
-- **Core joins**: wazoo is fastest on every scan/join row, with the asymmetric
-
-  join ~16× faster than Comunica.
-- **Join scaling is sub-quadratic.** The wazoo hash join probes an indexed right
-  side per left binding instead of scanning it: the nested-loop before-state of
-  the UNION benchmark was ~7 s/iter versus ~38 ms with the hash join (~185×),
-  with OPTIONAL and MINUS showing the same shape (~60-80×).
-- **EXISTS is flat as data grows.** Scaling the data 25× (400 → 10,000 people)
-  grows wazoo's EXISTS cost ~35× while nesting stays within ~1.2× of the simple
-  case at both scales: the EXISTS snapshot is drained and indexed once per
-  query, and each probe touches only its candidate bucket, so nesting stays
-  cheap relative to the dataset. Across the EXISTS surface wazoo is ~15-65×
-  faster than Comunica and roughly at parity with Oxigraph (a compiled Rust/WASM
-  engine with native indexes, which stays ahead on the reorder-chain row).
-- **The dynamic join planner is worth ~80×** on the worst-case-ordered
-  three-pattern chain (97.4 ms → 1.2 ms) — see
-
-  [02 — System Architecture & Query Pipeline](02-architecture.md), Stage 3.
-- **The DP join-order search halves the greedy plan on the shared-variable
-  shape** (62.2 ms vs 125.2 ms, ~2×): two medium-selectivity patterns sharing
-  both variables plus a smaller unrelated pattern. Greedy joins the unrelated
-  pattern first (cheapest single join) and pays the 400 × 200 cross product
-  twice; the subset DP (issue #130) joins the shared pair first and pays it
-  once. The same query runs 190 ms on Comunica and 1.12 s on Oxigraph — the DP
-  plan also widens wazoo's cross-engine lead on joins. The "greedy plan" row
-  runs the identical baseline cost formula with the DP disabled, so the delta
-  isolates the ordering win.
+The qualitative story the numbers tell is captured in
+[02 — System Architecture & Query Pipeline](02-architecture.md), Stage 3: the
+wazoo hash join probes an indexed right side per left binding (sub-quadratic
+join scaling), the EXISTS snapshot is drained and indexed once per query (flat
+cost as data grows), and the dynamic join planner removes the worst-case-ordered
+chain penalty.
 
 ## `deno task bench:check` — regression budget
 
@@ -204,88 +142,41 @@ in `src/wazoo-sparql-engine.test.ts`.
   treemap) — the SVGs are committed, so the published wiki and README stay in
   sync with the measurements.
 
-### Known results
-
-On-disk footprint (what a consumer must have installed):
-
-| engine   | on disk      | contents                                                                                       |
-| -------- | ------------ | ---------------------------------------------------------------------------------------------- |
-| wazoo    | **0.67 MiB** | 41 files (the whole JSR artifact: `src/` + `README.md` + `LICENSE`); zero runtime dependencies |
-| oxigraph | 7.9 MiB      | WASM runtime (7.8 MiB) + JS glue/types                                                         |
-| comunica | 28.3 MiB     | 368 npm packages in the transitive dependency closure                                          |
+The committed charts:
 
 <figure>
   <img src="assets/chart-library-size.svg" alt="Bar chart of engine footprints on disk">
   <figcaption><b>Fig — Library size on disk.</b> One bar per engine; bar
   length is proportional to total installed size (values in binary MiB, share
-  of the combined total in parentheses). Wazoo (green) is the whole JSR
-  artifact at 0.67 MiB — a sliver against comunica’s 28.3 MiB closure (orange);
-  oxigraph (blue) sits between.</figcaption>
+  of the combined total in parentheses). Wazoo (green) is a sliver against
+  Comunica's transitive closure (orange); oxigraph (blue) sits between.</figcaption>
 </figure>
-
-Wazoo breaks down as evaluator 247 KiB, parser 307 KiB (the generated
-`parser.ts` alone is 207 KiB), term 40 KiB, planner 20 KiB, store 24 KiB,
-serialize 7.4 KiB, README 21 KiB, LICENSE 1 KiB — the parser is the largest
-single module (the generated `parser.ts` from `sparql.jison`). The `bench:size`
-JSON breaks the artifact into per-file tiles so the chart stays honest: the JSR
-`publish.exclude` set (grammar sources, `generate-parser.ts`) is applied before
-measuring.
-
-**Per-entrypoint consumer closure** — what importing a subpath actually loads
-from the published package (value-import graph, type-only imports erased;
-measured by `deno task bench:size:closures`):
 
 <figure>
   <img src="assets/chart-closures.svg" alt="Bar chart of per-entrypoint import closures">
   <figcaption><b>Fig — Per-entrypoint consumer closure.</b> Bar length is the
   total size of the local files each `@wazoo/sparql-engine` entrypoint actually
-  loads (file count per bar). The full engine pulls in the whole 631 KiB graph;
-  a store-only consumer pays just 53 KiB and the serializers are the cheapest
-  leaf at 7.4 KiB.</figcaption>
+  loads (file count per bar). The full engine pulls in the whole graph; a
+  store-only consumer pays a fraction and the serializers are the cheapest
+  leaf.</figcaption>
 </figure>
 
 <figure>
   <img src="assets/treemap-submodules.svg" alt="Treemap of the full engine closure broken down by top-level module">
   <figcaption><b>Fig — Inside the full engine: the tree-shaken submodules.</b>
-  Tile area is the share of the full `@wazoo/sparql-engine` import closure
-  (631 KiB, 34 files) that each top-level module accounts for — the parser
-  (288 KiB) and evaluator (247 KiB) dominate, so a consumer that imports only
-  `./serialize` (7 KiB) or `./term` (40 KiB) avoids most of the engine. Each
-  subpath closure above is a cut of this graph.</figcaption>
+  Tile area is the share of the full `@wazoo/sparql-engine` import closure that
+  each top-level module accounts for — the parser and evaluator dominate, so a
+  consumer that imports only a leaf subpath (serializers, term) avoids most of
+  the engine. Each subpath closure above is a cut of this graph.</figcaption>
 </figure>
-
-| import                               | closure     | files |
-| ------------------------------------ | ----------- | ----- |
-| `@wazoo/sparql-engine/serialize`     | **7.4 KiB** | 3     |
-| `@wazoo/sparql-engine/term`          | 40.3 KiB    | 9     |
-| `@wazoo/sparql-engine/store`         | 53.1 KiB    | 10    |
-| `@wazoo/sparql-engine/sqlite`        | 64.3 KiB    | 11    |
-| `@wazoo/sparql-engine/parser`        | 224.8 KiB   | 4     |
-| `@wazoo/sparql-engine` (full engine) | 631.1 KiB   | 34    |
-
-Peak heap during execution (`heapUsed`; isolated subprocess per engine, peak
-over 5 runs, all three share the same ~62 MiB runtime baseline so the comparison
-is symmetric):
-
-| workload             | wazoo       | comunica | oxigraph |
-| -------------------- | ----------- | -------- | -------- |
-| full scan (55k rows) | **150 MiB** | 214 MiB  | 255 MiB  |
-| nested EXISTS        | **80 MiB**  | 273 MiB  | 109 MiB  |
 
 <figure>
   <img src="assets/treemap-memory.svg" alt="Treemap of peak heap per engine and workload">
   <figcaption><b>Fig — Peak heap during execution</b> (10k-person graph).
   One panel per workload (full scan, nested EXISTS); within each, the three
-  engines’ tiles are scaled by their peak `heapUsed` (values in MiB). Wazoo
-  (green) is the smallest tile in both panels.</figcaption>
+  engines' tiles are scaled by their peak `heapUsed`. Wazoo (green) is the
+  smallest tile in both panels.</figcaption>
 </figure>
-
-Wazoo is the smallest on disk by 12-42× (0.67 vs 7.9 vs 28.3 MiB) and holds its
-speed advantage with the lowest peak heap on both workloads — including a peak
-roughly a third of Comunica's on the nested-EXISTS surface the timings above
-highlight. Oxigraph's WASM runtime is compact on disk, but its result
-materialization peaks higher than wazoo on both workloads. The probe also
-records peak RSS in `bench/memory-data.json` for deeper analysis.
 
 ## Regenerating and committing results
 
@@ -299,11 +190,10 @@ deno task bench:memory # collect-memory → memory-data.json → memory treemap 
 deno task bench:latency:check  # CI gate: fresh run vs committed latency snapshot (inventory)
 ```
 
-All measurements are machine-specific snapshots (the reference numbers above are
-Deno 2.9.5 on Windows), not guarantees. When you regenerate `bench:size`,
-`bench:memory`, or `bench:latency`, commit the updated `bench/*-data.json`
-**and** the `docs/assets/*.svg` together — the tasks format the SVGs, so a
-committed SVG should always be byte-identical to what `deno fmt` produces.
-`bench:latency:check` compares only the bench **inventory**
+All measurements are machine-specific snapshots, not guarantees. When you
+regenerate `bench:size`, `bench:memory`, or `bench:latency`, commit the updated
+`bench/*-data.json` **and** the `docs/assets/*.svg` together — the tasks format
+the SVGs, so a committed SVG should always be byte-identical to what `deno fmt`
+produces. `bench:latency:check` compares only the bench **inventory**
 (group/name/baseline) against a fresh `deno bench --json` run — timing values
 are machine-specific and never compared.

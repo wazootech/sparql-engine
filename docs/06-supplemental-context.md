@@ -39,9 +39,9 @@ engine is generated or vendored:
 | `bench/engine_bench.ts` (`buildGraphDataset` / `buildGraphOpsDataset`) | 200 person quads in `<http://example.org/g1>`; g1 + 50-quad g2 for ADD/COPY/MOVE/CLEAR/DROP                                                      | GRAPH/FROM benchmarks and graph-op updates     |
 | `bench/memory-probe.ts` (`buildPeopleDataset`)                         | 10,000-person graph, ~55k quads (foaf:name/age, pets, cities, spouses) — the peak-memory workload                                                | `deno task bench:memory`                       |
 | `test/parity/parity-fixtures.ts` (`createQuadStore`)                   | Small seeded stores for differential parity cases                                                                                                | `test/parity/*.test.ts`                        |
-| `test/w3c/fixtures/sparql11/`                                          | W3C [SPARQL 1.1](https://www.w3.org/TR/sparql11-query/) evaluation-core (~2.6 MB, 345 tests, 31 categories)                                      | `deno task test:w3c`                           |
-| `test/w3c/fixtures/sparql12/`                                          | W3C [SPARQL 1.2](https://www.w3.org/TR/sparql12-query/) evaluation suite (249 tests) + triple-terms gap suite (41)                               | `deno task test:sparql12`, `test:sparql12:gap` |
-| `test/w3c/fixtures/rdf/`                                               | RDF 1.1 + 1.2 Turtle/TriG/N-Triples/N-Quads syntax suites (~2.5 MB)                                                                              | `deno task test:rdf11`, `test:rdf12`           |
+| `test/w3c/fixtures/sparql11/`                                          | W3C [SPARQL 1.1](https://www.w3.org/TR/sparql11-query/) evaluation-core                                                                          | `deno task test:w3c`                           |
+| `test/w3c/fixtures/sparql12/`                                          | W3C [SPARQL 1.2](https://www.w3.org/TR/sparql12-query/) evaluation suite + triple-terms gap suite                                                | `deno task test:sparql12`, `test:sparql12:gap` |
+| `test/w3c/fixtures/rdf/`                                               | RDF 1.1 + 1.2 Turtle/TriG/N-Triples/N-Quads syntax suites                                                                                        | `deno task test:rdf11`, `test:rdf12`           |
 | `test/w3c/exists-ref.ts`                                               | Small inline Turtle graph (7 triples) cross-checked vs Oxigraph                                                                                  | `deno task test:exists-ref`                    |
 
 The W3C fixtures are vendored snapshots of `w3c/rdf-tests` (gh-pages branch) so
@@ -68,14 +68,13 @@ with the W3C reference results as a secondary check. The posture is:
    even when the lenient reference (n3) accepts them; the only tolerated
    mismatches are _superset acceptances_ — the wazoo grammar is a single
    Turtle+TriG+N-Quads superset for `LOAD`'s content-sniffing — each audited
-   against Oxigraph and N3.js by `deno task test:ref` (45/45 endorsed).
+   against Oxigraph and N3.js by `deno task test:ref` (all endorsed).
 
-Current standing: **249/249** SPARQL 1.2 evaluation (differential vs Comunica),
-**41/41** RDF 1.2 eval-triple-terms gap suite, **345/345** SPARQL 1.1
-evaluation-core for the w3c-parity job, plus the RDF 1.1/1.2 syntax gates and
-the Oxigraph EXISTS cross-check. These numbers are asserted by the runners
-themselves on every CI run — treat the README's "currently N/N" as a snapshot,
-not a guarantee.
+Current standing: the SPARQL 1.2 evaluation suite (differential vs Comunica),
+the RDF 1.2 eval-triple-terms gap suite, and the SPARQL 1.1 evaluation-core all
+pass for the w3c-parity job, plus the RDF 1.1/1.2 syntax gates and the Oxigraph
+EXISTS cross-check. Counts are asserted by the runners themselves on every CI
+run — the runner output, not this page, is the oracle.
 
 ## Blank-node semantics (a deliberate difference)
 
