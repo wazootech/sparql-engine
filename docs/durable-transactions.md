@@ -101,8 +101,8 @@ quads(skey, pkey, okey, gkey, payload)
   block on a writer.
 - `synchronous=FULL` (the default) fsyncs each commit — a committed update
   survives power loss. A deployment can trade some durability for throughput
-  with `PRAGMA synchronous = NORMAL` (≈1.5× commit throughput in the benchmark
-  below).
+  with `PRAGMA synchronous = NORMAL` (throughput measured by
+  `deno task bench:sqlite`).
 - A commit that completes survives `close()` **and** a hard process exit without
   `close()` — proven by the crash-recovery suite, which kills real child
   processes at the failure points:
@@ -127,37 +127,23 @@ quads(skey, pkey, okey, gkey, payload)
   every buffered write rolls back and the file stays empty.
 - Add/delete netting and `deleteGraph` scoping.
 - Crash recovery: `src/store/sqlite-store-recovery.test.ts` (child-process suite
-  above) + the 8 unit tests in `src/store/sqlite-store.test.ts`.
+  above) + the unit tests in `src/store/sqlite-store.test.ts`.
 
 ## Benchmark: SqliteStore vs MemoryStore
 
 `deno task bench:sqlite` (`bench/sqlite_bench.ts`) times each operation on a
 freshly seeded store with only the operation inside the timer (10k-quad dataset,
-avg of 5 runs; dev machine, 2026-08-15 — see `bench/baseline.json`). Ratios are
-the durable-store cost story; CI runners are roughly 3× slower in absolute
-terms.
+avg of 5 runs — see `bench/baseline.json`). The measured numbers are
+machine-specific and live in the benchmark output, not this page; the durable
+store's cost story is what matters:
 
-| operation                       | memory  | sqlite    | ratio |
-| ------------------------------- | ------- | --------- | ----- |
-| bulk load 10k (addQuad)         | 40.9 ms | 16 204 ms | 396×  |
-| bulk load 10k (one transaction) | 40.9 ms | 732 ms    | 18×   |
-| match all 10k                   | 0.7 ms  | 106 ms    | 163×  |
-| match single-predicate 10k      | 0.6 ms  | 72 ms     | 115×  |
-| match graph-scoped 10k          | 0.1 ms  | 45 ms     | 402×  |
-| countQuads 10k                  | 0.1 ms  | 89 ms     | 617×  |
-| engine INSERT DATA ×200         | 11.6 ms | 177 ms    | 15×   |
-| engine DELETE WHERE ×100        | 65.0 ms | 3 287 ms  | 51×   |
-| commit 1k (10×100) FULL         | —       | 52.5 ms   | —     |
-| commit 1k (10×100) NORMAL       | —       | 34.1 ms   | 1.5×  |
-
-Read this as: **batch the writes**. Bulk loading through the engine's
-transaction hook is 22× faster than autocommit per-quad (one fsync per
-transaction vs one per row). The read paths pay payload-decode amplification —
-every `match` row is `JSON.parse`d and rebuilt into terms — which is why pattern
-scans are the durable store's dominant cost. WHERE-form updates (`DELETE WHERE`
-/ `DELETE/INSERT`) pay that amplification per scanned pattern; if you can
-express the workload as `INSERT DATA`/`DELETE DATA` (constant templates), you
-avoid it entirely.
+**Batch the writes.** Bulk loading through the engine's transaction hook is far
+faster than autocommit per-quad (one fsync per transaction vs one per row). The
+read paths pay payload-decode amplification — every `match` row is `JSON.parse`d
+and rebuilt into terms — which is why pattern scans are the durable store's
+dominant cost. WHERE-form updates (`DELETE WHERE` / `DELETE/INSERT`) pay that
+amplification per scanned pattern; if you can express the workload as
+`INSERT DATA`/`DELETE DATA` (constant templates), you avoid it entirely.
 
 ## Packaging
 

@@ -17,7 +17,7 @@ SPARQL string (request.query)
   │
                   ▼
 ┌────────────────────────────────────────────────────────────────────┐
-│ WazooSparqlEngine.execute()   src/wazoo-sparql-engine.ts L82       │
+│ WazooSparqlEngine.execute()   src/wazoo-sparql-engine.ts            │
 │   raw = request.query                                              │
 │   ast  = parser.parse(raw)                                         │
 │   update? → UpdateEvaluator.executeUpdate(ast)   → {kind:"void"}   │
@@ -25,7 +25,7 @@ SPARQL string (request.query)
 └─────────────────┬──────────────────────────────────────────────────┘
                   ▼
 ┌────────────────────────────────────────────────────────────────────┐
-│ SparqlParser.parse()  src/parser/sparql-parser.ts L9               │
+│ SparqlParser.parse()  src/parser/sparql-parser.ts                 │
 │   vendored sparqljs 3.7.4 jison grammar + SPARQL 1.2 patches       │
 │   (src/parser/sparql.jison → generated src/parser/parser.ts)       │
 │   produces the sparqljs-compatible AST (src/parser/ast.ts)         │
@@ -62,7 +62,7 @@ SPARQL string (request.query)
 └─────────────────┬──────────────────────────────────────────────────┘
                   ▼
 ┌────────────────────────────────────────────────────────────────────┐
-│ rdfTermToSparqlValue()  src/term/convert.ts L44                    │
+│ rdfTermToSparqlValue()  src/term/convert.ts                      │
 │   TermBinding (RDF/JS terms) → SparqlValue wire format             │
 │   (uri / bnode / literal / triple)                                 │
 └─────────────────┬──────────────────────────────────────────────────┘
@@ -159,14 +159,14 @@ each mapping:
 
 | AST pattern (`type`) | Algebra operator (SPARQL 1.1 §18.2)                                                                                         | Code                                                                                                                                                                                                          |
 | -------------------- | --------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `bgp`                | Join over triple patterns (hash join)                                                                                       | [`joinTriplePattern`](https://github.com/wazootech/sparql-engine/blob/main/src/evaluator/join.ts), `src/evaluator/join.ts` L666                                                                               |
+| `bgp`                | Join over triple patterns (hash join)                                                                                       | [`joinTriplePattern`](https://github.com/wazootech/sparql-engine/blob/main/src/evaluator/join.ts), `src/evaluator/join.ts`                                                                                    |
 | `filter`             | Filter                                                                                                                      | `ExpressionEvaluator.filterPasses()`                                                                                                                                                                          |
 | `bind`               | Extend(P, var, expr) — §18.2.2.2                                                                                            | `evaluatePattern` `"bind"` case                                                                                                                                                                               |
 | `values`             | Join(P, Values(...)) — multiset natural join                                                                                | [`innerJoin`](https://github.com/wazootech/sparql-engine/blob/main/src/evaluator/join.ts)                                                                                                                     |
-| `optional`           | LeftJoin(P1, P2, F) — FILTERs hoisted to the join                                                                           | [`leftJoin`](https://github.com/wazootech/sparql-engine/blob/main/src/evaluator/join.ts), `src/evaluator/join.ts` L86                                                                                         |
-| `minus`              | Minus — §18.2.2.9, shared-variable anti-join                                                                                | [`minus`](https://github.com/wazootech/sparql-engine/blob/main/src/evaluator/join.ts), `src/evaluator/join.ts` L276                                                                                           |
+| `optional`           | LeftJoin(P1, P2, F) — FILTERs hoisted to the join                                                                           | [`leftJoin`](https://github.com/wazootech/sparql-engine/blob/main/src/evaluator/join.ts), `src/evaluator/join.ts`                                                                                             |
+| `minus`              | Minus — §18.2.2.9, shared-variable anti-join                                                                                | [`minus`](https://github.com/wazootech/sparql-engine/blob/main/src/evaluator/join.ts), `src/evaluator/join.ts`                                                                                                |
 | `union`              | Join(P, Union(Q1, Q2))                                                                                                      | [`innerJoin`](https://github.com/wazootech/sparql-engine/blob/main/src/evaluator/join.ts) over branch results                                                                                                 |
-| `graph`              | Graph-scoped evaluation over a [`GraphScopedStore`](https://github.com/wazootech/sparql-engine/blob/main/src/quad-store.ts) | `src/quad-store.ts` L151                                                                                                                                                                                      |
+| `graph`              | Graph-scoped evaluation over a [`GraphScopedStore`](https://github.com/wazootech/sparql-engine/blob/main/src/quad-store.ts) | `src/quad-store.ts`                                                                                                                                                                                           |
 | `query` (subquery)   | Evaluated first, then joined — §18.2.4                                                                                      | fresh [`SparqlEvaluator`](https://github.com/wazootech/sparql-engine/blob/main/src/evaluator/sparql-evaluator.ts) + [`innerJoin`](https://github.com/wazootech/sparql-engine/blob/main/src/evaluator/join.ts) |
 | `service`            | Evaluated locally (SILENT swallows errors)                                                                                  | `"service"` case                                                                                                                                                                                              |
 | `group`              | Nested group → Join with the outer solutions                                                                                | recursive `evaluateGroup`                                                                                                                                                                                     |
@@ -175,8 +175,8 @@ each mapping:
 
 The post-WHERE stages live in one synchronous function,
 [`applySelectPipeline()`](https://github.com/wazootech/sparql-engine/blob/main/src/evaluator/select-pipeline.ts)
-(`src/evaluator/select-pipeline.ts` L57), which is shared verbatim by the async
-main path and the synchronous EXISTS subquery path:
+(`src/evaluator/select-pipeline.ts`), which is shared verbatim by the async main
+path and the synchronous EXISTS subquery path:
 
 ```
 raw bindings
@@ -229,16 +229,17 @@ small BGPs, greedy fallback), not a static rewrite:
    (`src/planner/join-cost-estimator.ts`; default `BaselineJoinCostEstimator`,
    wired via `WazooSparqlEngineOptions.estimator`), which receives each
    pattern's statistics:
-   - no pattern variable bound → `bindings.length × candidates.length`;
-   - a pattern variable bound in the incoming solutions → the positional index
-     is probed, costing `bindings.length × average bucket size`
-     (`candidates.length ÷ distinct values` — the store's per-variable distinct
-     count when the statistics source supplies it, the bound values' distinct
-     count otherwise).
 
-   The estimate affects only join order, never results (SPARQL §18.2.2 — joins
-   commute), so both an estimator swap and the DP are guarded by the W3C
-   differential gate.
+- no pattern variable bound → `bindings.length × candidates.length`;
+- a pattern variable bound in the incoming solutions → the positional index is
+  probed, costing `bindings.length × average bucket size`
+  (`candidates.length ÷ distinct values` — the store's per-variable distinct
+  count when the statistics source supplies it, the bound values' distinct count
+  otherwise).
+
+The estimate affects only join order, never results (SPARQL §18.2.2 — joins
+commute), so both an estimator swap and the DP are guarded by the W3C
+differential gate.
 
 ### Worked example: the `reorder-chain` benchmark
 
@@ -272,8 +273,8 @@ candidates — a 400×400 intermediate. The planner instead picks the `knows`
 pattern whose `?friend` variable **is** bound in the incoming solutions: the
 positional index is probed, costing `bindings.length × average bucket size` =
 400 × (400 ÷ 400) = 400. The 400×400 intermediate never materializes; total work
-drops from ~160,800 to ~1,200 quad iterations, which is the ~90× gap (136.5 ms →
-1.5 ms) the benchmark measures. Setting `reorderPatterns: false` in
+drops from ~160,800 to ~1,200 quad iterations — the reordering win the
+`reorder-chain` benchmark group measures. Setting `reorderPatterns: false` in
 [`WazooSparqlEngineOptions`](https://jsr.io/@wazoo/sparql-engine/doc/~/WazooSparqlEngineOptions)
 preserves written order exactly.
 
@@ -297,27 +298,27 @@ The engine never owns data. It binds to any `rdfjs.Source` / `rdfjs.Store`:
 
 `src/quad-store.ts` is the adapter layer between the evaluator and the store:
 
-| Function                                                                                               | Role                                                                                                                                               |
-| ------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [`matchQuads(store, s,p,o,g)`](https://github.com/wazootech/sparql-engine/blob/main/src/quad-store.ts) | Resolves the store's `match()` **stream** into an array (L106)                                                                                     |
-| [`buildQuadIndex(quads)`](https://github.com/wazootech/sparql-engine/blob/main/src/quad-store.ts)      | O(1) positional buckets `bySubject/byPredicate/byObject` keyed by [`termKey`](https://jsr.io/@wazoo/sparql-engine/doc/~/termKey) (L25)             |
-| [`probeQuadIndex(index, ...)`](https://github.com/wazootech/sparql-engine/blob/main/src/quad-store.ts) | Picks the smallest constrained bucket, filters the rest positionally (L60)                                                                         |
-| [`GraphScopedStore`](https://github.com/wazootech/sparql-engine/blob/main/src/quad-store.ts)           | Read-only view fixing the graph term of every scan — GRAPH scoping with no call-site awareness (L151)                                              |
-| [`namedGraphs(store)`](https://github.com/wazootech/sparql-engine/blob/main/src/quad-store.ts)         | Enumerates `GRAPH ?g` candidates (L196)                                                                                                            |
-| [`buildDatasetStore(...)`](https://github.com/wazootech/sparql-engine/blob/main/src/quad-store.ts)     | Materializes the active dataset for `FROM`/`FROM NAMED` into a fresh [`MemoryStore`](https://jsr.io/@wazoo/sparql-engine/doc/~/MemoryStore) (L219) |
+| Function                                                                                               | Role                                                                                                                                        |
+| ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`matchQuads(store, s,p,o,g)`](https://github.com/wazootech/sparql-engine/blob/main/src/quad-store.ts) | Resolves the store's `match()` **stream** into an array                                                                                     |
+| [`buildQuadIndex(quads)`](https://github.com/wazootech/sparql-engine/blob/main/src/quad-store.ts)      | O(1) positional buckets `bySubject/byPredicate/byObject` keyed by [`termKey`](https://jsr.io/@wazoo/sparql-engine/doc/~/termKey)            |
+| [`probeQuadIndex(index, ...)`](https://github.com/wazootech/sparql-engine/blob/main/src/quad-store.ts) | Picks the smallest constrained bucket, filters the rest positionally                                                                        |
+| [`GraphScopedStore`](https://github.com/wazootech/sparql-engine/blob/main/src/quad-store.ts)           | Read-only view fixing the graph term of every scan — GRAPH scoping with no call-site awareness                                              |
+| [`namedGraphs(store)`](https://github.com/wazootech/sparql-engine/blob/main/src/quad-store.ts)         | Enumerates `GRAPH ?g` candidates                                                                                                            |
+| [`buildDatasetStore(...)`](https://github.com/wazootech/sparql-engine/blob/main/src/quad-store.ts)     | Materializes the active dataset for `FROM`/`FROM NAMED` into a fresh [`MemoryStore`](https://jsr.io/@wazoo/sparql-engine/doc/~/MemoryStore) |
 
 ### Scan → hash join
 
 [`scanEntry()`](https://github.com/wazootech/sparql-engine/blob/main/src/evaluator/join.ts)
-(`src/evaluator/join.ts` L596) resolves a triple pattern
-(subject/predicate/object), runs **one**
+(`src/evaluator/join.ts`) resolves a triple pattern (subject/predicate/object),
+runs **one**
 [`matchQuads`](https://github.com/wazootech/sparql-engine/blob/main/src/quad-store.ts)
 scan for its constant positions, and returns a
 [`ScanEntry`](https://github.com/wazootech/sparql-engine/blob/main/src/evaluator/join.ts)
 carrying the pre-fetched `candidates`.
 
 [`joinTriplePattern()`](https://github.com/wazootech/sparql-engine/blob/main/src/evaluator/join.ts)
-(L666) is a hash join over those candidates:
+is a hash join over those candidates:
 
 1. If any incoming binding already binds a pattern variable, the candidates are
    indexed once with
@@ -336,21 +337,21 @@ evaluation and are converted to the
 [`SparqlValue`](https://jsr.io/@wazoo/sparql-engine/doc/~/SparqlValue) wire
 format exactly once, at the response boundary
 ([`rdfTermToSparqlValue`](https://jsr.io/@wazoo/sparql-engine/doc/~/rdfTermToSparqlValue),
-`src/term/convert.ts` L44).
+`src/term/convert.ts`).
 
 ### Property paths
 
 [`scanPathEntry()`](https://github.com/wazootech/sparql-engine/blob/main/src/evaluator/join.ts)
-(L1083) pre-computes the (subject, object) **pair set** a path connects: from a
-constant endpoint, or from every graph node when both ends are variables. Pairs
-are deduplicated unless the path is multiset
+pre-computes the (subject, object) **pair set** a path connects: from a constant
+endpoint, or from every graph node when both ends are variables. Pairs are
+deduplicated unless the path is multiset
 ([`isMultisetPath`](https://github.com/wazootech/sparql-engine/blob/main/src/evaluator/join.ts),
-L1062 — terms, `^`, `/`, `|`). `pathSteps()` (L1277) evaluates one path step
-from an anchor with recursive traversal: inverse `^`, sequence `/`, alternative
-`|`, zero-or-one `?`, reflexive-transitive `*` and `+` (BFS with a visited set),
-and negated property sets `!`.
+the path operators `^`, `/`, `|`). `pathSteps()` evaluates one path step from an
+anchor with recursive traversal: inverse `^`, sequence `/`, alternative `|`,
+zero-or-one `?`, reflexive-transitive `*` and `+` (BFS with a visited set), and
+negated property sets `!`.
 [`joinPathPattern()`](https://github.com/wazootech/sparql-engine/blob/main/src/evaluator/join.ts)
-(L1137) joins the pair set against the incoming bindings.
+joins the pair set against the incoming bindings.
 
 ### Graph scoping & datasets
 
@@ -396,8 +397,7 @@ and negated property sets `!`.
 - **Streams only at the store boundary.** `rdfjs.Stream` is consumed exactly
   once, in
   [`matchQuads`](https://github.com/wazootech/sparql-engine/blob/main/src/quad-store.ts)
-  (`src/quad-store.ts` L106), using the standard `data`/`end`/`error` event
-  protocol.
+  (`src/quad-store.ts`), using the standard `data`/`end`/`error` event protocol.
   [`MemoryStream`](https://jsr.io/@wazoo/sparql-engine/doc/~/MemoryStream)
   implements that protocol with zero dependencies (flow mode on `data`, pull
   mode on `read`/`readable`, completion-only on bare `end`), keeping the package
@@ -406,18 +406,18 @@ and negated property sets `!`.
   synchronous snapshot (`quads` +
   [`QuadIndex`](https://github.com/wazootech/sparql-engine/blob/main/src/quad-store.ts) +
   store `version`) once per evaluation via `BgpEvaluator.prepareExistsIndex()`
-  L211 in `src/evaluator/bgp-evaluator.ts` — the **synchronous**
-  `evaluateExists` hook probes it. The resolved snapshot is captured for the
-  call and threaded explicitly through every EXISTS hook, so a concurrent
-  `execute()` whose cache rebuilds can never swap it mid-evaluation (issue
+  in `src/evaluator/bgp-evaluator.ts` — the **synchronous** `evaluateExists`
+  hook probes it. The resolved snapshot is captured for the call and threaded
+  explicitly through every EXISTS hook, so a concurrent `execute()` whose cache
+  rebuilds can never swap it mid-evaluation (issue
   [#72](https://github.com/wazootech/sparql-engine/issues/72)). The store's
   mutation version still invalidates the cache, so updates between queries never
   see stale data, and repeat evaluations of an unchanged store skip the drain
   entirely.
 - **Identity & hashing.**
   [`termKey`](https://jsr.io/@wazoo/sparql-engine/doc/~/termKey)
-  (`src/term/identity.ts` L8) is a sound RDF-term equality key used for all
-  hashing (quad indexes, dataset dedup, DISTINCT, grouping);
+  (`src/term/identity.ts`) is a sound RDF-term equality key used for all hashing
+  (quad indexes, dataset dedup, DISTINCT, grouping);
   [`sameRdfTerm`](https://jsr.io/@wazoo/sparql-engine/doc/~/sameRdfTerm) does
   structural comparison, including RDF 1.2 triple terms (graph is not part of
   triple-term identity).
@@ -432,7 +432,7 @@ SPARQL updates bypass the query evaluator:
 
 ```
 SparqlRequest.query
-  → UpdateEvaluator.executeUpdate()   src/evaluator/update-evaluator.ts L99
+  → UpdateEvaluator.executeUpdate()   src/evaluator/update-evaluator.ts
       → one transaction per request (createTransaction) OR direct add/remove
       → applyOperation per UpdateOperation:
           insert / delete (DATA templates)
