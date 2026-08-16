@@ -303,25 +303,70 @@ pattern to join by estimated cost. That estimate comes from an injectable
 
 ```typescript
 export interface JoinCostEstimator {
-  estimateJoinCost(entry: ScanEntry, bindings: TermBinding[]): number;
+  estimateJoinCost(
+    entry: ScanEntry,
+    bindings: TermBinding[],
+    stats?: PatternStats,
+  ): number;
 }
 ```
 
 The default is `BaselineJoinCostEstimator` — the shipped greedy formula: no
 bound pattern variable costs `bindings.length × candidates.length`; a bound
 pattern variable costs `bindings.length × average bucket size`
-(`candidates.length ÷ distinct bound values`, bounded below by 1), using the
-bound variable with the fewest distinct values. Swap it via
+(`candidates.length ÷ distinct values`, bounded below by 1), using the bound
+variable with the fewest distinct values. Swap it via
 `WazooSparqlEngineOptions.estimator`.
 
 **Contract:** the estimator receives the pattern's `ScanEntry` (whose
 `candidates` array holds the pattern's true store cardinality from the up-front
-scan) and the current bindings, and nothing else — no store access, no
-statistics beyond the entry's candidates. It must be pure and deterministic.
-Crucially, the estimate affects **only join order, never results** (SPARQL 1.1
-§18.2.2: joins commute, so every order yields the same solution multiset); the
-W3C differential gate is the guard. Planner pieces 2–3 (statistics source,
-join-order search) plug in behind this seam.
+scan), the current bindings, and the pattern's optional `PatternStats` — and
+nothing else: no store access. It must be pure and deterministic. Crucially, the
+estimate affects **only join order, never results** (SPARQL 1.1 §18.2.2: joins
+commute, so every order yields the same solution multiset); the W3C differential
+gate is the guard. Planner piece 3 (join-order search) plugs in behind this
+seam.
+
+### 5a. Statistics source
+
+The greedy loop's bucket-size arithmetic is only as good as its distinct-value
+counts. `BaselineJoinCostEstimator` therefore takes per-pattern statistics
+(planner piece 2, issue #129) from `PatternStatistics`
+(`src/planner/pattern-statistics.ts`), the per-query statistics source:
+
+```typescript
+export interface PatternStats {
+  candidates: number;
+  distinctByVar: Partial<Record<string, number>>;
+}
+
+export class PatternStatistics {
+  constructor(store: rdfjs.Source<rdfjs.Quad>);
+  statsFor(storeView, entry: ScanEntry): Promise<PatternStats>;
+}
+```
+
+`PatternStatistics` is created once per query evaluation and threaded through
+every group, so statistics are computed once per query — keyed by pattern
+signature — never re-derived inside the greedy per-step loop. It resolves each
+pattern's stats in this order:
+
+1. **Store hook** — a store exposing `estimateStats(pattern)` (mirroring the
+   `countQuads` capability, decision #12) supplies its own numbers; the engine
+   uses them when present. `GraphScopedStore` forwards the hook like it forwards
+   `version`.
+2. **Scoped fallback** — named-graph scopes (GRAPH) always derive from the
+   pattern's own scoped candidate scan; the hook cannot see the scope, and the
+   scoped candidates are exact for that graph.
+3. **Bounded fallback** — otherwise the same shape is derived from the pattern's
+   already-scanned candidates: exact cardinality plus a distinct-value pass
+   capped at `DISTINCT_SAMPLE_CAP` candidates (exact below the cap, a
+   deterministic evenly-spaced sample above it), so large stores never pay an
+   unbounded counting pass. On identical data the fallback agrees exactly with a
+   hook answering the same numbers.
+
+Because stats only ever influence join **order** — never results — a store
+providing `estimateStats` (or not) is fully transparent to query output.
 
 ## Term utilities (exported from `src/mod.ts`)
 
@@ -352,12 +397,14 @@ Types:
 [`WazooSparqlEngineOptions`](https://jsr.io/@wazoo/sparql-engine/doc/~/WazooSparqlEngineOptions),
 [`WazooSparqlTransaction`](https://jsr.io/@wazoo/sparql-engine/doc/~/WazooSparqlTransaction),
 `IriFunction`, `IriFunctionMap` (link on JSR once published),
-`JoinCostEstimator` (link on JSR once published),
+`JoinCostEstimator` (link on JSR once published), `PatternStats`,
+`StoreStatisticsHook` (link on JSR once published),
 [`CanonicalTerm`](https://jsr.io/@wazoo/sparql-engine/doc/~/CanonicalTerm).
 
 Values/classes:
 [`WazooSparqlEngine`](https://jsr.io/@wazoo/sparql-engine/doc/~/WazooSparqlEngine),
-`BaselineJoinCostEstimator` (link on JSR once published),
+`BaselineJoinCostEstimator` (link on JSR once published), `PatternStatistics`,
+`DISTINCT_SAMPLE_CAP` (link on JSR once published),
 [`MemoryStore`](https://jsr.io/@wazoo/sparql-engine/doc/~/MemoryStore),
 [`MemoryStream`](https://jsr.io/@wazoo/sparql-engine/doc/~/MemoryStream),
 [`DataFactory`](https://jsr.io/@wazoo/sparql-engine/doc/~/DataFactory),

@@ -201,14 +201,26 @@ engine's optimizer. It is a _dynamic_ greedy planner, not a static rewrite:
    [`scanEntry()`](https://github.com/wazootech/sparql-engine/blob/main/src/evaluator/join.ts)
    — so the planner uses the pattern's _true_ store cardinality
    (`entry.candidates.length`), never a heuristic estimate.
-3. A greedy loop repeatedly joins the remaining pattern with the lowest
+3. Before the loop, each pattern's statistics are resolved once from the
+   per-query `PatternStatistics` source (`src/planner/pattern-statistics.ts`,
+   issue #129) and cached by pattern signature: a store exposing
+   `estimateStats(pattern)` supplies its own numbers (the `countQuads`
+   capability pattern, decision #12), and otherwise the same shape is derived
+   from the pattern's already-scanned candidates — exact cardinality plus a
+   distinct-value pass capped at `DISTINCT_SAMPLE_CAP`, so large stores never
+   pay an unbounded counting pass. Named-graph scopes always use the scoped
+   candidate derivation (the hook cannot see the scope).
+4. A greedy loop repeatedly joins the remaining pattern with the lowest
    estimated cost against the current bindings. The estimate comes from an
    injectable `JoinCostEstimator` (`src/planner/join-cost-estimator.ts`; default
-   `BaselineJoinCostEstimator`, wired via `WazooSparqlEngineOptions.estimator`):
+   `BaselineJoinCostEstimator`, wired via `WazooSparqlEngineOptions.estimator`),
+   which receives each pattern's statistics:
    - no pattern variable bound → `bindings.length × candidates.length`;
    - a pattern variable bound in the incoming solutions → the positional index
      is probed, costing `bindings.length × average bucket size`
-     (`candidates.length ÷ distinct bound values`).
+     (`candidates.length ÷ distinct values` — the store's per-variable distinct
+     count when the statistics source supplies it, the bound values' distinct
+     count otherwise).
 
    The estimate affects only join order, never results (SPARQL §18.2.2 — joins
    commute), so an estimator swap is guarded by the W3C differential gate.
