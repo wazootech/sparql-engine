@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-15T19:23:39.656Z",
+  "generatedAt": "2026-08-16T01:54:57.683Z",
   "entries": [
     {
       "name": ".",
@@ -20,6 +20,9 @@
         "src\\parser\\syntax-error.ts",
         "src\\parser\\turtle-generated.ts",
         "src\\parser\\turtle-parser.ts",
+        "src\\planner\\join-cost-estimator.ts",
+        "src\\planner\\join-order-search.ts",
+        "src\\planner\\pattern-statistics.ts",
         "src\\quad-store.ts",
         "src\\serialize\\json-results.ts",
         "src\\serialize\\mod.ts",
@@ -36,7 +39,7 @@
         "src\\term\\ordering.ts",
         "src\\wazoo-sparql-engine.ts"
       ],
-      "bytes": 618162
+      "bytes": 646213
     },
     {
       "name": "./term",
@@ -94,7 +97,7 @@
         "src\\parser\\syntax-error.ts",
         "src\\term\\data-factory.ts"
       ],
-      "bytes": 229542
+      "bytes": 230173
     },
     {
       "name": "./serialize",

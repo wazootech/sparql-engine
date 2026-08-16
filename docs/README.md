@@ -33,7 +33,7 @@ Related in-repo documents:
 (topology and `@worlds/client` relationship),
 [CONTEXT.md](https://github.com/wazootech/sparql-engine/blob/main/CONTEXT.md)
 (glossary), and [`docs/durable-transactions.md`](durable-transactions.md)
-(SQLite transaction backend prototype).
+(released `./sqlite` durable backend).
 
 ## One-paragraph map
 
@@ -63,7 +63,7 @@ tables in [07 — Benchmarking & Performance](07-benchmarking.md)):
 
 |                          | wazoo                      | oxigraph | comunica                |
 | ------------------------ | -------------------------- | -------- | ----------------------- |
-| on-disk footprint        | **0.60 MiB** (zero deps)   | 7.9 MiB  | 28.3 MiB (368 packages) |
+| on-disk footprint        | **0.67 MiB** (zero deps)   | 7.9 MiB  | 28.3 MiB (368 packages) |
 | smallest subpath import  | **7.4 KiB** (`/serialize`) | —        | —                       |
 | peak heap, full scan     | **150 MiB**                | 255 MiB  | 214 MiB                 |
 | peak heap, nested EXISTS | **80 MiB**                 | 109 MiB  | 273 MiB                 |
@@ -73,7 +73,7 @@ tables in [07 — Benchmarking & Performance](07-benchmarking.md)):
   <figcaption><b>Fig 1 — Library size on disk.</b> One bar per engine; bar
   length is proportional to total installed size (values in binary MiB, share
   of the combined total in parentheses). Wazoo (green) is the whole JSR
-  artifact at 0.60 MiB — a sliver against comunica’s 28.3 MiB closure (orange);
+  artifact at 0.67 MiB — a sliver against comunica’s 28.3 MiB closure (orange);
   oxigraph (blue) sits between.</figcaption>
 </figure>
 

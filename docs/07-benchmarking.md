@@ -5,12 +5,14 @@ layout: default
 
 # Benchmarking & Performance
 
-The engine ships six benchmark surfaces — one latency comparison, one CI
-regression gate, one concurrency stress probe, and three footprint measurers
-(on-disk size, per-entrypoint closure, and peak heap). This page documents the
-methodology behind each and the known results measured on the reference machine.
-Run instructions live in [05 — Verification & Testing](05-testing.md); this page
-is the "why it's trustworthy and what the numbers say" companion.
+The engine ships nine benchmark surfaces — one latency comparison, one CI
+regression gate, one concurrency stress probe, three footprint measurers
+(on-disk size, per-entrypoint closure, and peak heap), a latency-chart renderer,
+a latency-snapshot freshness gate, and a durable-store benchmark. This page
+documents the methodology behind each and the known results measured on the
+reference machine. Run instructions live in
+[05 — Verification & Testing](05-testing.md); this page is the "why it's
+trustworthy and what the numbers say" companion.
 
 | Tool                         | Task                            | Measures                                                                              | Gate |
 | ---------------------------- | ------------------------------- | ------------------------------------------------------------------------------------- | ---- |
@@ -22,6 +24,7 @@ is the "why it's trustworthy and what the numbers say" companion.
 | `bench/collect-memory.ts`    | `deno task bench:memory`        | Peak heap during execution                                                            | no   |
 | `bench/latency-chart.ts`     | `deno task bench:latency`       | Renders the `deno bench --json` latency snapshot into `docs/assets/chart-latency.svg` | no   |
 | `bench/latency-check.ts`     | `deno task bench:latency:check` | Fails when the committed snapshot's bench inventory is stale vs a fresh run           | CI   |
+| `bench/sqlite_bench.ts`      | `deno task bench:sqlite`        | Durable `SqliteStore` vs `MemoryStore` operation timings                              | no   |
 
 ## `deno task bench` — three-engine latency comparison
 
@@ -205,28 +208,28 @@ in `src/wazoo-sparql-engine.test.ts`.
 
 On-disk footprint (what a consumer must have installed):
 
-| engine   | on disk      | contents                                                                                              |
-| -------- | ------------ | ----------------------------------------------------------------------------------------------------- |
-| wazoo    | **0.60 MiB** | 36 source files (the whole JSR artifact: `src/` + `README.md` + `LICENSE`); zero runtime dependencies |
-| oxigraph | 7.9 MiB      | WASM runtime (7.8 MiB) + JS glue/types                                                                |
-| comunica | 28.3 MiB     | 368 npm packages in the transitive dependency closure                                                 |
+| engine   | on disk      | contents                                                                                       |
+| -------- | ------------ | ---------------------------------------------------------------------------------------------- |
+| wazoo    | **0.67 MiB** | 41 files (the whole JSR artifact: `src/` + `README.md` + `LICENSE`); zero runtime dependencies |
+| oxigraph | 7.9 MiB      | WASM runtime (7.8 MiB) + JS glue/types                                                         |
+| comunica | 28.3 MiB     | 368 npm packages in the transitive dependency closure                                          |
 
 <figure>
   <img src="assets/chart-library-size.svg" alt="Bar chart of engine footprints on disk">
   <figcaption><b>Fig — Library size on disk.</b> One bar per engine; bar
   length is proportional to total installed size (values in binary MiB, share
   of the combined total in parentheses). Wazoo (green) is the whole JSR
-  artifact at 0.60 MiB — a sliver against comunica’s 28.3 MiB closure (orange);
+  artifact at 0.67 MiB — a sliver against comunica’s 28.3 MiB closure (orange);
   oxigraph (blue) sits between.</figcaption>
 </figure>
 
-Wazoo breaks down as evaluator 226 KiB, parser 294 KiB (the generated
-`parser.ts` alone is 202 KiB), term 40 KiB, store 13 KiB, serialize 7 KiB,
-README 15 KiB, LICENSE 1 KiB — the parser is the largest single module (the
-generated `parser.ts` from `sparql.jison`). The `bench:size` JSON breaks the
-artifact into per-file tiles so the chart stays honest: the JSR
-`publish.exclude` set (grammar sources, `generate-parser.ts`, `sqlite-store.ts`)
-is applied before measuring.
+Wazoo breaks down as evaluator 247 KiB, parser 307 KiB (the generated
+`parser.ts` alone is 207 KiB), term 40 KiB, planner 20 KiB, store 24 KiB,
+serialize 7.4 KiB, README 21 KiB, LICENSE 1 KiB — the parser is the largest
+single module (the generated `parser.ts` from `sparql.jison`). The `bench:size`
+JSON breaks the artifact into per-file tiles so the chart stays honest: the JSR
+`publish.exclude` set (grammar sources, `generate-parser.ts`) is applied before
+measuring.
 
 **Per-entrypoint consumer closure** — what importing a subpath actually loads
 from the published package (value-import graph, type-only imports erased;
@@ -236,7 +239,7 @@ measured by `deno task bench:size:closures`):
   <img src="assets/chart-closures.svg" alt="Bar chart of per-entrypoint import closures">
   <figcaption><b>Fig — Per-entrypoint consumer closure.</b> Bar length is the
   total size of the local files each `@wazoo/sparql-engine` entrypoint actually
-  loads (file count per bar). The full engine pulls in the whole 576 KiB graph;
+  loads (file count per bar). The full engine pulls in the whole 631 KiB graph;
   a store-only consumer pays just 53 KiB and the serializers are the cheapest
   leaf at 7.4 KiB.</figcaption>
 </figure>
@@ -245,8 +248,8 @@ measured by `deno task bench:size:closures`):
   <img src="assets/treemap-submodules.svg" alt="Treemap of the full engine closure broken down by top-level module">
   <figcaption><b>Fig — Inside the full engine: the tree-shaken submodules.</b>
   Tile area is the share of the full `@wazoo/sparql-engine` import closure
-  (576 KiB, 30 files) that each top-level module accounts for — the parser
-  (277 KiB) and evaluator (226 KiB) dominate, so a consumer that imports only
+  (631 KiB, 34 files) that each top-level module accounts for — the parser
+  (288 KiB) and evaluator (247 KiB) dominate, so a consumer that imports only
   `./serialize` (7 KiB) or `./term` (40 KiB) avoids most of the engine. Each
   subpath closure above is a cut of this graph.</figcaption>
 </figure>
@@ -256,8 +259,9 @@ measured by `deno task bench:size:closures`):
 | `@wazoo/sparql-engine/serialize`     | **7.4 KiB** | 3     |
 | `@wazoo/sparql-engine/term`          | 40.3 KiB    | 9     |
 | `@wazoo/sparql-engine/store`         | 53.1 KiB    | 10    |
-| `@wazoo/sparql-engine/parser`        | 213.8 KiB   | 3     |
-| `@wazoo/sparql-engine` (full engine) | 575.9 KiB   | 30    |
+| `@wazoo/sparql-engine/sqlite`        | 64.3 KiB    | 11    |
+| `@wazoo/sparql-engine/parser`        | 224.8 KiB   | 4     |
+| `@wazoo/sparql-engine` (full engine) | 631.1 KiB   | 34    |
 
 Peak heap during execution (`heapUsed`; isolated subprocess per engine, peak
 over 5 runs, all three share the same ~62 MiB runtime baseline so the comparison
@@ -276,7 +280,7 @@ is symmetric):
   (green) is the smallest tile in both panels.</figcaption>
 </figure>
 
-Wazoo is the smallest on disk by 13-47× (0.60 vs 7.9 vs 28.3 MiB) and holds its
+Wazoo is the smallest on disk by 12-42× (0.67 vs 7.9 vs 28.3 MiB) and holds its
 speed advantage with the lowest peak heap on both workloads — including a peak
 roughly a third of Comunica's on the nested-EXISTS surface the timings above
 highlight. Oxigraph's WASM runtime is compact on disk, but its result

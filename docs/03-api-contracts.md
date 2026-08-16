@@ -192,7 +192,7 @@ without a transaction, the store must additionally expose `addQuad` /
 shape:
 
 ```typescript
-// src/evaluator/update-evaluator.ts L34
+// src/evaluator/update-evaluator.ts L35
 export type QuadWriteStore = rdfjs.Store & {
   addQuad(item: rdfjs.Quad): unknown;
   removeQuad(item: rdfjs.Quad): unknown;
@@ -210,7 +210,7 @@ throw a clear error.
 Provide `createTransaction` to make updates atomic and durable:
 
 ```typescript
-// src/wazoo-sparql-engine.ts L16
+// src/wazoo-sparql-engine.ts L23
 export interface WazooSparqlTransaction {
   add(quad: rdfjs.Quad): unknown; // buffer an insert
   delete(quad: rdfjs.Quad): unknown; // buffer a delete
@@ -405,6 +405,7 @@ once published), `EstimatedJoinState` (link on JSR once published),
 
 Values/classes:
 [`WazooSparqlEngine`](https://jsr.io/@wazoo/sparql-engine/doc/~/WazooSparqlEngine),
+[`SparqlSyntaxError`](https://jsr.io/@wazoo/sparql-engine/doc/~/SparqlSyntaxError),
 `BaselineJoinCostEstimator` (link on JSR once published), `PatternStatistics`,
 `DISTINCT_SAMPLE_CAP` (link on JSR once published), `searchBestJoinOrder`,
 `DP_MAX_PATTERNS` (link on JSR once published),
@@ -434,10 +435,11 @@ Values/classes:
 [`XSD_INTEGER`](https://jsr.io/@wazoo/sparql-engine/doc/~/XSD_INTEGER),
 [`XSD_STRING`](https://jsr.io/@wazoo/sparql-engine/doc/~/XSD_STRING).
 
-Not exported (deep-import only):
+Not exported from the root entrypoint (deep-import or subpath only):
 [`SparqlParser`](https://github.com/wazootech/sparql-engine/blob/main/src/parser/sparql-parser.ts),
-the AST types (`src/parser/ast.ts`),
+the AST types (`src/parser/ast.ts`), and the evaluator internals — all reachable
+from source but outside the public surface, keeping the published package's
+runtime dependency graph empty. The one deliberate exception is
 [`SqliteStore`](https://github.com/wazootech/sparql-engine/blob/main/src/store/sqlite-store.ts)
-(`src/store/sqlite-store.ts`), and the evaluator internals — all reachable from
-source but outside the public surface, keeping the published package's runtime
-dependency graph empty.
+(`src/store/sqlite-store.ts`), which ships as the `./sqlite` subpath entrypoint
+(`@wazoo/sparql-engine/sqlite`) — the only surface that pulls `node:sqlite`.

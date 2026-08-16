@@ -17,7 +17,7 @@ SPARQL string (request.query)
   │
                   ▼
 ┌────────────────────────────────────────────────────────────────────┐
-│ WazooSparqlEngine.execute()   src/wazoo-sparql-engine.ts L56       │
+│ WazooSparqlEngine.execute()   src/wazoo-sparql-engine.ts L82       │
 │   raw = request.query                                              │
 │   ast  = parser.parse(raw)                                         │
 │   update? → UpdateEvaluator.executeUpdate(ast)   → {kind:"void"}   │
@@ -159,14 +159,14 @@ each mapping:
 
 | AST pattern (`type`) | Algebra operator (SPARQL 1.1 §18.2)                                                                                         | Code                                                                                                                                                                                                          |
 | -------------------- | --------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `bgp`                | Join over triple patterns (hash join)                                                                                       | [`joinTriplePattern`](https://github.com/wazootech/sparql-engine/blob/main/src/evaluator/join.ts), `src/evaluator/join.ts` L520                                                                               |
+| `bgp`                | Join over triple patterns (hash join)                                                                                       | [`joinTriplePattern`](https://github.com/wazootech/sparql-engine/blob/main/src/evaluator/join.ts), `src/evaluator/join.ts` L666                                                                               |
 | `filter`             | Filter                                                                                                                      | `ExpressionEvaluator.filterPasses()`                                                                                                                                                                          |
 | `bind`               | Extend(P, var, expr) — §18.2.2.2                                                                                            | `evaluatePattern` `"bind"` case                                                                                                                                                                               |
 | `values`             | Join(P, Values(...)) — multiset natural join                                                                                | [`innerJoin`](https://github.com/wazootech/sparql-engine/blob/main/src/evaluator/join.ts)                                                                                                                     |
-| `optional`           | LeftJoin(P1, P2, F) — FILTERs hoisted to the join                                                                           | [`leftJoin`](https://github.com/wazootech/sparql-engine/blob/main/src/evaluator/join.ts), `src/evaluator/join.ts` L82                                                                                         |
-| `minus`              | Minus — §18.2.2.9, shared-variable anti-join                                                                                | [`minus`](https://github.com/wazootech/sparql-engine/blob/main/src/evaluator/join.ts), `src/evaluator/join.ts` L202                                                                                           |
+| `optional`           | LeftJoin(P1, P2, F) — FILTERs hoisted to the join                                                                           | [`leftJoin`](https://github.com/wazootech/sparql-engine/blob/main/src/evaluator/join.ts), `src/evaluator/join.ts` L86                                                                                         |
+| `minus`              | Minus — §18.2.2.9, shared-variable anti-join                                                                                | [`minus`](https://github.com/wazootech/sparql-engine/blob/main/src/evaluator/join.ts), `src/evaluator/join.ts` L276                                                                                           |
 | `union`              | Join(P, Union(Q1, Q2))                                                                                                      | [`innerJoin`](https://github.com/wazootech/sparql-engine/blob/main/src/evaluator/join.ts) over branch results                                                                                                 |
-| `graph`              | Graph-scoped evaluation over a [`GraphScopedStore`](https://github.com/wazootech/sparql-engine/blob/main/src/quad-store.ts) | `src/quad-store.ts` L147                                                                                                                                                                                      |
+| `graph`              | Graph-scoped evaluation over a [`GraphScopedStore`](https://github.com/wazootech/sparql-engine/blob/main/src/quad-store.ts) | `src/quad-store.ts` L151                                                                                                                                                                                      |
 | `query` (subquery)   | Evaluated first, then joined — §18.2.4                                                                                      | fresh [`SparqlEvaluator`](https://github.com/wazootech/sparql-engine/blob/main/src/evaluator/sparql-evaluator.ts) + [`innerJoin`](https://github.com/wazootech/sparql-engine/blob/main/src/evaluator/join.ts) |
 | `service`            | Evaluated locally (SILENT swallows errors)                                                                                  | `"service"` case                                                                                                                                                                                              |
 | `group`              | Nested group → Join with the outer solutions                                                                                | recursive `evaluateGroup`                                                                                                                                                                                     |
@@ -192,7 +192,8 @@ raw bindings
 ## Stage 3 — Optimize (join ordering)
 
 Pattern reordering is **on by default** (`reorderPatterns: true`) and is the
-engine's optimizer. It is a _dynamic_ greedy planner, not a static rewrite:
+engine's optimizer. It is a _dynamic_ statistics-driven planner (subset DP for
+small BGPs, greedy fallback), not a static rewrite:
 
 1. `joinBgp()` (`bgp-evaluator.ts`) expands reified patterns and, when the block
    has more than one pattern and no property paths, calls
@@ -209,19 +210,20 @@ engine's optimizer. It is a _dynamic_ greedy planner, not a static rewrite:
    from the pattern's already-scanned candidates — exact cardinality plus a
    distinct-value pass capped at `DISTINCT_SAMPLE_CAP`, so large stores never
    pay an unbounded counting pass. Named-graph scopes always use the scoped
-   candidate derivation (the hook cannot see the scope).4. With the default
-   estimator, small BGPs (≤ `DP_MAX_PATTERNS`, issue #130) skip the greedy loop:
-   `searchBestJoinOrder` (`src/planner/join-order-search.ts`) runs a subset DP
-   over the 2^n join orders — each state carries the cheapest plan's estimated
-   output cardinality and bound-variable set, and appending a pattern costs the
-   same formula the estimator uses. The DP is a plan search only (it never
-   materializes bindings), so it changes only which order the joins run in, and
-   it is globally optimal under the estimated model where greedy is only
-   stepwise-optimal — greedy can pick a locally cheap join that doubles the
-   cross product later (the `dp-join` bench row shows ~2×). Larger BGPs, and any
-   injected custom `JoinCostEstimator` (whose costs the DP cannot assume), keep
-   the greedy loop.
-4. The chosen order executes through the normal eager join loop
+   candidate derivation (the hook cannot see the scope).
+
+4. With the default estimator, small BGPs (≤ `DP_MAX_PATTERNS`, issue #130) skip
+   the greedy loop: `searchBestJoinOrder` (`src/planner/join-order-search.ts`)
+   runs a subset DP over the 2^n join orders — each state carries the cheapest
+   plan's estimated output cardinality and bound-variable set, and appending a
+   pattern costs the same formula the estimator uses. The DP is a plan search
+   only (it never materializes bindings), so it changes only which order the
+   joins run in, and it is globally optimal under the estimated model where
+   greedy is only stepwise-optimal — greedy can pick a locally cheap join that
+   doubles the cross product later (the `dp-join` bench row shows ~2×). Larger
+   BGPs, and any injected custom `JoinCostEstimator` (whose costs the DP cannot
+   assume), keep the greedy loop.
+5. The chosen order executes through the normal eager join loop
    (`joinTriplePattern` per step, materializing the current result set). The
    per-step estimate comes from the injectable `JoinCostEstimator`
    (`src/planner/join-cost-estimator.ts`; default `BaselineJoinCostEstimator`,
@@ -297,17 +299,17 @@ The engine never owns data. It binds to any `rdfjs.Source` / `rdfjs.Store`:
 
 | Function                                                                                               | Role                                                                                                                                               |
 | ------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [`matchQuads(store, s,p,o,g)`](https://github.com/wazootech/sparql-engine/blob/main/src/quad-store.ts) | Resolves the store's `match()` **stream** into an array (L102)                                                                                     |
-| [`buildQuadIndex(quads)`](https://github.com/wazootech/sparql-engine/blob/main/src/quad-store.ts)      | O(1) positional buckets `bySubject/byPredicate/byObject` keyed by [`termKey`](https://jsr.io/@wazoo/sparql-engine/doc/~/termKey) (L21)             |
-| [`probeQuadIndex(index, ...)`](https://github.com/wazootech/sparql-engine/blob/main/src/quad-store.ts) | Picks the smallest constrained bucket, filters the rest positionally (L56)                                                                         |
-| [`GraphScopedStore`](https://github.com/wazootech/sparql-engine/blob/main/src/quad-store.ts)           | Read-only view fixing the graph term of every scan — GRAPH scoping with no call-site awareness (L147)                                              |
-| [`namedGraphs(store)`](https://github.com/wazootech/sparql-engine/blob/main/src/quad-store.ts)         | Enumerates `GRAPH ?g` candidates (L176)                                                                                                            |
-| [`buildDatasetStore(...)`](https://github.com/wazootech/sparql-engine/blob/main/src/quad-store.ts)     | Materializes the active dataset for `FROM`/`FROM NAMED` into a fresh [`MemoryStore`](https://jsr.io/@wazoo/sparql-engine/doc/~/MemoryStore) (L199) |
+| [`matchQuads(store, s,p,o,g)`](https://github.com/wazootech/sparql-engine/blob/main/src/quad-store.ts) | Resolves the store's `match()` **stream** into an array (L106)                                                                                     |
+| [`buildQuadIndex(quads)`](https://github.com/wazootech/sparql-engine/blob/main/src/quad-store.ts)      | O(1) positional buckets `bySubject/byPredicate/byObject` keyed by [`termKey`](https://jsr.io/@wazoo/sparql-engine/doc/~/termKey) (L25)             |
+| [`probeQuadIndex(index, ...)`](https://github.com/wazootech/sparql-engine/blob/main/src/quad-store.ts) | Picks the smallest constrained bucket, filters the rest positionally (L60)                                                                         |
+| [`GraphScopedStore`](https://github.com/wazootech/sparql-engine/blob/main/src/quad-store.ts)           | Read-only view fixing the graph term of every scan — GRAPH scoping with no call-site awareness (L151)                                              |
+| [`namedGraphs(store)`](https://github.com/wazootech/sparql-engine/blob/main/src/quad-store.ts)         | Enumerates `GRAPH ?g` candidates (L196)                                                                                                            |
+| [`buildDatasetStore(...)`](https://github.com/wazootech/sparql-engine/blob/main/src/quad-store.ts)     | Materializes the active dataset for `FROM`/`FROM NAMED` into a fresh [`MemoryStore`](https://jsr.io/@wazoo/sparql-engine/doc/~/MemoryStore) (L219) |
 
 ### Scan → hash join
 
 [`scanEntry()`](https://github.com/wazootech/sparql-engine/blob/main/src/evaluator/join.ts)
-(`src/evaluator/join.ts` L454) resolves a triple pattern
+(`src/evaluator/join.ts` L596) resolves a triple pattern
 (subject/predicate/object), runs **one**
 [`matchQuads`](https://github.com/wazootech/sparql-engine/blob/main/src/quad-store.ts)
 scan for its constant positions, and returns a
@@ -315,7 +317,7 @@ scan for its constant positions, and returns a
 carrying the pre-fetched `candidates`.
 
 [`joinTriplePattern()`](https://github.com/wazootech/sparql-engine/blob/main/src/evaluator/join.ts)
-(L520) is a hash join over those candidates:
+(L666) is a hash join over those candidates:
 
 1. If any incoming binding already binds a pattern variable, the candidates are
    indexed once with
@@ -339,16 +341,16 @@ format exactly once, at the response boundary
 ### Property paths
 
 [`scanPathEntry()`](https://github.com/wazootech/sparql-engine/blob/main/src/evaluator/join.ts)
-(L510) pre-computes the (subject, object) **pair set** a path connects: from a
+(L1083) pre-computes the (subject, object) **pair set** a path connects: from a
 constant endpoint, or from every graph node when both ends are variables. Pairs
 are deduplicated unless the path is multiset
 ([`isMultisetPath`](https://github.com/wazootech/sparql-engine/blob/main/src/evaluator/join.ts),
-L489 — terms, `^`, `/`, `|`). `pathSteps()` (L~600) evaluates one path step from
-an anchor with recursive traversal: inverse `^`, sequence `/`, alternative `|`,
-zero-or-one `?`, reflexive-transitive `*` and `+` (BFS with a visited set), and
-negated property sets `!`.
+L1062 — terms, `^`, `/`, `|`). `pathSteps()` (L1277) evaluates one path step
+from an anchor with recursive traversal: inverse `^`, sequence `/`, alternative
+`|`, zero-or-one `?`, reflexive-transitive `*` and `+` (BFS with a visited set),
+and negated property sets `!`.
 [`joinPathPattern()`](https://github.com/wazootech/sparql-engine/blob/main/src/evaluator/join.ts)
-(L562) joins the pair set against the incoming bindings.
+(L1137) joins the pair set against the incoming bindings.
 
 ### Graph scoping & datasets
 
@@ -394,7 +396,7 @@ negated property sets `!`.
 - **Streams only at the store boundary.** `rdfjs.Stream` is consumed exactly
   once, in
   [`matchQuads`](https://github.com/wazootech/sparql-engine/blob/main/src/quad-store.ts)
-  (`src/quad-store.ts` L102), using the standard `data`/`end`/`error` event
+  (`src/quad-store.ts` L106), using the standard `data`/`end`/`error` event
   protocol.
   [`MemoryStream`](https://jsr.io/@wazoo/sparql-engine/doc/~/MemoryStream)
   implements that protocol with zero dependencies (flow mode on `data`, pull
@@ -404,7 +406,7 @@ negated property sets `!`.
   synchronous snapshot (`quads` +
   [`QuadIndex`](https://github.com/wazootech/sparql-engine/blob/main/src/quad-store.ts) +
   store `version`) once per evaluation via `BgpEvaluator.prepareExistsIndex()`
-  L150 in `src/evaluator/bgp-evaluator.ts` — the **synchronous**
+  L211 in `src/evaluator/bgp-evaluator.ts` — the **synchronous**
   `evaluateExists` hook probes it. The resolved snapshot is captured for the
   call and threaded explicitly through every EXISTS hook, so a concurrent
   `execute()` whose cache rebuilds can never swap it mid-evaluation (issue
@@ -430,7 +432,7 @@ SPARQL updates bypass the query evaluator:
 
 ```
 SparqlRequest.query
-  → UpdateEvaluator.executeUpdate()   src/evaluator/update-evaluator.ts L90
+  → UpdateEvaluator.executeUpdate()   src/evaluator/update-evaluator.ts L99
       → one transaction per request (createTransaction) OR direct add/remove
       → applyOperation per UpdateOperation:
           insert / delete (DATA templates)
@@ -461,6 +463,9 @@ src/mod.ts  ── public exports ───────────────�
    │       │  └── evaluator/sparql-evaluator.ts    query evaluation
    │       │          ├── evaluator/bgp-evaluator.ts   pattern algebra + EXISTS
    │       │          │     ├── evaluator/join.ts      hash joins, paths, sync paths
+   │       │          │     ├── planner/join-order-search.ts    DP join order (issue #130)
+   │       │          │     ├── planner/join-cost-estimator.ts  cost model
+   │       │          │     ├── planner/pattern-statistics.ts   statistics source
    │       │          │     ├── evaluator/expression-evaluator.ts  expressions/FILTER
    │       │          │     ├── evaluator/reified.ts   RDF 1.2 reifier expansion
    │       │          │     └── quad-store.ts          store adapters, indexes

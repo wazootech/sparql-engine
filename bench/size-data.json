@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-08-15T19:23:15.356Z",
+  "generatedAt": "2026-08-16T02:08:23.093Z",
   "engines": [
     {
       "name": "wazoo",
-      "bytes": 674085,
+      "bytes": 702944,
       "children": [
         {
           "name": "src/parser/parser.ts",
@@ -23,19 +23,19 @@
         },
         {
           "name": "src/evaluator/bgp-evaluator.ts",
-          "bytes": 42526
+          "bytes": 45195
         },
         {
           "name": "src/evaluator/update-evaluator.ts",
-          "bytes": 27696
+          "bytes": 29157
         },
         {
           "name": "README.md",
-          "bytes": 21746
+          "bytes": 22320
         },
         {
           "name": "src/evaluator/sparql-evaluator.ts",
-          "bytes": 19389
+          "bytes": 20060
         },
         {
           "name": "src/term/hash.ts",
@@ -62,36 +62,48 @@
           "bytes": 10690
         },
         {
+          "name": "src/planner/pattern-statistics.ts",
+          "bytes": 8516
+        },
+        {
           "name": "src/quad-store.ts",
-          "bytes": 7738
+          "bytes": 8451
         },
         {
           "name": "src/term/data-factory.ts",
           "bytes": 7634
         },
         {
+          "name": "src/planner/join-order-search.ts",
+          "bytes": 6542
+        },
+        {
           "name": "src/parser/ast.ts",
-          "bytes": 5651
+          "bytes": 5885
+        },
+        {
+          "name": "src/parser/mod.ts",
+          "bytes": 5829
+        },
+        {
+          "name": "src/wazoo-sparql-engine.ts",
+          "bytes": 5485
         },
         {
           "name": "src/serialize/xml-results.ts",
           "bytes": 5214
         },
         {
-          "name": "src/parser/mod.ts",
-          "bytes": 5198
-        },
-        {
           "name": "src/parser/syntax-error.ts",
           "bytes": 5175
         },
         {
-          "name": "src/evaluator/reified.ts",
-          "bytes": 4612
+          "name": "src/planner/join-cost-estimator.ts",
+          "bytes": 5067
         },
         {
-          "name": "src/wazoo-sparql-engine.ts",
-          "bytes": 4409
+          "name": "src/evaluator/reified.ts",
+          "bytes": 4612
         },
         {
           "name": "src/term/ordering.ts",
@@ -135,15 +147,15 @@
         },
         {
           "name": "src/mod.ts",
-          "bytes": 1140
+          "bytes": 1649
+        },
+        {
+          "name": "src/parser/sparql-parser.ts",
+          "bytes": 1271
         },
         {
           "name": "src/parser/LICENSE",
           "bytes": 1088
-        },
-        {
-          "name": "src/parser/sparql-parser.ts",
-          "bytes": 1075
         },
         {
           "name": "LICENSE",
@@ -175,15 +187,15 @@
     },
     {
       "name": "comunica",
-      "bytes": 29787521,
+      "bytes": 29693164,
       "children": [
         {
           "name": "@comunica/actor-bindings-aggregator-factory-average",
-          "bytes": 14210804
+          "bytes": 14089783
         },
         {
           "name": "@comunica/actor-init-query",
-          "bytes": 8256807
+          "bytes": 8283471
         },
         {
           "name": "@comunica/actor-query-parse-sparql",
@@ -909,8 +921,8 @@
     }
   ],
   "wazoo": {
-    "artifactBytes": 674085,
-    "gzipBytes": 144539,
-    "files": 38
+    "artifactBytes": 702944,
+    "gzipBytes": 153001,
+    "files": 41
   }
 }
