@@ -1,4 +1,15 @@
-# [@wazoo/sparql-engine](https://jsr.io/@wazoo/sparql-engine)
+<p align="center">
+  <a href="https://docs.wazoo.dev">
+    <img src="https://wazoo.dev/assets/wazoo.svg" alt="Wazoo Worlds" width="120" />
+  </a>
+  <br /><br />
+  <em>Zero-dependency SPARQL 1.1 &amp; 1.2 query and update engine over RDF/JS quad stores.</em>
+  <br /><br />
+  <a href="https://jsr.io/@wazoo/sparql-engine"><img src="https://jsr.io/badges/@wazoo/sparql-engine" alt="JSR" /></a>
+  <a href="https://jsr.io/@wazoo/sparql-engine/score"><img src="https://jsr.io/badges/@wazoo/sparql-engine/score" alt="JSR Score" /></a>
+  <a href="https://github.com/wazootech/sparql-engine"><img src="https://img.shields.io/badge/GitHub-black?logo=github" alt="GitHub" /></a>
+  <a href="https://deepwiki.com/wazootech/sparql-engine"><img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki" /></a>
+</p>
 
 Wazoo [SPARQL 1.1](https://www.w3.org/TR/sparql11-query/) & 1.2 Query & Update
 Engine over RDF/JS Quad Stores.
