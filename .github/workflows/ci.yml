@@ -43,6 +43,33 @@ jobs:
           deno-version: v2.x
       - if: steps.bench-changed.outputs.bench == 'true'
         run: deno task bench:latency:check
+  # Wiki drift guardrail (wiki-sync detail_level: minimal): the wiki declares
+  # its detail level in AGENTS.md and must never re-introduce L<line>
+  # citations — the drift-prone artifact the minimal default removes. Greps
+  # docs/*.md only; committed SVG charts (regenerated artifacts) are out of
+  # scope. Runs only when the wiki, the declaration, or the check changes.
+  docs-drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dorny/paths-filter@v3
+        id: docs-changed
+        with:
+          filters: |
+            docs:
+              - 'docs/**'
+              - 'AGENTS.md'
+              - '.github/workflows/ci.yml'
+      - if: steps.docs-changed.outputs.docs == 'true'
+        run: |
+          grep -q "detail_level" AGENTS.md \
+            || { echo "AGENTS.md must declare the wiki-sync detail_level (see the wiki-sync skill)"; exit 1; }
+          hits=$(grep -rnE "\bL[0-9]+\b" docs --include="*.md" | grep -v sync-base || true)
+          if [ -n "$hits" ]; then
+            echo "L<line> citations found in docs/ — forbidden under detail_level: minimal:"
+            echo "$hits"
+            exit 1
+          fi
   # Wiki link-rot gate: every external markdown link in the wiki (README.md +
   # docs/*.md) must resolve — JSR doc pages, GitHub blob/issues, spec TRs.
   # Hard-fails on 404/410 only, so a transient host outage never false-reds
