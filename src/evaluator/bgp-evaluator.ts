@@ -21,6 +21,7 @@ import {
   simplePredicate,
   storeVersion,
 } from "@/quad-store.ts";
+import { checkAborted } from "@/evaluator/abort.ts";
 
 const { defaultGraph } = DataFactory;
 import {
@@ -166,7 +167,9 @@ export class BgpEvaluator {
   public async evaluateBgp(
     patterns: Pattern[],
     baseIri?: string,
+    signal?: AbortSignal,
   ): Promise<TermBinding[]> {
+    checkAborted(signal);
     // EXISTS support: when any pattern in the tree uses EXISTS/NOT EXISTS,
     // the store's quads are drained once into a synchronous index that the
     // injected hooks probe (the decided sync-hook contract). The snapshot is
@@ -176,6 +179,7 @@ export class BgpEvaluator {
     // snapshot is captured for this call and threaded down — a concurrent
     // call's rebuild never swaps it mid-evaluation.
     if (patternListContainsExists(patterns)) {
+      checkAborted(signal);
       await this.prepareExistsIndex();
     }
     // The top-level evaluation runs against the default graph (matching
@@ -194,6 +198,7 @@ export class BgpEvaluator {
       defaultScope,
       stats,
       baseIri,
+      signal,
     );
   }
 
@@ -792,7 +797,9 @@ export class BgpEvaluator {
     store: rdfjs.Source<rdfjs.Quad>,
     stats: PatternStatistics,
     baseIri?: string,
+    signal?: AbortSignal,
   ): Promise<TermBinding[]> {
+    checkAborted(signal);
     // Resolve the EXISTS snapshot once for this group and thread it down, so
     // every hook in the group shares one snapshot reference (issue #72). The
     // version cache makes repeated resolutions cheap for the sequential case.
@@ -809,7 +816,12 @@ export class BgpEvaluator {
       }
     }
     let result: Iterable<TermBinding> = bindings;
+    // Each pattern boundary is a cancellation checkpoint (issue #122): the
+    // check is per pattern, so a long chain stops at the next pattern once
+    // the request is aborted (the per-triple check inside joinBgp covers
+    // the joins within a BGP block).
     for (const pattern of nonFilters) {
+      checkAborted(signal);
       result = await this.evaluatePattern(
         pattern,
         result,
@@ -817,9 +829,11 @@ export class BgpEvaluator {
         snapshot,
         stats,
         baseIri,
+        signal,
       );
     }
     for (const filterPattern of filters) {
+      checkAborted(signal);
       result = await this.evaluatePattern(
         filterPattern,
         result,
@@ -827,6 +841,7 @@ export class BgpEvaluator {
         snapshot,
         stats,
         baseIri,
+        signal,
       );
     }
     // Materialize exactly once at the group boundary (an array result — the
@@ -846,6 +861,7 @@ export class BgpEvaluator {
     snapshot: ExistsSnapshot | null,
     stats: PatternStatistics,
     baseIri?: string,
+    signal?: AbortSignal,
   ): Promise<Iterable<TermBinding>> {
     switch (pattern.type) {
       case "bgp":
@@ -855,6 +871,7 @@ export class BgpEvaluator {
           store,
           snapshot,
           stats,
+          signal,
         );
       case "filter": {
         const context = expressionContainsExists(pattern.expression)
@@ -890,6 +907,7 @@ export class BgpEvaluator {
           store,
           stats,
           baseIri,
+          signal,
         );
         const context = filters.some(expressionContainsExists)
           ? this.scopedExistsContext(store, snapshot, baseIri)
@@ -909,6 +927,7 @@ export class BgpEvaluator {
           store,
           stats,
           baseIri,
+          signal,
         );
         return minus(bindings, right);
       }
@@ -919,7 +938,14 @@ export class BgpEvaluator {
         const branchResults: TermBinding[][] = [];
         for (const branch of pattern.patterns) {
           branchResults.push(
-            await this.evaluateGroup([branch], [{}], store, stats, baseIri),
+            await this.evaluateGroup(
+              [branch],
+              [{}],
+              store,
+              stats,
+              baseIri,
+              signal,
+            ),
           );
         }
         return innerJoin(bindings, branchResults.flat());
@@ -999,6 +1025,7 @@ export class BgpEvaluator {
             scopedStore,
             stats,
             baseIri,
+            signal,
           );
           for (const binding of inner) {
             if (graphName.termType === "Variable") {
@@ -1021,6 +1048,7 @@ export class BgpEvaluator {
           store,
           stats,
           baseIri,
+          signal,
         );
         return innerJoin(bindings, groupResult);
       }
@@ -1033,6 +1061,7 @@ export class BgpEvaluator {
             store,
             stats,
             baseIri,
+            signal,
           );
           return innerJoin(bindings, inner);
         } catch (err) {
@@ -1052,6 +1081,7 @@ export class BgpEvaluator {
         const subResults = await subEvaluator.evaluateSelectTermBindings(
           pattern as unknown as import("@/parser/sparql-parser.ts").SelectQuery,
           baseIri,
+          signal,
         );
         return innerJoin(bindings, subResults);
       }
@@ -1077,6 +1107,7 @@ export class BgpEvaluator {
     store: rdfjs.Source<rdfjs.Quad>,
     snapshot: ExistsSnapshot | null,
     stats: PatternStatistics,
+    signal?: AbortSignal,
   ): Promise<Iterable<TermBinding>> {
     // Reified-triple patterns (`<< s p o >>`, annotation `{| ... |}`) expand
     // into plain `rdf:reifies` triples before any scanning or reordering.
@@ -1119,6 +1150,9 @@ export class BgpEvaluator {
     }
     let result: Iterable<TermBinding> = bindings;
     for (const triple of expanded) {
+      // Per-join cancellation checkpoint (issue #122): each BGP join is a
+      // boundary, so an aborted request stops the chain at the next triple.
+      checkAborted(signal);
       if (isPropertyPath(triple.predicate)) {
         const entry = await scanPathEntry(
           store,
@@ -1148,6 +1182,7 @@ export class BgpEvaluator {
     store: rdfjs.Source<rdfjs.Quad>,
     prebuiltIndex: QuadIndex | null,
     stats: PatternStatistics,
+    signal?: AbortSignal,
   ): Promise<TermBinding[]> {
     const remaining = await Promise.all(
       triplePatterns.map((pattern) => scanEntry(store, pattern)),
@@ -1180,12 +1215,16 @@ export class BgpEvaluator {
       );
       if (order !== null) {
         for (const index of order) {
+          checkAborted(signal);
           result = joinTriplePattern(result, remaining[index], prebuiltIndex);
         }
         return result;
       }
     }
     while (remaining.length > 0) {
+      // Per-join cancellation checkpoint (issue #122): the greedy reorder
+      // loop checks once per joined pattern.
+      checkAborted(signal);
       let bestIndex = 0;
       let bestCost = Number.POSITIVE_INFINITY;
       for (let index = 0; index < remaining.length; index++) {

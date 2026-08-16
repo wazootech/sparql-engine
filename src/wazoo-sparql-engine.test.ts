@@ -1,7 +1,10 @@
+import type * as rdfjs from "@rdfjs/types";
 import { assertEquals, assertRejects } from "@std/assert";
 import { DataFactory, XSD_BOOLEAN } from "@/term/mod.ts";
 import { MemoryStore as Store } from "@/store/memory-store.ts";
 import { SparqlSyntaxError } from "@/parser/syntax-error.ts";
+import { SparqlParser } from "@/parser/sparql-parser.ts";
+import { SparqlEvaluator } from "@/evaluator/sparql-evaluator.ts";
 import { WazooSparqlEngine } from "@/wazoo-sparql-engine.ts";
 
 const { blankNode, namedNode, literal, quad } = DataFactory;
@@ -4248,4 +4251,131 @@ Deno.test("WazooSparqlEngine - relative LOAD source resolves against request bas
   assertEquals(loaded.length, 1);
   assertEquals(loaded[0].subject.value, "http://example.org/s");
   await Deno.remove(dir, { recursive: true });
+});
+
+/* ------------------------------------------------------------------ */
+/* timeoutMs / signal enforcement (issue #122)                        */
+/*                                                                    */
+/* The end-of-request reject race (Comunica's shape) is exercised     */
+/* against HangingStore, whose match stream never ends — evaluation   */
+/* hangs until the request times out or aborts. The per-boundary      */
+/* cancellation checks are exercised without any race (evaluator-     */
+/* level call with a pre-aborted signal).                             */
+/* ------------------------------------------------------------------ */
+
+/**
+ * hangingStore returns a store whose match stream never emits data and
+ * never ends — matchQuads awaits the stream forever, so evaluation hangs
+ * until the request's timeout or abort fires the end-of-request race.
+ * Only the event surface matchQuads touches (on/read) exists at runtime;
+ * the cast papers over the full EventEmitter/Store interfaces.
+ */
+function hangingStore(): rdfjs.Store<rdfjs.Quad> {
+  const stream = new EventTarget() as unknown as rdfjs.Stream<rdfjs.Quad>;
+  (stream as unknown as { on(): void }).on = () => {};
+  (stream as unknown as { read(): Promise<never> }).read = () =>
+    new Promise<never>(() => {});
+  return { match: () => stream } as unknown as rdfjs.Store<rdfjs.Quad>;
+}
+
+Deno.test("WazooSparqlEngine - timeoutMs rejects with Comunica's message", async () => {
+  const engine = new WazooSparqlEngine({ store: hangingStore() });
+  await assertRejects(
+    () =>
+      engine.execute({
+        query: "SELECT ?s WHERE { ?s ?p ?o }",
+        timeoutMs: 20,
+      }),
+    Error,
+    "SPARQL query timed out",
+  );
+});
+
+Deno.test("WazooSparqlEngine - caller signal aborts a hanging request", async () => {
+  const engine = new WazooSparqlEngine({ store: hangingStore() });
+  const controller = new AbortController();
+  setTimeout(() => controller.abort(new Error("caller cancelled")), 20);
+  await assertRejects(
+    () =>
+      engine.execute({
+        query: "SELECT ?s WHERE { ?s ?p ?o }",
+        signal: controller.signal,
+      }),
+    Error,
+    "caller cancelled",
+  );
+});
+
+Deno.test("WazooSparqlEngine - pre-aborted signal rejects immediately", async () => {
+  const store = new Store();
+  store.addQuad(
+    quad(
+      namedNode("http://example.org/s"),
+      namedNode("http://example.org/p"),
+      literal("o"),
+    ),
+  );
+  const engine = new WazooSparqlEngine({ store });
+  const controller = new AbortController();
+  controller.abort(new Error("aborted before start"));
+  await assertRejects(
+    () =>
+      engine.execute({
+        query: "SELECT ?s WHERE { ?s ?p ?o }",
+        signal: controller.signal,
+      }),
+    Error,
+    "aborted before start",
+  );
+});
+
+Deno.test("WazooSparqlEngine - pre-aborted signal rejects updates too", async () => {
+  const engine = new WazooSparqlEngine({ store: new Store() });
+  const controller = new AbortController();
+  controller.abort(new Error("aborted update"));
+  await assertRejects(
+    () =>
+      engine.execute({
+        query:
+          "INSERT DATA { <http://example.org/s> <http://example.org/p> <http://example.org/o> }",
+        signal: controller.signal,
+      }),
+    Error,
+    "aborted update",
+  );
+});
+
+Deno.test("WazooSparqlEngine - boundary check aborts evaluation without the race", async () => {
+  // No execute() race here: the rejection can only come from the per-boundary
+  // checkAborted at evaluateBgp entry (the signal is threaded through the
+  // evaluator, issue #122 scope 2).
+  const evaluator = new SparqlEvaluator(new Store());
+  const query = new SparqlParser().parse("SELECT ?s WHERE { ?s ?p ?o }");
+  const controller = new AbortController();
+  controller.abort(new Error("stop at boundary"));
+  await assertRejects(
+    () => evaluator.evaluateQuery(query, controller.signal),
+    Error,
+    "stop at boundary",
+  );
+});
+
+Deno.test("WazooSparqlEngine - timeoutMs on a fast query still succeeds", async () => {
+  const store = new Store();
+  store.addQuad(
+    quad(
+      namedNode("http://example.org/s"),
+      namedNode("http://example.org/p"),
+      literal("o"),
+    ),
+  );
+  const engine = new WazooSparqlEngine({ store });
+  const result = await engine.execute({
+    query: "SELECT ?s WHERE { ?s ?p ?o }",
+    timeoutMs: 5_000,
+  });
+  assertEquals(result.kind, "select");
+  if (result.kind === "select") {
+    assertEquals(result.data.results.bindings.length, 1);
+  }
 });

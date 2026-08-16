@@ -138,24 +138,32 @@ export class SparqlEvaluator {
 
   /**
    * evaluateQuery processes a parsed SPARQL query and produces a typed SparqlResponse.
+   * The optional signal aborts evaluation at the next pattern/join boundary
+   * (issue #122); the engine's execute() also races it end-of-request.
    */
-  public async evaluateQuery(query: SparqlQuery): Promise<SparqlResponse> {
+  public async evaluateQuery(
+    query: SparqlQuery,
+    signal?: AbortSignal,
+  ): Promise<SparqlResponse> {
     switch (query.type) {
       case "query":
         switch (query.queryType) {
           case "SELECT":
-            return { kind: "select", data: await this.evaluateSelect(query) };
+            return {
+              kind: "select",
+              data: await this.evaluateSelect(query, signal),
+            };
           case "ASK":
-            return { kind: "ask", data: await this.evaluateAsk(query) };
+            return { kind: "ask", data: await this.evaluateAsk(query, signal) };
           case "CONSTRUCT":
             return {
               kind: "construct",
-              data: await this.evaluateConstruct(query),
+              data: await this.evaluateConstruct(query, signal),
             };
           case "DESCRIBE":
             return {
               kind: "construct",
-              data: await this.evaluateDescribe(query),
+              data: await this.evaluateDescribe(query, signal),
             };
           default:
             throw new Error(
@@ -172,11 +180,13 @@ export class SparqlEvaluator {
   public async evaluateSelectTermBindings(
     query: SelectQuery,
     baseIri?: string,
+    signal?: AbortSignal,
   ): Promise<TermBinding[]> {
     const evaluator = await this.bgpEvaluatorFor(query.from);
     const rawBindings = await evaluator.evaluateBgp(
       query.where || [],
       baseIri,
+      signal,
     );
     // Projection / HAVING / ORDER BY expressions share one default-graph
     // scoped candidate set across every solution (once per query) instead of
@@ -215,10 +225,12 @@ export class SparqlEvaluator {
 
   private async evaluateSelect(
     query: SelectQuery,
+    signal?: AbortSignal,
   ): Promise<SparqlSelectResults> {
     const termBindings = await this.evaluateSelectTermBindings(
       query,
       query.base,
+      signal,
     );
     const projected: SparqlBinding[] = termBindings.map((b) => {
       const sb: SparqlBinding = {};
@@ -354,9 +366,12 @@ export class SparqlEvaluator {
     return result;
   }
 
-  private async evaluateAsk(query: AskQuery): Promise<SparqlAskResults> {
+  private async evaluateAsk(
+    query: AskQuery,
+    signal?: AbortSignal,
+  ): Promise<SparqlAskResults> {
     const bindings = await (await this.bgpEvaluatorFor(query.from))
-      .evaluateBgp(query.where || [], query.base);
+      .evaluateBgp(query.where || [], query.base, signal);
     return {
       head: { link: null },
       boolean: bindings.length > 0,
@@ -396,11 +411,13 @@ export class SparqlEvaluator {
    */
   private async evaluateDescribe(
     query: DescribeQuery,
+    signal?: AbortSignal,
   ): Promise<SparqlConstructResults> {
     const bindings = query.where?.length
       ? await (await this.bgpEvaluatorFor(query.from)).evaluateBgp(
         query.where,
         query.base,
+        signal,
       )
       : [];
 
@@ -451,12 +468,13 @@ export class SparqlEvaluator {
 
   private async evaluateConstruct(
     query: ConstructQuery,
+    signal?: AbortSignal,
   ): Promise<SparqlConstructResults> {
     if (!query.template) {
       return { quads: [] };
     }
     const bindings = await (await this.bgpEvaluatorFor(query.from))
-      .evaluateBgp(query.where || [], query.base);
+      .evaluateBgp(query.where || [], query.base, signal);
 
     // Reified-triple templates (`<< s p o >>`, annotation `{| ... |}`)
     // expand into a reifier blank node joined to its `rdf:reifies` triple
