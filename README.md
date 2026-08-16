@@ -231,33 +231,31 @@ per-group baseline). Each cell is the per-iteration average; every query is
 cross-verified to return identical results on all three engines before timing.
 Timings are machine-specific — run `deno task bench` for your own numbers.
 
-Core joins, 400-person graph (~2,200 quads):
-
-| query                        | wazoo   | comunica | oxigraph |
-| ---------------------------- | ------- | -------- | -------- |
-| full scan                    | 0.96 ms | 5.5 ms   | 12.2 ms  |
-| join (knows × name)          | 0.66 ms | 3.1 ms   | 3.4 ms   |
-| asymmetric join              | 1.2 ms  | 19.2 ms  | 19.3 ms  |
-| reorder chain, written order | 97.4 ms | 96.8 ms  | 4.2 ms   |
-| reorder chain, planner on    | 1.2 ms  | —        | —        |
+Core joins, 400-person graph (~2,200 quads):| query | wazoo | comunica |
+oxigraph | | ---------------------------- | -------- | -------- | -------- | |
+full scan | 1.1 ms | 6.0 ms | 8.8 ms | | join (knows × name) | 0.91 ms | 3.4 ms
+| 1.6 ms | | asymmetric join | 1.7 ms | 23.0 ms | 11.5 ms | | reorder chain,
+written order | 105.5 ms | 107.8 ms | 2.2 ms | | reorder chain, planner on | 1.5
+ms | — | — | | dp-join, DP plan | 62.2 ms | 190.4 ms | 1120 ms | | dp-join,
+greedy plan | 125.2 ms | — | — |
 
 EXISTS surface, 400-person graph:
 
-| query               | wazoo  | comunica | oxigraph |
-| ------------------- | ------ | -------- | -------- |
-| `FILTER EXISTS`     | 1.0 ms | 19.3 ms  | 1.6 ms   |
-| `FILTER NOT EXISTS` | 0.9 ms | 20.1 ms  | 1.4 ms   |
-| nested `EXISTS`     | 1.2 ms | 74.8 ms  | 1.7 ms   |
-| nested `NOT EXISTS` | 1.2 ms | 75.2 ms  | 1.8 ms   |
+| query               | wazoo   | comunica | oxigraph |
+| ------------------- | ------- | -------- | -------- |
+| `FILTER EXISTS`     | 0.70 ms | 21.5 ms  | 0.77 ms  |
+| `FILTER NOT EXISTS` | 0.64 ms | 23.4 ms  | 0.85 ms  |
+| nested `EXISTS`     | 0.87 ms | 88.8 ms  | 0.93 ms  |
+| nested `NOT EXISTS` | 0.86 ms | 127.7 ms | 0.93 ms  |
 
 EXISTS surface, 10,000-person graph (~55,000 quads):
 
 | query               | wazoo   | comunica | oxigraph |
 | ------------------- | ------- | -------- | -------- |
-| `FILTER EXISTS`     | 33.0 ms | 466.1 ms | 34.0 ms  |
-| `FILTER NOT EXISTS` | 33.2 ms | 466.2 ms | 32.9 ms  |
-| nested `EXISTS`     | 40.9 ms | 1.9 s    | 39.4 ms  |
-| nested `NOT EXISTS` | 43.0 ms | 1.8 s    | 40.6 ms  |
+| `FILTER EXISTS`     | 20.1 ms | 499.0 ms | 22.2 ms  |
+| `FILTER NOT EXISTS` | 19.3 ms | 484.7 ms | 21.4 ms  |
+| nested `EXISTS`     | 25.9 ms | 3.1 s    | 26.4 ms  |
+| nested `NOT EXISTS` | 26.8 ms | 2.2 s    | 31.5 ms  |
 
 Scaling the data 25x (400 → 10,000 people) grows wazoo's EXISTS cost ~35x while
 nesting stays within ~1.2x of the simple case at both scales: the snapshot is

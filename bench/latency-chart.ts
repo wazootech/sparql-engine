@@ -41,9 +41,11 @@ const ENGINE_COLORS: Record<string, string> = {
 };
 
 /** Headline query classes, mirroring docs/07-benchmarking.md "Known results".
- * The asym/chain rows split by engine because the planner is wazoo-only:
- * comunica/oxigraph benches are named "- asym"/"- chain" (written order),
- * while wazoo registers "(reorder on)" and "(reorder off)" variants. */
+ * The asym/chain/dp-join rows split by engine because the planner is
+ * wazoo-only: comunica/oxigraph benches are named "- asym"/"- chain"/
+ * "- dp-join" (their own planners), while wazoo registers the reorder and
+ * planner variants (the dp-join "greedy surrogate" row disables the DP
+ * search, issue #130). */
 interface Row {
   group: string;
   /** bench-name label per engine (after "<engine> - "). */
@@ -94,6 +96,24 @@ const SECTIONS: Section[] = [
         group: "reorder-chain",
         labels: { wazoo: "chain (reorder on)", comunica: SAME, oxigraph: SAME },
         title: "3-pattern chain, planner on",
+      },
+      {
+        group: "dp-join",
+        labels: {
+          wazoo: "dp-join (DP plan)",
+          comunica: "dp-join",
+          oxigraph: "dp-join",
+        },
+        title: "shared-variable pair, DP plan",
+      },
+      {
+        group: "dp-join",
+        labels: {
+          wazoo: "dp-join (greedy surrogate)",
+          comunica: SAME,
+          oxigraph: SAME,
+        },
+        title: "shared-variable pair, greedy plan",
       },
       {
         group: "ask",

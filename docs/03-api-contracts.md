@@ -324,8 +324,10 @@ scan), the current bindings, and the pattern's optional `PatternStats` — and
 nothing else: no store access. It must be pure and deterministic. Crucially, the
 estimate affects **only join order, never results** (SPARQL 1.1 §18.2.2: joins
 commute, so every order yields the same solution multiset); the W3C differential
-gate is the guard. Planner piece 3 (join-order search) plugs in behind this
-seam.
+gate is the guard. With the default estimator, small BGPs get the globally
+optimal order from the DP join-order search (`searchBestJoinOrder`, piece 3,
+issue #130), which optimizes exactly this cost model over the pattern
+statistics; an injected custom estimator keeps the greedy loop.
 
 ### 5a. Statistics source
 
@@ -396,15 +398,16 @@ Types:
 [`SparqlBinding`](https://jsr.io/@wazoo/sparql-engine/doc/~/SparqlBinding),
 [`WazooSparqlEngineOptions`](https://jsr.io/@wazoo/sparql-engine/doc/~/WazooSparqlEngineOptions),
 [`WazooSparqlTransaction`](https://jsr.io/@wazoo/sparql-engine/doc/~/WazooSparqlTransaction),
-`IriFunction`, `IriFunctionMap` (link on JSR once published),
-`JoinCostEstimator` (link on JSR once published), `PatternStats`,
-`StoreStatisticsHook` (link on JSR once published),
+`IriFunction`, `IriFunctionMap` (link on JSR once published),`JoinCostEstimator`
+(link on JSR once published), `PatternStats`, `StoreStatisticsHook` (link on JSR
+once published), `EstimatedJoinState` (link on JSR once published),
 [`CanonicalTerm`](https://jsr.io/@wazoo/sparql-engine/doc/~/CanonicalTerm).
 
 Values/classes:
 [`WazooSparqlEngine`](https://jsr.io/@wazoo/sparql-engine/doc/~/WazooSparqlEngine),
 `BaselineJoinCostEstimator` (link on JSR once published), `PatternStatistics`,
-`DISTINCT_SAMPLE_CAP` (link on JSR once published),
+`DISTINCT_SAMPLE_CAP` (link on JSR once published), `searchBestJoinOrder`,
+`DP_MAX_PATTERNS` (link on JSR once published),
 [`MemoryStore`](https://jsr.io/@wazoo/sparql-engine/doc/~/MemoryStore),
 [`MemoryStream`](https://jsr.io/@wazoo/sparql-engine/doc/~/MemoryStream),
 [`DataFactory`](https://jsr.io/@wazoo/sparql-engine/doc/~/DataFactory),

@@ -209,12 +209,24 @@ engine's optimizer. It is a _dynamic_ greedy planner, not a static rewrite:
    from the pattern's already-scanned candidates — exact cardinality plus a
    distinct-value pass capped at `DISTINCT_SAMPLE_CAP`, so large stores never
    pay an unbounded counting pass. Named-graph scopes always use the scoped
-   candidate derivation (the hook cannot see the scope).
-4. A greedy loop repeatedly joins the remaining pattern with the lowest
-   estimated cost against the current bindings. The estimate comes from an
-   injectable `JoinCostEstimator` (`src/planner/join-cost-estimator.ts`; default
-   `BaselineJoinCostEstimator`, wired via `WazooSparqlEngineOptions.estimator`),
-   which receives each pattern's statistics:
+   candidate derivation (the hook cannot see the scope).4. With the default
+   estimator, small BGPs (≤ `DP_MAX_PATTERNS`, issue #130) skip the greedy loop:
+   `searchBestJoinOrder` (`src/planner/join-order-search.ts`) runs a subset DP
+   over the 2^n join orders — each state carries the cheapest plan's estimated
+   output cardinality and bound-variable set, and appending a pattern costs the
+   same formula the estimator uses. The DP is a plan search only (it never
+   materializes bindings), so it changes only which order the joins run in, and
+   it is globally optimal under the estimated model where greedy is only
+   stepwise-optimal — greedy can pick a locally cheap join that doubles the
+   cross product later (the `dp-join` bench row shows ~2×). Larger BGPs, and any
+   injected custom `JoinCostEstimator` (whose costs the DP cannot assume), keep
+   the greedy loop.
+4. The chosen order executes through the normal eager join loop
+   (`joinTriplePattern` per step, materializing the current result set). The
+   per-step estimate comes from the injectable `JoinCostEstimator`
+   (`src/planner/join-cost-estimator.ts`; default `BaselineJoinCostEstimator`,
+   wired via `WazooSparqlEngineOptions.estimator`), which receives each
+   pattern's statistics:
    - no pattern variable bound → `bindings.length × candidates.length`;
    - a pattern variable bound in the incoming solutions → the positional index
      is probed, costing `bindings.length × average bucket size`
@@ -223,7 +235,8 @@ engine's optimizer. It is a _dynamic_ greedy planner, not a static rewrite:
      count otherwise).
 
    The estimate affects only join order, never results (SPARQL §18.2.2 — joins
-   commute), so an estimator swap is guarded by the W3C differential gate.
+   commute), so both an estimator swap and the DP are guarded by the W3C
+   differential gate.
 
 ### Worked example: the `reorder-chain` benchmark
 

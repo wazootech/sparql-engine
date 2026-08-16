@@ -47,6 +47,11 @@ import {
 } from "@/planner/join-cost-estimator.ts";
 import { PatternStatistics } from "@/planner/pattern-statistics.ts";
 import {
+  boundVariables,
+  DP_MAX_PATTERNS,
+  searchBestJoinOrder,
+} from "@/planner/join-order-search.ts";
+import {
   expandReifiedTriples,
   isReifiesPattern,
   RDF_REIFIES,
@@ -93,12 +98,14 @@ export interface BgpEvaluatorOptions {
   functions?: IriFunctionMap;
 
   /**
-   * estimator supplies the join-cost estimator the greedy reorderer uses
-   * to pick the next pattern to join (see JoinCostEstimator for the
-   * contract). Defaults to BaselineJoinCostEstimator, which also consumes
-   * the per-pattern statistics from PatternStatistics (issue #129). The
-   * estimate affects only join order — never results (SPARQL 1.1 §18.2.2).
-   * Planner piece 3 (#130) plugs the join-order search behind this seam.
+   * estimator supplies the join-cost estimator the reorderer uses to pick
+   * the next pattern to join (see JoinCostEstimator for the contract).
+   * Defaults to BaselineJoinCostEstimator, whose costs match the DP
+   * join-order search (issue #130): small BGPs get the globally optimal
+   * order, larger ones the greedy stepwise choice. An injected custom
+   * estimator keeps the greedy loop, which consults it per step with the
+   * real bindings. The estimate affects only join order — never results
+   * (SPARQL 1.1 §18.2.2).
    */
   estimator?: JoinCostEstimator;
 }
@@ -1146,7 +1153,7 @@ export class BgpEvaluator {
       triplePatterns.map((pattern) => scanEntry(store, pattern)),
     );
     // Resolve each pattern's statistics once for this BGP (cached by the
-    // per-query source by pattern signature), never inside the greedy loop.
+    // per-query source by pattern signature), never inside the join loop.
     const perEntryStats = await Promise.all(
       remaining.map((entry) => stats.statsFor(store, entry)),
     );
@@ -1154,6 +1161,30 @@ export class BgpEvaluator {
     let result: TermBinding[] = Array.isArray(bindings)
       ? bindings
       : [...bindings];
+    // The default estimator's costs are exactly the join-order search's
+    // estimated model (planner piece 3, issue #130), so for small BGPs a
+    // subset DP replaces the greedy stepwise choice with the globally
+    // optimal order under that model. An injected custom estimator keeps
+    // the greedy loop, which consults it per step with the real bindings.
+    if (
+      this.estimator instanceof BaselineJoinCostEstimator &&
+      remaining.length <= DP_MAX_PATTERNS
+    ) {
+      const order = searchBestJoinOrder(
+        remaining,
+        perEntryStats,
+        {
+          card: result.length,
+          bound: boundVariables(result),
+        },
+      );
+      if (order !== null) {
+        for (const index of order) {
+          result = joinTriplePattern(result, remaining[index], prebuiltIndex);
+        }
+        return result;
+      }
+    }
     while (remaining.length > 0) {
       let bestIndex = 0;
       let bestCost = Number.POSITIVE_INFINITY;

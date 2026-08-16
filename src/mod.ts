@@ -28,6 +28,11 @@ export type {
   PatternStats,
   StoreStatisticsHook,
 } from "@/planner/pattern-statistics.ts";
+export {
+  DP_MAX_PATTERNS,
+  searchBestJoinOrder,
+} from "@/planner/join-order-search.ts";
+export type { EstimatedJoinState } from "@/planner/join-order-search.ts";
 
 export { MemoryStore, MemoryStream } from "@/store/memory-store.ts";
 export { DataFactory, dataFactory } from "@/term/mod.ts";
