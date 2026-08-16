@@ -4,13 +4,14 @@
  *
  * The engine's public envelopes (`SparqlEngineInterface`, `SparqlRequest`,
  * `SparqlResponse`, and the result shapes) are duplicated in both packages and
- * must not drift. This fetches the canonical copy from `worlds-client-ts`
- * `main` and diffs it against the local file (line endings normalized), so a
- * single-sided edit fails CI here instead of silently forking the contract.
+ * must not drift. This fetches the canonical copy from `worlds-sdk-ts`
+ * `main` (the SDK repo, formerly `worlds-client-ts`) and diffs it against the
+ * local file (line endings normalized), so a single-sided edit fails CI here
+ * instead of silently forking the contract.
  */
 
 const WORLDS_INTERFACE_URL =
-  "https://raw.githubusercontent.com/wazootech/worlds-client-ts/main/src/client/sparql-engine/sparql-engine-interface.ts";
+  "https://raw.githubusercontent.com/wazootech/worlds-sdk-ts/main/src/client/sparql-engine/sparql-engine-interface.ts";
 
 const LOCAL_INTERFACE = new URL(
   "../src/sparql-engine-interface.ts",
