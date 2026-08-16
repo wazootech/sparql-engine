@@ -132,9 +132,15 @@ export class BgpEvaluator {
 
   /**
    * evaluateBgp evaluates a WHERE-clause pattern list from the empty
-   * binding, producing all solution bindings (as RDF/JS terms).
+   * binding, producing all solution bindings (as RDF/JS terms). The
+   * optional baseIri is the effective query base (the BASE directive, or
+   * the request-level base when the query has no directive) threaded into
+   * every expression context so IRI()/relative IRIs resolve uniformly.
    */
-  public async evaluateBgp(patterns: Pattern[]): Promise<TermBinding[]> {
+  public async evaluateBgp(
+    patterns: Pattern[],
+    baseIri?: string,
+  ): Promise<TermBinding[]> {
     // EXISTS support: when any pattern in the tree uses EXISTS/NOT EXISTS,
     // the store's quads are drained once into a synchronous index that the
     // injected hooks probe (the decided sync-hook contract). The snapshot is
@@ -152,7 +158,7 @@ export class BgpEvaluator {
     const defaultScope = this.store instanceof GraphScopedStore
       ? this.store
       : new GraphScopedStore(this.store, defaultGraph());
-    return await this.evaluateGroup(patterns, [{}], defaultScope);
+    return await this.evaluateGroup(patterns, [{}], defaultScope, baseIri);
   }
 
   /**
@@ -228,6 +234,7 @@ export class BgpEvaluator {
     pattern: Pattern,
     solution: TermBinding,
     graph?: rdfjs.Term,
+    baseIri?: string,
   ): boolean {
     // Capture the current snapshot once at entry, so a concurrent call's
     // rebuild (issue #72) cannot swap it while this probe is in flight.
@@ -252,6 +259,7 @@ export class BgpEvaluator {
       scopeGraph,
       index,
       quads,
+      baseIri,
     );
   }
 
@@ -269,6 +277,7 @@ export class BgpEvaluator {
     graph: rdfjs.Term,
     index: QuadIndex,
     quads: rdfjs.Quad[],
+    baseIri?: string,
   ): boolean {
     const patterns = pattern.type === "group" ? pattern.patterns : [pattern];
     return this.evaluateExistsGroup(
@@ -278,6 +287,7 @@ export class BgpEvaluator {
       graph,
       index,
       quads,
+      baseIri,
     ).length > 0;
   }
 
@@ -297,6 +307,7 @@ export class BgpEvaluator {
     graph: rdfjs.Term,
     index: QuadIndex,
     quads: rdfjs.Quad[],
+    baseIri?: string,
   ): TermBinding[] {
     // The synchronous EXISTS path stays eager (the decided sync-hook
     // contract): every pattern form returns a materialized array, including
@@ -310,6 +321,7 @@ export class BgpEvaluator {
         graph,
         index,
         quads,
+        baseIri,
       );
     }
     return result;
@@ -322,6 +334,7 @@ export class BgpEvaluator {
     graph: rdfjs.Term,
     index: QuadIndex,
     quads: rdfjs.Quad[],
+    baseIri?: string,
   ): TermBinding[] {
     const context: ExpressionEvaluationContext = {
       evaluateExists: (subPattern, solution) =>
@@ -332,7 +345,9 @@ export class BgpEvaluator {
           graph,
           index,
           quads,
+          baseIri,
         ),
+      baseIri,
     };
     switch (pattern.type) {
       case "bgp": {
@@ -411,6 +426,7 @@ export class BgpEvaluator {
             graphTerm,
             index,
             quads,
+            baseIri,
           );
         }
         if (name.termType === "Variable") {
@@ -432,6 +448,7 @@ export class BgpEvaluator {
                   boundGraph,
                   index,
                   quads,
+                  baseIri,
                 ),
               );
             } else {
@@ -446,6 +463,7 @@ export class BgpEvaluator {
                   graphTerm,
                   index,
                   quads,
+                  baseIri,
                 );
                 for (const innerBinding of inner) {
                   innerBinding[name.value] = graphTerm;
@@ -511,6 +529,7 @@ export class BgpEvaluator {
           graph,
           index,
           quads,
+          baseIri,
         );
         return [...leftJoin(
           bindings,
@@ -528,6 +547,7 @@ export class BgpEvaluator {
           graph,
           index,
           quads,
+          baseIri,
         );
         return [...minus(bindings, right)];
       }
@@ -545,6 +565,7 @@ export class BgpEvaluator {
               graph,
               index,
               quads,
+              baseIri,
             ),
           );
         }
@@ -560,6 +581,7 @@ export class BgpEvaluator {
           graph,
           index,
           quads,
+          baseIri,
         );
       case "query": {
         // A subquery inside EXISTS evaluates independently of the enclosing
@@ -580,8 +602,9 @@ export class BgpEvaluator {
               graph,
               index,
               quads,
+              baseIri,
             ),
-          baseIri: selectQuery.base,
+          baseIri: baseIri ?? selectQuery.base,
         };
         const subRaw = this.evaluateExistsGroup(
           selectQuery.where ?? [],
@@ -590,6 +613,7 @@ export class BgpEvaluator {
           graph,
           index,
           quads,
+          baseIri,
         );
         // The synchronous EXISTS index is guaranteed prepared here — this
         // code only runs from evaluateExists, which guards on it — so
@@ -617,13 +641,15 @@ export class BgpEvaluator {
    */
   private existsContext(
     store: rdfjs.Source<rdfjs.Quad>,
+    baseIri?: string,
   ): ExpressionEvaluationContext {
     const graph = store instanceof GraphScopedStore
       ? store.graph
       : defaultGraph();
     return {
       evaluateExists: (pattern, solution) =>
-        this.evaluateExists(pattern, solution, graph),
+        this.evaluateExists(pattern, solution, graph, baseIri),
+      baseIri,
     };
   }
 
@@ -638,6 +664,7 @@ export class BgpEvaluator {
   private scopedExistsContext(
     store: rdfjs.Source<rdfjs.Quad>,
     snapshot: ExistsSnapshot | null,
+    baseIri?: string,
   ): ExpressionEvaluationContext {
     if (snapshot === null) {
       throw new Error(
@@ -662,7 +689,9 @@ export class BgpEvaluator {
           graph,
           index,
           quads,
+          baseIri,
         ),
+      baseIri,
     };
   }
 
@@ -724,6 +753,7 @@ export class BgpEvaluator {
     patterns: Pattern[],
     bindings: TermBinding[],
     store: rdfjs.Source<rdfjs.Quad>,
+    baseIri?: string,
   ): Promise<TermBinding[]> {
     // Resolve the EXISTS snapshot once for this group and thread it down, so
     // every hook in the group shares one snapshot reference (issue #72). The
@@ -742,7 +772,13 @@ export class BgpEvaluator {
     }
     let result: Iterable<TermBinding> = bindings;
     for (const pattern of nonFilters) {
-      result = await this.evaluatePattern(pattern, result, store, snapshot);
+      result = await this.evaluatePattern(
+        pattern,
+        result,
+        store,
+        snapshot,
+        baseIri,
+      );
     }
     for (const filterPattern of filters) {
       result = await this.evaluatePattern(
@@ -750,6 +786,7 @@ export class BgpEvaluator {
         result,
         store,
         snapshot,
+        baseIri,
       );
     }
     // Materialize exactly once at the group boundary (an array result — the
@@ -767,14 +804,15 @@ export class BgpEvaluator {
     bindings: TermBinding[] | Iterable<TermBinding>,
     store: rdfjs.Source<rdfjs.Quad>,
     snapshot: ExistsSnapshot | null,
+    baseIri?: string,
   ): Promise<Iterable<TermBinding>> {
     switch (pattern.type) {
       case "bgp":
         return await this.joinBgp(pattern.triples, bindings, store, snapshot);
       case "filter": {
         const context = expressionContainsExists(pattern.expression)
-          ? this.scopedExistsContext(store, snapshot)
-          : this.existsContext(store);
+          ? this.scopedExistsContext(store, snapshot, baseIri)
+          : this.existsContext(store, baseIri);
         return filterBindings(
           bindings,
           (binding) =>
@@ -799,10 +837,15 @@ export class BgpEvaluator {
             innerPatterns.push(inner);
           }
         }
-        const right = await this.evaluateGroup(innerPatterns, [{}], store);
+        const right = await this.evaluateGroup(
+          innerPatterns,
+          [{}],
+          store,
+          baseIri,
+        );
         const context = filters.some(expressionContainsExists)
-          ? this.scopedExistsContext(store, snapshot)
-          : this.existsContext(store);
+          ? this.scopedExistsContext(store, snapshot, baseIri)
+          : this.existsContext(store, baseIri);
         return leftJoin(
           bindings,
           right,
@@ -812,7 +855,12 @@ export class BgpEvaluator {
         );
       }
       case "minus": {
-        const right = await this.evaluateGroup(pattern.patterns, [{}], store);
+        const right = await this.evaluateGroup(
+          pattern.patterns,
+          [{}],
+          store,
+          baseIri,
+        );
         return minus(bindings, right);
       }
       case "union": {
@@ -821,7 +869,9 @@ export class BgpEvaluator {
         // the incoming solutions — matching Join(P, Union(Q1, Q2)).
         const branchResults: TermBinding[][] = [];
         for (const branch of pattern.patterns) {
-          branchResults.push(await this.evaluateGroup([branch], [{}], store));
+          branchResults.push(
+            await this.evaluateGroup([branch], [{}], store, baseIri),
+          );
         }
         return innerJoin(bindings, branchResults.flat());
       }
@@ -848,8 +898,8 @@ export class BgpEvaluator {
         // evaluation error or a variable already bound (from an outer
         // scope) leaves the solution unchanged.
         const context = expressionContainsExists(pattern.expression)
-          ? this.scopedExistsContext(store, snapshot)
-          : this.existsContext(store);
+          ? this.scopedExistsContext(store, snapshot, baseIri)
+          : this.existsContext(store, baseIri);
         return mapBindings(bindings, (binding) => {
           const value = this.expressionEvaluator.evaluate(
             pattern.expression,
@@ -898,6 +948,7 @@ export class BgpEvaluator {
             innerPatterns,
             [{}],
             scopedStore,
+            baseIri,
           );
           for (const binding of inner) {
             if (graphName.termType === "Variable") {
@@ -918,13 +969,19 @@ export class BgpEvaluator {
           pattern.patterns,
           [{}],
           store,
+          baseIri,
         );
         return innerJoin(bindings, groupResult);
       }
       case "service": {
         const silent = Boolean(pattern.silent);
         try {
-          const inner = await this.evaluateGroup(pattern.patterns, [{}], store);
+          const inner = await this.evaluateGroup(
+            pattern.patterns,
+            [{}],
+            store,
+            baseIri,
+          );
           return innerJoin(bindings, inner);
         } catch (err) {
           if (silent) return bindings;
@@ -941,6 +998,7 @@ export class BgpEvaluator {
         });
         const subResults = await subEvaluator.evaluateSelectTermBindings(
           pattern as unknown as import("@/parser/sparql-parser.ts").SelectQuery,
+          baseIri,
         );
         return innerJoin(bindings, subResults);
       }

@@ -282,6 +282,12 @@ export type UpdateOperation =
 export interface UpdateQuery {
   type: "update";
   prefixes?: Record<string, string>;
+  /**
+   * base is the effective base IRI the grammar recorded at parse time (the
+   * query's BASE directive, or the parser's base option when there is no
+   * directive). Update ASTs carry it like query ASTs.
+   */
+  base?: string;
   updates: UpdateOperation[];
 }
 

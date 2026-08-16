@@ -20,14 +20,19 @@ export interface SparqlEngineInterface {
 
 export interface SparqlRequest {
   query: string; // raw SPARQL query or update string
-  baseIri?: string; // accepted; wazoo engine derives base from BASE directive
-  timeoutMs?: number; // accepted; not yet enforced by the wazoo engine
+  baseIri?: string; // base for relative IRIs; the query's BASE directive wins (Fork B, #117)
+  timeoutMs?: number; // accepted; not yet enforced by the wazoo engine (tracked in #122)
 }
 ```
 
 `execute()` is **the** entry point. It parses the request, dispatches queries to
 `SparqlEvaluator.evaluateQuery()` and updates to
 `UpdateEvaluator.executeUpdate()`, and returns a discriminated union:
+
+`baseIri` is the base for relative IRIs (`IRI()`/`URI()`, relative `PREFIX`
+IRIs, and relative `LOAD` sources). The query's own `BASE` directive wins when
+both are present (decision #117, Fork B — the directive is authoritative per
+SPARQL §4.2, matching Comunica).
 
 ```typescript
 export type SparqlResponse =

@@ -161,9 +161,13 @@ export class SparqlEvaluator {
 
   public async evaluateSelectTermBindings(
     query: SelectQuery,
+    baseIri?: string,
   ): Promise<TermBinding[]> {
     const evaluator = await this.bgpEvaluatorFor(query.from);
-    const rawBindings = await evaluator.evaluateBgp(query.where || []);
+    const rawBindings = await evaluator.evaluateBgp(
+      query.where || [],
+      baseIri,
+    );
     // Projection / HAVING / ORDER BY expressions share one default-graph
     // scoped candidate set across every solution (once per query) instead of
     // re-filtering the snapshot per expression evaluation. Only queries that
@@ -172,14 +176,20 @@ export class SparqlEvaluator {
     const pipelineSnapshot = needsPipelineExists
       ? await evaluator.prepareExistsIndex()
       : null;
+    const effectiveBase = baseIri ?? query.base;
     const existsContext: ExpressionEvaluationContext = {
       ...(needsPipelineExists
         ? evaluator.pipelineExistsContext(pipelineSnapshot!)
         : {
           evaluateExists: (pattern: Pattern, solution: TermBinding) =>
-            evaluator.evaluateExists(pattern, solution),
+            evaluator.evaluateExists(
+              pattern,
+              solution,
+              undefined,
+              effectiveBase,
+            ),
         }),
-      baseIri: query.base,
+      baseIri: effectiveBase,
     };
     // The post-BGP SELECT pipeline (VALUES, grouping/aggregates, HAVING,
     // ORDER BY, projection, DISTINCT/REDUCED, OFFSET/LIMIT) is shared with
@@ -196,7 +206,10 @@ export class SparqlEvaluator {
   private async evaluateSelect(
     query: SelectQuery,
   ): Promise<SparqlSelectResults> {
-    const termBindings = await this.evaluateSelectTermBindings(query);
+    const termBindings = await this.evaluateSelectTermBindings(
+      query,
+      query.base,
+    );
     const projected: SparqlBinding[] = termBindings.map((b) => {
       const sb: SparqlBinding = {};
       for (const k of Object.keys(b)) {
@@ -333,7 +346,7 @@ export class SparqlEvaluator {
 
   private async evaluateAsk(query: AskQuery): Promise<SparqlAskResults> {
     const bindings = await (await this.bgpEvaluatorFor(query.from))
-      .evaluateBgp(query.where || []);
+      .evaluateBgp(query.where || [], query.base);
     return {
       head: { link: null },
       boolean: bindings.length > 0,
@@ -375,7 +388,10 @@ export class SparqlEvaluator {
     query: DescribeQuery,
   ): Promise<SparqlConstructResults> {
     const bindings = query.where?.length
-      ? await (await this.bgpEvaluatorFor(query.from)).evaluateBgp(query.where)
+      ? await (await this.bgpEvaluatorFor(query.from)).evaluateBgp(
+        query.where,
+        query.base,
+      )
       : [];
 
     const resources = new Set<rdfjs.Term>();
@@ -430,7 +446,7 @@ export class SparqlEvaluator {
       return { quads: [] };
     }
     const bindings = await (await this.bgpEvaluatorFor(query.from))
-      .evaluateBgp(query.where || []);
+      .evaluateBgp(query.where || [], query.base);
 
     // Reified-triple templates (`<< s p o >>`, annotation `{| ... |}`)
     // expand into a reifier blank node joined to its `rdf:reifies` triple

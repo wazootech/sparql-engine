@@ -106,9 +106,16 @@ export class UpdateEvaluator {
   }
 
   /**
-   * executeUpdate applies a parsed SPARQL update request to the store.
+   * executeUpdate applies a parsed SPARQL update request to the store. The
+   * optional baseIri is the request-level base (Fork B, recorded on #117):
+   * it resolves relative LOAD source IRIs and is the base for relative IRIs
+   * inside the loaded document, while a BASE directive in the query wins
+   * over it.
    */
-  public async executeUpdate(ast: UpdateQuery): Promise<void> {
+  public async executeUpdate(
+    ast: UpdateQuery,
+    baseIri?: string,
+  ): Promise<void> {
     const transaction = this.options.createTransaction?.();
     if (!transaction) {
       const writeStore = this.options.store as QuadWriteStore;
@@ -126,6 +133,7 @@ export class UpdateEvaluator {
           operation,
           (item) => writeStore.addQuad(item),
           (item) => writeStore.removeQuad(item),
+          baseIri,
         );
       }
       return;
@@ -137,6 +145,7 @@ export class UpdateEvaluator {
           operation,
           (item) => transaction.add(item),
           (item) => transaction.delete(item),
+          baseIri,
         );
       }
       await transaction.commit();
@@ -153,6 +162,7 @@ export class UpdateEvaluator {
     operation: UpdateOperation,
     add: (item: rdfjs.Quad) => unknown,
     remove: (item: rdfjs.Quad) => unknown,
+    baseIri?: string,
   ): Promise<void> {
     const op = operation as unknown as Record<string, unknown>;
     const opType = (op.updateType || op.type || op.action) as
@@ -192,6 +202,7 @@ export class UpdateEvaluator {
           operation as Extract<UpdateOperation, { updateType: "insertdelete" }>,
           add,
           remove,
+          baseIri,
         );
         return;
       }
@@ -199,6 +210,7 @@ export class UpdateEvaluator {
         await this.applyDeleteWhere(
           operation as Extract<UpdateOperation, { updateType: "deletewhere" }>,
           remove,
+          baseIri,
         );
         return;
       }
@@ -243,7 +255,7 @@ export class UpdateEvaluator {
         return;
       }
       case "load": {
-        await this.applyLoad(op, add);
+        await this.applyLoad(op, add, baseIri);
         return;
       }
       default:
@@ -348,12 +360,21 @@ export class UpdateEvaluator {
   private async applyLoad(
     op: Record<string, unknown>,
     add: (item: rdfjs.Quad) => unknown,
+    baseIri?: string,
   ): Promise<void> {
     const silent = Boolean(op.silent);
-    const sourceIri = typeof op.source === "string"
+    let sourceIri = typeof op.source === "string"
       ? op.source
       : (op.source as { value?: string })?.value;
     if (!sourceIri) return;
+
+    // A relative LOAD source resolves against the request-level base (Fork
+    // B, #117); the resolved document IRI is also the base for relative
+    // IRIs inside the loaded document. Absolute sources pass through.
+    const hasScheme = /^[a-z][a-z0-9+.-]*:/i.test(sourceIri);
+    if (!hasScheme && baseIri) {
+      sourceIri = new URL(sourceIri, baseIri).href;
+    }
 
     try {
       let text = "";
@@ -367,9 +388,12 @@ export class UpdateEvaluator {
         }
         text = await res.text();
       } else {
-        const cleanPath = sourceIri.startsWith("file://")
+        let cleanPath = sourceIri.startsWith("file://")
           ? sourceIri.slice(7)
           : sourceIri;
+        // Normalize the file-URL form a URL resolution can produce on
+        // Windows (file:///C:/x) back to a readable drive path (C:/x).
+        cleanPath = cleanPath.replace(/^\/([A-Za-z]:)/, "$1");
         text = await Deno.readTextFile(cleanPath);
       }
 
@@ -484,6 +508,7 @@ export class UpdateEvaluator {
     operation: InsertDeleteOperation,
     add: (item: rdfjs.Quad) => unknown,
     remove: (item: rdfjs.Quad) => unknown,
+    baseIri?: string,
   ): Promise<void> {
     const withGraph = operation.graph
       ? sparqlTermToRdfTerm(operation.graph)
@@ -508,7 +533,10 @@ export class UpdateEvaluator {
       evaluator = this.bgpEvaluator.forStore(scopedStore);
     }
 
-    const bindings = await evaluator.evaluateBgp(operation.where ?? []);
+    const bindings = await evaluator.evaluateBgp(
+      operation.where ?? [],
+      baseIri,
+    );
 
     for (const pattern of operation.delete ?? []) {
       await this.deleteMatches(pattern, bindings, remove, withGraph);
@@ -537,9 +565,13 @@ export class UpdateEvaluator {
   private async applyDeleteWhere(
     operation: InsertDeleteOperation,
     remove: (item: rdfjs.Quad) => unknown,
+    baseIri?: string,
   ): Promise<void> {
     const wherePatterns = (operation.delete ?? []) as Pattern[];
-    const bindings = await this.bgpEvaluator.evaluateBgp(wherePatterns);
+    const bindings = await this.bgpEvaluator.evaluateBgp(
+      wherePatterns,
+      baseIri,
+    );
     for (const pattern of operation.delete ?? []) {
       await this.deleteMatches(pattern, bindings, remove);
     }
