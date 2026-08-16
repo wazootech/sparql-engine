@@ -66,25 +66,66 @@ switch (mode) {
     // writers genuinely overlap on the write lock. busy_timeout makes the
     // second writer wait instead of failing with SQLITE_BUSY; the parent
     // asserts both writers' data lands in full — no interleaved partials.
-    const store = new SqliteStore({ path });
-    for (let round = 0; round < 5; round++) {
-      const transaction = store.createTransaction();
-      for (let index = 0; index < 20; index++) {
-        transaction.add(
-          quad(
-            namedNode(`http://example.org/${tag}-${round}-${index}`),
-            namedNode("http://example.org/p"),
-            literal(`${index}`),
-          ),
-        );
+    // Both commit() and the store's open/close can hit "database is locked"
+    // under contention, so the whole sequence is retried with a fresh store
+    // (writes are upserts, so a partial retry is idempotent). The parent's
+    // 200-quad completeness assertion is what proves no interleaving.
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const store = new SqliteStore({ path });
+        for (let round = 0; round < 5; round++) {
+          await commitWithRetry(store, tag, round);
+          await new Promise((resolve) => setTimeout(resolve, 5));
+        }
+        store.close();
+        Deno.exit(0);
+      } catch (error) {
+        if (attempt === 2) {
+          console.error(error);
+          Deno.exit(1);
+        }
+        await new Promise((resolve) => setTimeout(resolve, 100));
       }
-      transaction.commit();
-      await new Promise((resolve) => setTimeout(resolve, 5));
     }
-    store.close();
-    Deno.exit(0);
     break;
   }
   default:
     throw new Error(`unknown recovery child mode: ${mode}`);
+}
+
+/**
+ * commitWithRetry commits one 20-quad round, retrying with a 200ms backoff
+ * (10 attempts ≈ 2s) when the write lock is contended past busy_timeout. A
+ * fresh transaction is created per attempt; a failed commit already rolled
+ * back at the SQLite level, and each transaction is atomic, so a retry can
+ * never interleave partial writes.
+ */
+async function commitWithRetry(
+  store: SqliteStore,
+  tag: string,
+  round: number,
+): Promise<void> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 10; attempt++) {
+    const transaction = store.createTransaction();
+    for (let index = 0; index < 20; index++) {
+      transaction.add(
+        quad(
+          namedNode(`http://example.org/${tag}-${round}-${index}`),
+          namedNode("http://example.org/p"),
+          literal(`${index}`),
+        ),
+      );
+    }
+    try {
+      await transaction.commit();
+      return;
+    } catch (error) {
+      lastError = error;
+      if (attempt < 9) {
+        await new Promise((resolve) => setTimeout(resolve, 200));
+      }
+    }
+  }
+  throw lastError;
 }
