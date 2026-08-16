@@ -34,6 +34,7 @@ import {
   ExpressionEvaluator,
   type IriFunctionMap,
 } from "@/evaluator/expression-evaluator.ts";
+import type { JoinCostEstimator } from "@/planner/join-cost-estimator.ts";
 import type { ExpressionEvaluationContext } from "@/evaluator/expression-evaluator.ts";
 import {
   compareRdfTerms,
@@ -59,6 +60,13 @@ export interface SparqlEvaluatorOptions {
    * WazooSparqlEngineOptions.functions.
    */
   functions?: IriFunctionMap;
+
+  /**
+   * estimator supplies the BGP join-cost estimator (see
+   * JoinCostEstimator); defaults to the baseline greedy formula. Only
+   * affects join order, never results.
+   */
+  estimator?: JoinCostEstimator;
 }
 
 /**
@@ -99,6 +107,7 @@ export class SparqlEvaluator {
     this.bgpEvaluator = new BgpEvaluator(store, {
       reorderPatterns: options.reorderPatterns,
       functions: options.functions,
+      estimator: options.estimator,
     });
   }
 

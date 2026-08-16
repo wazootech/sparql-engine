@@ -18,6 +18,8 @@ export type {
   IriFunction,
   IriFunctionMap,
 } from "@/evaluator/expression-evaluator.ts";
+export { BaselineJoinCostEstimator } from "@/planner/join-cost-estimator.ts";
+export type { JoinCostEstimator } from "@/planner/join-cost-estimator.ts";
 
 export { MemoryStore, MemoryStream } from "@/store/memory-store.ts";
 export { DataFactory, dataFactory } from "@/term/mod.ts";
