@@ -21,6 +21,7 @@ const ENTRIES = [
   { name: ".", path: "./src/mod.ts" },
   { name: "./term", path: "./src/term/mod.ts" },
   { name: "./store", path: "./src/store/memory-store.ts" },
+  { name: "./sqlite", path: "./src/store/sqlite-store.ts" },
   { name: "./parser", path: "./src/parser/mod.ts" },
   { name: "./serialize", path: "./src/serialize/mod.ts" },
 ];

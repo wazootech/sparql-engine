@@ -12,11 +12,16 @@
  *
  * Design notes
  * ------------
- * - Uses Deno/Node's built-in `node:sqlite` (DatabaseSync). No npm or JSR
- *   dependency, so the engine's own runtime stays dependency-free; this
- *   module is intentionally NOT exported from src/mod.ts and is meant for
- *   server-side (Deno/Node) deployments. Browser bundles should keep using
- *   the in-memory MemoryStore.
+ * - Uses Deno/Node's built-in `node:sqlite` (DatabaseSync) — a builtin, not
+ *   a dependency — so the engine's default export graph stays
+ *   runtime-dependency-free. SqliteStore ships as the opt-in `./sqlite`
+ *   subpath entrypoint (`import { SqliteStore } from
+ *   "@wazoo/sparql-engine/sqlite";`); importing the package default pulls
+ *   nothing new, and only opting in loads `node:sqlite`. Server-side
+ *   (Deno >= 2.1 / Node >= 22.5) deployments only; browser bundles should
+ *   keep using the in-memory MemoryStore.
+ * - `PRAGMA busy_timeout` lets concurrent writers wait for the write lock
+ *   instead of failing with SQLITE_BUSY when a transaction is in flight.
  * - Rows are keyed by the engine's `termKey` per position (a sound RDF-term
  *   equality key), with a composite primary key over all four positions so
  *   quads that differ only by graph never collide.
@@ -201,6 +206,7 @@ export class SqliteStore implements rdfjs.Store<rdfjs.Quad> {
     this.db = new DatabaseSync(options.path);
     this.db.exec(
       "PRAGMA journal_mode = WAL;" +
+        "PRAGMA busy_timeout = 5000;" +
         "CREATE TABLE IF NOT EXISTS quads (" +
         "  skey TEXT NOT NULL," +
         "  pkey TEXT NOT NULL," +

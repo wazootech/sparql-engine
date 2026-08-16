@@ -1,17 +1,17 @@
 {
-  "generatedAt": "2026-08-14T21:26:46.705Z",
+  "generatedAt": "2026-08-15T19:23:15.356Z",
   "engines": [
     {
       "name": "wazoo",
-      "bytes": 632215,
+      "bytes": 674085,
       "children": [
         {
           "name": "src/parser/parser.ts",
-          "bytes": 206696
+          "bytes": 211535
         },
         {
           "name": "src/evaluator/expression-evaluator.ts",
-          "bytes": 69041
+          "bytes": 72148
         },
         {
           "name": "src/parser/turtle-generated.ts",
@@ -19,11 +19,11 @@
         },
         {
           "name": "src/evaluator/join.ts",
-          "bytes": 48988
+          "bytes": 58944
         },
         {
           "name": "src/evaluator/bgp-evaluator.ts",
-          "bytes": 38988
+          "bytes": 42526
         },
         {
           "name": "src/evaluator/update-evaluator.ts",
@@ -31,11 +31,11 @@
         },
         {
           "name": "README.md",
-          "bytes": 21315
+          "bytes": 21746
         },
         {
           "name": "src/evaluator/sparql-evaluator.ts",
-          "bytes": 19032
+          "bytes": 19389
         },
         {
           "name": "src/term/hash.ts",
@@ -47,15 +47,19 @@
         },
         {
           "name": "src/parser/README.md",
-          "bytes": 10925
+          "bytes": 12567
+        },
+        {
+          "name": "src/store/sqlite-store.ts",
+          "bytes": 11427
+        },
+        {
+          "name": "src/evaluator/select-pipeline.ts",
+          "bytes": 10842
         },
         {
           "name": "src/evaluator/aggregate.ts",
           "bytes": 10690
-        },
-        {
-          "name": "src/evaluator/select-pipeline.ts",
-          "bytes": 10653
         },
         {
           "name": "src/quad-store.ts",
@@ -75,19 +79,23 @@
         },
         {
           "name": "src/parser/mod.ts",
-          "bytes": 4626
+          "bytes": 5198
+        },
+        {
+          "name": "src/parser/syntax-error.ts",
+          "bytes": 5175
         },
         {
           "name": "src/evaluator/reified.ts",
           "bytes": 4612
         },
         {
-          "name": "src/term/ordering.ts",
-          "bytes": 4130
+          "name": "src/wazoo-sparql-engine.ts",
+          "bytes": 4409
         },
         {
-          "name": "src/wazoo-sparql-engine.ts",
-          "bytes": 3867
+          "name": "src/term/ordering.ts",
+          "bytes": 4130
         },
         {
           "name": "src/term/numeric.ts",
@@ -110,12 +118,12 @@
           "bytes": 2435
         },
         {
-          "name": "src/sparql-engine-interface.ts",
-          "bytes": 2429
-        },
-        {
           "name": "src/term/identity.ts",
           "bytes": 2416
+        },
+        {
+          "name": "src/sparql-engine-interface.ts",
+          "bytes": 2369
         },
         {
           "name": "src/serialize/json-results.ts",
@@ -124,6 +132,10 @@
         {
           "name": "src/evaluator/expression-utils.ts",
           "bytes": 1706
+        },
+        {
+          "name": "src/mod.ts",
+          "bytes": 1140
         },
         {
           "name": "src/parser/LICENSE",
@@ -136,10 +148,6 @@
         {
           "name": "LICENSE",
           "bytes": 1075
-        },
-        {
-          "name": "src/mod.ts",
-          "bytes": 985
         },
         {
           "name": "src/term/mod.ts",
@@ -167,15 +175,15 @@
     },
     {
       "name": "comunica",
-      "bytes": 29693164,
+      "bytes": 29787521,
       "children": [
         {
           "name": "@comunica/actor-bindings-aggregator-factory-average",
-          "bytes": 14089783
+          "bytes": 14210804
         },
         {
           "name": "@comunica/actor-init-query",
-          "bytes": 8283471
+          "bytes": 8256807
         },
         {
           "name": "@comunica/actor-query-parse-sparql",
@@ -901,8 +909,8 @@
     }
   ],
   "wazoo": {
-    "artifactBytes": 632215,
-    "gzipBytes": 135178,
-    "files": 36
+    "artifactBytes": 674085,
+    "gzipBytes": 144539,
+    "files": 38
   }
 }
