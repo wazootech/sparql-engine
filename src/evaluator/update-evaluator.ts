@@ -610,6 +610,12 @@ export class UpdateEvaluator {
    * the store exactly once; the resulting candidates are indexed positionally
    * and probed in memory per solution. Unbound variables skip the triple;
    * blank nodes act as wildcards.
+   *
+   * Prior art: running one store scan per template and probing its indexed
+   * candidates for every solution — instead of re-scanning per solution —
+   * shares one access path across many evaluations, the multiple-query
+   * optimization idea of Sellis.
+   * @see {@link https://doi.org/10.1145/42201.42203 Sellis, "Multiple-Query Optimization," ACM TODS 13(1), 1988, pp. 23–52}
    */
   private async deleteMatches(
     pattern: Pattern,

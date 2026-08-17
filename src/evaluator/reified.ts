@@ -84,6 +84,13 @@ function expandQuotedTerm(term: SparqlTerm): ExpandedTerm {
  * `<< s p o ~ r >>`, or an explicit `?r rdf:reifies <<( s p o )>>` — passes
  * through with only its reifier side expanded: the object is a data triple
  * term and is decomposed by the join, never re-expanded.
+ *
+ * Prior art: materializing statement-level metadata as reifier resources
+ * connected by `rdf:reifies` — instead of storing quoted triples as
+ * first-class terms — is the RDF 1.2 reification representation, with the
+ * alternative RDF-star/triple-term model formalized by Hartig.
+ * @see {@link https://ceur-ws.org/Vol-1912/paper12.pdf Hartig, "Foundations of RDF* and SPARQL*," AMW 2017, CEUR-WS Vol-1912}
+ * @see {@link https://www.w3.org/TR/rdf12-concepts/ "RDF 1.2 Concepts and Abstract Data Model," W3C Candidate Recommendation, 2026}
  */
 export function expandReifiedTriples(triples: Triple[]): Triple[] {
   const expanded: Triple[] = [];

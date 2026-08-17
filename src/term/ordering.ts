@@ -63,6 +63,12 @@ function compareLiterals(a: rdfjs.Literal, b: rdfjs.Literal): number {
  * object, recursively. Blank-node labels and the relative order of terms the
  * spec leaves undefined are compared deterministically. Returns a negative,
  * zero, or positive number suitable for Array.prototype.sort.
+ *
+ * Prior art: the ordering rules are SPARQL 1.1 §12.4 (ORDER BY), with the
+ * cross-datatype numeric comparisons following the XPath 2.0 value
+ * ordering the spec delegates to.
+ * @see {@link https://www.w3.org/TR/sparql11-query/ Harris & Seaborne (eds.), "SPARQL 1.1 Query Language," W3C Recommendation, 2013}
+ * @see {@link https://www.w3.org/TR/2010/REC-xpath-functions-20101214/ Malhotra, Melton & Walsh (eds.), "XQuery 1.0 and XPath 2.0 Functions and Operators (Second Edition)," W3C Recommendation, 2010}
  */
 export function compareRdfTerms(
   a: rdfjs.Term | undefined,

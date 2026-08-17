@@ -88,6 +88,13 @@ export interface BgpEvaluatorOptions {
    * is already bound by earlier joins is processed early even when it has
    * many candidates. Defaults to true. Disabling it preserves written order
    * exactly.
+   *
+   * Prior art: greedy BGP join ordering driven by per-pattern selectivity
+   * estimates — each pattern scanned once, then joined in ascending
+   * estimated cost — is the approach of Stocker et al., rooted in System
+   * R's cost-based join ordering and access-path selection.
+   * @see {@link https://doi.org/10.1145/1367497.1367578 Stocker et al., "SPARQL Basic Graph Pattern Optimization Using Selectivity Estimation," WWW '08, ACM, 2008, pp. 595–604}
+   * @see {@link https://doi.org/10.1145/582095.582099 Selinger et al., "Access Path Selection in a Relational Database Management System," SIGMOD '79, pp. 23–34}
    */
   reorderPatterns?: boolean;
 
@@ -121,6 +128,14 @@ export interface BgpEvaluatorOptions {
  * extend pass, GRAPH a graph-scoped evaluation over a scoped store view,
  * and nested groups recurse. Unsupported pattern types (SERVICE) raise a
  * clear error rather than being silently dropped.
+ *
+ * Prior art: the algebra translations — OPTIONAL as LeftJoin(P1, P2, F),
+ * MINUS as a shared-variable anti-join, BIND as Extend, VALUES as a
+ * natural join, UNION as Join(P, Union(Q1, Q2)) — follow the formal SPARQL
+ * algebra of Pérez, Arenas & Gutierrez, as adopted by the SPARQL 1.1 spec
+ * §18.2.
+ * @see {@link https://doi.org/10.1145/1567274.1567278 Pérez, Arenas & Gutierrez, "Semantics and Complexity of SPARQL," ACM TODS 34(3), 2009, art. 16}
+ * @see {@link https://www.w3.org/TR/sparql11-query/ Harris & Seaborne (eds.), "SPARQL 1.1 Query Language," W3C Recommendation, 2013}
  */
 export class BgpEvaluator {
   private readonly reorderPatterns: boolean;
@@ -212,6 +227,15 @@ export class BgpEvaluator {
    * The SparqlEvaluator calls it for projection / ORDER BY / HAVING
    * expressions when they contain EXISTS even though the WHERE clause does
    * not.
+   *
+   * Prior art: evaluating a correlated EXISTS as a semi-join — probe the
+   * (once-drained, once-indexed) candidate set per outer solution instead
+   * of re-evaluating the subquery — is the semi-join reduction of
+   * Bernstein & Chiu; keeping the snapshot across queries with a
+   * mutation-version check is a materialized-view cache with lazy
+   * invalidation.
+   * @see {@link https://doi.org/10.1145/322234.322238 Bernstein & Chiu, "Using Semi-Joins to Solve Relational Queries," JACM 28(1), 1981, pp. 25–40}
+   * @see {@link https://dblp.org/rec/journals/debu/GuptaM95.html Gupta & Mumick, "Maintenance of Materialized Views: Problems, Techniques and Applications," IEEE Data Eng. Bulletin 18(2), 1995, pp. 3–18}
    */
   public async prepareExistsIndex(): Promise<ExistsSnapshot> {
     const version = storeVersion(this.store);
@@ -790,6 +814,12 @@ export class BgpEvaluator {
    * step. Nested group calls (OPTIONAL/MINUS/UNION/GRAPH bodies, subquery
    * WHEREs) resolve their own groups eagerly here, so their results arrive
    * as arrays; only the enclosing group's own solution flow streams.
+   *
+   * Prior art: pushing solutions through the pattern chain as a streaming
+   * iterator — each operator pulls rows from the previous one instead of
+   * materializing per-step arrays — is the Volcano iterator/pipeline model
+   * of query evaluation.
+   * @see {@link https://doi.org/10.1109/69.273032 Graefe, "Volcano — An Extensible and Parallel Query Evaluation System," IEEE TKDE 6(1), 1994, pp. 120–135}
    */
   private async evaluateGroup(
     patterns: Pattern[],
@@ -1175,6 +1205,10 @@ export class BgpEvaluator {
    * estimate needs the full current result set, so each join materializes
    * here (the reordered path stays eager; the lazy chain applies to the
    * written-order path).
+   * (Prior art: greedy selectivity-based BGP reordering and cost-based
+   * join ordering — see BgpEvaluatorOptions.reorderPatterns:
+   * {@link https://doi.org/10.1145/1367497.1367578 Stocker et al., "SPARQL Basic Graph Pattern Optimization Using Selectivity Estimation," WWW '08, ACM, 2008, pp. 595–604};
+   * {@link https://doi.org/10.1145/582095.582099 Selinger et al., "Access Path Selection in a Relational Database Management System," SIGMOD '79, pp. 23–34}.)
    */
   private async evaluateWithReordering(
     triplePatterns: Triple[],

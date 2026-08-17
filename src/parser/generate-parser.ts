@@ -7,6 +7,12 @@
  *   jison lib/sparql.jison -p slr -m js -o lib/SparqlParser.js
  *   echo 'module.exports=SparqlParser' >> lib/SparqlParser.js
  *
+ * Prior art: the generated parsers are table-driven LR (SLR) parsers built
+ * from a context-free grammar — the classic compiler-construction
+ * technique of Aho, Sethi & Ullman (the grammar itself is sparqljs 3.7.4's
+ * jison grammar; see README.md).
+ * @see Aho, Sethi & Ullman, "Compilers: Principles, Techniques, and Tools," Addison-Wesley, 1986, ch. 4 (syntax analysis, LR parsing)
+ *
  * then post-processes the output into ESM/TS:
  *
  *   - inlines `Wildcard` (upstream `lib/Wildcard.js`) so the generated SPARQL
