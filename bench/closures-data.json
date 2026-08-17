@@ -1,9 +1,10 @@
 {
-  "generatedAt": "2026-08-16T01:54:57.683Z",
+  "generatedAt": "2026-08-17T21:34:04.180Z",
   "entries": [
     {
       "name": ".",
       "files": [
+        "src\\evaluator\\abort.ts",
         "src\\evaluator\\aggregate.ts",
         "src\\evaluator\\bgp-evaluator.ts",
         "src\\evaluator\\expression-evaluator.ts",
@@ -39,7 +40,7 @@
         "src\\term\\ordering.ts",
         "src\\wazoo-sparql-engine.ts"
       ],
-      "bytes": 646213
+      "bytes": 651800
     },
     {
       "name": "./term",
@@ -71,23 +72,6 @@
         "src\\term\\ordering.ts"
       ],
       "bytes": 54398
-    },
-    {
-      "name": "./sqlite",
-      "files": [
-        "src\\store\\memory-store.ts",
-        "src\\store\\sqlite-store.ts",
-        "src\\term\\canonical.ts",
-        "src\\term\\convert.ts",
-        "src\\term\\data-factory.ts",
-        "src\\term\\datetime.ts",
-        "src\\term\\hash.ts",
-        "src\\term\\identity.ts",
-        "src\\term\\mod.ts",
-        "src\\term\\numeric.ts",
-        "src\\term\\ordering.ts"
-      ],
-      "bytes": 65825
     },
     {
       "name": "./parser",

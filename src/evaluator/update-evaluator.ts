@@ -30,9 +30,9 @@ const { blankNode, quad, defaultGraph } = DataFactory;
 
 /**
  * QuadWriteStore is the minimal write surface an update-capable store must
- * expose beyond rdfjs.Store's read-only interface. MemoryStore, SqliteStore,
- * and the durable Wazoo backends (LibsqlRdfjsStore, DenokvRdfjsStore) all
- * satisfy it.
+ * expose beyond rdfjs.Store's read-only interface. MemoryStore and the
+ * durable Worlds backends (LibsqlRdfjsStore in @worlds/libsql, SqliteStore
+ * in @worlds/sqlite) all satisfy it.
  */
 export type QuadWriteStore = rdfjs.Store & {
   addQuad(item: rdfjs.Quad): unknown;

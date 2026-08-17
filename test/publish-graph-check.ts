@@ -3,12 +3,13 @@
 //
 //   - The default export (`src/mod.ts`) must not import `node:` builtins —
 //     the zero-runtime-dependency claim of the published package.
-//   - The `./sqlite` subpath (`src/store/sqlite-store.ts`) is the only
-//     opt-in entrypoint that loads a builtin, and exactly one: `node:sqlite`
-//     (a Node/Deno builtin, not a dependency).
-//   - No `npm:` value dependency may sneak into either graph. The single
+//   - No `npm:` value dependency may sneak into the graph. The single
 //     allowed npm: entry is the type-only `@rdfjs/types` (erased at compile
 //     time), which `deno info --json` still lists.
+//
+// The durable `node:sqlite` store previously guarded by the `./sqlite`
+// subpath check moved to `@worlds/sqlite` (2026-08-17); the engine no longer
+// ships a builtin-loading entrypoint, so every export is now pure.
 //
 // Run: deno task publish:check (wired into `deno task ci` alongside
 // `publish:dry`, which asserts every export resolves).
@@ -85,13 +86,6 @@ function assertPurity(
 const defaultGraph = await moduleSpecifiers("src/mod.ts");
 assertPurity("src/mod.ts (default export)", defaultGraph, []);
 
-// The sqlite subpath may load exactly node:sqlite and nothing else node:.
-const sqliteGraph = await moduleSpecifiers("src/store/sqlite-store.ts");
-assertPurity("src/store/sqlite-store.ts (./sqlite)", sqliteGraph, [
-  "node:sqlite",
-]);
-
 console.log(
-  "publish:check — default export graph has no node:/npm: runtime imports; " +
-    "./sqlite pulls only node:sqlite.",
+  "publish:check — default export graph has no node:/npm: runtime imports.",
 );

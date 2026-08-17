@@ -33,7 +33,7 @@ Related in-repo documents:
 (topology and `@worlds/client` relationship),
 [CONTEXT.md](https://github.com/wazootech/sparql-engine/blob/main/CONTEXT.md)
 (glossary), and [`docs/durable-transactions.md`](durable-transactions.md)
-(released `./sqlite` durable backend).
+(durable SQLite backend — the store moved to `@worlds/sqlite`, pointer kept).
 
 ## One-paragraph map
 
@@ -49,7 +49,7 @@ SparqlEvaluator.evaluateQuery()              src/evaluator/sparql-evaluator.ts
    │  join.ts (hash joins, property paths)   src/evaluator/join.ts
    │  select-pipeline.ts (group/order/etc.)  src/evaluator/select-pipeline.ts
    ▼
-rdfjs.Store (MemoryStore, SqliteStore, any)  src/store/, src/quad-store.ts
+rdfjs.Store (MemoryStore, any external)  src/store/, src/quad-store.ts
 ```
 
 Updates take a parallel path through `UpdateEvaluator.executeUpdate()`

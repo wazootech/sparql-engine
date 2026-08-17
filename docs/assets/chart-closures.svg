@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 258"
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 224"
   font-family="sans-serif">
-  <rect width="720" height="258" fill="#f8f9fa" />
+  <rect width="720" height="224" fill="#f8f9fa" />
   <text x="12" y="20" font-size="13" font-weight="bold"
     fill="#212529">Per-entrypoint consumer closure</text>
   <text x="12" y="34" font-size="9"
@@ -9,23 +9,20 @@
   <text x="470" y="58.0" text-anchor="end" font-family="sans-serif"
     font-size="10"
     fill="#212529">@wazoo/sparql-engine/serialize — 7 KiB (3 files)</text>
-  <rect x="16" y="80" width="29.0" height="18" fill="#1971c2" rx="2" />
+  <rect x="16" y="80" width="28.7" height="18" fill="#1971c2" rx="2" />
   <text x="470" y="92.0" text-anchor="end" font-family="sans-serif"
     font-size="10"
     fill="#212529">@wazoo/sparql-engine/term — 40 KiB (9 files)</text>
-  <rect x="16" y="114" width="38.2" height="18" fill="#1971c2" rx="2" />
+  <rect x="16" y="114" width="37.9" height="18" fill="#1971c2" rx="2" />
   <text x="470" y="126.0" text-anchor="end" font-family="sans-serif"
     font-size="10"
     fill="#212529">@wazoo/sparql-engine/store — 53 KiB (10 files)</text>
-  <rect x="16" y="148" width="46.2" height="18" fill="#1971c2" rx="2" />
+  <rect x="16" y="148" width="160.3" height="18" fill="#1971c2" rx="2" />
   <text x="470" y="160.0" text-anchor="end" font-family="sans-serif"
-    font-size="10" fill="#212529">./sqlite — 64 KiB (11 files)</text>
-  <rect x="16" y="182" width="161.7" height="18" fill="#1971c2" rx="2" />
-  <text x="470" y="194.0" text-anchor="end" font-family="sans-serif"
     font-size="10"
     fill="#212529">@wazoo/sparql-engine/parser — 225 KiB (4 files)</text>
-  <rect x="16" y="216" width="454.0" height="18" fill="#1971c2" rx="2" />
-  <text x="470" y="228.0" text-anchor="end" font-family="sans-serif"
+  <rect x="16" y="182" width="454.0" height="18" fill="#1971c2" rx="2" />
+  <text x="470" y="194.0" text-anchor="end" font-family="sans-serif"
     font-size="10"
-    fill="#212529">@wazoo/sparql-engine (full) — 631 KiB (34 files)</text>
+    fill="#212529">@wazoo/sparql-engine (full) — 637 KiB (35 files)</text>
 </svg>

@@ -39,9 +39,9 @@ sparql-engine/
 
 ### Entry point
 
-| File         | Symbols                      | Role                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| ------------ | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/mod.ts` | re-exports everything public | The full-engine entrypoint (`exports["."]` in `deno.json`), incl. [`SparqlSyntaxError`](https://jsr.io/@wazoo/sparql-engine/doc/~/SparqlSyntaxError) and the planner/estimator surface. `deno.json` also exposes subpath entrypoints: `./term` → `src/term/mod.ts`, `./store` → `src/store/memory-store.ts`, `./sqlite` → `src/store/sqlite-store.ts`, `./parser` → `src/parser/mod.ts`, `./serialize` → `src/serialize/mod.ts`. Anything not re-exported through one of these is private surface. |
+| File         | Symbols                      | Role                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| ------------ | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/mod.ts` | re-exports everything public | The full-engine entrypoint (`exports["."]` in `deno.json`), incl. [`SparqlSyntaxError`](https://jsr.io/@wazoo/sparql-engine/doc/~/SparqlSyntaxError) and the planner/estimator surface. `deno.json` also exposes subpath entrypoints: `./term` → `src/term/mod.ts`, `./store` → `src/store/memory-store.ts`, `./parser` → `src/parser/mod.ts`, `./serialize` → `src/serialize/mod.ts`. Anything not re-exported through one of these is private surface. |
 
 ### Engine core
 
@@ -89,13 +89,14 @@ sparql-engine/
 
 ### `src/store/` — RDF/JS stores
 
-| File                            | Symbols                                                                                                                                                                                                 | Role                                                                                                                        |
-| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| `memory-store.ts`               | `Listener`, [`MemoryStream`](https://jsr.io/@wazoo/sparql-engine/doc/~/MemoryStream), [`MemoryStore`](https://jsr.io/@wazoo/sparql-engine/doc/~/MemoryStore)                                            | Zero-dependency in-memory store + RDF/JS stream implementation.                                                             |
-| `memory-store.test.ts`          | —                                                                                                                                                                                                       | Store unit tests.                                                                                                           |
-| `sqlite-store.ts`               | [`SqliteStoreOptions`](https://github.com/wazootech/sparql-engine/blob/main/src/store/sqlite-store.ts), [`SqliteStore`](https://github.com/wazootech/sparql-engine/blob/main/src/store/sqlite-store.ts) | Durable store over `node:sqlite`; server-only, shipped as the `./sqlite` subpath (kept out of the root `src/mod.ts` graph). |
-| `sqlite-store.test.ts`          | —                                                                                                                                                                                                       | Durability/atomicity tests.                                                                                                 |
-| `sqlite-store-recovery.test.ts` | —                                                                                                                                                                                                       | Child-process crash-recovery suite (committed update, buffered writes, mid-`BEGIN` kill, concurrent writers).               |
+| File                                                                           | Symbols                                                                                                                                                      | Role                                                            |
+| ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------- |
+| `memory-store.ts`                                                              | `Listener`, [`MemoryStream`](https://jsr.io/@wazoo/sparql-engine/doc/~/MemoryStream), [`MemoryStore`](https://jsr.io/@wazoo/sparql-engine/doc/~/MemoryStore) | Zero-dependency in-memory store + RDF/JS stream implementation. |
+| `memory-store.test.ts`                                                         | —                                                                                                                                                            | Store unit tests.                                               |
+| The durable `node:sqlite` store (`SqliteStore`) moved to                       |                                                                                                                                                              |                                                                 |
+| [`@worlds/sqlite`](https://github.com/wazootech/worlds-sqlite) on 2026-08-17 — |                                                                                                                                                              |                                                                 |
+| its source, unit tests, and crash-recovery suite live at                       |                                                                                                                                                              |                                                                 |
+| `src/sqlite/rdfjs-store/` in that repo.                                        |                                                                                                                                                              |                                                                 |
 
 ### `src/planner/` — join ordering
 
@@ -148,8 +149,7 @@ sparql-engine/
 | `test/w3c/construct-semantics.test.ts`                                  | Pins the CONSTRUCT graph-result contract: reference deduplicated, wazoo as-emitted, duplicates fail                                                                                    |
 | `test/w3c/fixtures/`                                                    | Vendored W3C suites: `sparql11/`, `sparql12/`, `rdf/` (offline, deterministic)                                                                                                         |
 | `test/interface-parity.ts`                                              | Asserts `src/sparql-engine-interface.ts` matches `@worlds/client`'s copy (identical-spec policy; `deno task interface-parity`)                                                         |
-| `test/publish-graph-check.ts`                                           | Fails if the default export graph gains `node:`/`npm:` runtime imports; `./sqlite` may pull exactly `node:sqlite` (`deno task publish:check`)                                          |
-| `test/sqlite-recovery-child.ts`                                         | Child process spawned by `sqlite-store-recovery.test.ts` to exercise the crash points (exit/kill/reopen)                                                                               |
+| `test/publish-graph-check.ts`                                           | Fails if the default export graph gains `node:`/`npm:` runtime imports (`deno task publish:check`)                                                                                     |
 
 ## `bench/`
 
@@ -167,8 +167,9 @@ sparql-engine/
 | `bench/latency-chart.ts`                                         | Renders `bench/latency-data.json` → `docs/assets/chart-latency.svg` (per-query-class bars)                                                                                         |
 | `bench/latency-check.ts`                                         | CI gate: fresh `deno bench --json` inventory must match the committed snapshot (timings never compared)                                                                            |
 | `bench/latency-data.json`                                        | Committed latency snapshot (avg ms/iter per query class)                                                                                                                           |
-| `bench/sqlite_bench.ts`                                          | Durable `SqliteStore` vs `MemoryStore` operation timings (`deno task bench:sqlite`)                                                                                                |
-| `bench/treemap.ts`                                               | Renders `bench/{size,memory,closures}-data.json` into the `docs/assets/*.svg` charts                                                                                               |
+
+| `bench/treemap.ts` | Renders `bench/{size,memory,closures}-data.json` into the
+`docs/assets/*.svg` charts |
 
 ## `docs/` — this wiki ↔ source mapping
 
@@ -182,7 +183,7 @@ sparql-engine/
 | `docs/05-testing.md`              | `test/parity/`, `test/w3c/`, `bench/`, `.github/workflows/ci.yml`                                           |
 | `docs/06-supplemental-context.md` | `test/w3c/fixtures/`, `CONTEXT.md`, `ARCHITECTURE.md`                                                       |
 | `docs/08-maintenance.md`          | the whole tree — the Git-anchored sync procedure (`deno doc --json` symbol checks, `git ls-tree` inventory) |
-| `docs/durable-transactions.md`    | `src/store/sqlite-store.ts` (released `./sqlite` backend, crash-recovery + benchmarks)                      |
+| `docs/durable-transactions.md`    | `@worlds/sqlite`'s `SqliteStore` (pointer; full doc lives in the worlds-sqlite repo)                        |
 
 ## Where to change what
 

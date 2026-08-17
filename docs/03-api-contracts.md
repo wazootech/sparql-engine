@@ -200,7 +200,7 @@ export type QuadWriteStore = rdfjs.Store & {
 ```
 
 [`MemoryStore`](https://jsr.io/@wazoo/sparql-engine/doc/~/MemoryStore),
-[`SqliteStore`](https://github.com/wazootech/sparql-engine/blob/main/src/store/sqlite-store.ts),
+[`@worlds/sqlite`](https://github.com/wazootech/worlds-sqlite)'s `SqliteStore`,
 and `@worlds/client`'s `LibsqlRdfjsStore` / `DenokvRdfjsStore` all satisfy it.
 If neither `createTransaction` nor `addQuad`/`removeQuad` is available, updates
 throw a clear error.
@@ -221,9 +221,10 @@ export interface WazooSparqlTransaction {
 
 One transaction is created per update request; every operation's writes are
 routed through it; `commit()` runs once; any error triggers `rollback()` and
-rethrows. The reference implementation is `SqliteStore.createTransaction()`
-(`src/store/sqlite-store.ts`, `BEGIN IMMEDIATE` … `COMMIT`, WAL journaling) —
-see `docs/durable-transactions.md`. The same shape is compatible with
+rethrows. The reference implementation is
+[`@worlds/sqlite`](https://github.com/wazootech/worlds-sqlite)'s
+`SqliteStore.createTransaction()` (`BEGIN IMMEDIATE` … `COMMIT`, WAL journaling)
+— see `docs/durable-transactions.md`. The same shape is compatible with
 `@worlds/client`'s `Transaction`, so existing durable backends pass their
 transaction objects through unchanged.
 
@@ -439,7 +440,7 @@ Not exported from the root entrypoint (deep-import or subpath only):
 [`SparqlParser`](https://github.com/wazootech/sparql-engine/blob/main/src/parser/sparql-parser.ts),
 the AST types (`src/parser/ast.ts`), and the evaluator internals — all reachable
 from source but outside the public surface, keeping the published package's
-runtime dependency graph empty. The one deliberate exception is
-[`SqliteStore`](https://github.com/wazootech/sparql-engine/blob/main/src/store/sqlite-store.ts)
-(`src/store/sqlite-store.ts`), which ships as the `./sqlite` subpath entrypoint
-(`@wazoo/sparql-engine/sqlite`) — the only surface that pulls `node:sqlite`.
+runtime dependency graph empty. The durable `node:sqlite` store that used to
+ship behind a `./sqlite` subpath moved to
+[`@worlds/sqlite`](https://github.com/wazootech/worlds-sqlite) (2026-08-17) — no
+engine entrypoint pulls `node:sqlite` anymore.

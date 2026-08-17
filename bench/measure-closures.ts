@@ -17,11 +17,13 @@ import { dirname, join, resolve } from "@std/path";
 
 const CWD = Deno.cwd();
 
+// The ./sqlite entry moved out with the store (2026-08-17) — the durable
+// `node:sqlite` store now lives in @worlds/sqlite, so the engine's own
+// entrypoint set is the full engine plus the four pure subpaths.
 const ENTRIES = [
   { name: ".", path: "./src/mod.ts" },
   { name: "./term", path: "./src/term/mod.ts" },
   { name: "./store", path: "./src/store/memory-store.ts" },
-  { name: "./sqlite", path: "./src/store/sqlite-store.ts" },
   { name: "./parser", path: "./src/parser/mod.ts" },
   { name: "./serialize", path: "./src/serialize/mod.ts" },
 ];

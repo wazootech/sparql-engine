@@ -289,12 +289,12 @@ The engine never owns data. It binds to any `rdfjs.Source` / `rdfjs.Store`:
   default in-memory store (a `Map` keyed by a four-position `quadKey`), plus
   [`MemoryStream`](https://jsr.io/@wazoo/sparql-engine/doc/~/MemoryStream), a
   zero-dependency RDF/JS `Stream` implementation (flow + pull modes).
-- `src/store/sqlite-store.ts` — durable
-  [`SqliteStore`](https://github.com/wazootech/sparql-engine/blob/main/src/store/sqlite-store.ts)
-  over `node:sqlite`, server-only, **not** exported from `src/mod.ts`; wired to
-  the engine via `createTransaction` (see `docs/durable-transactions.md`).
-- Any external `rdfjs.Store` — e.g. `@worlds/client`'s
-  `LibsqlRdfjsStore`/`DenokvRdfjsStore`.
+- The durable `node:sqlite` store moved to
+  [`@worlds/sqlite`](https://github.com/wazootech/worlds-sqlite) (2026-08-17) —
+  its `SqliteStore` wires to the engine via `createTransaction` (see
+  `docs/durable-transactions.md`).
+- Any external `rdfjs.Store` — e.g. `@worlds/sqlite`'s `SqliteStore`, or
+  `@worlds/client`'s `LibsqlRdfjsStore`/`DenokvRdfjsStore`.
 
 `src/quad-store.ts` is the adapter layer between the evaluator and the store:
 
@@ -490,7 +490,7 @@ src/mod.ts  ── public exports ───────────────�
    ├── parser/sparql-parser.ts → parser/mod.ts → parser/parser.ts (generated)
    │       └── term/data-factory.ts (zero-dep term construction)
    │
-   ├── store/memory-store.ts  store/sqlite-store.ts   rdfjs.Store implementations
+   ├── store/memory-store.ts   rdfjs.Store implementations (external: @worlds/sqlite)
    │
    └── term/  identity · convert · canonical · numeric · ordering · datetime ·
                hash · data-factory   (term algebra shared by every layer)

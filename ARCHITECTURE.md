@@ -20,13 +20,15 @@ update engine for RDF/JS Quad Stores (`rdfjs.Store`).
          │
          ▼
  ┌──────────────┐
- │ rdfjs.Store  │ (MemoryStore, SqliteStore, or any external rdfjs.Store)
+ │ rdfjs.Store  │ (MemoryStore, or any external rdfjs.Store)
  └──────────────┘
 ```
 
-In-repo store implementations are `MemoryStore` (in-memory, the default) and
-`SqliteStore` (durable prototype over `node:sqlite`; deep-import only, not part
-of the public export graph). Any external `rdfjs.Store` also works — e.g.
+In-repo store implementation is `MemoryStore` (in-memory, the default). The
+durable `node:sqlite` store that used to ship behind the `./sqlite` subpath
+moved to `@worlds/sqlite` (2026-08-17), packaged with the worlds impl — see
+[`SqliteStore`](https://github.com/wazootech/worlds-sqlite/blob/main/src/sqlite/rdfjs-store/sqlite-store.ts).
+Any external `rdfjs.Store` works — e.g. `@worlds/sqlite`'s `SqliteStore`, or
 `@worlds/client`'s `LibsqlRdfjsStore` / `DenokvRdfjsStore`.
 
 ## Contracts

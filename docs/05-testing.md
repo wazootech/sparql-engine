@@ -40,7 +40,7 @@ the committed bench inventory, `docs-links` fails on wiki link rot, and
 | `deno task test:sparql12`       | `test/w3c/sparql12-main.ts`    | W3C [SPARQL 1.2](https://www.w3.org/TR/sparql12-query/) evaluation suite                                              | ci                         |
 | `deno task test:rdf11`          | `test/w3c/rdf-differential.ts` | RDF 1.1 Turtle/TriG/N-Triples/N-Quads vs n3                                                                           | ci                         |
 | `deno task test:rdf12`          | `test/w3c/rdf-classify.ts`     | RDF 1.2 syntax classifier                                                                                             | ci                         |
-| `deno task publish:check`       | `test/publish-graph-check.ts`  | Default export graph has no `node:`/`npm:` runtime imports; `./sqlite` pulls exactly `node:sqlite`                    | ci                         |
+| `deno task publish:check`       | `test/publish-graph-check.ts`  | Default export graph has no `node:`/`npm:` runtime imports                                                            | ci                         |
 | `deno task ci`                  | —                              | All of the above in dependency order                                                                                  | ci job                     |
 | `deno task test:w3c`            | `test/w3c/w3c-main.ts`         | [SPARQL 1.1](https://www.w3.org/TR/sparql11-query/) evaluation-core differential vs [Comunica](https://comunica.dev/) | w3c-parity job             |
 | `deno task docs:link-check`     | `docs/link-check.ts`           | Wiki link rot: every external markdown link (JSR/GitHub/W3C/…) must resolve (404/410 fails)                           | docs-links job             |
@@ -48,9 +48,11 @@ the committed bench inventory, `docs-links` fails on wiki link rot, and
 | `deno task bench:latency:check` | `bench/latency-check.ts`       | Committed `bench/latency-data.json` bench inventory matches a fresh run                                               | latency-snapshot job       |
 | `deno task test:ref`            | `test/w3c/ref-crosscheck.ts`   | Allowlisted divergence audit vs Oxigraph + N3.js                                                                      | manual (on grammar change) |
 | `deno task bench`               | `deno bench --allow-all`       | Three-engine benchmarks                                                                                               | manual                     |
-| `deno task bench:sqlite`        | `bench/sqlite_bench.ts`        | Durable `SqliteStore` vs `MemoryStore` operation timings                                                              | manual                     |
-| `deno task bench:latency`       | `bench/latency-chart.ts`       | Render `bench/latency-data.json` → `docs/assets/chart-latency.svg`                                                    | manual                     |
-| `deno task publish:dry`         | `deno publish --dry-run`       | JSR publish validation                                                                                                | ci job + publish job       |
+
+| `deno task bench:latency` | `bench/latency-chart.ts` | Render
+`bench/latency-data.json` → `docs/assets/chart-latency.svg` | manual | |
+`deno task publish:dry` | `deno publish --dry-run` | JSR publish validation | ci
+job + publish job |
 
 ## Unit & integration tests
 
@@ -63,8 +65,7 @@ deno test -n "exists"       # filter by test name substring
 ```
 
 Covered areas: parser (`src/parser/mod.test.ts`, `turtle-parser.test.ts`), store
-semantics (`src/store/memory-store.test.ts`, `sqlite-store.test.ts`,
-`sqlite-store-recovery.test.ts`), quad-store adapters
+semantics (`src/store/memory-store.test.ts`), quad-store adapters
 (`src/quad-store.test.ts`), the join engine (`src/evaluator/join.test.ts`), the
 planner (`src/planner/*.test.ts`), term algebra (`src/term/term.test.ts`),
 updates (`src/evaluator/update-evaluator.test.ts`), and the engine integration
@@ -220,9 +221,9 @@ to ship and run (root `README.md` → _Size & memory footprint_):
   `generate-parser.ts`) is applied before measuring, so the number is what
   consumers actually install.
 - `bench:size:closures` — `bench/measure-closures.ts` walks the value-import
-  graph of each package entrypoint (`.`, `./term`, `./store`, `./sqlite`,
-  `./parser`, `./serialize`), skipping type-only imports, and reports the total
-  local bytes each one loads (from the serializers to the full engine) →
+  graph of each package entrypoint (`.`, `./term`, `./store`, `./parser`,
+  `./serialize`), skipping type-only imports, and reports the total local bytes
+  each one loads (from the serializers to the full engine) →
   `bench/closures-data.json`.
 - `bench:memory` — `bench/collect-memory.ts` spawns `bench/memory-probe.ts` per
   engine in an **isolated Deno subprocess** (so only the target engine is
@@ -327,8 +328,8 @@ defects.
 - The generated `src/parser/parser.ts` carries `// @ts-nocheck` and
   `// deno-lint-ignore-file`; edit `sparql.jison`, not the generated file, and
   run `deno task parser:generate`.
-- [`SqliteStore`](https://github.com/wazootech/sparql-engine/blob/main/src/store/sqlite-store.ts)
-  imports `node:sqlite` and is intentionally kept **out of the root export
-  graph** — it ships only behind the `./sqlite` subpath, and
-  `deno task publish:check`/`publish:dry` fail if the default graph starts
-  importing it.
+- The durable
+  [`SqliteStore`](https://github.com/wazootech/worlds-sqlite/blob/main/src/sqlite/rdfjs-store/sqlite-store.ts)
+  moved to `@worlds/sqlite` (2026-08-17); the engine's export graph has no
+  `node:` imports, and `deno task publish:check`/`publish:dry` fail if that
+  changes.

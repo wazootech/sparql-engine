@@ -31,7 +31,6 @@ anything structural. Run `deno task bench`, `deno task bench:size`, or
 | `bench/collect-memory.ts`    | `deno task bench:memory`        | Peak heap during execution                                                            | no   |
 | `bench/latency-chart.ts`     | `deno task bench:latency`       | Renders the `deno bench --json` latency snapshot into `docs/assets/chart-latency.svg` | no   |
 | `bench/latency-check.ts`     | `deno task bench:latency:check` | Fails when the committed snapshot's bench inventory is stale vs a fresh run           | CI   |
-| `bench/sqlite_bench.ts`      | `deno task bench:sqlite`        | Durable `SqliteStore` vs `MemoryStore` operation timings                              | no   |
 
 ## `deno task bench` — three-engine latency comparison
 

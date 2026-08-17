@@ -167,7 +167,6 @@ deno task bench:check  # regression budget gate (bench/budget.ts)
 deno task bench:size   # on-disk library footprint → docs/assets/chart-library-size.svg
 deno task bench:size:closures # per-entrypoint import closure → docs/assets/chart-closures.svg
 deno task bench:memory # peak heap per engine → docs/assets/treemap-memory.svg
-deno task bench:sqlite  # SqliteStore vs MemoryStore durable-store timings
 deno task bench:latency # committed latency snapshot → docs/assets/chart-latency.svg
 ```
 
