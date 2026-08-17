@@ -33,6 +33,8 @@ import { SparqlSyntaxError, toSparqlSyntaxError } from "./syntax-error.ts";
 
 import generatedParser from "./parser.ts";
 
+export { parseTurtleQuads } from "./turtle-parser.ts";
+
 /** The generated jison parser constructor (upstream `SparqlParser.Parser`). */
 type GeneratedParserConstructor =
   & (new () => {

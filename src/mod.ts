@@ -36,7 +36,13 @@ export type { EstimatedJoinState } from "@/planner/join-order-search.ts";
 
 export { MemoryStore, MemoryStream } from "@/store/memory-store.ts";
 export { DataFactory, dataFactory } from "@/term/mod.ts";
+export { parseTurtleQuads } from "@/parser/turtle-parser.ts";
 export { serializeJsonResults, serializeXmlResults } from "@/serialize/mod.ts";
+export { serializeTurtle } from "@/serialize/turtle-writer.ts";
+export type {
+  TurtleFormat,
+  TurtleWriterOptions,
+} from "@/serialize/turtle-writer.ts";
 
 export {
   canonicalizeRdfTerm,

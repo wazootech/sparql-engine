@@ -157,30 +157,38 @@ const engine = new WazooSparqlEngine({
 });
 ```
 
-### `@wazoo/sparql-engine/parser` — SPARQL AST parser (224.8 KiB)
+### `@wazoo/sparql-engine/parser` — SPARQL AST + Turtle parsers (224.8 KiB)
 
 Parse SPARQL 1.1 & 1.2 into the sparqljs-compatible AST without loading the
-evaluator:
+evaluator, and parse Turtle-family documents into RDF/JS quads:
 
 ```typescript
-import { SparqlParser } from "@wazoo/sparql-engine/parser";
+import { parseTurtleQuads, SparqlParser } from "@wazoo/sparql-engine/parser";
 
 const ast = new SparqlParser({ sparqlStar: true }).parse(
   "SELECT ?s WHERE { ?s ?p ?o }",
 );
 console.log(ast.type); // "query"
 console.log(ast.variables); // [Variable{ value: "s" }]
+
+// Turtle / TriG / N-Triples / N-Quads → RDF/JS quads (graphs preserved)
+const quads = parseTurtleQuads(
+  "@prefix : <https://example.org/> . :alice :name \"Alice\" .",
+);
+console.log(quads[0].object.value); // "Alice"
 ```
 
-### `@wazoo/sparql-engine/serialize` — results writers (7.4 KiB)
+### `@wazoo/sparql-engine/serialize` — results writers + Turtle writer (7.4 KiB)
 
 Serialize a
 [`SparqlResponse`](https://jsr.io/@wazoo/sparql-engine/doc/~/SparqlResponse) to
-SPARQL results JSON (`.srj`) or XML (`.srx`):
+SPARQL results JSON (`.srj`) or XML (`.srx`), or RDF/JS quads to
+Turtle/TriG/N-Quads/N-Triples:
 
 ```typescript
 import {
   serializeJsonResults,
+  serializeTurtle,
   serializeXmlResults,
 } from "@wazoo/sparql-engine/serialize";
 
@@ -198,6 +206,11 @@ const response = {
 
 serializeJsonResults(response); // {"head":{"vars":["s"]},"results":…}
 serializeXmlResults(response); // <?xml version="1.0" encoding="UTF-8"?>…
+
+// The writer counterpart to parseTurtleQuads — lossless round-trip, incl.
+// RDF 1.2 triple terms and named graphs (TriG blocks in Turtle mode).
+serializeTurtle(quads, { format: "turtle", prefixes: { ex: "https://example.org/" } });
+serializeTurtle(quads, { format: "n-quads" });
 ```
 
 The subpaths can be mixed freely — e.g. the store above with the term layer, or
@@ -382,8 +395,9 @@ measured by `deno task bench:size:closures`):
 | `@wazoo/sparql-engine` (full engine) | 631.1 KiB   | 34    |
 
 A store-only consumer pays **53 KiB instead of the whole 631 KiB engine graph**,
-and the serializers are the cheapest leaf at 7.4 KiB — just the two writers,
-since they only import types from the engine.
+and the serializers are the cheapest leaf — the writers only import types from
+the engine (the Turtle writer adds its own serialization logic, so re-run
+`deno task bench:size:closures` to refresh the snapshot after this addition).
 
 <figure>
   <img src="docs/assets/treemap-submodules.svg" alt="Treemap of the full engine closure broken down by top-level module">
