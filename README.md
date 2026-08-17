@@ -259,13 +259,17 @@ per-group baseline). Each cell is the per-iteration average; every query is
 cross-verified to return identical results on all three engines before timing.
 Timings are machine-specific — run `deno task bench` for your own numbers.
 
-Core joins, 400-person graph (~2,200 quads):| query | wazoo | comunica |
-oxigraph | | ---------------------------- | -------- | -------- | -------- | |
-full scan | 1.1 ms | 6.0 ms | 8.8 ms | | join (knows × name) | 0.91 ms | 3.4 ms
-| 1.6 ms | | asymmetric join | 1.7 ms | 23.0 ms | 11.5 ms | | reorder chain,
-written order | 105.5 ms | 107.8 ms | 2.2 ms | | reorder chain, planner on | 1.5
-ms | — | — | | dp-join, DP plan | 62.2 ms | 190.4 ms | 1120 ms | | dp-join,
-greedy plan | 125.2 ms | — | — |
+Core joins, 400-person graph (~2,200 quads):
+
+| query                        | wazoo    | comunica | oxigraph |
+| ---------------------------- | -------- | -------- | -------- |
+| full scan                    | 1.1 ms   | 6.0 ms   | 8.8 ms   |
+| join (knows × name)          | 0.91 ms  | 3.4 ms   | 1.6 ms   |
+| asymmetric join              | 1.7 ms   | 23.0 ms  | 11.5 ms  |
+| reorder chain, written order | 105.5 ms | 107.8 ms | 2.2 ms   |
+| reorder chain, planner on    | 1.5 ms   | —        | —        |
+| dp-join, DP plan             | 62.2 ms  | 190.4 ms | 1120 ms  |
+| dp-join, greedy plan         | 125.2 ms | —        | —        |
 
 EXISTS surface, 400-person graph:
 
