@@ -387,13 +387,22 @@ joins the pair set against the incoming bindings.
 
 ## Memory & asynchrony model
 
-- **Materialized, not lazy.** Every stage works on plain arrays:
-  `ScanEntry.candidates` is a fully drained
+- **Indexed scans at the store, lazy between patterns.** `ScanEntry.candidates`
+  is a fully drained
   [`matchQuads`](https://github.com/wazootech/sparql-engine/blob/main/src/quad-store.ts)
-  result; `TermBinding[]` arrays are threaded through pattern evaluation;
-  [`aggregateValue`](https://github.com/wazootech/sparql-engine/blob/main/src/evaluator/aggregate.ts)
-  groups hold raw solutions. The engine favors pre-fetched + indexed scans over
-  per-binding stream round trips.
+  result — the engine favors pre-fetched + indexed scans over per-binding stream
+  round trips — but a multi-pattern BGP composes generator joins
+  ([`joinTriplePatternLazy`](https://github.com/wazootech/sparql-engine/blob/main/src/evaluator/join.ts))
+  that stream the intermediate binding flow instead of materializing an array
+  per pattern. The eager array join
+  ([`joinTriplePattern`](https://github.com/wazootech/sparql-engine/blob/main/src/evaluator/join.ts))
+  remains the fast path for a single-pattern BGP (no chain to stream, and
+  measurably lighter for the unselective full-scan case), for the reordered BGP
+  path whose cost estimate needs the full materialized result set, and for the
+  synchronous EXISTS hooks. CONSTRUCT template instantiations emit per solution
+  straight into the dedup set, so peak holds the dedup key set plus the graph
+  instead of that plus every constructed quad (issue
+  [#74](https://github.com/wazootech/sparql-engine/issues/74)).
 - **Streams only at the store boundary.** `rdfjs.Stream` is consumed exactly
   once, in
   [`matchQuads`](https://github.com/wazootech/sparql-engine/blob/main/src/quad-store.ts)
