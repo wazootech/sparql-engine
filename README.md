@@ -173,7 +173,7 @@ console.log(ast.variables); // [Variable{ value: "s" }]
 
 // Turtle / TriG / N-Triples / N-Quads → RDF/JS quads (graphs preserved)
 const quads = parseTurtleQuads(
-  "@prefix : <https://example.org/> . :alice :name \"Alice\" .",
+  '@prefix : <https://example.org/> . :alice :name "Alice" .',
 );
 console.log(quads[0].object.value); // "Alice"
 ```
@@ -209,7 +209,10 @@ serializeXmlResults(response); // <?xml version="1.0" encoding="UTF-8"?>…
 
 // The writer counterpart to parseTurtleQuads — lossless round-trip, incl.
 // RDF 1.2 triple terms and named graphs (TriG blocks in Turtle mode).
-serializeTurtle(quads, { format: "turtle", prefixes: { ex: "https://example.org/" } });
+serializeTurtle(quads, {
+  format: "turtle",
+  prefixes: { ex: "https://example.org/" },
+});
 serializeTurtle(quads, { format: "n-quads" });
 ```
 
