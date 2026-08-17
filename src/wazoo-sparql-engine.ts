@@ -77,6 +77,24 @@ export interface WazooSparqlEngineOptions {
   estimator?: JoinCostEstimator;
 }
 
+/** Default SPARQL query timeout in milliseconds (matches Comunica). */
+const DEFAULT_SPARQL_TIMEOUT_MS = 30_000;
+
+/**
+ * abortReasonForSignal maps an aborted signal to the request's rejection
+ * error: the signal's own reason when it is an Error, else a clear abort
+ * error. The timeout aborts the engine controller with the exact Comunica
+ * message ("SPARQL query timed out"), so both the end-of-request race and
+ * the per-boundary checks surface the same error.
+ */
+function abortReasonForSignal(signal: AbortSignal | undefined): Error {
+  const reason = signal?.reason;
+  if (reason instanceof Error) {
+    return reason;
+  }
+  return new Error("SPARQL query aborted");
+}
+
 /**
  * WazooSparqlEngine is the Wazoo SPARQL 1.1 & 1.2 engine over RDFJS Store sources.
  */
@@ -110,33 +128,85 @@ export class WazooSparqlEngine implements SparqlEngineInterface {
     });
   }
 
-  /** execute runs a SPARQL query/update against the configured store. */
+  /**
+   * execute runs a SPARQL query/update against the configured store,
+   * enforcing timeoutMs and signal (issue #122): the request promise
+   * rejects on timeout or abort (Comunica's end-of-request shape), and the
+   * composed signal is threaded through the evaluator so cancellation also
+   * lands at the next pattern/join boundary.
+   */
   public async execute(request: SparqlRequest): Promise<SparqlResponse> {
-    const raw = request.query;
-    const baseIri = request.baseIri;
-    // The parse depends on the base (the grammar resolves prefix IRIs and
-    // records query.base from it), so the cache key carries it.
-    const cacheKey = baseIri === undefined ? raw : `${raw}\u0000${baseIri}`;
-    let ast = this.queryCache.get(cacheKey);
-    if (ast === undefined) {
-      ast = this.parser.parse(
-        raw,
-        baseIri === undefined ? undefined : { baseIRI: baseIri },
-      );
-      this.queryCache.set(cacheKey, ast);
-      if (this.queryCache.size > WazooSparqlEngine.QUERY_CACHE_MAX) {
-        const oldest = this.queryCache.keys().next().value;
-        if (oldest !== undefined) {
-          this.queryCache.delete(oldest);
-        }
+    // One controller composes the timeout and the caller's signal; aborting
+    // it with an Error reason makes both the race and the boundary checks
+    // throw the identical message. A manual timer (not AbortSignal.timeout)
+    // is cleared on completion, so a fast query never leaves a pending
+    // 30-second timer holding the process open.
+    const controller = new AbortController();
+    const timer = setTimeout(() => {
+      controller.abort(new Error("SPARQL query timed out"));
+    }, request.timeoutMs ?? DEFAULT_SPARQL_TIMEOUT_MS);
+    const callerSignal = request.signal;
+    const onCallerAbort = (): void => {
+      controller.abort(abortReasonForSignal(callerSignal));
+    };
+    if (callerSignal !== undefined) {
+      if (callerSignal.aborted) {
+        onCallerAbort();
+      } else {
+        callerSignal.addEventListener("abort", onCallerAbort, { once: true });
       }
     }
-    if (ast.type === "update") {
-      // The parser folds the request base into the AST when the query has
-      // no BASE directive, so ast.base is the effective base either way.
-      await this.updateEvaluator.executeUpdate(ast, ast.base ?? baseIri);
-      return { kind: "void" };
+    const signal = controller.signal;
+    // The end-of-request reject race (Comunica's shape): whichever fires
+    // first — the evaluation's own error, the timeout, or the caller's
+    // abort — settles the request promise.
+    const abortPromise = new Promise<never>((_, reject) => {
+      if (signal.aborted) {
+        reject(abortReasonForSignal(signal));
+        return;
+      }
+      signal.addEventListener(
+        "abort",
+        () => reject(abortReasonForSignal(signal)),
+        { once: true },
+      );
+    });
+    try {
+      const raw = request.query;
+      const baseIri = request.baseIri;
+      // The parse depends on the base (the grammar resolves prefix IRIs and
+      // records query.base from it), so the cache key carries it.
+      const cacheKey = baseIri === undefined ? raw : `${raw}\u0000${baseIri}`;
+      let ast = this.queryCache.get(cacheKey);
+      if (ast === undefined) {
+        ast = this.parser.parse(
+          raw,
+          baseIri === undefined ? undefined : { baseIRI: baseIri },
+        );
+        this.queryCache.set(cacheKey, ast);
+        if (this.queryCache.size > WazooSparqlEngine.QUERY_CACHE_MAX) {
+          const oldest = this.queryCache.keys().next().value;
+          if (oldest !== undefined) {
+            this.queryCache.delete(oldest);
+          }
+        }
+      }
+      if (ast.type === "update") {
+        // The parser folds the request base into the AST when the query has
+        // no BASE directive, so ast.base is the effective base either way.
+        await Promise.race([
+          this.updateEvaluator.executeUpdate(ast, ast.base ?? baseIri, signal),
+          abortPromise,
+        ]);
+        return { kind: "void" };
+      }
+      return await Promise.race([
+        this.evaluator.evaluateQuery(ast, signal),
+        abortPromise,
+      ]);
+    } finally {
+      clearTimeout(timer);
+      callerSignal?.removeEventListener("abort", onCallerAbort);
     }
-    return await this.evaluator.evaluateQuery(ast);
   }
 }

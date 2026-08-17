@@ -11,6 +11,7 @@ import type {
 import type { WazooSparqlTransaction } from "@/wazoo-sparql-engine.ts";
 import { BgpEvaluator } from "@/evaluator/bgp-evaluator.ts";
 import type { TermBinding } from "@/evaluator/bgp-evaluator.ts";
+import { checkAborted } from "@/evaluator/abort.ts";
 import {
   buildDatasetStore,
   buildQuadIndex,
@@ -125,6 +126,7 @@ export class UpdateEvaluator {
   public async executeUpdate(
     ast: UpdateQuery,
     baseIri?: string,
+    signal?: AbortSignal,
   ): Promise<void> {
     const transaction = this.options.createTransaction?.();
     if (!transaction) {
@@ -138,12 +140,15 @@ export class UpdateEvaluator {
             "addQuad/removeQuad or provide createTransaction",
         );
       }
+      // Each update operation is a cancellation checkpoint (issue #122).
       for (const operation of ast.updates) {
+        checkAborted(signal);
         await this.applyOperation(
           operation,
           (item) => writeStore.addQuad(item),
           (item) => writeStore.removeQuad(item),
           baseIri,
+          signal,
         );
       }
       return;
@@ -151,11 +156,13 @@ export class UpdateEvaluator {
 
     try {
       for (const operation of ast.updates) {
+        checkAborted(signal);
         await this.applyOperation(
           operation,
           (item) => transaction.add(item),
           (item) => transaction.delete(item),
           baseIri,
+          signal,
         );
       }
       await transaction.commit();
@@ -173,6 +180,7 @@ export class UpdateEvaluator {
     add: (item: rdfjs.Quad) => unknown,
     remove: (item: rdfjs.Quad) => unknown,
     baseIri?: string,
+    signal?: AbortSignal,
   ): Promise<void> {
     const op = operation as unknown as Record<string, unknown>;
     const opType = (op.updateType || op.type || op.action) as
@@ -213,6 +221,7 @@ export class UpdateEvaluator {
           add,
           remove,
           baseIri,
+          signal,
         );
         return;
       }
@@ -221,6 +230,7 @@ export class UpdateEvaluator {
           operation as Extract<UpdateOperation, { updateType: "deletewhere" }>,
           remove,
           baseIri,
+          signal,
         );
         return;
       }
@@ -519,6 +529,7 @@ export class UpdateEvaluator {
     add: (item: rdfjs.Quad) => unknown,
     remove: (item: rdfjs.Quad) => unknown,
     baseIri?: string,
+    signal?: AbortSignal,
   ): Promise<void> {
     const withGraph = operation.graph
       ? sparqlTermToRdfTerm(operation.graph)
@@ -546,9 +557,11 @@ export class UpdateEvaluator {
     const bindings = await evaluator.evaluateBgp(
       operation.where ?? [],
       baseIri,
+      signal,
     );
 
     for (const pattern of operation.delete ?? []) {
+      checkAborted(signal);
       await this.deleteMatches(pattern, bindings, remove, withGraph);
     }
     for (const binding of bindings) {
@@ -576,13 +589,16 @@ export class UpdateEvaluator {
     operation: InsertDeleteOperation,
     remove: (item: rdfjs.Quad) => unknown,
     baseIri?: string,
+    signal?: AbortSignal,
   ): Promise<void> {
     const wherePatterns = (operation.delete ?? []) as Pattern[];
     const bindings = await this.bgpEvaluator.evaluateBgp(
       wherePatterns,
       baseIri,
+      signal,
     );
     for (const pattern of operation.delete ?? []) {
+      checkAborted(signal);
       await this.deleteMatches(pattern, bindings, remove);
     }
   }
