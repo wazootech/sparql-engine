@@ -353,12 +353,22 @@ function* minusStreamNested(
 /* the whole right side, turning the O(n·m) nested loop into a probe  */
 /* of O(n) buckets. Multiset semantics are preserved: every compatible */
 /* pair still produces its merged binding, duplicates included.       */
+/*                                                                    */
+/* Prior art: the build-once-index-probe-per-tuple in-memory hash     */
+/* join is the classic scheme of Shapiro (and GRACE):                 */
+/*   @see {@link https://doi.org/10.1145/6314.6315 Shapiro, "Join Processing in Database Systems with Large Main Memories," ACM TODS 11(3), 1986, pp. 239–264} */
+/*   @see Kitsuregawa, Tanaka & Yamamori, "Architecture and Performance of Relational Algebra Machine GRACE," ICPP, 1983, pp. 241–250 */
 /* ------------------------------------------------------------------ */
 
 /**
  * JOIN_PRODUCT_THRESHOLD is the pair count below which the nested loop is
  * kept: hash-setup (indexing the right side) costs more than the scan it
  * saves for tiny joins.
+ *
+ * Prior art: choosing a join method from an estimated cost (here the
+ * product of the input sizes) is cost-based join-method selection.
+ * @see {@link https://doi.org/10.1145/152610.152611 Graefe, "Query Evaluation Techniques for Large Databases," ACM Computing Surveys 25(2), 1993, pp. 73–170}
+ * @see {@link https://doi.org/10.1145/582095.582099 Selinger et al., "Access Path Selection in a Relational Database Management System," SIGMOD '79, pp. 23–34}
  */
 const JOIN_PRODUCT_THRESHOLD = 4096;
 
@@ -368,6 +378,9 @@ const JOIN_PRODUCT_THRESHOLD = 4096;
  * unknown without materializing, so the product threshold cannot apply, but
  * a right side this small keeps the nested loop cheap for any left length.
  * Larger right sides dispatch to the (inherently eager) hash index.
+ * (Same cost-based method-selection prior art as JOIN_PRODUCT_THRESHOLD:
+ * {@link https://doi.org/10.1145/152610.152611 Graefe, "Query Evaluation Techniques for Large Databases," ACM Computing Surveys 25(2), 1993, pp. 73–170};
+ * {@link https://doi.org/10.1145/582095.582099 Selinger et al., "Access Path Selection in a Relational Database Management System," SIGMOD '79, pp. 23–34}.)
  */
 const STREAM_NESTED_THRESHOLD = 64;
 
@@ -513,6 +526,10 @@ function buildHashIndex(
  * construction, plus the (usually few) partial rights it agrees with. A
  * partial l probes the bucket of its most selective bound variable and
  * verifies, plus partial rights that do not bind that variable.
+ *
+ * Prior art: probing the bucket with the fewest candidates (most selective
+ * bound variable) is access-path selection on the join key.
+ * @see {@link https://doi.org/10.1145/582095.582099 Selinger et al., "Access Path Selection in a Relational Database Management System," SIGMOD '79, pp. 23–34}
  */
 function compatibleCandidates(
   l: TermBinding,
@@ -1080,6 +1097,11 @@ export function isMultisetPath(path: PathElement): boolean {
  * set is computed from every graph node. Pair sets are deduplicated unless the
  * path is multiset, matching SPARQL's path semantics (each pair appears once
  * regardless of how many routes connect it unless the operator is multiset).
+ *
+ * Prior art: anchoring the walk at a constant endpoint (instead of
+ * exploring every node) computes only the reachable set from the bound
+ * end — the standard directed-evaluation optimization for reachability
+ * queries. {@link https://doi.org/10.1007/978-3-319-25007-6_1 Kostylev et al., "SPARQL with Property Paths," ISWC 2015, LNCS 9366, pp. 3–18} (see also pathSteps)
  */
 export async function scanPathEntry(
   store: rdfjs.Source<rdfjs.Quad>,
@@ -1273,6 +1295,14 @@ async function graphNodes(
  * In forward direction term is the path subject and the result is the set of
  * reachable objects; in backward direction term is the path object and the
  * result is the set of reachable subjects. Results are deduplicated.
+ *
+ * Prior art: the semantics are the W3C property-path semantics (SPARQL
+ * 1.1 §9.1), formalized by Kostylev et al.; the closures for the * and +
+ * operators are breadth-first traversals over the anchored node (CLRS
+ * §22.2).
+ * @see {@link https://doi.org/10.1007/978-3-319-25007-6_1 Kostylev et al., "SPARQL with Property Paths," ISWC 2015, LNCS 9366, pp. 3–18}
+ * @see {@link https://www.w3.org/TR/sparql11-query/ Harris & Seaborne (eds.), "SPARQL 1.1 Query Language," W3C Recommendation, 2013}
+ * @see Cormen, Leiserson, Rivest & Stein, "Introduction to Algorithms," 3rd ed., MIT Press, 2009, §22.2 (breadth-first search)
  */
 async function pathSteps(
   store: rdfjs.Source<rdfjs.Quad>,

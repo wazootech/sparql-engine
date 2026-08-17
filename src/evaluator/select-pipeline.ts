@@ -54,6 +54,13 @@ export function pipelineNeedsExistsIndex(query: SelectQuery): boolean {
  * shared by the async SparqlEvaluator (which evaluates the WHERE over the
  * store) and the synchronous EXISTS subquery path (which evaluates it over
  * the graph-scoped candidate snapshot). One pipeline, both call sites.
+ *
+ * Prior art: the stage order — VALUES as a natural join, GROUP BY /
+ * aggregates, HAVING, ORDER BY, projection, then DISTINCT/REDUCED and
+ * OFFSET/LIMIT — follows the SPARQL 1.1 evaluation order (§18.2.4–§18.5)
+ * over the formal algebra of Pérez, Arenas & Gutierrez.
+ * @see {@link https://www.w3.org/TR/sparql11-query/ Harris & Seaborne (eds.), "SPARQL 1.1 Query Language," W3C Recommendation, 2013}
+ * @see {@link https://doi.org/10.1145/1567274.1567278 Pérez, Arenas & Gutierrez, "Semantics and Complexity of SPARQL," ACM TODS 34(3), 2009, art. 16}
  */
 export function applySelectPipeline(
   rawBindings: TermBinding[],
