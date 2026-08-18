@@ -44,7 +44,7 @@ Any external `rdfjs.Store` works — e.g. `@worlds/sqlite`'s `SqliteStore`, or
 
 `WazooSparqlEngine` implements `SparqlEngineInterface`, the same contract
 `@worlds/sdk`'s durable client factories (`createLibsqlClient`,
-`createDenokvClient`, `createSqliteClient`) wire into every `Sdk`. The former
+`createDenokvClient`, `createSqliteSdk`) wire into every `Sdk`. The former
 `@worlds/client` `ComunicaSparqlEngine` adapter (which this engine used to
 mirror as a drop-in replacement) was removed from the SDK on 2026-08-17; the
 wazoo engine is now the only shipped engine. `WazooSparqlTransaction` mirrors
