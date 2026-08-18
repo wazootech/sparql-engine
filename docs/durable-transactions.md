@@ -8,8 +8,7 @@ layout: default
 Status: **moved** — the durable `node:sqlite` store that this page documented
 left this repository on 2026-08-17. `SqliteStore` now ships from
 [`@worlds/sqlite`](https://github.com/wazootech/worlds-sqlite), packaged with
-the worlds impl per the provider-seam pattern (the same way `LibsqlRdfjsStore`
-ships in `@worlds/libsql`).
+the worlds impl (the same way `LibsqlRdfjsStore` ships in `@worlds/libsql`).
 
 The full design doc — schema, transaction semantics, crash-recovery matrix,
 verified behavior, and cost story — now lives at
