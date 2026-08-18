@@ -22,7 +22,8 @@ Every layer runs in CI (`.github/workflows/ci.yml`): the `ci` job runs
 `deno task ci` (plus explicit `test:exists-ref` and `publish:dry` steps),
 `w3c-parity` runs `deno task test:w3c` + `deno task test:exists-ref`,
 `interface-parity` gates the shared interface spec, `latency-snapshot` re-checks
-the committed bench inventory, `docs-links` fails on wiki link rot, and
+the committed bench inventory, `docs-drift` enforces the wiki's `detail_level`
+guardrail (`L<line>` citations fail), `docs-links` fails on wiki link rot, and
 `publish.yml` gates `deno publish`.
 
 ## Task reference
@@ -68,8 +69,9 @@ Covered areas: parser (`src/parser/mod.test.ts`, `turtle-parser.test.ts`), store
 semantics (`src/store/memory-store.test.ts`), quad-store adapters
 (`src/quad-store.test.ts`), the join engine (`src/evaluator/join.test.ts`), the
 planner (`src/planner/*.test.ts`), term algebra (`src/term/term.test.ts`),
-updates (`src/evaluator/update-evaluator.test.ts`), and the engine integration
-suite (`src/wazoo-sparql-engine.test.ts`) — including the concurrent-`execute()`
+serializers (`src/serialize/*.test.ts`), updates
+(`src/evaluator/update-evaluator.test.ts`), and the engine integration suite
+(`src/wazoo-sparql-engine.test.ts`) — including the concurrent-`execute()`
 isolation tests for the EXISTS snapshot (issue
 [#72](https://github.com/wazootech/sparql-engine/issues/72)).
 
