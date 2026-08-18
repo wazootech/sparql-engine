@@ -93,12 +93,11 @@ if (result.kind === "select") {
 
 ## Tree-shakeable subpath imports
 
-The package also exposes five subpath entrypoints, so a consumer that only needs
-one layer never loads the whole engine graph. Each subpath's import closure is
-measured by `deno task bench:size:closures` — a store-only app pays **53 KiB
-instead of 631 KiB**, and the serializers are the cheapest leaf at 7.4 KiB.
+The package also exposes five subpath entrypoints — `./term`, `./data-model`,
+`./store`, `./parser`, and `./serialize` — so a consumer that only needs one
+layer never loads the whole engine graph.
 
-### `@wazoo/sparql-engine/term` — term algebra (40.3 KiB)
+### `@wazoo/sparql-engine/term` — term algebra
 
 RDF/JS term construction, hashing, comparison, and conversion, without the
 evaluator:
@@ -115,7 +114,26 @@ termKey(a); // stable hash key for maps/sets
 sameRdfTerm(a, b); // structural equality incl. datatype → true
 ```
 
-### `@wazoo/sparql-engine/store` — RDF/JS quad store (53.1 KiB)
+### `@wazoo/sparql-engine/data-model` — RDF/JS DataFactory
+
+The zero-dependency RDF/JS term factory under the name RDF/JS consumers expect —
+an alias of `./term` re-exporting the same module:
+
+```typescript
+import { DataFactory } from "@wazoo/sparql-engine/data-model";
+
+const { blankNode, literal, namedNode, quad } = DataFactory;
+const alice = quad(
+  namedNode("https://example.org/alice"),
+  namedNode("https://xmlns.com/foaf/0.1/name"),
+  literal("Alice"),
+);
+```
+
+`/data-model` and `/term` are the same module — importing `DataFactory` from
+either yields the identical object, so the two paths can never drift.
+
+### `@wazoo/sparql-engine/store` — RDF/JS quad store
 
 The zero-dependency in-memory store, implementing the full `rdfjs.Store`
 interface — no query engine attached:
@@ -157,7 +175,7 @@ const engine = new WazooSparqlEngine({
 });
 ```
 
-### `@wazoo/sparql-engine/parser` — SPARQL AST + Turtle parsers (224.8 KiB)
+### `@wazoo/sparql-engine/parser` — SPARQL AST + Turtle parsers
 
 Parse SPARQL 1.1 & 1.2 into the sparqljs-compatible AST without loading the
 evaluator, and parse Turtle-family documents into RDF/JS quads:
@@ -178,7 +196,7 @@ const quads = parseTurtleQuads(
 console.log(quads[0].object.value); // "Alice"
 ```
 
-### `@wazoo/sparql-engine/serialize` — results writers + Turtle writer (7.4 KiB)
+### `@wazoo/sparql-engine/serialize` — results writers + Turtle writer
 
 Serialize a
 [`SparqlResponse`](https://jsr.io/@wazoo/sparql-engine/doc/~/SparqlResponse) to
@@ -218,8 +236,8 @@ serializeTurtle(quads, { format: "n-quads" });
 
 The subpaths can be mixed freely — e.g. the store above with the term layer, or
 the serializers fed by `engine.execute()`'s response. Anything not re-exported
-through `./term`, `./store`, `./parser`, or `./serialize` (or the root
-entrypoint) is private surface.
+through `./term`, `./data-model`, `./store`, `./parser`, or `./serialize` (or
+the root entrypoint) is private surface.
 
 ## Parity testing
 
@@ -376,42 +394,6 @@ moved to `@worlds/sqlite` (2026-08-17), so the root import graph is
 server-optional. The chart and the `bench:size` JSON both mirror that file set
 exactly.
 
-**Per-entrypoint consumer closure** — what importing a subpath actually loads
-from the published package (value-import graph, type-only imports erased;
-measured by `deno task bench:size:closures`):
-
-<figure>
-  <img src="docs/assets/chart-closures.svg" alt="Bar chart of per-entrypoint import closures">
-  <figcaption><b>Fig 2 — Per-entrypoint consumer closure.</b> Bar length is the
-  total size of the local files each `@wazoo/sparql-engine` entrypoint actually
-  loads (file count per bar). The full engine pulls in the whole 631 KiB graph;
-  a store-only consumer pays just 53 KiB and the serializers are the cheapest
-  leaf at 7.4 KiB.</figcaption>
-</figure>
-
-| import                               | closure     | files |
-| ------------------------------------ | ----------- | ----- |
-| `@wazoo/sparql-engine/serialize`     | **7.4 KiB** | 3     |
-| `@wazoo/sparql-engine/term`          | 40.3 KiB    | 9     |
-| `@wazoo/sparql-engine/store`         | 53.1 KiB    | 10    |
-| `@wazoo/sparql-engine/parser`        | 224.8 KiB   | 4     |
-| `@wazoo/sparql-engine` (full engine) | 631.1 KiB   | 34    |
-
-A store-only consumer pays **53 KiB instead of the whole 631 KiB engine graph**,
-and the serializers are the cheapest leaf — the writers only import types from
-the engine (the Turtle writer adds its own serialization logic, so re-run
-`deno task bench:size:closures` to refresh the snapshot after this addition).
-
-<figure>
-  <img src="docs/assets/treemap-submodules.svg" alt="Treemap of the full engine closure broken down by top-level module">
-  <figcaption><b>Fig 3 — Inside the full engine: the tree-shaken submodules.</b>
-  Tile area is the share of the full `@wazoo/sparql-engine` import closure
-  (631 KiB, 34 files) that each top-level module accounts for — the parser
-  (288 KiB) and evaluator (247 KiB) dominate, so a consumer that imports only
-  `./serialize` (7 KiB) or `./term` (40 KiB) avoids most of the engine. Each
-  subpath closure in Fig 2 is a cut of this graph.</figcaption>
-</figure>
-
 **Peak heap during execution** on the 10k-person graph (55k quads), measured in
 an isolated Deno subprocess per engine (peak `Deno.memoryUsage().heapUsed` over
 5 runs; all three share the same ~62 MiB runtime baseline, so the comparison is
@@ -438,9 +420,8 @@ materialization peaks higher than wazoo on both workloads.
 
 These are machine-specific snapshots (Deno 2.9.5, Windows), not guarantees.
 Regenerate them with `deno task bench:size` (library sizes, from the installed
-packages), `deno task bench:size:closures` (per-entrypoint closures), and
-`deno task bench:memory` (peak memory, spawned per engine), which write the SVGs
-into `docs/assets/`.
+packages) and `deno task bench:memory` (peak memory, spawned per engine), which
+write the SVGs into `docs/assets/`.
 
 ## Development
 

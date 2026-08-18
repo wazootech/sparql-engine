@@ -19,10 +19,12 @@ const CWD = Deno.cwd();
 
 // The ./sqlite entry moved out with the store (2026-08-17) — the durable
 // `node:sqlite` store now lives in @worlds/sqlite, so the engine's own
-// entrypoint set is the full engine plus the four pure subpaths.
+// entrypoint set is the full engine plus the five pure subpaths (./data-model
+// aliases ./term, so it reports the same closure).
 const ENTRIES = [
   { name: ".", path: "./src/mod.ts" },
   { name: "./term", path: "./src/term/mod.ts" },
+  { name: "./data-model", path: "./src/term/mod.ts" },
   { name: "./store", path: "./src/store/memory-store.ts" },
   { name: "./parser", path: "./src/parser/mod.ts" },
   { name: "./serialize", path: "./src/serialize/mod.ts" },
