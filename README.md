@@ -56,19 +56,18 @@ for the W3C suite notes.
   JSR-ready without transitive npm baggage.
 - **JSR & Deno Wazoo**: Published on JSR as `@wazoo/sparql-engine` for Deno,
   Node.js, and browser environments.
-- **Drop-in for `@worlds/client`**: Implements the same
-  [`SparqlEngineInterface`](https://jsr.io/@wazoo/sparql-engine/doc/~/SparqlEngineInterface)
-  as `ComunicaSparqlEngine` (`@worlds/client/comunica`), so it can be swapped
-  into a `Client` without client changes.
+- **The engine behind `@worlds/sdk`**: Implements
+  [`SparqlEngineInterface`](https://jsr.io/@wazoo/sparql-engine/doc/~/SparqlEngineInterface),
+  which `@worlds/sdk`'s durable client factories (`createLibsqlClient`,
+  `createDenokvClient`, `createSqliteClient`) wire into every `Sdk` — no
+  adapter needed. (The SDK's former `@worlds/sdk/comunica` adapter was removed;
+  Comunica survives only as a differential parity oracle in this repo.)
 
 ## Usage
 
 ```typescript
-import {
-  DataFactory,
-  MemoryStore,
-  WazooSparqlEngine,
-} from "@wazoo/sparql-engine";
+import { DataFactory } from "@wazoo/sparql-engine/data-model";
+import { MemoryStore, WazooSparqlEngine } from "@wazoo/sparql-engine";
 
 const { namedNode, literal, quad } = DataFactory;
 const store = new MemoryStore();
@@ -103,7 +102,8 @@ RDF/JS term construction, hashing, comparison, and conversion, without the
 evaluator:
 
 ```typescript
-import { DataFactory, sameRdfTerm, termKey } from "@wazoo/sparql-engine/term";
+import { DataFactory } from "@wazoo/sparql-engine/data-model";
+import { sameRdfTerm, termKey } from "@wazoo/sparql-engine/term";
 
 const { literal, namedNode } = DataFactory;
 const xsd = "http://www.w3.org/2001/XMLSchema#";
@@ -114,10 +114,10 @@ termKey(a); // stable hash key for maps/sets
 sameRdfTerm(a, b); // structural equality incl. datatype → true
 ```
 
-### `@wazoo/sparql-engine/data-model` — RDF/JS DataFactory
+### `@wazoo/sparql-engine/data-model` — RDF/JS DataFactoryThe canonical import for the RDF/JS `DataFactory` — the zero-dependency term
 
-The zero-dependency RDF/JS term factory under the name RDF/JS consumers expect —
-an alias of `./term` re-exporting the same module:
+factory under the name RDF/JS consumers expect. It is an alias of `./term`
+re-exporting the same module:
 
 ```typescript
 import { DataFactory } from "@wazoo/sparql-engine/data-model";
@@ -139,7 +139,7 @@ The zero-dependency in-memory store, implementing the full `rdfjs.Store`
 interface — no query engine attached:
 
 ```typescript
-import { DataFactory } from "@wazoo/sparql-engine/term";
+import { DataFactory } from "@wazoo/sparql-engine/data-model";
 import { MemoryStore } from "@wazoo/sparql-engine/store";
 
 const { literal, namedNode, quad } = DataFactory;

@@ -294,7 +294,7 @@ The engine never owns data. It binds to any `rdfjs.Source` / `rdfjs.Store`:
   its `SqliteStore` wires to the engine via `createTransaction` (see
   `docs/durable-transactions.md`).
 - Any external `rdfjs.Store` — e.g. `@worlds/sqlite`'s `SqliteStore`, or
-  `@worlds/client`'s `LibsqlRdfjsStore`/`DenokvRdfjsStore`.
+  `@worlds/libsql`'s `LibsqlRdfjsStore` / `@worlds/denokv`'s `DenokvRdfjsStore`.
 
 `src/quad-store.ts` is the adapter layer between the evaluator and the store:
 

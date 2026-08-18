@@ -201,7 +201,7 @@ export type QuadWriteStore = rdfjs.Store & {
 
 [`MemoryStore`](https://jsr.io/@wazoo/sparql-engine/doc/~/MemoryStore),
 [`@worlds/sqlite`](https://github.com/wazootech/worlds-sqlite)'s `SqliteStore`,
-and `@worlds/client`'s `LibsqlRdfjsStore` / `DenokvRdfjsStore` all satisfy it.
+and `@worlds/libsql`'s `LibsqlRdfjsStore` / `@worlds/denokv`'s `DenokvRdfjsStore` all satisfy it.
 If neither `createTransaction` nor `addQuad`/`removeQuad` is available, updates
 throw a clear error.
 
@@ -225,7 +225,7 @@ rethrows. The reference implementation is
 [`@worlds/sqlite`](https://github.com/wazootech/worlds-sqlite)'s
 `SqliteStore.createTransaction()` (`BEGIN IMMEDIATE` … `COMMIT`, WAL journaling)
 — see `docs/durable-transactions.md`. The same shape is compatible with
-`@worlds/client`'s `Transaction`, so existing durable backends pass their
+`@worlds/sdk`'s `Transaction`, so existing durable backends pass their
 transaction objects through unchanged.
 
 ### 3. Pattern-evaluation hook (EXISTS)

@@ -30,7 +30,7 @@ relative to the repository root.
 
 Related in-repo documents:
 [ARCHITECTURE.md](https://github.com/wazootech/sparql-engine/blob/main/ARCHITECTURE.md)
-(topology and `@worlds/client` relationship),
+(topology and `@worlds/sdk` relationship),
 [CONTEXT.md](https://github.com/wazootech/sparql-engine/blob/main/CONTEXT.md)
 (glossary), and [`docs/durable-transactions.md`](durable-transactions.md)
 (durable SQLite backend — the store moved to `@worlds/sqlite`, pointer kept).

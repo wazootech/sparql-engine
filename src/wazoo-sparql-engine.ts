@@ -18,7 +18,7 @@ export type {
 
 /**
  * WazooSparqlTransaction is the minimal write contract the engine uses for updates.
- * It mirrors the structural shape of @worlds/client's Transaction so durable
+ * It mirrors the structural shape of @worlds/sdk's Transaction so durable
  * backends can pass their existing transaction objects.
  */
 export interface WazooSparqlTransaction {
