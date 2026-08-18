@@ -59,9 +59,9 @@ for the W3C suite notes.
 - **The engine behind `@worlds/sdk`**: Implements
   [`SparqlEngineInterface`](https://jsr.io/@wazoo/sparql-engine/doc/~/SparqlEngineInterface),
   which `@worlds/sdk`'s durable client factories (`createLibsqlClient`,
-  `createDenokvClient`, `createSqliteClient`) wire into every `Sdk` — no
-  adapter needed. (The SDK's former `@worlds/sdk/comunica` adapter was removed;
-  Comunica survives only as a differential parity oracle in this repo.)
+  `createDenokvClient`, `createSqliteClient`) wire into every `Sdk` — no adapter
+  needed. (The SDK's former `@worlds/sdk/comunica` adapter was removed; Comunica
+  survives only as a differential parity oracle in this repo.)
 
 ## Usage
 

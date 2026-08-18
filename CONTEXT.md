@@ -4,8 +4,8 @@
   Must be observably interchangeable with the parity reference.
 - **SparqlEngineInterface** — the shared execution contract
   (`execute(request) => Promise<SparqlResponse>`) that `WazooSparqlEngine`
-  implements and `@worlds/sdk`'s durable client factories wire into every
-  `Sdk`. The interface is duplicated identically in `@worlds/sdk` under an
+  implements and `@worlds/sdk`'s durable client factories wire into every `Sdk`.
+  The interface is duplicated identically in `@worlds/sdk` under an
   identical-spec policy; reconcile any drift deliberately.
 - **ComunicaSparqlEngine** — the retired `@worlds/client` adapter
   (`@worlds/client/comunica`) that `WazooSparqlEngine` used to mirror as a

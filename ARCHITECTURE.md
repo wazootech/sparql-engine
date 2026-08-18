@@ -45,17 +45,17 @@ Any external `rdfjs.Store` works — e.g. `@worlds/sqlite`'s `SqliteStore`, or
 `WazooSparqlEngine` implements `SparqlEngineInterface`, the same contract
 `@worlds/sdk`'s durable client factories (`createLibsqlClient`,
 `createDenokvClient`, `createSqliteClient`) wire into every `Sdk`. The former
-`@worlds/client` `ComunicaSparqlEngine` adapter (which this engine used to mirror
-as a drop-in replacement) was removed from the SDK on 2026-08-17; the wazoo
-engine is now the only shipped engine. `WazooSparqlTransaction` mirrors the
-structural shape of `@worlds/sdk`'s `Transaction`, so durable backends can pass
-their existing transaction objects.
+`@worlds/client` `ComunicaSparqlEngine` adapter (which this engine used to
+mirror as a drop-in replacement) was removed from the SDK on 2026-08-17; the
+wazoo engine is now the only shipped engine. `WazooSparqlTransaction` mirrors
+the structural shape of `@worlds/sdk`'s `Transaction`, so durable backends can
+pass their existing transaction objects.
 
 The interface is intentionally duplicated in `@worlds/sdk` under an
 identical-spec policy: the two copies must stay identical (gated by
 `deno task interface-parity`). Behavioral deltas vs the retired adapter:
 `ComunicaSparqlEngine` enforced `timeoutMs` and accepted a request-level
-`baseIri`; the wazoo engine honors request `baseIri` (the query's
-`BASE` directive wins when both are present — decision #117, Fork B) and does
-not yet enforce a timeout (tracked in #122). Keep these differences in mind when
+`baseIri`; the wazoo engine honors request `baseIri` (the query's `BASE`
+directive wins when both are present — decision #117, Fork B) and does not yet
+enforce a timeout (tracked in #122). Keep these differences in mind when
 swapping engines.

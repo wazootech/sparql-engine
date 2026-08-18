@@ -201,9 +201,9 @@ export type QuadWriteStore = rdfjs.Store & {
 
 [`MemoryStore`](https://jsr.io/@wazoo/sparql-engine/doc/~/MemoryStore),
 [`@worlds/sqlite`](https://github.com/wazootech/worlds-sqlite)'s `SqliteStore`,
-and `@worlds/libsql`'s `LibsqlRdfjsStore` / `@worlds/denokv`'s `DenokvRdfjsStore` all satisfy it.
-If neither `createTransaction` nor `addQuad`/`removeQuad` is available, updates
-throw a clear error.
+and `@worlds/libsql`'s `LibsqlRdfjsStore` / `@worlds/denokv`'s
+`DenokvRdfjsStore` all satisfy it. If neither `createTransaction` nor
+`addQuad`/`removeQuad` is available, updates throw a clear error.
 
 ### 2. Durable transactions
 
