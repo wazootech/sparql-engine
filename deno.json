@@ -1,11 +1,12 @@
 {
   "name": "@wazoo/sparql-engine",
   "description": "Zero-dependency SPARQL 1.1 & 1.2 query and update engine over RDF/JS Quad Stores.",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "license": "MIT",
   "exports": {
     ".": "./src/mod.ts",
     "./term": "./src/term/mod.ts",
+    "./data-model": "./src/term/mod.ts",
     "./store": "./src/store/memory-store.ts",
     "./parser": "./src/parser/mod.ts",
     "./serialize": "./src/serialize/mod.ts"
