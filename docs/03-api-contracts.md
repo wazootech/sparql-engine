@@ -6,9 +6,9 @@ layout: default
 # API Contracts & Interface Specs
 
 The public surface is small and stable: one engine class implementing one
-interface, typed request/response envelopes, two store implementations, and a
-term-utility layer. The complete export list (verified against `deno doc --json`
-of `src/mod.ts`) is at the end of this page.
+interface, typed request/response envelopes, one in-repo store implementation,
+and a term-utility layer. The complete export list (verified against
+`deno doc --json` of `src/mod.ts`) is at the end of this page.
 
 ## The engine interface
 
@@ -21,7 +21,8 @@ export interface SparqlEngineInterface {
 export interface SparqlRequest {
   query: string; // raw SPARQL query or update string
   baseIri?: string; // base for relative IRIs; the query's BASE directive wins (Fork B, #117)
-  timeoutMs?: number; // accepted; not yet enforced by the wazoo engine (tracked in #122)
+  timeoutMs?: number; // aborts execution after this many milliseconds (defaults to 30 seconds)
+  signal?: AbortSignal; // aborts the request; execute() rejects with the signal's reason
 }
 ```
 
@@ -402,7 +403,9 @@ Types:
 `IriFunction`, `IriFunctionMap` (link on JSR once published),`JoinCostEstimator`
 (link on JSR once published), `PatternStats`, `StoreStatisticsHook` (link on JSR
 once published), `EstimatedJoinState` (link on JSR once published),
-[`CanonicalTerm`](https://jsr.io/@wazoo/sparql-engine/doc/~/CanonicalTerm).
+[`CanonicalTerm`](https://jsr.io/@wazoo/sparql-engine/doc/~/CanonicalTerm),
+[`TurtleFormat`](https://github.com/wazootech/sparql-engine/blob/main/src/serialize/turtle-writer.ts),
+[`TurtleWriterOptions`](https://github.com/wazootech/sparql-engine/blob/main/src/serialize/turtle-writer.ts).
 
 Values/classes:
 [`WazooSparqlEngine`](https://jsr.io/@wazoo/sparql-engine/doc/~/WazooSparqlEngine),
@@ -425,7 +428,8 @@ Values/classes:
 [`sameRdfTerm`](https://jsr.io/@wazoo/sparql-engine/doc/~/sameRdfTerm),
 [`sparqlTermToRdfTerm`](https://jsr.io/@wazoo/sparql-engine/doc/~/sparqlTermToRdfTerm),
 [`serializeJsonResults`](https://github.com/wazootech/sparql-engine/blob/main/src/serialize/json-results.ts),
-[`serializeXmlResults`](https://github.com/wazootech/sparql-engine/blob/main/src/serialize/xml-results.ts)
+[`serializeXmlResults`](https://github.com/wazootech/sparql-engine/blob/main/src/serialize/xml-results.ts),
+[`serializeTurtle`](https://github.com/wazootech/sparql-engine/blob/main/src/serialize/turtle-writer.ts)
 (the writers are also re-exported from the `./serialize` subpath entrypoint),
 [`termKey`](https://jsr.io/@wazoo/sparql-engine/doc/~/termKey),
 [`XSD`](https://jsr.io/@wazoo/sparql-engine/doc/~/XSD),
