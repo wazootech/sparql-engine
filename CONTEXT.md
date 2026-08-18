@@ -7,10 +7,10 @@
   implements and `@worlds/sdk`'s durable client factories wire into every `Sdk`.
   The interface is duplicated identically in `@worlds/sdk` under an
   identical-spec policy; reconcile any drift deliberately.
-- **ComunicaSparqlEngine** — the retired `@worlds/client` adapter
-  (`@worlds/client/comunica`) that `WazooSparqlEngine` used to mirror as a
-  drop-in replacement. The SDK removed the adapter on 2026-08-17; Comunica now
-  lives on only as a parity reference in this repo's differential harness.
+- **ComunicaSparqlEngine** — the retired `@worlds/sdk` adapter
+  (`@worlds/sdk/comunica`) that `WazooSparqlEngine` used to mirror as a drop-in
+  replacement. The SDK removed the adapter on 2026-08-17; Comunica now lives on
+  only as a parity reference in this repo's differential harness.
 - **Parity reference** — the installed `@comunica/query-sparql-rdfjs-lite`
   (5.3.0) that the wazoo engine is measured against. The porting surface is the
   lite config (`config-rdfjs-lite-v5-1-3.json` in the Comunica monorepo).

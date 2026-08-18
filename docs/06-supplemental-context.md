@@ -93,8 +93,8 @@ label identity.
   with the parity reference.
 - **SparqlEngineInterface** — the shared execution contract; duplicated
   identically in `@worlds/sdk` under an identical-spec policy.
-- **ComunicaSparqlEngine** — the retired `@worlds/client` adapter
-  (`@worlds/client/comunica`) the wazoo engine used to mirror; removed from the
+- **ComunicaSparqlEngine** — the retired `@worlds/sdk` adapter
+  (`@worlds/sdk/comunica`) the wazoo engine used to mirror; removed from the
   SDK, kept only as a parity reference.
 - **Parity reference** — the installed `@comunica/query-sparql-rdfjs-lite`; the
   porting surface is its lite config.
