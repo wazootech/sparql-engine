@@ -29,7 +29,7 @@ durable `node:sqlite` store that used to ship behind the `./sqlite` subpath
 moved to `@worlds/sqlite` (2026-08-17), packaged with the worlds impl — see
 [`SqliteStore`](https://github.com/wazootech/worlds-sqlite/blob/main/src/sqlite/rdfjs-store/sqlite-store.ts).
 Any external `rdfjs.Store` works — e.g. `@worlds/sqlite`'s `SqliteStore`, or
-`@worlds/libsql`'s `LibsqlRdfjsStore` / `@worlds/denokv`'s `DenokvRdfjsStore`.
+`@worlds/libsql`'s `LibsqlRdfjsStore`.
 
 ## Contracts
 
