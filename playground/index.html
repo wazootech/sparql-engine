@@ -124,7 +124,7 @@
     main {
       flex: 1;
       display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      grid-template-columns: minmax(0, 1fr) 6px minmax(0, 1fr);
       gap: 0;
       min-height: 0;
     }
@@ -133,14 +133,17 @@
         grid-template-columns: 1fr;
         overflow: auto;
       }
+      .split-h {
+        display: none;
+      }
+      section.left {
+        border-bottom: 1px solid var(--border);
+      }
     }
     section {
       display: flex;
       flex-direction: column;
       min-height: 0;
-    }
-    section.left {
-      border-right: 1px solid var(--border);
     }
     .panel-title {
       display: flex;
@@ -468,6 +471,53 @@
       display: none;
     }
 
+    /* Resizeable / collapsible panels (view-state only). */
+    .split-h,
+    .split-v {
+      background: var(--border);
+      touch-action: none;
+      transition: background-color 0.2s;
+    }
+    .split-h {
+      cursor: col-resize;
+    }
+    .split-v {
+      cursor: row-resize;
+      flex: 0 0 5px;
+    }
+    .split-h:hover,
+    .split-v:hover,
+    .split-h.dragging,
+    .split-v.dragging {
+      background: rgba(255, 140, 0, 0.55);
+    }
+    body.dragging {
+      user-select: none;
+    }
+    .collapse-btn {
+      background: transparent;
+      border: none;
+      color: var(--muted);
+      padding: 0 6px;
+      font-size: 12px;
+      line-height: 1;
+      cursor: pointer;
+      border-radius: 8px;
+      transition: color 0.2s, transform 0.2s;
+    }
+    .collapse-btn:hover {
+      color: var(--accent);
+    }
+    .collapse-btn[aria-expanded="false"] {
+      transform: rotate(-90deg);
+    }
+    .panel-collapsed {
+      display: none;
+    }
+    .left.has-collapsed .split-v {
+      display: none;
+    }
+
     /* DESIGN: respect prefers-reduced-motion — collapse all transitions and
        animations to 0.01ms. */
     @media (prefers-reduced-motion: reduce) {
@@ -496,6 +546,7 @@
     <main>
       <section class="left">
         <div class="panel-title">
+          <button class="collapse-btn" data-panel="dataset" aria-expanded="true" title="Collapse panel">▾</button>
       Dataset
       <div class="controls">
         <select id="dataset-select" title="Sample dataset">
@@ -511,27 +562,33 @@
         <input type="file" id="file-input" accept=".ttl,.trig,.nt,.nq,.txt" class="hidden" />
       </div>
     </div>
-        <div class="editor-wrap">
+        <div class="editor-wrap" id="dataset-wrap" data-panel-content="dataset">
           <textarea id="dataset-input" spellcheck="false"
             aria-label="Dataset in Turtle or TriG"></textarea>
           <div class="meta" id="store-status">store: empty (0 quads)</div>
         </div>
+        <div class="split-v"
+          title="Resize editors — double-click to reset"></div>
 
         <div class="panel-title">
+          <button class="collapse-btn" data-panel="query" aria-expanded="true" title="Collapse panel">▾</button>
       SPARQL query / update
       <div class="controls">
         <button id="run-query" class="primary">Run ▶</button>
       </div>
     </div>
-        <div class="editor-wrap">
+        <div class="editor-wrap" id="query-wrap" data-panel-content="query">
           <textarea id="query-input" spellcheck="false"
             aria-label="SPARQL query or update"></textarea>
           <div class="chips" id="chips"></div>
         </div>
       </section>
 
+      <div class="split-h" title="Resize panels — double-click to reset"></div>
+
       <section class="right">
         <div class="panel-title">
+          <button class="collapse-btn" data-panel="results" aria-expanded="true" title="Collapse panel">▾</button>
       Results
       <div class="controls">
         <button id="copy-results" title="Copy serialized results">Copy</button>
@@ -539,7 +596,7 @@
         <button id="share-results" class="primary" title="Copy a shareable link to this dataset and query" disabled>Share link</button>
       </div>
     </div>
-        <div id="results">
+        <div id="results" data-panel-content="results">
           <div class="empty">
         Load a dataset, then run a query.<br />
         <span class="note">Every SELECT / ASK / CONSTRUCT / DESCRIBE / UPDATE runs locally in your browser via the engine's MemoryStore — nothing is sent to a server.</span>
@@ -1408,6 +1465,176 @@
       return true;
     }
 
+    // ---------- resizeable / collapsible panels ----------
+    // View-state only: the column split, editor split, and collapsed panels
+    // persist in localStorage and never touch the query-param share flow.
+    const LS_SPLIT_H = "wazoo-pg:split-h";
+    const LS_SPLIT_V = "wazoo-pg:split-v";
+    const LS_COLLAPSED = "wazoo-pg:collapsed";
+
+    const mainEl = document.querySelector("main");
+    const leftSection = document.querySelector("section.left");
+    const rightSection = document.querySelector("section.right");
+    const splitH = document.querySelector(".split-h");
+    const splitV = document.querySelector(".split-v");
+    const datasetWrap = $("dataset-wrap");
+    const queryWrap = $("query-wrap");
+
+    // Minimum editor height for the vertical split (px).
+    const SPLIT_MIN_H = 180;
+
+    const PANELS = {
+      dataset: { content: datasetWrap, section: leftSection },
+      query: { content: queryWrap, section: leftSection },
+      results: { content: resultsEl, section: rightSection },
+    };
+
+    function applyCollapsed(id, collapsed) {
+      const panel = PANELS[id];
+      const btn = document.querySelector(`.collapse-btn[data-panel="${id}"]`);
+      btn?.setAttribute("aria-expanded", String(!collapsed));
+      panel.content.classList.toggle("panel-collapsed", collapsed);
+      // The vertical split handle only makes sense between two visible
+      // editors — hide it while either left-column panel is collapsed.
+      panel.section.classList.toggle(
+        "has-collapsed",
+        ["dataset", "query"].some((pid) =>
+          PANELS[pid].content.classList.contains("panel-collapsed")
+        ),
+      );
+    }
+
+    function saveCollapsed() {
+      const ids = Object.entries(PANELS).filter(([, panel]) =>
+        panel.content.classList.contains("panel-collapsed")
+      ).map(([id]) => id);
+      localStorage.setItem(LS_COLLAPSED, JSON.stringify(ids));
+    }
+
+    document.querySelectorAll(".collapse-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        applyCollapsed(
+          btn.dataset.panel,
+          btn.getAttribute("aria-expanded") === "true",
+        );
+        saveCollapsed();
+      });
+    });
+
+    // Column split: grid-template-columns on <main>. Double-click resets.
+    splitH.addEventListener("pointerdown", (e) => {
+      e.preventDefault();
+      try {
+        splitH.setPointerCapture(e.pointerId);
+      } catch {
+        /* synthetic events have no active pointer */
+      }
+      splitH.classList.add("dragging");
+      document.body.classList.add("dragging");
+      const startX = e.clientX;
+      const startLeft = leftSection.getBoundingClientRect().width;
+      const maxW = mainEl.getBoundingClientRect().width - 286;
+      let lastLeft = startLeft;
+      const move = (ev) => {
+        lastLeft = Math.min(
+          Math.max(startLeft + (ev.clientX - startX), 280),
+          maxW,
+        );
+        mainEl.style.gridTemplateColumns = `${lastLeft}px 6px minmax(0, 1fr)`;
+      };
+      const up = () => {
+        splitH.removeEventListener("pointermove", move);
+        splitH.removeEventListener("pointerup", up);
+        splitH.removeEventListener("pointercancel", up);
+        splitH.classList.remove("dragging");
+        document.body.classList.remove("dragging");
+        if (lastLeft !== startLeft) {
+          localStorage.setItem(LS_SPLIT_H, lastLeft.toFixed(0));
+        }
+      };
+      splitH.addEventListener("pointermove", move);
+      splitH.addEventListener("pointerup", up);
+      splitH.addEventListener("pointercancel", up);
+    });
+    splitH.addEventListener("dblclick", () => {
+      mainEl.style.gridTemplateColumns = "";
+      localStorage.removeItem(LS_SPLIT_H);
+    });
+
+    // Editor split: flex-basis on the dataset wrap (the status bar and chips
+    // ride along inside their wraps). Double-click resets.
+    splitV.addEventListener("pointerdown", (e) => {
+      e.preventDefault();
+      try {
+        splitV.setPointerCapture(e.pointerId);
+      } catch {
+        /* synthetic events have no active pointer */
+      }
+      splitV.classList.add("dragging");
+      document.body.classList.add("dragging");
+      const startY = e.clientY;
+      const startH = datasetWrap.getBoundingClientRect().height;
+      const maxH = leftSection.getBoundingClientRect().height - SPLIT_MIN_H;
+      let lastH = startH;
+      const move = (ev) => {
+        lastH = Math.min(
+          Math.max(startH + (ev.clientY - startY), SPLIT_MIN_H),
+          maxH,
+        );
+        datasetWrap.style.flex = `0 0 ${lastH.toFixed(0)}px`;
+      };
+      const up = () => {
+        splitV.removeEventListener("pointermove", move);
+        splitV.removeEventListener("pointerup", up);
+        splitV.removeEventListener("pointercancel", up);
+        splitV.classList.remove("dragging");
+        document.body.classList.remove("dragging");
+        if (lastH !== startH) {
+          localStorage.setItem(LS_SPLIT_V, lastH.toFixed(0));
+        }
+      };
+      splitV.addEventListener("pointermove", move);
+      splitV.addEventListener("pointerup", up);
+      splitV.addEventListener("pointercancel", up);
+    });
+    splitV.addEventListener("dblclick", () => {
+      datasetWrap.style.flex = "";
+      localStorage.removeItem(LS_SPLIT_V);
+    });
+
+    // Restore persisted view state on load.
+    function restorePanelState() {
+      const h = localStorage.getItem(LS_SPLIT_H);
+      if (h && window.innerWidth > 900) {
+        mainEl.style.gridTemplateColumns = `${parseFloat(h)}px 6px minmax(0, 1fr)`;
+      }
+      const v = localStorage.getItem(LS_SPLIT_V);
+      if (v) {
+        // Same clamp the drag applies (rect-based), so a stored edge value
+        // restores instead of being rejected off-by-one.
+        const maxH = leftSection.getBoundingClientRect().height - SPLIT_MIN_H;
+        const px = Math.min(parseFloat(v), maxH);
+        if (px > SPLIT_MIN_H) {
+          datasetWrap.style.flex = `0 0 ${px.toFixed(0)}px`;
+        }
+      }
+      try {
+        for (const id of JSON.parse(localStorage.getItem(LS_COLLAPSED) ?? "[]")) {
+          if (id in PANELS) applyCollapsed(id, true);
+        }
+      } catch {
+        /* ignore malformed storage */
+      }
+      // The single-column media query wins on narrow screens: drop the
+      // inline column split there (inline styles beat media queries).
+      const narrow = window.matchMedia("(max-width: 900px)");
+      const clearSplit = () => {
+        if (narrow.matches) mainEl.style.gridTemplateColumns = "";
+      };
+      clearSplit();
+      narrow.addEventListener("change", clearSplit);
+    }
+
     // ---------- init ----------
     // Syntax-highlighted editors: the textarea stays the real editor; a
     // backdrop <pre> paints colored tokens behind its transparent text.
@@ -1441,6 +1668,7 @@
       }
     });
 
+    restorePanelState();
     applyLandingState();
     </script>
   </body>
