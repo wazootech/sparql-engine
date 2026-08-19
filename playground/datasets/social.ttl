@@ -1,0 +1,653 @@
+@prefix foaf: <https://xmlns.com/foaf/0.1/> .
+@prefix ex: <https://example.org/> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+<https://example.org/person0> <https://xmlns.com/foaf/0.1/name> "Person 0" ;
+  <https://xmlns.com/foaf/0.1/age> "20"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-0 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person1> ;
+  <https://example.org/city> "City 0" ;
+  <https://example.org/spouse> <https://example.org/person1> .
+
+<https://example.org/person1> <https://xmlns.com/foaf/0.1/name> "Person 1" ;
+  <https://xmlns.com/foaf/0.1/age> "21"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-1 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person2> ;
+  <https://example.org/city> "City 1" .
+
+<https://example.org/person2> <https://xmlns.com/foaf/0.1/name> "Person 2" ;
+  <https://xmlns.com/foaf/0.1/age> "22"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-2 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person3> ;
+  <https://example.org/city> "City 2" ;
+  <https://example.org/spouse> <https://example.org/person3> .
+
+<https://example.org/person3> <https://xmlns.com/foaf/0.1/name> "Person 3" ;
+  <https://xmlns.com/foaf/0.1/age> "23"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-3 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person4> ;
+  <https://example.org/city> "City 3" .
+
+<https://example.org/person4> <https://xmlns.com/foaf/0.1/name> "Person 4" ;
+  <https://xmlns.com/foaf/0.1/age> "24"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-4 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person5> ;
+  <https://example.org/city> "City 4" ;
+  <https://example.org/spouse> <https://example.org/person5> .
+
+<https://example.org/person5> <https://xmlns.com/foaf/0.1/name> "Person 5" ;
+  <https://xmlns.com/foaf/0.1/age> "25"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-5 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person6> ;
+  <https://example.org/city> "City 0" .
+
+<https://example.org/person6> <https://xmlns.com/foaf/0.1/name> "Person 6" ;
+  <https://xmlns.com/foaf/0.1/age> "26"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-6 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person7> ;
+  <https://example.org/city> "City 1" ;
+  <https://example.org/spouse> <https://example.org/person7> .
+
+<https://example.org/person7> <https://xmlns.com/foaf/0.1/name> "Person 7" ;
+  <https://xmlns.com/foaf/0.1/age> "27"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-7 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person8> ;
+  <https://example.org/city> "City 2" .
+
+<https://example.org/person8> <https://xmlns.com/foaf/0.1/name> "Person 8" ;
+  <https://xmlns.com/foaf/0.1/age> "28"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-8 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person9> ;
+  <https://example.org/city> "City 3" ;
+  <https://example.org/spouse> <https://example.org/person9> .
+
+<https://example.org/person9> <https://xmlns.com/foaf/0.1/name> "Person 9" ;
+  <https://xmlns.com/foaf/0.1/age> "29"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-9 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person10> ;
+  <https://example.org/city> "City 4" .
+
+<https://example.org/person10> <https://xmlns.com/foaf/0.1/name> "Person 10" ;
+  <https://xmlns.com/foaf/0.1/age> "30"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-10 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person11> ;
+  <https://example.org/city> "City 0" ;
+  <https://example.org/spouse> <https://example.org/person11> .
+
+<https://example.org/person11> <https://xmlns.com/foaf/0.1/name> "Person 11" ;
+  <https://xmlns.com/foaf/0.1/age> "31"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-11 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person12> ;
+  <https://example.org/city> "City 1" .
+
+<https://example.org/person12> <https://xmlns.com/foaf/0.1/name> "Person 12" ;
+  <https://xmlns.com/foaf/0.1/age> "32"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-12 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person13> ;
+  <https://example.org/city> "City 2" ;
+  <https://example.org/spouse> <https://example.org/person13> .
+
+<https://example.org/person13> <https://xmlns.com/foaf/0.1/name> "Person 13" ;
+  <https://xmlns.com/foaf/0.1/age> "33"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-13 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person14> ;
+  <https://example.org/city> "City 3" .
+
+<https://example.org/person14> <https://xmlns.com/foaf/0.1/name> "Person 14" ;
+  <https://xmlns.com/foaf/0.1/age> "34"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-14 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person15> ;
+  <https://example.org/city> "City 4" ;
+  <https://example.org/spouse> <https://example.org/person15> .
+
+<https://example.org/person15> <https://xmlns.com/foaf/0.1/name> "Person 15" ;
+  <https://xmlns.com/foaf/0.1/age> "35"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-15 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person16> ;
+  <https://example.org/city> "City 0" .
+
+<https://example.org/person16> <https://xmlns.com/foaf/0.1/name> "Person 16" ;
+  <https://xmlns.com/foaf/0.1/age> "36"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-16 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person17> ;
+  <https://example.org/city> "City 1" ;
+  <https://example.org/spouse> <https://example.org/person17> .
+
+<https://example.org/person17> <https://xmlns.com/foaf/0.1/name> "Person 17" ;
+  <https://xmlns.com/foaf/0.1/age> "37"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-17 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person18> ;
+  <https://example.org/city> "City 2" .
+
+<https://example.org/person18> <https://xmlns.com/foaf/0.1/name> "Person 18" ;
+  <https://xmlns.com/foaf/0.1/age> "38"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-18 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person19> ;
+  <https://example.org/city> "City 3" ;
+  <https://example.org/spouse> <https://example.org/person19> .
+
+<https://example.org/person19> <https://xmlns.com/foaf/0.1/name> "Person 19" ;
+  <https://xmlns.com/foaf/0.1/age> "39"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-19 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person20> ;
+  <https://example.org/city> "City 4" .
+
+<https://example.org/person20> <https://xmlns.com/foaf/0.1/name> "Person 20" ;
+  <https://xmlns.com/foaf/0.1/age> "40"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-20 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person21> ;
+  <https://example.org/city> "City 0" ;
+  <https://example.org/spouse> <https://example.org/person21> .
+
+<https://example.org/person21> <https://xmlns.com/foaf/0.1/name> "Person 21" ;
+  <https://xmlns.com/foaf/0.1/age> "41"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-21 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person22> ;
+  <https://example.org/city> "City 1" .
+
+<https://example.org/person22> <https://xmlns.com/foaf/0.1/name> "Person 22" ;
+  <https://xmlns.com/foaf/0.1/age> "42"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-22 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person23> ;
+  <https://example.org/city> "City 2" ;
+  <https://example.org/spouse> <https://example.org/person23> .
+
+<https://example.org/person23> <https://xmlns.com/foaf/0.1/name> "Person 23" ;
+  <https://xmlns.com/foaf/0.1/age> "43"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-23 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person24> ;
+  <https://example.org/city> "City 3" .
+
+<https://example.org/person24> <https://xmlns.com/foaf/0.1/name> "Person 24" ;
+  <https://xmlns.com/foaf/0.1/age> "44"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-24 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person25> ;
+  <https://example.org/city> "City 4" ;
+  <https://example.org/spouse> <https://example.org/person25> .
+
+<https://example.org/person25> <https://xmlns.com/foaf/0.1/name> "Person 25" ;
+  <https://xmlns.com/foaf/0.1/age> "45"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-25 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person26> ;
+  <https://example.org/city> "City 0" .
+
+<https://example.org/person26> <https://xmlns.com/foaf/0.1/name> "Person 26" ;
+  <https://xmlns.com/foaf/0.1/age> "46"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-26 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person27> ;
+  <https://example.org/city> "City 1" ;
+  <https://example.org/spouse> <https://example.org/person27> .
+
+<https://example.org/person27> <https://xmlns.com/foaf/0.1/name> "Person 27" ;
+  <https://xmlns.com/foaf/0.1/age> "47"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-27 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person28> ;
+  <https://example.org/city> "City 2" .
+
+<https://example.org/person28> <https://xmlns.com/foaf/0.1/name> "Person 28" ;
+  <https://xmlns.com/foaf/0.1/age> "48"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-28 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person29> ;
+  <https://example.org/city> "City 3" ;
+  <https://example.org/spouse> <https://example.org/person29> .
+
+<https://example.org/person29> <https://xmlns.com/foaf/0.1/name> "Person 29" ;
+  <https://xmlns.com/foaf/0.1/age> "49"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-29 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person30> ;
+  <https://example.org/city> "City 4" .
+
+<https://example.org/person30> <https://xmlns.com/foaf/0.1/name> "Person 30" ;
+  <https://xmlns.com/foaf/0.1/age> "50"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-30 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person31> ;
+  <https://example.org/city> "City 0" ;
+  <https://example.org/spouse> <https://example.org/person31> .
+
+<https://example.org/person31> <https://xmlns.com/foaf/0.1/name> "Person 31" ;
+  <https://xmlns.com/foaf/0.1/age> "51"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-31 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person32> ;
+  <https://example.org/city> "City 1" .
+
+<https://example.org/person32> <https://xmlns.com/foaf/0.1/name> "Person 32" ;
+  <https://xmlns.com/foaf/0.1/age> "52"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-32 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person33> ;
+  <https://example.org/city> "City 2" ;
+  <https://example.org/spouse> <https://example.org/person33> .
+
+<https://example.org/person33> <https://xmlns.com/foaf/0.1/name> "Person 33" ;
+  <https://xmlns.com/foaf/0.1/age> "53"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-33 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person34> ;
+  <https://example.org/city> "City 3" .
+
+<https://example.org/person34> <https://xmlns.com/foaf/0.1/name> "Person 34" ;
+  <https://xmlns.com/foaf/0.1/age> "54"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-34 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person35> ;
+  <https://example.org/city> "City 4" ;
+  <https://example.org/spouse> <https://example.org/person35> .
+
+<https://example.org/person35> <https://xmlns.com/foaf/0.1/name> "Person 35" ;
+  <https://xmlns.com/foaf/0.1/age> "55"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-35 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person36> ;
+  <https://example.org/city> "City 0" .
+
+<https://example.org/person36> <https://xmlns.com/foaf/0.1/name> "Person 36" ;
+  <https://xmlns.com/foaf/0.1/age> "56"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-36 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person37> ;
+  <https://example.org/city> "City 1" ;
+  <https://example.org/spouse> <https://example.org/person37> .
+
+<https://example.org/person37> <https://xmlns.com/foaf/0.1/name> "Person 37" ;
+  <https://xmlns.com/foaf/0.1/age> "57"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-37 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person38> ;
+  <https://example.org/city> "City 2" .
+
+<https://example.org/person38> <https://xmlns.com/foaf/0.1/name> "Person 38" ;
+  <https://xmlns.com/foaf/0.1/age> "58"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-38 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person39> ;
+  <https://example.org/city> "City 3" ;
+  <https://example.org/spouse> <https://example.org/person39> .
+
+<https://example.org/person39> <https://xmlns.com/foaf/0.1/name> "Person 39" ;
+  <https://xmlns.com/foaf/0.1/age> "59"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-39 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person40> ;
+  <https://example.org/city> "City 4" .
+
+<https://example.org/person40> <https://xmlns.com/foaf/0.1/name> "Person 40" ;
+  <https://xmlns.com/foaf/0.1/age> "60"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-40 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person41> ;
+  <https://example.org/city> "City 0" ;
+  <https://example.org/spouse> <https://example.org/person41> .
+
+<https://example.org/person41> <https://xmlns.com/foaf/0.1/name> "Person 41" ;
+  <https://xmlns.com/foaf/0.1/age> "61"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-41 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person42> ;
+  <https://example.org/city> "City 1" .
+
+<https://example.org/person42> <https://xmlns.com/foaf/0.1/name> "Person 42" ;
+  <https://xmlns.com/foaf/0.1/age> "62"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-42 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person43> ;
+  <https://example.org/city> "City 2" ;
+  <https://example.org/spouse> <https://example.org/person43> .
+
+<https://example.org/person43> <https://xmlns.com/foaf/0.1/name> "Person 43" ;
+  <https://xmlns.com/foaf/0.1/age> "63"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-43 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person44> ;
+  <https://example.org/city> "City 3" .
+
+<https://example.org/person44> <https://xmlns.com/foaf/0.1/name> "Person 44" ;
+  <https://xmlns.com/foaf/0.1/age> "64"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-44 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person45> ;
+  <https://example.org/city> "City 4" ;
+  <https://example.org/spouse> <https://example.org/person45> .
+
+<https://example.org/person45> <https://xmlns.com/foaf/0.1/name> "Person 45" ;
+  <https://xmlns.com/foaf/0.1/age> "65"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-45 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person46> ;
+  <https://example.org/city> "City 0" .
+
+<https://example.org/person46> <https://xmlns.com/foaf/0.1/name> "Person 46" ;
+  <https://xmlns.com/foaf/0.1/age> "66"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-46 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person47> ;
+  <https://example.org/city> "City 1" ;
+  <https://example.org/spouse> <https://example.org/person47> .
+
+<https://example.org/person47> <https://xmlns.com/foaf/0.1/name> "Person 47" ;
+  <https://xmlns.com/foaf/0.1/age> "67"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-47 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person48> ;
+  <https://example.org/city> "City 2" .
+
+<https://example.org/person48> <https://xmlns.com/foaf/0.1/name> "Person 48" ;
+  <https://xmlns.com/foaf/0.1/age> "68"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-48 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person49> ;
+  <https://example.org/city> "City 3" ;
+  <https://example.org/spouse> <https://example.org/person49> .
+
+<https://example.org/person49> <https://xmlns.com/foaf/0.1/name> "Person 49" ;
+  <https://xmlns.com/foaf/0.1/age> "69"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-49 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person50> ;
+  <https://example.org/city> "City 4" .
+
+<https://example.org/person50> <https://xmlns.com/foaf/0.1/name> "Person 50" ;
+  <https://xmlns.com/foaf/0.1/age> "20"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-50 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person51> ;
+  <https://example.org/city> "City 0" ;
+  <https://example.org/spouse> <https://example.org/person51> .
+
+<https://example.org/person51> <https://xmlns.com/foaf/0.1/name> "Person 51" ;
+  <https://xmlns.com/foaf/0.1/age> "21"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-51 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person52> ;
+  <https://example.org/city> "City 1" .
+
+<https://example.org/person52> <https://xmlns.com/foaf/0.1/name> "Person 52" ;
+  <https://xmlns.com/foaf/0.1/age> "22"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-52 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person53> ;
+  <https://example.org/city> "City 2" ;
+  <https://example.org/spouse> <https://example.org/person53> .
+
+<https://example.org/person53> <https://xmlns.com/foaf/0.1/name> "Person 53" ;
+  <https://xmlns.com/foaf/0.1/age> "23"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-53 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person54> ;
+  <https://example.org/city> "City 3" .
+
+<https://example.org/person54> <https://xmlns.com/foaf/0.1/name> "Person 54" ;
+  <https://xmlns.com/foaf/0.1/age> "24"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-54 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person55> ;
+  <https://example.org/city> "City 4" ;
+  <https://example.org/spouse> <https://example.org/person55> .
+
+<https://example.org/person55> <https://xmlns.com/foaf/0.1/name> "Person 55" ;
+  <https://xmlns.com/foaf/0.1/age> "25"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-55 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person56> ;
+  <https://example.org/city> "City 0" .
+
+<https://example.org/person56> <https://xmlns.com/foaf/0.1/name> "Person 56" ;
+  <https://xmlns.com/foaf/0.1/age> "26"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-56 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person57> ;
+  <https://example.org/city> "City 1" ;
+  <https://example.org/spouse> <https://example.org/person57> .
+
+<https://example.org/person57> <https://xmlns.com/foaf/0.1/name> "Person 57" ;
+  <https://xmlns.com/foaf/0.1/age> "27"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-57 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person58> ;
+  <https://example.org/city> "City 2" .
+
+<https://example.org/person58> <https://xmlns.com/foaf/0.1/name> "Person 58" ;
+  <https://xmlns.com/foaf/0.1/age> "28"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-58 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person59> ;
+  <https://example.org/city> "City 3" ;
+  <https://example.org/spouse> <https://example.org/person59> .
+
+<https://example.org/person59> <https://xmlns.com/foaf/0.1/name> "Person 59" ;
+  <https://xmlns.com/foaf/0.1/age> "29"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-59 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person60> ;
+  <https://example.org/city> "City 4" .
+
+<https://example.org/person60> <https://xmlns.com/foaf/0.1/name> "Person 60" ;
+  <https://xmlns.com/foaf/0.1/age> "30"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-60 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person61> ;
+  <https://example.org/city> "City 0" ;
+  <https://example.org/spouse> <https://example.org/person61> .
+
+<https://example.org/person61> <https://xmlns.com/foaf/0.1/name> "Person 61" ;
+  <https://xmlns.com/foaf/0.1/age> "31"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-61 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person62> ;
+  <https://example.org/city> "City 1" .
+
+<https://example.org/person62> <https://xmlns.com/foaf/0.1/name> "Person 62" ;
+  <https://xmlns.com/foaf/0.1/age> "32"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-62 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person63> ;
+  <https://example.org/city> "City 2" ;
+  <https://example.org/spouse> <https://example.org/person63> .
+
+<https://example.org/person63> <https://xmlns.com/foaf/0.1/name> "Person 63" ;
+  <https://xmlns.com/foaf/0.1/age> "33"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-63 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person64> ;
+  <https://example.org/city> "City 3" .
+
+<https://example.org/person64> <https://xmlns.com/foaf/0.1/name> "Person 64" ;
+  <https://xmlns.com/foaf/0.1/age> "34"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-64 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person65> ;
+  <https://example.org/city> "City 4" ;
+  <https://example.org/spouse> <https://example.org/person65> .
+
+<https://example.org/person65> <https://xmlns.com/foaf/0.1/name> "Person 65" ;
+  <https://xmlns.com/foaf/0.1/age> "35"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-65 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person66> ;
+  <https://example.org/city> "City 0" .
+
+<https://example.org/person66> <https://xmlns.com/foaf/0.1/name> "Person 66" ;
+  <https://xmlns.com/foaf/0.1/age> "36"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-66 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person67> ;
+  <https://example.org/city> "City 1" ;
+  <https://example.org/spouse> <https://example.org/person67> .
+
+<https://example.org/person67> <https://xmlns.com/foaf/0.1/name> "Person 67" ;
+  <https://xmlns.com/foaf/0.1/age> "37"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-67 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person68> ;
+  <https://example.org/city> "City 2" .
+
+<https://example.org/person68> <https://xmlns.com/foaf/0.1/name> "Person 68" ;
+  <https://xmlns.com/foaf/0.1/age> "38"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-68 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person69> ;
+  <https://example.org/city> "City 3" ;
+  <https://example.org/spouse> <https://example.org/person69> .
+
+<https://example.org/person69> <https://xmlns.com/foaf/0.1/name> "Person 69" ;
+  <https://xmlns.com/foaf/0.1/age> "39"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-69 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person70> ;
+  <https://example.org/city> "City 4" .
+
+<https://example.org/person70> <https://xmlns.com/foaf/0.1/name> "Person 70" ;
+  <https://xmlns.com/foaf/0.1/age> "40"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-70 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person71> ;
+  <https://example.org/city> "City 0" ;
+  <https://example.org/spouse> <https://example.org/person71> .
+
+<https://example.org/person71> <https://xmlns.com/foaf/0.1/name> "Person 71" ;
+  <https://xmlns.com/foaf/0.1/age> "41"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-71 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person72> ;
+  <https://example.org/city> "City 1" .
+
+<https://example.org/person72> <https://xmlns.com/foaf/0.1/name> "Person 72" ;
+  <https://xmlns.com/foaf/0.1/age> "42"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-72 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person73> ;
+  <https://example.org/city> "City 2" ;
+  <https://example.org/spouse> <https://example.org/person73> .
+
+<https://example.org/person73> <https://xmlns.com/foaf/0.1/name> "Person 73" ;
+  <https://xmlns.com/foaf/0.1/age> "43"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-73 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person74> ;
+  <https://example.org/city> "City 3" .
+
+<https://example.org/person74> <https://xmlns.com/foaf/0.1/name> "Person 74" ;
+  <https://xmlns.com/foaf/0.1/age> "44"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-74 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person75> ;
+  <https://example.org/city> "City 4" ;
+  <https://example.org/spouse> <https://example.org/person75> .
+
+<https://example.org/person75> <https://xmlns.com/foaf/0.1/name> "Person 75" ;
+  <https://xmlns.com/foaf/0.1/age> "45"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-75 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person76> ;
+  <https://example.org/city> "City 0" .
+
+<https://example.org/person76> <https://xmlns.com/foaf/0.1/name> "Person 76" ;
+  <https://xmlns.com/foaf/0.1/age> "46"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-76 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person77> ;
+  <https://example.org/city> "City 1" ;
+  <https://example.org/spouse> <https://example.org/person77> .
+
+<https://example.org/person77> <https://xmlns.com/foaf/0.1/name> "Person 77" ;
+  <https://xmlns.com/foaf/0.1/age> "47"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-77 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person78> ;
+  <https://example.org/city> "City 2" .
+
+<https://example.org/person78> <https://xmlns.com/foaf/0.1/name> "Person 78" ;
+  <https://xmlns.com/foaf/0.1/age> "48"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-78 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person79> ;
+  <https://example.org/city> "City 3" ;
+  <https://example.org/spouse> <https://example.org/person79> .
+
+<https://example.org/person79> <https://xmlns.com/foaf/0.1/name> "Person 79" ;
+  <https://xmlns.com/foaf/0.1/age> "49"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-79 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person80> ;
+  <https://example.org/city> "City 4" .
+
+<https://example.org/person80> <https://xmlns.com/foaf/0.1/name> "Person 80" ;
+  <https://xmlns.com/foaf/0.1/age> "50"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-80 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person81> ;
+  <https://example.org/city> "City 0" ;
+  <https://example.org/spouse> <https://example.org/person81> .
+
+<https://example.org/person81> <https://xmlns.com/foaf/0.1/name> "Person 81" ;
+  <https://xmlns.com/foaf/0.1/age> "51"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-81 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person82> ;
+  <https://example.org/city> "City 1" .
+
+<https://example.org/person82> <https://xmlns.com/foaf/0.1/name> "Person 82" ;
+  <https://xmlns.com/foaf/0.1/age> "52"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-82 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person83> ;
+  <https://example.org/city> "City 2" ;
+  <https://example.org/spouse> <https://example.org/person83> .
+
+<https://example.org/person83> <https://xmlns.com/foaf/0.1/name> "Person 83" ;
+  <https://xmlns.com/foaf/0.1/age> "53"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-83 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person84> ;
+  <https://example.org/city> "City 3" .
+
+<https://example.org/person84> <https://xmlns.com/foaf/0.1/name> "Person 84" ;
+  <https://xmlns.com/foaf/0.1/age> "54"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-84 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person85> ;
+  <https://example.org/city> "City 4" ;
+  <https://example.org/spouse> <https://example.org/person85> .
+
+<https://example.org/person85> <https://xmlns.com/foaf/0.1/name> "Person 85" ;
+  <https://xmlns.com/foaf/0.1/age> "55"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-85 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person86> ;
+  <https://example.org/city> "City 0" .
+
+<https://example.org/person86> <https://xmlns.com/foaf/0.1/name> "Person 86" ;
+  <https://xmlns.com/foaf/0.1/age> "56"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-86 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person87> ;
+  <https://example.org/city> "City 1" ;
+  <https://example.org/spouse> <https://example.org/person87> .
+
+<https://example.org/person87> <https://xmlns.com/foaf/0.1/name> "Person 87" ;
+  <https://xmlns.com/foaf/0.1/age> "57"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-87 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person88> ;
+  <https://example.org/city> "City 2" .
+
+<https://example.org/person88> <https://xmlns.com/foaf/0.1/name> "Person 88" ;
+  <https://xmlns.com/foaf/0.1/age> "58"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-88 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person89> ;
+  <https://example.org/city> "City 3" ;
+  <https://example.org/spouse> <https://example.org/person89> .
+
+<https://example.org/person89> <https://xmlns.com/foaf/0.1/name> "Person 89" ;
+  <https://xmlns.com/foaf/0.1/age> "59"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-89 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person90> ;
+  <https://example.org/city> "City 4" .
+
+<https://example.org/person90> <https://xmlns.com/foaf/0.1/name> "Person 90" ;
+  <https://xmlns.com/foaf/0.1/age> "60"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-90 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person91> ;
+  <https://example.org/city> "City 0" ;
+  <https://example.org/spouse> <https://example.org/person91> .
+
+<https://example.org/person91> <https://xmlns.com/foaf/0.1/name> "Person 91" ;
+  <https://xmlns.com/foaf/0.1/age> "61"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-91 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person92> ;
+  <https://example.org/city> "City 1" .
+
+<https://example.org/person92> <https://xmlns.com/foaf/0.1/name> "Person 92" ;
+  <https://xmlns.com/foaf/0.1/age> "62"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-92 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person93> ;
+  <https://example.org/city> "City 2" ;
+  <https://example.org/spouse> <https://example.org/person93> .
+
+<https://example.org/person93> <https://xmlns.com/foaf/0.1/name> "Person 93" ;
+  <https://xmlns.com/foaf/0.1/age> "63"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-93 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person94> ;
+  <https://example.org/city> "City 3" .
+
+<https://example.org/person94> <https://xmlns.com/foaf/0.1/name> "Person 94" ;
+  <https://xmlns.com/foaf/0.1/age> "64"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-94 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person95> ;
+  <https://example.org/city> "City 4" ;
+  <https://example.org/spouse> <https://example.org/person95> .
+
+<https://example.org/person95> <https://xmlns.com/foaf/0.1/name> "Person 95" ;
+  <https://xmlns.com/foaf/0.1/age> "65"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-95 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person96> ;
+  <https://example.org/city> "City 0" .
+
+<https://example.org/person96> <https://xmlns.com/foaf/0.1/name> "Person 96" ;
+  <https://xmlns.com/foaf/0.1/age> "66"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-96 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person97> ;
+  <https://example.org/city> "City 1" ;
+  <https://example.org/spouse> <https://example.org/person97> .
+
+<https://example.org/person97> <https://xmlns.com/foaf/0.1/name> "Person 97" ;
+  <https://xmlns.com/foaf/0.1/age> "67"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-97 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person98> ;
+  <https://example.org/city> "City 2" .
+
+<https://example.org/person98> <https://xmlns.com/foaf/0.1/name> "Person 98" ;
+  <https://xmlns.com/foaf/0.1/age> "68"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-98 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person99> ;
+  <https://example.org/city> "City 3" ;
+  <https://example.org/spouse> <https://example.org/person99> .
+
+<https://example.org/person99> <https://xmlns.com/foaf/0.1/name> "Person 99" ;
+  <https://xmlns.com/foaf/0.1/age> "69"^^<http://www.w3.org/2001/XMLSchema#integer> ;
+  <https://example.org/pet> _:pet-99 ;
+  <https://xmlns.com/foaf/0.1/knows> <https://example.org/person0> ;
+  <https://example.org/city> "City 4" .
