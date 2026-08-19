@@ -134,6 +134,10 @@
     select:hover {
       border-color: var(--muted);
     }
+    button:disabled {
+      opacity: 0.45;
+      cursor: default;
+    }
     textarea {
       background: var(--bg);
       color: var(--text);
@@ -302,6 +306,24 @@
       color: var(--muted);
       font-size: 11.5px;
     }
+    .toast {
+      position: fixed;
+      bottom: 18px;
+      left: 50%;
+      transform: translateX(-50%);
+      max-width: min(90vw, 680px);
+      background: var(--panel-2);
+      border: 1px solid var(--accent);
+      border-radius: 6px;
+      padding: 8px 14px;
+      font-size: 12.5px;
+      box-shadow: 0 4px 18px #000a;
+      z-index: 10;
+      word-break: break-all;
+    }
+    .toast code {
+      color: var(--accent-2);
+    }
     footer {
       border-top: 1px solid var(--border);
       padding: 6px 16px;
@@ -370,6 +392,7 @@
       <div class="controls">
         <button id="copy-results" title="Copy serialized results">Copy</button>
         <button id="export-results" title="Download serialized results">Export</button>
+        <button id="share-results" class="primary" title="Copy a shareable link to this dataset and query" disabled>Share link</button>
       </div>
     </div>
         <div id="results">
@@ -666,6 +689,7 @@
       lastResponse = response;
       renderResponse(response, ms);
       updateShareHash(query);
+      $("share-results").disabled = false;
     }
 
     function renderResponse(response, ms) {
@@ -808,6 +832,83 @@
       URL.revokeObjectURL(a.href);
     };
 
+    // Share link: the current dataset + query as a restorable URL. Sample
+    // datasets are keyed by id; custom datasets embed their Turtle inline
+    // (capped so links stay sane for large pasted or file-loaded datasets).
+    const MAX_SHARE_TTL = 12000;
+
+    function buildShareUrl() {
+      if (!lastQuery) return null;
+      const id = currentDatasetId();
+      const q = b64(lastQuery);
+      if (id === "custom") {
+        const t = b64(datasetInput.value);
+        if (t.length > MAX_SHARE_TTL) return "too-large";
+        return `${location.origin}${location.pathname}#d=custom&t=${t}&q=${q}`;
+      }
+      return `${location.origin}${location.pathname}#d=${id}&q=${q}`;
+    }
+
+    async function copyText(text) {
+      if (navigator.clipboard && window.isSecureContext) {
+        try {
+          await navigator.clipboard.writeText(text);
+          return true;
+        } catch {
+          /* fall through to the execCommand fallback */
+        }
+      }
+      const area = document.createElement("textarea");
+      area.value = text;
+      area.setAttribute("readonly", "");
+      area.style.position = "fixed";
+      area.style.opacity = "0";
+      document.body.appendChild(area);
+      area.select();
+      let ok = false;
+      try {
+        ok = document.execCommand("copy");
+      } catch {
+        ok = false;
+      }
+      area.remove();
+      return ok;
+    }
+
+    function showToast(message) {
+      const toast = document.createElement("div");
+      toast.className = "toast";
+      toast.innerHTML = message;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 4000);
+    }
+
+    function flashButton(button, text) {
+      const original = button.textContent;
+      button.textContent = text;
+      setTimeout(() => {
+        button.textContent = original;
+      }, 1200);
+    }
+
+    $("share-results").onclick = async () => {
+      const url = buildShareUrl();
+      if (url === null) return;
+      if (url === "too-large") {
+        showToast(
+          "Dataset too large to fit in a share link — export the Turtle file instead.",
+        );
+        return;
+      }
+      const ok = await copyText(url);
+      if (ok) {
+        flashButton($("share-results"), "Copied!");
+      } else {
+        showToast(`Share link: <code>${escapeHtml(url)}</code>`);
+        flashButton($("share-results"), "Link shown");
+      }
+    };
+
     // ---------- share URLs (hash: dataset id + query) ----------
     function b64(s) {
       return btoa(unescape(encodeURIComponent(s))).replace(/\+/g, "-").replace(
@@ -822,20 +923,37 @@
     }
 
     function updateShareHash(query) {
+      // Stamps sample-dataset runs into the URL. Custom datasets are too
+      // heavy to embed on every run — their share links are built on demand
+      // by the Share link button instead.
       const id = currentDatasetId();
-      if (id === "custom") return; // only sample datasets are shareable
+      if (id === "custom") return;
       const q = b64(query);
       history.replaceState(null, "", `#d=${id}&q=${q}`);
     }
 
     function restoreFromHash() {
-      const m = location.hash.match(/^#d=([a-z]+)&q=([A-Za-z0-9_-]+)$/);
+      // #d=<id>[&t=<b64url turtle>]&q=<b64url query> — sample datasets are
+      // keyed by id; custom datasets carry their Turtle inline, so any state
+      // is restorable from a cold navigation.
+      const m = location.hash.match(
+        /^#d=([a-z]+)(?:&t=([A-Za-z0-9_-]+))?&q=([A-Za-z0-9_-]+)$/,
+      );
       if (!m) return false;
       const id = m[1];
-      if (!(id in DATASETS)) return false;
-      selectDataset(id);
+      const customTtl = m[2];
+      if (id === "custom") {
+        if (!customTtl) return false;
+        datasetSelect.value = "custom";
+        datasetInput.value = unb64(customTtl);
+        renderChips("custom");
+      } else if (id in DATASETS) {
+        selectDataset(id);
+      } else {
+        return false;
+      }
       try {
-        queryInput.value = unb64(m[2]);
+        queryInput.value = unb64(m[3]);
       } catch {
         /* ignore malformed */
       }
