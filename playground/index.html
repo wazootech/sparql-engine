@@ -851,10 +851,27 @@
       }
     });
 
-    if (!restoreFromHash()) {
-      selectDataset("foaf");
+    // Live landing: on a cold visit run the default FOAF example, and on a
+    // shared URL run the shared query — results are never an empty prompt.
+    function applyLandingState() {
+      if (!restoreFromHash()) {
+        selectDataset("foaf");
+      }
+      loadDataset();
+      runQuery();
     }
-    loadDataset();
+
+    // The URL fragment is the source of truth for shared state: re-apply it
+    // on same-document navigation too (back/forward, pasted hashes), not just
+    // on page load, so shared links survive cold navigation and fragment
+    // edits without a reload.
+    window.addEventListener("hashchange", () => {
+      if (restoreFromHash()) {
+        runQuery();
+      }
+    });
+
+    applyLandingState();
     </script>
   </body>
 </html>
