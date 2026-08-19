@@ -8,6 +8,7 @@
       content="Try @wazoo/sparql-engine in your browser — zero dependencies, pure TypeScript, over an in-memory RDF/JS store." />
     <style>
     :root {
+      color-scheme: dark; /* native controls follow the dark theme */
       /* Wazoo design tokens — wazoo.dev/DESIGN.md (dark-mode default). */
       --wz-void: #040404;
       --wz-surface: #0f0f0f;
@@ -32,6 +33,17 @@
       --accent-2: #79c0ff;
       --warn: var(--wz-warn);
       --err: var(--wz-err);
+      /* Syntax palette — dark values here; the light-mode block at the end
+         of the stylesheet overrides them (system-adaptive per DESIGN). */
+      --tok-kw: #ff8c00;
+      --tok-str: #a5d6ff;
+      --tok-iri: #79c0ff;
+      --tok-var: #d2a8ff;
+      --tok-pname: #ffb74d;
+      --tok-num: #79c0ff;
+      --tok-bnode: #79c0ff;
+      --tok-comment: #7d7d7f;
+      --tok-punct: #7d7d7f;
       --mono: "IBM Plex Mono", ui-monospace, "SF Mono", "Cascadia Code", Menlo,
         Consolas, monospace;
       --sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
@@ -271,36 +283,36 @@
       background: rgba(255, 140, 0, 0.22);
     }
     .tok-kw {
-      color: #ff8c00;
+      color: var(--tok-kw);
     }
     .tok-dir {
-      color: #ff8c00;
+      color: var(--tok-kw);
       font-style: italic;
     }
     .tok-str {
-      color: #a5d6ff;
+      color: var(--tok-str);
     }
     .tok-iri {
-      color: #79c0ff;
+      color: var(--tok-iri);
     }
     .tok-var {
-      color: #d2a8ff;
+      color: var(--tok-var);
     }
     .tok-pname {
-      color: #ffb74d;
+      color: var(--tok-pname);
     }
     .tok-num {
-      color: #79c0ff;
+      color: var(--tok-num);
     }
     .tok-bnode {
-      color: #79c0ff;
+      color: var(--tok-bnode);
     }
     .tok-comment {
-      color: #7d7d7f;
+      color: var(--tok-comment);
       font-style: italic;
     }
     .tok-punct {
-      color: #7d7d7f;
+      color: var(--tok-punct);
     }
     .chips {
       display: flex;
@@ -529,6 +541,66 @@
         transition-duration: 0.01ms !important;
         animation-duration: 0.01ms !important;
         animation-iteration-count: 1 !important;
+      }
+    }
+
+    /* DESIGN: system-adaptive light mode — Eggshell / Ink
+       (wazoo.dev/DESIGN.md). Dark stays the default; this applies when the
+       OS prefers light. Light surfaces aren't specified by DESIGN, so they
+       are derived as warm off-whites. Tokens flip mechanically; the syntax
+       palette and kind badges get explicit light values. */
+    @media (prefers-color-scheme: light) {
+      :root {
+        color-scheme: light;
+        --wz-void: #f7f2e8;
+        --wz-surface: #efe9dc;
+        --wz-surface-2: #e7e0d1;
+        --wz-border: #d9d1c0;
+        --wz-text: #1f1b14;
+        --wz-heading: #14100a;
+        --wz-muted: #6f685c;
+        --wz-primary: #f57c00;
+        --wz-primary-light: #c2410c;
+        --wz-primary-dark: #9a3412;
+        --wz-err: #b91c1c;
+        --wz-warn: #a16207;
+        --accent-2: #1d4ed8;
+        --tok-kw: #c2410c;
+        --tok-str: #0369a1;
+        --tok-iri: #1d4ed8;
+        --tok-var: #6d28d9;
+        --tok-pname: #b45309;
+        --tok-num: #1d4ed8;
+        --tok-bnode: #1d4ed8;
+        --tok-comment: #78716c;
+        --tok-punct: #78716c;
+      }
+      .kind-select {
+        background: rgba(194, 65, 12, 0.1);
+        color: #9a3412;
+        border: 1px solid rgba(194, 65, 12, 0.35);
+      }
+      .kind-ask {
+        background: rgba(31, 27, 20, 0.06);
+        color: var(--text);
+        border: 1px solid rgba(31, 27, 20, 0.3);
+      }
+      .kind-construct {
+        background: rgba(29, 78, 216, 0.08);
+        color: #1e40af;
+        border: 1px solid rgba(29, 78, 216, 0.35);
+      }
+      .kind-void {
+        background: rgba(161, 98, 7, 0.1);
+        color: #92400e;
+        border: 1px solid rgba(161, 98, 7, 0.35);
+      }
+      .err {
+        background: rgba(185, 28, 28, 0.07);
+        border: 1px solid rgba(185, 28, 28, 0.35);
+      }
+      button.primary {
+        color: #1f1b14;
       }
     }
     </style>
