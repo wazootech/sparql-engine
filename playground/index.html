@@ -422,6 +422,8 @@
       <div class="controls">
         <select id="dataset-select" title="Sample dataset">
           <option value="foaf">FOAF social graph</option>
+          <option value="social">Social network (100 people)</option>
+          <option value="people10k">10k people (benchmark)</option>
           <option value="org">Org chart (named graphs)</option>
           <option value="books">Books &amp; authors</option>
           <option value="custom">Custom (paste below)</option>
@@ -523,6 +525,35 @@
       foaf:knows ex:alice .
     `,
       },
+      // Fetch-backed fixtures (see playground/datasets/): committed TTL/TriG
+      // files served as siblings of the page. Generated deterministically by
+      // playground/datasets/generate.ts and verified through the engine by
+      // playground/datasets/verify.ts. On file:// (no HTTP), fetching these
+      // fails gracefully — the store status explains how to load them.
+      social: {
+        label: "Social network (100 people)",
+        file: "datasets/social.ttl",
+        example: `SELECT ?s WHERE {
+      ?s <https://xmlns.com/foaf/0.1/name> ?n .
+      FILTER EXISTS {
+        ?s <https://example.org/spouse> ?spouse .
+        FILTER EXISTS { ?spouse <https://xmlns.com/foaf/0.1/name> ?n2 }
+      }
+    }
+    LIMIT 25`,
+      },
+      people10k: {
+        label: "10k people (benchmark)",
+        file: "datasets/people10k.trig",
+        example: `SELECT ?s WHERE {
+      ?s <https://xmlns.com/foaf/0.1/name> ?n .
+      FILTER EXISTS {
+        ?s <https://example.org/spouse> ?spouse .
+        FILTER EXISTS { ?spouse <https://xmlns.com/foaf/0.1/name> ?n2 }
+      }
+    }
+    LIMIT 100`,
+      },
       org: {
         label: "Org chart (named graphs)",
         example: `SELECT ?graph ?person ?name WHERE {
@@ -608,6 +639,95 @@
           `ASK { <https://example.org/alice> <https://xmlns.com/foaf/0.1/knows> ?who }`,
         ],
       ],
+      social: [
+        [
+          "nested exists",
+          `SELECT ?s WHERE {
+      ?s <https://xmlns.com/foaf/0.1/name> ?n .
+      FILTER EXISTS {
+        ?s <https://example.org/spouse> ?spouse .
+        FILTER EXISTS { ?spouse <https://xmlns.com/foaf/0.1/name> ?n2 }
+      }
+    }
+    LIMIT 25`,
+        ],
+        [
+          "not exists",
+          `SELECT ?s WHERE {
+      ?s <https://xmlns.com/foaf/0.1/name> ?n .
+      FILTER NOT EXISTS { ?s <https://example.org/spouse> ?spouse }
+    }
+    LIMIT 25`,
+        ],
+        [
+          "group by city",
+          `SELECT ?city (COUNT(*) AS ?n) WHERE {
+      ?s <https://example.org/city> ?city
+    }
+    GROUP BY ?city
+    ORDER BY DESC(?n)`,
+        ],
+        [
+          "optional",
+          `SELECT (COUNT(?s) AS ?n) WHERE {
+      ?s <https://xmlns.com/foaf/0.1/name> ?name .
+      OPTIONAL { ?s <https://example.org/spouse> ?spouse }
+      FILTER (!BOUND(?spouse))
+    }`,
+        ],
+        [
+          "update",
+          `INSERT DATA {
+      <https://example.org/person0> <https://example.org/nick> "P0" .
+    }`,
+        ],
+      ],
+      people10k: [
+        [
+          "nested exists",
+          `SELECT ?s WHERE {
+      ?s <https://xmlns.com/foaf/0.1/name> ?n .
+      FILTER EXISTS {
+        ?s <https://example.org/spouse> ?spouse .
+        FILTER EXISTS { ?spouse <https://xmlns.com/foaf/0.1/name> ?n2 }
+      }
+    }
+    LIMIT 100`,
+        ],
+        [
+          "exists",
+          `SELECT ?s WHERE {
+      ?s <https://xmlns.com/foaf/0.1/name> ?n .
+      FILTER EXISTS { ?s <https://example.org/spouse> ?spouse }
+    }
+    LIMIT 100`,
+        ],
+        [
+          "not exists",
+          `SELECT ?s WHERE {
+      ?s <https://xmlns.com/foaf/0.1/name> ?n .
+      FILTER NOT EXISTS { ?s <https://example.org/spouse> ?spouse }
+    }
+    LIMIT 100`,
+        ],
+        [
+          "default + named",
+          `SELECT (COUNT(*) AS ?n) WHERE {
+      { ?s ?p ?o }
+      UNION
+      { GRAPH ?g { ?s ?p ?o } }
+    }`,
+        ],
+        [
+          "graph meta",
+          `SELECT ?s ?rank WHERE {
+      GRAPH <https://example.org/meta> {
+        ?s <https://example.org/rank> ?rank
+      }
+    }
+    ORDER BY ?rank`,
+        ],
+      ],
       org: [
         ["select", `SELECT ?s ?p ?o WHERE { ?s ?p ?o } LIMIT 25`],
         [
@@ -669,6 +789,7 @@
 
     function loadDataset() {
       const text = datasetInput.value;
+      const t0 = performance.now();
       let quads;
       try {
         quads = parseTurtleQuads(text);
@@ -677,22 +798,42 @@
         storeStatus.style.color = "var(--err)";
         return;
       }
+      const parseMs = performance.now() - t0;
       store = new MemoryStore(quads);
       engine = new WazooSparqlEngine({ store });
       storeStatus.style.color = "";
-      storeStatus.textContent = `store: ${store.size} quad${
+      storeStatus.textContent = `store: ${store.size.toLocaleString()} quad${
         store.size === 1 ? "" : "s"
-      } (in-memory)`;
+      } (in-memory) · parsed in ${parseMs.toFixed(0)} ms`;
     }
 
-    function selectDataset(id) {
+    // Sample datasets are either inline (`ttl`) or committed fixture files
+    // (`file`) fetched as siblings of the page — see playground/datasets/.
+    async function selectDataset(id) {
       datasetSelect.value = id;
-      datasetInput.value = DATASETS[id].ttl;
-      queryInput.value = DATASETS[id].example;
+      const ds = DATASETS[id];
+      datasetInput.value = ds.ttl ?? "";
+      queryInput.value = ds.example;
       renderChips(id);
-      loadDataset();
       datasetEditor.notify();
       queryEditor.notify();
+      if (ds.file) {
+        storeStatus.textContent = `loading ${ds.file}…`;
+        storeStatus.style.color = "";
+        try {
+          const res = await fetch(new URL(ds.file, location.href));
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          datasetInput.value = await res.text();
+          datasetEditor.notify();
+        } catch (err) {
+          storeStatus.textContent =
+            `couldn't fetch ${ds.file} (${err?.message ?? err}) — serve this ` +
+            `folder over HTTP or use Open file… to import it`;
+          storeStatus.style.color = "var(--err)";
+          return;
+        }
+      }
+      loadDataset();
     }
 
     function renderChips(id) {
@@ -1158,15 +1299,16 @@
       history.replaceState(null, "", `?d=${id}&q=${q}`);
     }
 
-    function restoreFromUrl() {
+    async function restoreFromUrl() {
       // ?d=<id>[&t=<b64url turtle>]&q=<b64url query> — sample datasets are
-      // keyed by id; custom datasets carry their Turtle inline, so any state
-      // is restorable from a cold navigation. Query params (unlike URL
-      // fragments) survive pasting into contexts that strip them.
+      // keyed by id (inline or fetched fixture); custom datasets carry their
+      // Turtle inline, so any state is restorable from a cold navigation.
+      // Query params (unlike URL fragments) survive pasting into contexts
+      // that strip them.
       const params = new URLSearchParams(location.search);
       const id = params.get("d") ?? "";
       const q = params.get("q") ?? "";
-      if (!/^[a-z]+$/.test(id) || !q) return false;
+      if (!/^[a-z0-9]+$/.test(id) || !q) return false;
       const customTtl = params.get("t");
       if (id === "custom") {
         if (!customTtl) return false;
@@ -1175,7 +1317,7 @@
         datasetEditor.notify();
         renderChips("custom");
       } else if (id in DATASETS) {
-        selectDataset(id);
+        await selectDataset(id);
       } else {
         return false;
       }
@@ -1204,19 +1346,19 @@
 
     // Live landing: on a cold visit run the default FOAF example, and on a
     // shared URL run the shared query — results are never an empty prompt.
-    function applyLandingState() {
-      if (!restoreFromUrl()) {
-        selectDataset("foaf");
+    async function applyLandingState() {
+      const restored = await restoreFromUrl();
+      if (!restored) {
+        await selectDataset("foaf");
       }
-      loadDataset();
       runQuery();
     }
 
     // The URL query string is the source of truth for shared state
     // (nuqs-style): re-apply it on history navigation (back/forward) too,
     // not just on page load, so shared links survive cold navigation.
-    window.addEventListener("popstate", () => {
-      if (restoreFromUrl()) {
+    window.addEventListener("popstate", async () => {
+      if (await restoreFromUrl()) {
         runQuery();
       }
     });
