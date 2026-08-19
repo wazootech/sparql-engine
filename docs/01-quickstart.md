@@ -8,6 +8,11 @@ layout: default
 Get the engine running, execute SPARQL against a store, and run the test suites
 — in about five minutes.
 
+> **Try it without installing anything:** the
+> [**Wazoo SPARQL Playground**](https://wazootech.github.io/sparql-engine/playground/)
+> runs the engine in your browser over sample datasets — no setup, and every
+> query you run is shareable via its URL.
+
 ## Environment
 
 The project is a **Deno 2.x** package published to

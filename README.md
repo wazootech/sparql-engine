@@ -14,6 +14,13 @@
 Wazoo [SPARQL 1.1](https://www.w3.org/TR/sparql11-query/) & 1.2 Query & Update
 Engine over RDF/JS Quad Stores.
 
+## Try it in your browser
+
+[**Open the Wazoo SPARQL Playground**](https://wazootech.github.io/sparql-engine/playground/)
+— run `SELECT` / `ASK` / `CONSTRUCT` / `UPDATE` queries over sample datasets
+entirely in the browser, no install, nothing sent to a server. Every query you
+run gets a shareable URL.
+
 ## Compatibility
 
 - **SPARQL 1.1 — full.** `SELECT` / `ASK` / `CONSTRUCT` / `DESCRIBE`, UPDATE,
