@@ -167,13 +167,77 @@
       font-family: var(--mono);
       background: var(--panel-2);
     }
-    #dataset-input {
+    #dataset-input-editor {
       min-height: 170px;
       flex: 2;
     }
-    #query-input {
+    #query-input-editor {
       min-height: 130px;
       flex: 1;
+    }
+    .hl-editor {
+      position: relative;
+      min-height: 0;
+      flex: 1;
+    }
+    .hl-backdrop {
+      position: absolute;
+      inset: 0;
+      margin: 0;
+      overflow: hidden;
+      pointer-events: none;
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 12.5px;
+      line-height: 1.55;
+      padding: 10px 12px;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      overflow-wrap: anywhere;
+    }
+    .hl-editor textarea {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      color: transparent;
+      caret-color: var(--text);
+      background: transparent;
+    }
+    .hl-editor textarea::selection {
+      background: rgba(88, 166, 255, 0.28);
+    }
+    .tok-kw {
+      color: #ff7b72;
+    }
+    .tok-dir {
+      color: #ff7b72;
+      font-style: italic;
+    }
+    .tok-str {
+      color: #a5d6ff;
+    }
+    .tok-iri {
+      color: #79c0ff;
+    }
+    .tok-var {
+      color: #d2a8ff;
+    }
+    .tok-pname {
+      color: #ffa657;
+    }
+    .tok-num {
+      color: #79c0ff;
+    }
+    .tok-bnode {
+      color: #79c0ff;
+    }
+    .tok-comment {
+      color: #8b949e;
+      font-style: italic;
+    }
+    .tok-punct {
+      color: #8b949e;
     }
     .chips {
       display: flex;
@@ -627,6 +691,8 @@
       queryInput.value = DATASETS[id].example;
       renderChips(id);
       loadDataset();
+      datasetEditor.notify();
+      queryEditor.notify();
     }
 
     function renderChips(id) {
@@ -637,6 +703,7 @@
         chip.textContent = label;
         chip.onclick = () => {
           queryInput.value = q;
+          queryEditor.notify();
           runQuery();
         };
         chipsEl.appendChild(chip);
@@ -649,6 +716,7 @@
         selectDataset(id);
       } else {
         datasetInput.value = "";
+        datasetEditor.notify();
         renderChips("custom");
       }
     };
@@ -661,6 +729,7 @@
       if (!file) return;
       datasetSelect.value = "custom";
       datasetInput.value = await file.text();
+      datasetEditor.notify();
       renderChips("custom");
       loadDataset();
       ev.target.value = "";
@@ -794,6 +863,162 @@
           "'": "&#39;",
         }[c]),
       );
+    }
+
+    // ---------- syntax highlighting ----------
+    // Overlay highlighter: the textarea stays the real editor (undo, paste,
+    // IME, selection all native); a backdrop <pre> paints colored tokens
+    // behind its transparent text and syncs scroll. The tokenizer is a
+    // standalone ordered-alternative regex per mode (SPARQL / Turtle+TriG) —
+    // heuristic, not parser-verified, so invalid input still colors (standard
+    // for editors). The engine's jison lexers don't expose token positions,
+    // so this lives here. Large inputs are capped to keep typing and file
+    // loads fast.
+    const HL_CAP = 100000;
+
+    const SPARQL_KEYWORDS =
+      "SELECT DISTINCT REDUCED WHERE FROM NAMED PREFIX BASE GRAPH OPTIONAL " +
+      "UNION FILTER BIND AS GROUP BY HAVING ORDER ASC DESC LIMIT OFFSET " +
+      "VALUES INSERT DATA DELETE WITH USING LOAD INTO CLEAR DROP CREATE " +
+      "SILENT DEFAULT ALL ASK CONSTRUCT DESCRIBE SERVICE MINUS NOT EXISTS " +
+      "AND OR IN IS STR LANG LANGMATCHES DATATYPE BOUND IRI URI BNODE RAND " +
+      "ABS CEIL FLOOR ROUND CONCAT STRLEN UCASE LCASE ENCODE_FOR_URI " +
+      "CONTAINS STRSTARTS STRENDS STRBEFORE STRAFTER YEAR MONTH DAY HOURS " +
+      "MINUTES SECONDS TIMEZONE TZ NOW UUID STRUUID MD5 SHA1 SHA256 SHA384 " +
+      "SHA512 COALESCE IF STRLANG STRDT SAMETERM ISIRI ISURI ISBLANK " +
+      "ISLITERAL ISNUMERIC REGEX SUBSTR REPLACE COUNT SUM MIN MAX AVG SAMPLE " +
+      "GROUP_CONCAT SEPARATOR TRUE FALSE UNDEF EXISTS";
+
+    // Rules are tried in order at each position; the first match wins, so the
+    // order matters (comments, then longest literals, then names). Keywords
+    // are case-insensitive in SPARQL, and the whole matcher runs case-
+    // insensitively — harmless for a heuristic highlighter.
+    const HL_RULES = {
+      sparql: [
+        ["#[^\n]*", "comment"],
+        ["\"\"\"[\s\S]*?\"\"\"|'''[\s\S]*?'''", "str"],
+        [
+          '"(?:[^"\\\\]|\\\\.)*"(?:@[a-zA-Z]+(?:-[a-zA-Z0-9]+)*)?' +
+          "|'(?:[^'\\\\]|\\\\.)*'(?:@[a-zA-Z]+(?:-[a-zA-Z0-9]+)*)?",
+          "str",
+        ],
+        ['<[^<>"{}|^`\\\\\\x00-\\x20]*>', "iri"],
+        ["[?$][A-Za-z_][A-Za-z0-9_-]*", "var"],
+        [
+          "[+-]?(?:\\d+\\.\\d*(?:[eE][+-]?\\d+)?|\\.\\d+(?:[eE][+-]?\\d+)?|\\d+(?:[eE][+-]?\\d+)?)",
+          "num",
+        ],
+        ["[A-Za-z_][A-Za-z0-9_-]*:[A-Za-z0-9_-]*|:[A-Za-z0-9_-]*", "pname"],
+        ["\\ba\\b", "kw"],
+        [`\\b(?:${SPARQL_KEYWORDS.replace(/\s+/g, "|")})\\b`, "kw"],
+        ["[{}()\\[\\].;,|^!*+?/=<>-~]+", "punct"],
+      ],
+      turtle: [
+        ["#[^\n]*", "comment"],
+        ["@(?:prefix|base)\\b", "dir"],
+        ["_:[A-Za-z0-9_-]*", "bnode"],
+        ["\"\"\"[\s\S]*?\"\"\"|'''[\s\S]*?'''", "str"],
+        [
+          '"(?:[^"\\\\]|\\\\.)*"(?:@[a-zA-Z]+(?:-[a-zA-Z0-9]+)*)?' +
+          "|'(?:[^'\\\\]|\\\\.)*'(?:@[a-zA-Z]+(?:-[a-zA-Z0-9]+)*)?",
+          "str",
+        ],
+        ['<[^<>"{}|^`\\\\\\x00-\\x20]*>', "iri"],
+        [
+          "[+-]?(?:\\d+\\.\\d*(?:[eE][+-]?\\d+)?|\\.\\d+(?:[eE][+-]?\\d+)?|\\d+(?:[eE][+-]?\\d+)?)",
+          "num",
+        ],
+        ["[A-Za-z_][A-Za-z0-9_-]*:[A-Za-z0-9_-]*|:[A-Za-z0-9_-]*", "pname"],
+        ["\\ba\\b", "kw"],
+        [`\\b(?:${SPARQL_KEYWORDS.replace(/\s+/g, "|")})\\b`, "kw"],
+        ["[{}()\\[\\].;,|^!*+?/=<>-~]+", "punct"],
+      ],
+    };
+
+    function makeTokenizer(rules) {
+      const re = new RegExp(rules.map(([src]) => `(${src})`).join("|"), "gi");
+      return function tokenize(text) {
+        const spans = [];
+        re.lastIndex = 0;
+        let m;
+        while ((m = re.exec(text)) !== null) {
+          let cls = "";
+          for (let i = 0; i < rules.length; i++) {
+            if (m[i + 1] !== undefined) {
+              cls = rules[i][1];
+              break;
+            }
+          }
+          spans.push([m.index, m.index + m[0].length, cls]);
+        }
+        return spans;
+      };
+    }
+    const tokenizeSparql = makeTokenizer(HL_RULES.sparql);
+    const tokenizeTurtle = makeTokenizer(HL_RULES.turtle);
+
+    function highlightHtml(text, tokenize) {
+      const spans = tokenize(text);
+      let html = "";
+      let pos = 0;
+      for (const [start, end, cls] of spans) {
+        if (start > pos) html += escapeHtml(text.slice(pos, start));
+        const t = escapeHtml(text.slice(start, end));
+        html += cls ? `<span class="tok-${cls}">${t}</span>` : t;
+        pos = end;
+      }
+      if (pos < text.length) html += escapeHtml(text.slice(pos));
+      return html;
+    }
+
+    function createHighlightedEditor(textarea) {
+      // Wrap the textarea in a positioned container with a backdrop <pre>
+      // BEHIND it (DOM order: pre first, textarea second, so the textarea
+      // paints above and keeps its caret/selection; the pre is click-through
+      // anyway via pointer-events: none).
+      const editor = document.createElement("div");
+      editor.className = "hl-editor";
+      editor.id = `${textarea.id}-editor`;
+      textarea.replaceWith(editor);
+      const pre = document.createElement("pre");
+      pre.className = "hl-backdrop";
+      pre.setAttribute("aria-hidden", "true");
+      editor.appendChild(pre);
+      editor.appendChild(textarea);
+
+      const tokenize = textarea.id === "query-input"
+        ? tokenizeSparql
+        : tokenizeTurtle;
+
+      function render() {
+        const text = textarea.value;
+        const html = text.length > HL_CAP
+          ? highlightHtml(text.slice(0, HL_CAP), tokenize) +
+            escapeHtml(text.slice(HL_CAP))
+          : highlightHtml(text, tokenize);
+        // Trailing newline keeps the last line scrolled into view like a
+        // real textarea does.
+        pre.innerHTML = html + "\n";
+        pre.scrollTop = textarea.scrollTop;
+        pre.scrollLeft = textarea.scrollLeft;
+      }
+
+      let frame = 0;
+      function notify() {
+        if (frame) return;
+        frame = requestAnimationFrame(() => {
+          frame = 0;
+          render();
+        });
+      }
+
+      textarea.addEventListener("input", notify);
+      textarea.addEventListener("scroll", () => {
+        pre.scrollTop = textarea.scrollTop;
+        pre.scrollLeft = textarea.scrollLeft;
+      });
+      render();
+      return { notify };
     }
 
     // ---------- export / copy ----------
@@ -947,6 +1172,7 @@
         if (!customTtl) return false;
         datasetSelect.value = "custom";
         datasetInput.value = unb64(customTtl);
+        datasetEditor.notify();
         renderChips("custom");
       } else if (id in DATASETS) {
         selectDataset(id);
@@ -955,6 +1181,7 @@
       }
       try {
         queryInput.value = unb64(q);
+        queryEditor.notify();
       } catch {
         /* ignore malformed */
       }
@@ -962,6 +1189,11 @@
     }
 
     // ---------- init ----------
+    // Syntax-highlighted editors: the textarea stays the real editor; a
+    // backdrop <pre> paints colored tokens behind its transparent text.
+    const queryEditor = createHighlightedEditor(queryInput);
+    const datasetEditor = createHighlightedEditor(datasetInput);
+
     $("run-query").onclick = runQuery;
     queryInput.addEventListener("keydown", (ev) => {
       if ((ev.ctrlKey || ev.metaKey) && ev.key === "Enter") {
