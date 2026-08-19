@@ -1,0 +1,64 @@
+name: Pages
+
+# GitHub Pages deploy for the combined site: the Jekyll wiki (docs/) plus the
+# static SPARQL playground (playground/). Requires the repo's Pages source to
+# be set to "GitHub Actions" (Settings → Pages → Source) — once that is done,
+# this workflow builds the wiki exactly like the old "Deploy from a branch,
+# folder /docs" mode (same github-pages gem, same --baseurl) and stages the
+# playground into the same artifact, so the wiki URLs are unchanged and the
+# playground lands at /playground/.
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      # Rebuild the vendored bundle from the pinned JSR version so the
+      # deployed playground always matches playground/bundle-entry.ts, even
+      # if the committed app.js goes stale.
+      - name: Bundle the playground
+        run: deno task bundle
+
+      # The wiki relies on the same Jekyll plugins the legacy Pages build
+      # runs (kramdown GFM, jekyll-readme-index, jekyll-relative-links,
+      # rouge) — all shipped by the github-pages gem.
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+      - name: Install the GitHub Pages gem
+        run: gem install github-pages --no-document
+      - name: Build the wiki
+        run: jekyll build --config docs/_config.yml,.github/pages-jekyll.yml --source docs --destination site --baseurl /sparql-engine
+
+      - name: Stage the playground
+        run: |
+          mkdir -p site/playground
+          cp playground/index.html site/playground/
+          cp playground/app.js site/playground/
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deployment
+        uses: actions/deploy-pages@v4

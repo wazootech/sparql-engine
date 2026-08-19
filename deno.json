@@ -34,6 +34,7 @@
   },
   "nodeModulesDir": "auto",
   "tasks": {
+    "bundle": "deno bundle --minify playground/bundle-entry.ts -o playground/app.js",
     "bench": "deno bench --allow-all",
     "bench:check": "deno run --allow-all bench/budget.ts",
     "bench:size": "deno run --allow-read bench/measure-libs.ts > bench/size-data.json && deno run --allow-read --allow-write bench/treemap.ts && deno fmt docs/assets/chart-*.svg docs/assets/treemap-*.svg",

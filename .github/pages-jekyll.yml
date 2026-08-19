@@ -1,0 +1,9 @@
+# Workflow-only Jekyll config, merged with docs/_config.yml by the Pages
+# workflow (jekyll build --config docs/_config.yml,.github/pages-jekyll.yml).
+# Reproduces the plugin set GitHub's legacy "Deploy from a branch → /docs"
+# build applies automatically: jekyll-readme-index (README.md as the wiki
+# landing page — docs/index.md meta-refreshes to it) and jekyll-relative-links
+# (.md links rewrite to .html). Keeps the wiki tree itself untouched.
+plugins:
+  - jekyll-readme-index
+  - jekyll-relative-links
