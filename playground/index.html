@@ -688,7 +688,7 @@
       const ms = performance.now() - t0;
       lastResponse = response;
       renderResponse(response, ms);
-      updateShareHash(query);
+      updateShareUrl(query);
       $("share-results").disabled = false;
     }
 
@@ -844,9 +844,9 @@
       if (id === "custom") {
         const t = b64(datasetInput.value);
         if (t.length > MAX_SHARE_TTL) return "too-large";
-        return `${location.origin}${location.pathname}#d=custom&t=${t}&q=${q}`;
+        return `${location.origin}${location.pathname}?d=custom&t=${t}&q=${q}`;
       }
-      return `${location.origin}${location.pathname}#d=${id}&q=${q}`;
+      return `${location.origin}${location.pathname}?d=${id}&q=${q}`;
     }
 
     async function copyText(text) {
@@ -909,7 +909,7 @@
       }
     };
 
-    // ---------- share URLs (hash: dataset id + query) ----------
+    // ---------- share URLs (query params: dataset id + query) ----------
     function b64(s) {
       return btoa(unescape(encodeURIComponent(s))).replace(/\+/g, "-").replace(
         /\//g,
@@ -922,26 +922,27 @@
       return decodeURIComponent(escape(atob(s)));
     }
 
-    function updateShareHash(query) {
-      // Stamps sample-dataset runs into the URL. Custom datasets are too
-      // heavy to embed on every run — their share links are built on demand
-      // by the Share link button instead.
+    function updateShareUrl(query) {
+      // Stamps sample-dataset runs into the URL as query params (nuqs-style:
+      // the URL is the source of truth). Custom datasets are too heavy to
+      // embed on every run — their share links are built on demand by the
+      // Share link button instead.
       const id = currentDatasetId();
       if (id === "custom") return;
       const q = b64(query);
-      history.replaceState(null, "", `#d=${id}&q=${q}`);
+      history.replaceState(null, "", `?d=${id}&q=${q}`);
     }
 
-    function restoreFromHash() {
-      // #d=<id>[&t=<b64url turtle>]&q=<b64url query> — sample datasets are
+    function restoreFromUrl() {
+      // ?d=<id>[&t=<b64url turtle>]&q=<b64url query> — sample datasets are
       // keyed by id; custom datasets carry their Turtle inline, so any state
-      // is restorable from a cold navigation.
-      const m = location.hash.match(
-        /^#d=([a-z]+)(?:&t=([A-Za-z0-9_-]+))?&q=([A-Za-z0-9_-]+)$/,
-      );
-      if (!m) return false;
-      const id = m[1];
-      const customTtl = m[2];
+      // is restorable from a cold navigation. Query params (unlike URL
+      // fragments) survive pasting into contexts that strip them.
+      const params = new URLSearchParams(location.search);
+      const id = params.get("d") ?? "";
+      const q = params.get("q") ?? "";
+      if (!/^[a-z]+$/.test(id) || !q) return false;
+      const customTtl = params.get("t");
       if (id === "custom") {
         if (!customTtl) return false;
         datasetSelect.value = "custom";
@@ -953,7 +954,7 @@
         return false;
       }
       try {
-        queryInput.value = unb64(m[3]);
+        queryInput.value = unb64(q);
       } catch {
         /* ignore malformed */
       }
@@ -972,19 +973,18 @@
     // Live landing: on a cold visit run the default FOAF example, and on a
     // shared URL run the shared query — results are never an empty prompt.
     function applyLandingState() {
-      if (!restoreFromHash()) {
+      if (!restoreFromUrl()) {
         selectDataset("foaf");
       }
       loadDataset();
       runQuery();
     }
 
-    // The URL fragment is the source of truth for shared state: re-apply it
-    // on same-document navigation too (back/forward, pasted hashes), not just
-    // on page load, so shared links survive cold navigation and fragment
-    // edits without a reload.
-    window.addEventListener("hashchange", () => {
-      if (restoreFromHash()) {
+    // The URL query string is the source of truth for shared state
+    // (nuqs-style): re-apply it on history navigation (back/forward) too,
+    // not just on page load, so shared links survive cold navigation.
+    window.addEventListener("popstate", () => {
+      if (restoreFromUrl()) {
         runQuery();
       }
     });
