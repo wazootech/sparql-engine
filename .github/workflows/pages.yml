@@ -57,6 +57,7 @@ jobs:
           cp playground/index.html site/playground/
           cp playground/app.js site/playground/
           cp -r playground/datasets site/playground/
+          cp -r playground/fonts site/playground/
 
       - uses: actions/upload-pages-artifact@v3
         with:
