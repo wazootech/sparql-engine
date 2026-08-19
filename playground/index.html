@@ -30,6 +30,10 @@
       --text: var(--wz-text);
       --muted: var(--wz-muted);
       --accent: var(--wz-primary);
+      /* Accent used for small text (links, chips, tag, inline code, result
+         values): gets a darker, AA-passing value in light mode, while
+         --accent stays the fill color. */
+      --accent-text: var(--wz-primary);
       --accent-2: #79c0ff;
       --warn: var(--wz-warn);
       --err: var(--wz-err);
@@ -115,13 +119,13 @@
       font-family: var(--mono);
       font-size: 11px;
       letter-spacing: -0.025em;
-      color: var(--accent);
+      color: var(--accent-text);
       border: 1px solid var(--border);
       border-radius: 8px;
       padding: 1px 8px;
     }
     header a {
-      color: var(--accent);
+      color: var(--accent-text);
       text-decoration: none;
       font-size: 12px;
       transition: color 0.2s;
@@ -323,7 +327,7 @@
       font-family: var(--mono);
       font-size: 11px;
       letter-spacing: -0.025em;
-      color: var(--accent);
+      color: var(--accent-text);
       border: 1px solid var(--border);
       border-radius: 8px;
       padding: 2px 8px;
@@ -416,7 +420,7 @@
       color: var(--wz-heading);
     }
     .ask-true {
-      color: var(--accent);
+      color: var(--accent-text);
     }
     .ask-false {
       color: var(--err);
@@ -464,7 +468,7 @@
       word-break: break-all;
     }
     .toast code {
-      color: var(--accent);
+      color: var(--accent-text);
     }
     footer {
       border-top: 1px solid var(--border);
@@ -563,6 +567,7 @@
         --wz-err: #b91c1c;
         --wz-warn: #a16207;
         --accent-2: #1d4ed8;
+        --accent-text: #9a3412; /* small text accents clear WCAG AA (≈6.6:1) */
         --tok-kw: #c2410c;
         --tok-str: #0369a1;
         --tok-iri: #1d4ed8;
