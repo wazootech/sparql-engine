@@ -52,6 +52,8 @@
       font-display: swap;
       src: url("fonts/ibm-plex-mono-600.woff2") format("woff2");
     }
+    // Inter is served by Google Fonts as a variable font — the 600 and 700
+    // weights are byte-identical, so both @font-face rules share one file.
     @font-face {
       font-family: "Inter";
       font-style: normal;
@@ -64,7 +66,7 @@
       font-style: normal;
       font-weight: 700;
       font-display: swap;
-      src: url("fonts/inter-700.woff2") format("woff2");
+      src: url("fonts/inter-600.woff2") format("woff2");
     }
 
     * {

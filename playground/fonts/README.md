@@ -5,12 +5,19 @@ body copy, buttons, tooltips, and code, and **Inter** for headings. These are
 vendored here (latin subset, woff2) so the playground renders the exact brand
 typography on any machine — no runtime CDN, and `file://` keeps working.
 
-| File                      | Family / weight            | Source                                                             |
-| ------------------------- | -------------------------- | ------------------------------------------------------------------ |
-| `ibm-plex-mono-400.woff2` | IBM Plex Mono Regular 400  | [IBM/plex](https://github.com/IBM/plex) v6.4.0, via Google Fonts   |
-| `ibm-plex-mono-600.woff2` | IBM Plex Mono SemiBold 600 | [IBM/plex](https://github.com/IBM/plex) v6.4.0, via Google Fonts   |
-| `inter-600.woff2`         | Inter SemiBold 600         | [rsms/inter](https://github.com/rsms/inter) v4.1, via Google Fonts |
-| `inter-700.woff2`         | Inter Bold 700             | [rsms/inter](https://github.com/rsms/inter) v4.1, via Google Fonts |
+| File | Family / weight | Source | | ------------------------- |
+-------------------------- |
+------------------------------------------------------------------ ||
+`ibm-plex-mono-400.woff2` | IBM Plex Mono Regular 400 |
+[IBM/plex](https://github.com/IBM/plex) v6.4.0, via Google Fonts | |
+`ibm-plex-mono-600.woff2` | IBM Plex Mono SemiBold 600 |
+[IBM/plex](https://github.com/IBM/plex) v6.4.0, via Google Fonts | |
+`inter-600.woff2` | Inter SemiBold 600 **and Bold 700** |
+[rsms/inter](https://github.com/rsms/inter) v4.1, via Google Fonts |
+
+Inter is served by Google Fonts as a variable font, so the 600 and 700 requests
+resolve to the same bytes — both `@font-face` rules in `index.html` point at the
+single `inter-600.woff2` file.
 
 Both families are licensed under the **SIL Open Font License 1.1** — free to
 bundle and redistribute. Licenses:
