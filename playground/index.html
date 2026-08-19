@@ -1,142 +1,337 @@
 <!doctype html>
 <html lang="en">
-<head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Wazoo SPARQL Playground</title>
-<meta name="description" content="Try @wazoo/sparql-engine in your browser — zero dependencies, pure TypeScript, over an in-memory RDF/JS store." />
-<style>
-  :root {
-    --bg: #0d1117;
-    --panel: #161b22;
-    --panel-2: #1c2128;
-    --border: #2d333b;
-    --text: #e6edf3;
-    --muted: #8b949e;
-    --accent: #3fb950;
-    --accent-2: #58a6ff;
-    --warn: #d29922;
-    --err: #f85149;
-    --mono: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
-  }
-  * { box-sizing: border-box; }
-  html, body { margin: 0; height: 100%; }
-  body {
-    background: var(--bg); color: var(--text);
-    font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    display: flex; flex-direction: column;
-  }
-  header {
-    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
-    padding: 10px 16px; border-bottom: 1px solid var(--border);
-    background: var(--panel);
-  }
-  header h1 { font-size: 15px; margin: 0; font-weight: 600; }
-  header .tag {
-    font-family: var(--mono); font-size: 11px; color: var(--accent);
-    border: 1px solid var(--border); border-radius: 12px; padding: 1px 8px;
-  }
-  header a { color: var(--accent-2); text-decoration: none; font-size: 12px; }
-  header a:hover { text-decoration: underline; }
-  header .spacer { flex: 1; }
-  main {
-    flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    gap: 0; min-height: 0;
-  }
-  @media (max-width: 900px) { main { grid-template-columns: 1fr; overflow: auto; } }
-  section { display: flex; flex-direction: column; min-height: 0; }
-  section.left { border-right: 1px solid var(--border); }
-  .panel-title {
-    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-    padding: 8px 12px; border-bottom: 1px solid var(--border);
-    background: var(--panel-2); font-size: 12px; font-weight: 600;
-    text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted);
-  }
-  .panel-title .controls { margin-left: auto; display: flex; gap: 6px; align-items: center; }
-  select, button, input[type="file"] {
-    background: var(--panel-2); color: var(--text);
-    border: 1px solid var(--border); border-radius: 6px;
-    font: 12px/1.4 inherit; padding: 4px 8px; cursor: pointer;
-  }
-  button.primary { background: #1f6feb; border-color: #1f6feb; color: #fff; font-weight: 600; }
-  button.primary:hover { background: #388bfd; }
-  button:hover, select:hover { border-color: var(--muted); }
-  textarea {
-    background: var(--bg); color: var(--text); border: none; resize: none;
-    font-family: var(--mono); font-size: 12.5px; line-height: 1.55;
-    padding: 10px 12px; outline: none; width: 100%;
-  }
-  textarea:focus { box-shadow: inset 0 0 0 1px var(--accent-2); }
-  .editor-wrap { flex: 1; display: flex; flex-direction: column; min-height: 120px; }
-  .editor-wrap .meta {
-    padding: 4px 12px; font-size: 11px; color: var(--muted);
-    border-top: 1px solid var(--border); font-family: var(--mono);
-    background: var(--panel-2);
-  }
-  #dataset-input { min-height: 170px; flex: 2; }
-  #query-input { min-height: 130px; flex: 1; }
-  .chips { display: flex; gap: 6px; flex-wrap: wrap; padding: 8px 12px; border-top: 1px solid var(--border); }
-  .chip {
-    font-family: var(--mono); font-size: 11px; color: var(--accent-2);
-    border: 1px solid var(--border); border-radius: 10px; padding: 2px 8px;
-    background: var(--panel-2); cursor: pointer;
-  }
-  .chip:hover { border-color: var(--accent-2); }
-  #results { flex: 1; overflow: auto; padding: 12px; min-height: 200px; }
-  #results .empty { color: var(--muted); font-size: 13px; text-align: center; margin-top: 60px; }
-  .kind-badge {
-    display: inline-block; font-family: var(--mono); font-size: 11px;
-    border-radius: 4px; padding: 1px 8px; margin-bottom: 8px;
-  }
-  .kind-select { background: #1f6feb22; color: var(--accent-2); border: 1px solid #1f6feb55; }
-  .kind-ask { background: #3fb95022; color: var(--accent); border: 1px solid #3fb95055; }
-  .kind-construct { background: #a371f722; color: #d2a8ff; border: 1px solid #a371f755; }
-  .kind-void { background: #d2992222; color: var(--warn); border: 1px solid #d2992255; }
-  .timing { color: var(--muted); font-size: 12px; font-family: var(--mono); margin-bottom: 10px; }
-  table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
-  th, td {
-    border: 1px solid var(--border); padding: 4px 8px; text-align: left;
-    font-family: var(--mono); vertical-align: top; word-break: break-all;
-  }
-  th { background: var(--panel-2); position: sticky; top: 0; }
-  td.uri { color: var(--accent-2); }
-  td.literal { color: #e3b341; }
-  td.bnode { color: var(--muted); }
-  .ask-box { font-size: 34px; font-weight: 700; }
-  .ask-true { color: var(--accent); }
-  .ask-false { color: var(--err); }
-  pre.out {
-    background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
-    padding: 10px; overflow: auto; margin: 0; font-family: var(--mono);
-    font-size: 12.5px; white-space: pre-wrap; word-break: break-all;
-  }
-  .err {
-    background: #f8514922; border: 1px solid #f8514955; color: var(--err);
-    border-radius: 6px; padding: 10px 12px; font-family: var(--mono);
-    font-size: 12.5px; white-space: pre-wrap; word-break: break-word;
-  }
-  .note { color: var(--muted); font-size: 11.5px; }
-  footer {
-    border-top: 1px solid var(--border); padding: 6px 16px;
-    font-size: 11px; color: var(--muted); background: var(--panel);
-  }
-  footer a { color: var(--muted); }
-  .hidden { display: none; }
-</style>
-</head>
-<body>
-<header>
-  <h1>Wazoo SPARQL Playground</h1>
-  <span class="tag">@wazoo/sparql-engine 0.4.1</span>
-  <span class="spacer"></span>
-  <a href="https://github.com/wazootech/sparql-engine" target="_blank" rel="noopener">repo</a>
-  <a href="https://docs.wazoo.dev" target="_blank" rel="noopener">docs</a>
-  <a href="https://jsr.io/@wazoo/sparql-engine" target="_blank" rel="noopener">jsr</a>
-</header>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Wazoo SPARQL Playground</title>
+    <meta name="description"
+      content="Try @wazoo/sparql-engine in your browser — zero dependencies, pure TypeScript, over an in-memory RDF/JS store." />
+    <style>
+    :root {
+      --bg: #0d1117;
+      --panel: #161b22;
+      --panel-2: #1c2128;
+      --border: #2d333b;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --accent: #3fb950;
+      --accent-2: #58a6ff;
+      --warn: #d29922;
+      --err: #f85149;
+      --mono: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
+    }
+    * {
+      box-sizing: border-box;
+    }
+    html,
+    body {
+      margin: 0;
+      height: 100%;
+    }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+        Helvetica, Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--border);
+      background: var(--panel);
+    }
+    header h1 {
+      font-size: 15px;
+      margin: 0;
+      font-weight: 600;
+    }
+    header .tag {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--accent);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1px 8px;
+    }
+    header a {
+      color: var(--accent-2);
+      text-decoration: none;
+      font-size: 12px;
+    }
+    header a:hover {
+      text-decoration: underline;
+    }
+    header .spacer {
+      flex: 1;
+    }
+    main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 0;
+      min-height: 0;
+    }
+    @media (max-width: 900px) {
+      main {
+        grid-template-columns: 1fr;
+        overflow: auto;
+      }
+    }
+    section {
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+    section.left {
+      border-right: 1px solid var(--border);
+    }
+    .panel-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+      background: var(--panel-2);
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--muted);
+    }
+    .panel-title .controls {
+      margin-left: auto;
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+    select,
+    button,
+    input[type="file"] {
+      background: var(--panel-2);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font: 12px/1.4 inherit;
+      padding: 4px 8px;
+      cursor: pointer;
+    }
+    button.primary {
+      background: #1f6feb;
+      border-color: #1f6feb;
+      color: #fff;
+      font-weight: 600;
+    }
+    button.primary:hover {
+      background: #388bfd;
+    }
+    button:hover,
+    select:hover {
+      border-color: var(--muted);
+    }
+    textarea {
+      background: var(--bg);
+      color: var(--text);
+      border: none;
+      resize: none;
+      font-family: var(--mono);
+      font-size: 12.5px;
+      line-height: 1.55;
+      padding: 10px 12px;
+      outline: none;
+      width: 100%;
+    }
+    textarea:focus {
+      box-shadow: inset 0 0 0 1px var(--accent-2);
+    }
+    .editor-wrap {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 120px;
+    }
+    .editor-wrap .meta {
+      padding: 4px 12px;
+      font-size: 11px;
+      color: var(--muted);
+      border-top: 1px solid var(--border);
+      font-family: var(--mono);
+      background: var(--panel-2);
+    }
+    #dataset-input {
+      min-height: 170px;
+      flex: 2;
+    }
+    #query-input {
+      min-height: 130px;
+      flex: 1;
+    }
+    .chips {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      padding: 8px 12px;
+      border-top: 1px solid var(--border);
+    }
+    .chip {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--accent-2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 2px 8px;
+      background: var(--panel-2);
+      cursor: pointer;
+    }
+    .chip:hover {
+      border-color: var(--accent-2);
+    }
+    #results {
+      flex: 1;
+      overflow: auto;
+      padding: 12px;
+      min-height: 200px;
+    }
+    #results .empty {
+      color: var(--muted);
+      font-size: 13px;
+      text-align: center;
+      margin-top: 60px;
+    }
+    .kind-badge {
+      display: inline-block;
+      font-family: var(--mono);
+      font-size: 11px;
+      border-radius: 4px;
+      padding: 1px 8px;
+      margin-bottom: 8px;
+    }
+    .kind-select {
+      background: #1f6feb22;
+      color: var(--accent-2);
+      border: 1px solid #1f6feb55;
+    }
+    .kind-ask {
+      background: #3fb95022;
+      color: var(--accent);
+      border: 1px solid #3fb95055;
+    }
+    .kind-construct {
+      background: #a371f722;
+      color: #d2a8ff;
+      border: 1px solid #a371f755;
+    }
+    .kind-void {
+      background: #d2992222;
+      color: var(--warn);
+      border: 1px solid #d2992255;
+    }
+    .timing {
+      color: var(--muted);
+      font-size: 12px;
+      font-family: var(--mono);
+      margin-bottom: 10px;
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      font-size: 12.5px;
+    }
+    th,
+    td {
+      border: 1px solid var(--border);
+      padding: 4px 8px;
+      text-align: left;
+      font-family: var(--mono);
+      vertical-align: top;
+      word-break: break-all;
+    }
+    th {
+      background: var(--panel-2);
+      position: sticky;
+      top: 0;
+    }
+    td.uri {
+      color: var(--accent-2);
+    }
+    td.literal {
+      color: #e3b341;
+    }
+    td.bnode {
+      color: var(--muted);
+    }
+    .ask-box {
+      font-size: 34px;
+      font-weight: 700;
+    }
+    .ask-true {
+      color: var(--accent);
+    }
+    .ask-false {
+      color: var(--err);
+    }
+    pre.out {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px;
+      overflow: auto;
+      margin: 0;
+      font-family: var(--mono);
+      font-size: 12.5px;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    .err {
+      background: #f8514922;
+      border: 1px solid #f8514955;
+      color: var(--err);
+      border-radius: 6px;
+      padding: 10px 12px;
+      font-family: var(--mono);
+      font-size: 12.5px;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .note {
+      color: var(--muted);
+      font-size: 11.5px;
+    }
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 6px 16px;
+      font-size: 11px;
+      color: var(--muted);
+      background: var(--panel);
+    }
+    footer a {
+      color: var(--muted);
+    }
+    .hidden {
+      display: none;
+    }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Wazoo SPARQL Playground</h1>
+      <span class="tag">@wazoo/sparql-engine 0.4.1</span>
+      <span class="spacer"></span>
+      <a href="https://github.com/wazootech/sparql-engine" target="_blank"
+        rel="noopener">repo</a>
+      <a href="https://docs.wazoo.dev" target="_blank" rel="noopener">docs</a>
+      <a href="https://jsr.io/@wazoo/sparql-engine" target="_blank"
+        rel="noopener">jsr</a>
+    </header>
 
-<main>
-  <section class="left">
-    <div class="panel-title">
+    <main>
+      <section class="left">
+        <div class="panel-title">
       Dataset
       <div class="controls">
         <select id="dataset-select" title="Sample dataset">
@@ -150,453 +345,516 @@
         <input type="file" id="file-input" accept=".ttl,.trig,.nt,.nq,.txt" class="hidden" />
       </div>
     </div>
-    <div class="editor-wrap">
-      <textarea id="dataset-input" spellcheck="false" aria-label="Dataset in Turtle or TriG"></textarea>
-      <div class="meta" id="store-status">store: empty (0 quads)</div>
-    </div>
+        <div class="editor-wrap">
+          <textarea id="dataset-input" spellcheck="false"
+            aria-label="Dataset in Turtle or TriG"></textarea>
+          <div class="meta" id="store-status">store: empty (0 quads)</div>
+        </div>
 
-    <div class="panel-title">
+        <div class="panel-title">
       SPARQL query / update
       <div class="controls">
         <button id="run-query" class="primary">Run ▶</button>
       </div>
     </div>
-    <div class="editor-wrap">
-      <textarea id="query-input" spellcheck="false" aria-label="SPARQL query or update"></textarea>
-      <div class="chips" id="chips"></div>
-    </div>
-  </section>
+        <div class="editor-wrap">
+          <textarea id="query-input" spellcheck="false"
+            aria-label="SPARQL query or update"></textarea>
+          <div class="chips" id="chips"></div>
+        </div>
+      </section>
 
-  <section class="right">
-    <div class="panel-title">
+      <section class="right">
+        <div class="panel-title">
       Results
       <div class="controls">
         <button id="copy-results" title="Copy serialized results">Copy</button>
         <button id="export-results" title="Download serialized results">Export</button>
       </div>
     </div>
-    <div id="results">
-      <div class="empty">
+        <div id="results">
+          <div class="empty">
         Load a dataset, then run a query.<br />
         <span class="note">Every SELECT / ASK / CONSTRUCT / DESCRIBE / UPDATE runs locally in your browser via the engine's MemoryStore — nothing is sent to a server.</span>
       </div>
-    </div>
-  </section>
-</main>
+        </div>
+      </section>
+    </main>
 
-<footer>
+    <footer>
   Pure TypeScript · zero runtime dependencies · runs entirely in your browser (no server) ·
   <a href="https://github.com/wazootech/sparql-engine/tree/main/playground" target="_blank" rel="noopener">source of this page</a>
-</footer>
+    </footer>
 
-<script type="module">
-  // Vendored bundle (generated by `deno task bundle`) — runs offline from
-  // file:// and any static host with no CDN dependency at runtime. For a
-  // no-build dev loop, replace with:
-  //   import { ... } from "https://esm.sh/jsr/@wazoo/sparql-engine@0.4.1";
-  import {
-    MemoryStore,
-    WazooSparqlEngine,
-    parseTurtleQuads,
-    serializeJsonResults,
-    serializeTurtle,
-  } from "./app.js";
+    <script type="module">
+    // Vendored bundle (generated by `deno task bundle`) — runs offline from
+    // file:// and any static host with no CDN dependency at runtime. For a
+    // no-build dev loop, replace with:
+    //   import { ... } from "https://esm.sh/jsr/@wazoo/sparql-engine@0.4.1";
+    import {
+      MemoryStore,
+      parseTurtleQuads,
+      serializeJsonResults,
+      serializeTurtle,
+      WazooSparqlEngine,
+    } from "./app.js";
 
-  const XSD_STRING = "http://www.w3.org/2001/XMLSchema#string";
+    const XSD_STRING = "http://www.w3.org/2001/XMLSchema#string";
 
-  // ---------- sample datasets ----------
-  const DATASETS = {
-    foaf: {
-      label: "FOAF social graph",
-      example: `SELECT ?name ?knowsName WHERE {
-  ?person <https://xmlns.com/foaf/0.1/name> ?name .
-  OPTIONAL {
-    ?person <https://xmlns.com/foaf/0.1/knows> ?knows .
-    ?knows <https://xmlns.com/foaf/0.1/name> ?knowsName .
-  }
-}
-ORDER BY ?name`,
-      ttl: `@prefix foaf: <https://xmlns.com/foaf/0.1/> .
-@prefix ex: <https://example.org/> .
-
-ex:alice a foaf:Person ;
-  foaf:name "Alice" ;
-  foaf:mbox <mailto:alice@example.org> ;
-  foaf:knows ex:bob, ex:carol .
-
-ex:bob a foaf:Person ;
-  foaf:name "Bob" ;
-  foaf:mbox <mailto:bob@example.org> ;
-  foaf:knows ex:alice .
-
-ex:carol a foaf:Person ;
-  foaf:name "Carol" ;
-  foaf:mbox <mailto:carol@example.org> ;
-  foaf:knows ex:bob .
-
-ex:dave a foaf:Person ;
-  foaf:name "Dave" ;
-  foaf:knows ex:alice .
-`,
-    },
-    org: {
-      label: "Org chart (named graphs)",
-      example: `SELECT ?graph ?person ?name WHERE {
-  GRAPH ?graph {
-    ?person <https://example.org/ns#name> ?name ;
-            <https://example.org/ns#reportsTo> ?manager .
-  }
-}
-ORDER BY ?graph ?name`,
-      ttl: `@prefix ns: <https://example.org/ns#> .
-
-<https://example.org/graph/hr> {
-  <https://example.org/p/ana> ns:name "Ana" ; ns:reportsTo <https://example.org/p/ceo> .
-  <https://example.org/p/ben> ns:name "Ben" ; ns:reportsTo <https://example.org/p/ana> .
-  <https://example.org/p/ceo> ns:name "Zoe" .
-}
-
-<https://example.org/graph/eng> {
-  <https://example.org/p/cyd> ns:name "Cyd" ; ns:reportsTo <https://example.org/p/ana> .
-  <https://example.org/p/dan> ns:name "Dan" ; ns:reportsTo <https://example.org/p/cyd> .
-  <https://example.org/p/eve> ns:name "Eve" ; ns:reportsTo <https://example.org/p/cyd> .
-}
-`,
-    },
-    books: {
-      label: "Books &amp; authors",
-      example: `SELECT ?author (COUNT(?book) AS ?count) WHERE {
-  ?book <https://example.org/ns#author> ?author .
-  ?author <https://example.org/ns#name> ?name .
-}
-GROUP BY ?author ?name
-ORDER BY DESC(?count)`,
-      ttl: `@prefix ns: <https://example.org/ns#> .
-@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
-
-<https://example.org/book/1> ns:title "The Left Hand of Darkness" ;
-  ns:author <https://example.org/author/le> ;
-  ns:year "1969"^^xsd:integer ;
-  ns:rating "4.6"^^xsd:decimal .
-
-<https://example.org/book/2> ns:title "The Dispossessed" ;
-  ns:author <https://example.org/author/le> ;
-  ns:year "1974"^^xsd:integer ;
-  ns:rating "4.7"^^xsd:decimal .
-
-<https://example.org/book/3> ns:title "Neuromancer" ;
-  ns:author <https://example.org/author/wg> ;
-  ns:year "1984"^^xsd:integer ;
-  ns:rating "4.2"^^xsd:decimal .
-
-<https://example.org/book/4> ns:title "Snow Crash" ;
-  ns:author <https://example.org/author/ns> ;
-  ns:year "1992"^^xsd:integer ;
-  ns:rating "4.0"^^xsd:decimal .
-
-<https://example.org/author/le> ns:name "Ursula K. Le Guin" .
-<https://example.org/author/wg> ns:name "William Gibson" .
-<https://example.org/author/ns> ns:name "Neal Stephenson" .
-`,
-    },
-  };
-
-  // Example chips per dataset: [label, query]
-  const CHIPS = {
-    foaf: [
-      ["select", `SELECT ?s ?p ?o WHERE { ?s ?p ?o } LIMIT 25`],
-      ["not exists", `SELECT ?name WHERE {
-  ?p <https://xmlns.com/foaf/0.1/name> ?name .
-  FILTER NOT EXISTS { ?p <https://xmlns.com/foaf/0.1/mbox> ?mbox }
-}`],
-      ["update", `INSERT DATA {
-  <https://example.org/alice> <https://xmlns.com/foaf/0.1/nick> "Al" .
-}
-`],
-      ["ask", `ASK { <https://example.org/alice> <https://xmlns.com/foaf/0.1/knows> ?who }`],
-    ],
-    org: [
-      ["select", `SELECT ?s ?p ?o WHERE { ?s ?p ?o } LIMIT 25`],
-      ["graph", `SELECT ?graph (COUNT(*) AS ?n) WHERE {
-  GRAPH ?graph { ?s ?p ?o }
-}
-GROUP BY ?graph`],
-      ["construct", `CONSTRUCT { ?person <https://example.org/ns#name> ?name }
-WHERE { GRAPH ?g { ?person <https://example.org/ns#name> ?name } }`],
-    ],
-    books: [
-      ["select", `SELECT ?s ?p ?o WHERE { ?s ?p ?o } LIMIT 25`],
-      ["aggregate", `SELECT ?author (COUNT(?book) AS ?count) WHERE {
-  ?book <https://example.org/ns#author> ?author .
-  ?author <https://example.org/ns#name> ?name .
-}
-GROUP BY ?author ?name
-ORDER BY DESC(?count)`],
-      ["filter", `SELECT ?title ?year WHERE {
-  ?book <https://example.org/ns#title> ?title ;
-         <https://example.org/ns#year> ?year .
-  FILTER (?year >= 1970)
-}
-ORDER BY ?year`],
-    ],
-    custom: [["select", `SELECT ?s ?p ?o WHERE { ?s ?p ?o } LIMIT 25`]],
-  };
-
-  // ---------- state ----------
-  let store = new MemoryStore();
-  let engine = new WazooSparqlEngine({ store });
-  let lastResponse = null;
-  let lastQuery = "";
-
-  const $ = (id) => document.getElementById(id);
-  const datasetSelect = $("dataset-select");
-  const datasetInput = $("dataset-input");
-  const queryInput = $("query-input");
-  const resultsEl = $("results");
-  const storeStatus = $("store-status");
-  const chipsEl = $("chips");
-
-  // ---------- dataset loading ----------
-  function currentDatasetId() {
-    const id = datasetSelect.value;
-    return id in DATASETS ? id : "custom";
-  }
-
-  function loadDataset() {
-    const text = datasetInput.value;
-    let quads;
-    try {
-      quads = parseTurtleQuads(text);
-    } catch (err) {
-      storeStatus.textContent = `parse error: ${err.message}`;
-      storeStatus.style.color = "var(--err)";
-      return;
+    // ---------- sample datasets ----------
+    const DATASETS = {
+      foaf: {
+        label: "FOAF social graph",
+        example: `SELECT ?name ?knowsName WHERE {
+      ?person <https://xmlns.com/foaf/0.1/name> ?name .
+      OPTIONAL {
+        ?person <https://xmlns.com/foaf/0.1/knows> ?knows .
+        ?knows <https://xmlns.com/foaf/0.1/name> ?knowsName .
+      }
     }
-    store = new MemoryStore(quads);
-    engine = new WazooSparqlEngine({ store });
-    storeStatus.style.color = "";
-    storeStatus.textContent = `store: ${store.size} quad${store.size === 1 ? "" : "s"} (in-memory)`;
-  }
+    ORDER BY ?name`,
+        ttl: `@prefix foaf: <https://xmlns.com/foaf/0.1/> .
+    @prefix ex: <https://example.org/> .
 
-  function selectDataset(id) {
-    datasetSelect.value = id;
-    datasetInput.value = DATASETS[id].ttl;
-    queryInput.value = DATASETS[id].example;
-    renderChips(id);
-    loadDataset();
-  }
+    ex:alice a foaf:Person ;
+      foaf:name "Alice" ;
+      foaf:mbox <mailto:alice@example.org> ;
+      foaf:knows ex:bob, ex:carol .
 
-  function renderChips(id) {
-    chipsEl.innerHTML = "";
-    for (const [label, q] of CHIPS[id] ?? CHIPS.custom) {
-      const chip = document.createElement("button");
-      chip.className = "chip";
-      chip.textContent = label;
-      chip.onclick = () => {
-        queryInput.value = q;
-        runQuery();
-      };
-      chipsEl.appendChild(chip);
+    ex:bob a foaf:Person ;
+      foaf:name "Bob" ;
+      foaf:mbox <mailto:bob@example.org> ;
+      foaf:knows ex:alice .
+
+    ex:carol a foaf:Person ;
+      foaf:name "Carol" ;
+      foaf:mbox <mailto:carol@example.org> ;
+      foaf:knows ex:bob .
+
+    ex:dave a foaf:Person ;
+      foaf:name "Dave" ;
+      foaf:knows ex:alice .
+    `,
+      },
+      org: {
+        label: "Org chart (named graphs)",
+        example: `SELECT ?graph ?person ?name WHERE {
+      GRAPH ?graph {
+        ?person <https://example.org/ns#name> ?name ;
+                <https://example.org/ns#reportsTo> ?manager .
+      }
     }
-  }
+    ORDER BY ?graph ?name`,
+        ttl: `@prefix ns: <https://example.org/ns#> .
 
-  datasetSelect.onchange = () => {
-    const id = datasetSelect.value;
-    if (id in DATASETS) {
-      selectDataset(id);
-    } else {
-      datasetInput.value = "";
+    <https://example.org/graph/hr> {
+      <https://example.org/p/ana> ns:name "Ana" ; ns:reportsTo <https://example.org/p/ceo> .
+      <https://example.org/p/ben> ns:name "Ben" ; ns:reportsTo <https://example.org/p/ana> .
+      <https://example.org/p/ceo> ns:name "Zoe" .
+    }
+
+    <https://example.org/graph/eng> {
+      <https://example.org/p/cyd> ns:name "Cyd" ; ns:reportsTo <https://example.org/p/ana> .
+      <https://example.org/p/dan> ns:name "Dan" ; ns:reportsTo <https://example.org/p/cyd> .
+      <https://example.org/p/eve> ns:name "Eve" ; ns:reportsTo <https://example.org/p/cyd> .
+    }
+    `,
+      },
+      books: {
+        label: "Books &amp; authors",
+        example: `SELECT ?author (COUNT(?book) AS ?count) WHERE {
+      ?book <https://example.org/ns#author> ?author .
+      ?author <https://example.org/ns#name> ?name .
+    }
+    GROUP BY ?author ?name
+    ORDER BY DESC(?count)`,
+        ttl: `@prefix ns: <https://example.org/ns#> .
+    @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+    <https://example.org/book/1> ns:title "The Left Hand of Darkness" ;
+      ns:author <https://example.org/author/le> ;
+      ns:year "1969"^^xsd:integer ;
+      ns:rating "4.6"^^xsd:decimal .
+
+    <https://example.org/book/2> ns:title "The Dispossessed" ;
+      ns:author <https://example.org/author/le> ;
+      ns:year "1974"^^xsd:integer ;
+      ns:rating "4.7"^^xsd:decimal .
+
+    <https://example.org/book/3> ns:title "Neuromancer" ;
+      ns:author <https://example.org/author/wg> ;
+      ns:year "1984"^^xsd:integer ;
+      ns:rating "4.2"^^xsd:decimal .
+
+    <https://example.org/book/4> ns:title "Snow Crash" ;
+      ns:author <https://example.org/author/ns> ;
+      ns:year "1992"^^xsd:integer ;
+      ns:rating "4.0"^^xsd:decimal .
+
+    <https://example.org/author/le> ns:name "Ursula K. Le Guin" .
+    <https://example.org/author/wg> ns:name "William Gibson" .
+    <https://example.org/author/ns> ns:name "Neal Stephenson" .
+    `,
+      },
+    };
+
+    // Example chips per dataset: [label, query]
+    const CHIPS = {
+      foaf: [
+        ["select", `SELECT ?s ?p ?o WHERE { ?s ?p ?o } LIMIT 25`],
+        [
+          "not exists",
+          `SELECT ?name WHERE {
+      ?p <https://xmlns.com/foaf/0.1/name> ?name .
+      FILTER NOT EXISTS { ?p <https://xmlns.com/foaf/0.1/mbox> ?mbox }
+    }`,
+        ],
+        [
+          "update",
+          `INSERT DATA {
+      <https://example.org/alice> <https://xmlns.com/foaf/0.1/nick> "Al" .
+    }
+    `,
+        ],
+        [
+          "ask",
+          `ASK { <https://example.org/alice> <https://xmlns.com/foaf/0.1/knows> ?who }`,
+        ],
+      ],
+      org: [
+        ["select", `SELECT ?s ?p ?o WHERE { ?s ?p ?o } LIMIT 25`],
+        [
+          "graph",
+          `SELECT ?graph (COUNT(*) AS ?n) WHERE {
+      GRAPH ?graph { ?s ?p ?o }
+    }
+    GROUP BY ?graph`,
+        ],
+        [
+          "construct",
+          `CONSTRUCT { ?person <https://example.org/ns#name> ?name }
+    WHERE { GRAPH ?g { ?person <https://example.org/ns#name> ?name } }`,
+        ],
+      ],
+      books: [
+        ["select", `SELECT ?s ?p ?o WHERE { ?s ?p ?o } LIMIT 25`],
+        [
+          "aggregate",
+          `SELECT ?author (COUNT(?book) AS ?count) WHERE {
+      ?book <https://example.org/ns#author> ?author .
+      ?author <https://example.org/ns#name> ?name .
+    }
+    GROUP BY ?author ?name
+    ORDER BY DESC(?count)`,
+        ],
+        [
+          "filter",
+          `SELECT ?title ?year WHERE {
+      ?book <https://example.org/ns#title> ?title ;
+             <https://example.org/ns#year> ?year .
+      FILTER (?year >= 1970)
+    }
+    ORDER BY ?year`,
+        ],
+      ],
+      custom: [["select", `SELECT ?s ?p ?o WHERE { ?s ?p ?o } LIMIT 25`]],
+    };
+
+    // ---------- state ----------
+    let store = new MemoryStore();
+    let engine = new WazooSparqlEngine({ store });
+    let lastResponse = null;
+    let lastQuery = "";
+
+    const $ = (id) => document.getElementById(id);
+    const datasetSelect = $("dataset-select");
+    const datasetInput = $("dataset-input");
+    const queryInput = $("query-input");
+    const resultsEl = $("results");
+    const storeStatus = $("store-status");
+    const chipsEl = $("chips");
+
+    // ---------- dataset loading ----------
+    function currentDatasetId() {
+      const id = datasetSelect.value;
+      return id in DATASETS ? id : "custom";
+    }
+
+    function loadDataset() {
+      const text = datasetInput.value;
+      let quads;
+      try {
+        quads = parseTurtleQuads(text);
+      } catch (err) {
+        storeStatus.textContent = `parse error: ${err.message}`;
+        storeStatus.style.color = "var(--err)";
+        return;
+      }
+      store = new MemoryStore(quads);
+      engine = new WazooSparqlEngine({ store });
+      storeStatus.style.color = "";
+      storeStatus.textContent = `store: ${store.size} quad${
+        store.size === 1 ? "" : "s"
+      } (in-memory)`;
+    }
+
+    function selectDataset(id) {
+      datasetSelect.value = id;
+      datasetInput.value = DATASETS[id].ttl;
+      queryInput.value = DATASETS[id].example;
+      renderChips(id);
+      loadDataset();
+    }
+
+    function renderChips(id) {
+      chipsEl.innerHTML = "";
+      for (const [label, q] of CHIPS[id] ?? CHIPS.custom) {
+        const chip = document.createElement("button");
+        chip.className = "chip";
+        chip.textContent = label;
+        chip.onclick = () => {
+          queryInput.value = q;
+          runQuery();
+        };
+        chipsEl.appendChild(chip);
+      }
+    }
+
+    datasetSelect.onchange = () => {
+      const id = datasetSelect.value;
+      if (id in DATASETS) {
+        selectDataset(id);
+      } else {
+        datasetInput.value = "";
+        renderChips("custom");
+      }
+    };
+
+    $("load-dataset").onclick = loadDataset;
+
+    $("file-btn").onclick = () => $("file-input").click();
+    $("file-input").onchange = async (ev) => {
+      const file = ev.target.files?.[0];
+      if (!file) return;
+      datasetSelect.value = "custom";
+      datasetInput.value = await file.text();
       renderChips("custom");
-    }
-  };
+      loadDataset();
+      ev.target.value = "";
+    };
 
-  $("load-dataset").onclick = loadDataset;
-
-  $("file-btn").onclick = () => $("file-input").click();
-  $("file-input").onchange = async (ev) => {
-    const file = ev.target.files?.[0];
-    if (!file) return;
-    datasetSelect.value = "custom";
-    datasetInput.value = await file.text();
-    renderChips("custom");
-    loadDataset();
-    ev.target.value = "";
-  };
-
-  // ---------- query execution ----------
-  async function runQuery() {
-    const query = queryInput.value.trim();
-    if (!query) return;
-    lastQuery = query;
-    resultsEl.innerHTML = `<div class="empty">running…</div>`;
-    const t0 = performance.now();
-    let response;
-    try {
-      response = await engine.execute({ query });
-    } catch (err) {
+    // ---------- query execution ----------
+    async function runQuery() {
+      const query = queryInput.value.trim();
+      if (!query) return;
+      lastQuery = query;
+      resultsEl.innerHTML = `<div class="empty">running…</div>`;
+      const t0 = performance.now();
+      let response;
+      try {
+        response = await engine.execute({ query });
+      } catch (err) {
+        const ms = performance.now() - t0;
+        resultsEl.innerHTML =
+          `<span class="kind-badge kind-void">error</span> <span class="timing">${
+            ms.toFixed(1)
+          } ms</span>` +
+          `<div class="err">${escapeHtml(err?.message ?? String(err))}</div>`;
+        return;
+      }
       const ms = performance.now() - t0;
-      resultsEl.innerHTML =
-        `<span class="kind-badge kind-void">error</span> <span class="timing">${ms.toFixed(1)} ms</span>` +
-        `<div class="err">${escapeHtml(err?.message ?? String(err))}</div>`;
-      return;
+      lastResponse = response;
+      renderResponse(response, ms);
+      updateShareHash(query);
     }
-    const ms = performance.now() - t0;
-    lastResponse = response;
-    renderResponse(response, ms);
-    updateShareHash(query);
-  }
 
-  function renderResponse(response, ms) {
-    switch (response.kind) {
-      case "select": {
-        const varsList = response.data.head.vars;
-        const rows = response.data.results.bindings;
-        let html = `<span class="kind-badge kind-select">select</span> <span class="timing">${ms.toFixed(1)} ms · ${rows.length} row${rows.length === 1 ? "" : "s"}</span>`;
-        if (rows.length === 0) {
-          html += `<p class="note">no bindings</p>`;
-        } else {
-          html += `<table><thead><tr>${varsList.map((v) => `<th>${escapeHtml(v)}</th>`).join("")}</tr></thead><tbody>`;
-          for (const row of rows) {
-            html += `<tr>${varsList.map((v) => {
-              const val = row[v];
-              return `<td class="${val ? val.type : ""}">${val ? escapeHtml(formatValue(val)) : ""}</td>`;
-            }).join("")}</tr>`;
+    function renderResponse(response, ms) {
+      switch (response.kind) {
+        case "select": {
+          const varsList = response.data.head.vars;
+          const rows = response.data.results.bindings;
+          let html =
+            `<span class="kind-badge kind-select">select</span> <span class="timing">${
+              ms.toFixed(1)
+            } ms · ${rows.length} row${rows.length === 1 ? "" : "s"}</span>`;
+          if (rows.length === 0) {
+            html += `<p class="note">no bindings</p>`;
+          } else {
+            html += `<table><thead><tr>${
+              varsList.map((v) => `<th>${escapeHtml(v)}</th>`).join("")
+            }</tr></thead><tbody>`;
+            for (const row of rows) {
+              html += `<tr>${
+                varsList.map((v) => {
+                  const val = row[v];
+                  return `<td class="${val ? val.type : ""}">${
+                    val ? escapeHtml(formatValue(val)) : ""
+                  }</td>`;
+                }).join("")
+              }</tr>`;
+            }
+            html += `</tbody></table>`;
           }
-          html += `</tbody></table>`;
+          resultsEl.innerHTML = html;
+          break;
         }
-        resultsEl.innerHTML = html;
-        break;
-      }
-      case "ask": {
-        const b = response.data.boolean;
-        resultsEl.innerHTML =
-          `<span class="kind-badge kind-ask">ask</span> <span class="timing">${ms.toFixed(1)} ms</span>` +
-          `<div class="ask-box ${b ? "ask-true" : "ask-false"}">${b ? "true" : "false"}</div>`;
-        break;
-      }
-      case "construct": {
-        const quads = response.data.quads;
-        const ttl = serializeTurtle(quads);
-        resultsEl.innerHTML =
-          `<span class="kind-badge kind-construct">construct/describe</span> <span class="timing">${ms.toFixed(1)} ms · ${quads.length} quad${quads.length === 1 ? "" : "s"}</span>` +
-          (ttl ? `<pre class="out">${escapeHtml(ttl)}</pre>` : `<p class="note">no quads produced</p>`);
-        break;
-      }
-      case "void": {
-        resultsEl.innerHTML =
-          `<span class="kind-badge kind-void">update</span> <span class="timing">${ms.toFixed(1)} ms</span>` +
-          `<p>✔ Update applied — store now holds <strong>${store.size}</strong> quads.</p>` +
-          `<p class="note">Run a SELECT to verify, e.g. <code>SELECT ?s ?p ?o WHERE { ?s ?p ?o }</code>. Updates are in-memory for now; IndexedDB persistence lands post-v1.</p>`;
-        break;
-      }
-    }
-  }
-
-  // ---------- value formatting ----------
-  function formatValue(v) {
-    switch (v.type) {
-      case "uri": return v.value;
-      case "bnode": return `_:${v.value}`;
-      case "triple":
-        return `<< ${formatValue(v.value.subject)} ${formatValue(v.value.predicate)} ${formatValue(v.value.object)} >>`;
-      default: {
-        let s = `"${v.value}"`;
-        if (v["xml:lang"]) {
-          s += `@${v["xml:lang"]}`;
-          if (v["its:dir"]) s += `--${v["its:dir"]}`;
-        } else if (v.datatype && v.datatype !== XSD_STRING) {
-          s += `^^<${v.datatype}>`;
+        case "ask": {
+          const b = response.data.boolean;
+          resultsEl.innerHTML =
+            `<span class="kind-badge kind-ask">ask</span> <span class="timing">${
+              ms.toFixed(1)
+            } ms</span>` +
+            `<div class="ask-box ${b ? "ask-true" : "ask-false"}">${
+              b ? "true" : "false"
+            }</div>`;
+          break;
         }
-        return s;
+        case "construct": {
+          const quads = response.data.quads;
+          const ttl = serializeTurtle(quads);
+          resultsEl.innerHTML =
+            `<span class="kind-badge kind-construct">construct/describe</span> <span class="timing">${
+              ms.toFixed(1)
+            } ms · ${quads.length} quad${quads.length === 1 ? "" : "s"}</span>` +
+            (ttl
+              ? `<pre class="out">${escapeHtml(ttl)}</pre>`
+              : `<p class="note">no quads produced</p>`);
+          break;
+        }
+        case "void": {
+          resultsEl.innerHTML =
+            `<span class="kind-badge kind-void">update</span> <span class="timing">${
+              ms.toFixed(1)
+            } ms</span>` +
+            `<p>✔ Update applied — store now holds <strong>${store.size}</strong> quads.</p>` +
+            `<p class="note">Run a SELECT to verify, e.g. <code>SELECT ?s ?p ?o WHERE { ?s ?p ?o }</code>. Updates are in-memory for now; IndexedDB persistence lands post-v1.</p>`;
+          break;
+        }
       }
     }
-  }
 
-  function escapeHtml(s) {
-    return s.replace(/[&<>"']/g, (c) =>
-      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-  }
-
-  // ---------- export / copy ----------
-  function serializeCurrent() {
-    if (!lastResponse) return null;
-    switch (lastResponse.kind) {
-      case "select":
-      case "ask":
-        return serializeJsonResults(lastResponse);
-      case "construct":
-        return serializeTurtle(lastResponse.data.quads);
-      case "void":
-        return null;
+    // ---------- value formatting ----------
+    function formatValue(v) {
+      switch (v.type) {
+        case "uri":
+          return v.value;
+        case "bnode":
+          return `_:${v.value}`;
+        case "triple":
+          return `<< ${formatValue(v.value.subject)} ${
+            formatValue(v.value.predicate)
+          } ${formatValue(v.value.object)} >>`;
+        default: {
+          let s = `"${v.value}"`;
+          if (v["xml:lang"]) {
+            s += `@${v["xml:lang"]}`;
+            if (v["its:dir"]) s += `--${v["its:dir"]}`;
+          } else if (v.datatype && v.datatype !== XSD_STRING) {
+            s += `^^<${v.datatype}>`;
+          }
+          return s;
+        }
+      }
     }
-  }
 
-  $("copy-results").onclick = async () => {
-    const s = serializeCurrent();
-    if (s == null) return;
-    try {
-      await navigator.clipboard.writeText(s);
-    } catch {
-      /* clipboard unavailable (e.g. file://) — ignore */
+    function escapeHtml(s) {
+      return s.replace(
+        /[&<>"']/g,
+        (
+          c,
+        ) => ({
+          "&": "&amp;",
+          "<": "&lt;",
+          ">": "&gt;",
+          '"': "&quot;",
+          "'": "&#39;",
+        }[c]),
+      );
     }
-  };
 
-  $("export-results").onclick = () => {
-    const s = serializeCurrent();
-    if (s == null) return;
-    const ext = lastResponse.kind === "construct" ? "ttl" : "json";
-    const blob = new Blob([s], { type: "text/plain;charset=utf-8" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = `wazoo-results.${ext}`;
-    a.click();
-    URL.revokeObjectURL(a.href);
-  };
-
-  // ---------- share URLs (hash: dataset id + query) ----------
-  function b64(s) {
-    return btoa(unescape(encodeURIComponent(s))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-  }
-  function unb64(s) {
-    s = s.replace(/-/g, "+").replace(/_/g, "/");
-    while (s.length % 4) s += "=";
-    return decodeURIComponent(escape(atob(s)));
-  }
-
-  function updateShareHash(query) {
-    const id = currentDatasetId();
-    if (id === "custom") return; // only sample datasets are shareable
-    const q = b64(query);
-    history.replaceState(null, "", `#d=${id}&q=${q}`);
-  }
-
-  function restoreFromHash() {
-    const m = location.hash.match(/^#d=([a-z]+)&q=([A-Za-z0-9_-]+)$/);
-    if (!m) return false;
-    const id = m[1];
-    if (!(id in DATASETS)) return false;
-    selectDataset(id);
-    try {
-      queryInput.value = unb64(m[2]);
-    } catch {
-      /* ignore malformed */
+    // ---------- export / copy ----------
+    function serializeCurrent() {
+      if (!lastResponse) return null;
+      switch (lastResponse.kind) {
+        case "select":
+        case "ask":
+          return serializeJsonResults(lastResponse);
+        case "construct":
+          return serializeTurtle(lastResponse.data.quads);
+        case "void":
+          return null;
+      }
     }
-    return true;
-  }
 
-  // ---------- init ----------
-  $("run-query").onclick = runQuery;
-  queryInput.addEventListener("keydown", (ev) => {
-    if ((ev.ctrlKey || ev.metaKey) && ev.key === "Enter") {
-      ev.preventDefault();
-      runQuery();
+    $("copy-results").onclick = async () => {
+      const s = serializeCurrent();
+      if (s == null) return;
+      try {
+        await navigator.clipboard.writeText(s);
+      } catch {
+        /* clipboard unavailable (e.g. file://) — ignore */
+      }
+    };
+
+    $("export-results").onclick = () => {
+      const s = serializeCurrent();
+      if (s == null) return;
+      const ext = lastResponse.kind === "construct" ? "ttl" : "json";
+      const blob = new Blob([s], { type: "text/plain;charset=utf-8" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `wazoo-results.${ext}`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    };
+
+    // ---------- share URLs (hash: dataset id + query) ----------
+    function b64(s) {
+      return btoa(unescape(encodeURIComponent(s))).replace(/\+/g, "-").replace(
+        /\//g,
+        "_",
+      ).replace(/=+$/, "");
     }
-  });
+    function unb64(s) {
+      s = s.replace(/-/g, "+").replace(/_/g, "/");
+      while (s.length % 4) s += "=";
+      return decodeURIComponent(escape(atob(s)));
+    }
 
-  if (!restoreFromHash()) {
-    selectDataset("foaf");
-  }
-  loadDataset();
-</script>
-</body>
+    function updateShareHash(query) {
+      const id = currentDatasetId();
+      if (id === "custom") return; // only sample datasets are shareable
+      const q = b64(query);
+      history.replaceState(null, "", `#d=${id}&q=${q}`);
+    }
+
+    function restoreFromHash() {
+      const m = location.hash.match(/^#d=([a-z]+)&q=([A-Za-z0-9_-]+)$/);
+      if (!m) return false;
+      const id = m[1];
+      if (!(id in DATASETS)) return false;
+      selectDataset(id);
+      try {
+        queryInput.value = unb64(m[2]);
+      } catch {
+        /* ignore malformed */
+      }
+      return true;
+    }
+
+    // ---------- init ----------
+    $("run-query").onclick = runQuery;
+    queryInput.addEventListener("keydown", (ev) => {
+      if ((ev.ctrlKey || ev.metaKey) && ev.key === "Enter") {
+        ev.preventDefault();
+        runQuery();
+      }
+    });
+
+    if (!restoreFromHash()) {
+      selectDataset("foaf");
+    }
+    loadDataset();
+    </script>
+  </body>
 </html>

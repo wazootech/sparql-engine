@@ -45,7 +45,7 @@ jobs:
       # rouge) — all shipped by the github-pages gem.
       - uses: ruby/setup-ruby@v1
         with:
-          ruby-version: '3.2'
+          ruby-version: "3.2"
       - name: Install the GitHub Pages gem
         run: gem install github-pages --no-document
       - name: Build the wiki

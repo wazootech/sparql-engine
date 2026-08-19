@@ -8,8 +8,8 @@
  */
 export {
   MemoryStore,
-  WazooSparqlEngine,
   parseTurtleQuads,
   serializeJsonResults,
   serializeTurtle,
+  WazooSparqlEngine,
 } from "jsr:@wazoo/sparql-engine@0.4.1";

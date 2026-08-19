@@ -33,6 +33,12 @@
     "@types/node": "npm:@types/node@^22.10.0"
   },
   "nodeModulesDir": "auto",
+  "fmt": {
+    "exclude": ["playground/app.js"]
+  },
+  "lint": {
+    "exclude": ["playground/app.js"]
+  },
   "tasks": {
     "bundle": "deno bundle --minify playground/bundle-entry.ts -o playground/app.js",
     "bench": "deno bench --allow-all",
