@@ -50,7 +50,6 @@
     "bench:latency:check": "BENCH_INVENTORY=1 deno bench --allow-all --json bench/engine_bench.ts | deno run --allow-read bench/latency-check.ts",
     "check": "deno check",
     "docs:link-check": "deno run --allow-read --allow-net docs/link-check.ts",
-    "interface-parity": "deno run --allow-read --allow-net test/interface-parity.ts",
     "ci": {
       "description": "Formats, lints, checks, and tests the code",
       "dependencies": [

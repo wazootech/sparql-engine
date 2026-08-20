@@ -51,11 +51,9 @@ only shipped engine. `WazooSparqlTransaction` mirrors the structural shape of
 `@worlds/sdk`'s `Transaction`, so durable backends can pass their existing
 transaction objects.
 
-The interface is intentionally duplicated in `@worlds/sdk` under an
-identical-spec policy: the two copies must stay identical (gated by
-`deno task interface-parity`). Behavioral deltas vs the retired adapter:
-`ComunicaSparqlEngine` enforced `timeoutMs` and accepted a request-level
-`baseIri`; the wazoo engine honors request `baseIri` (the query's `BASE`
-directive wins when both are present — decision #117, Fork B) and does not yet
-enforce a timeout (tracked in #122). Keep these differences in mind when
-swapping engines.
+`@worlds/sdk` re-exports these types from `@wazoo/sparql-engine` (no
+duplication). Behavioral deltas vs the retired adapter: `ComunicaSparqlEngine`
+enforced `timeoutMs` and accepted a request-level `baseIri`; the wazoo engine
+honors request `baseIri` (the query's `BASE` directive wins when both are
+present — decision #117, Fork B) and does not yet enforce a timeout (tracked in
+#122). Keep these differences in mind when swapping engines.
