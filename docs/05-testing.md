@@ -21,10 +21,9 @@ Typecheck + lint + fmt + parser     deno task check / lint / fmt:check / parser:
 Every layer runs in CI (`.github/workflows/ci.yml`): the `ci` job runs
 `deno task ci` (plus explicit `test:exists-ref` and `publish:dry` steps),
 `w3c-parity` runs `deno task test:w3c` + `deno task test:exists-ref`,
-`interface-parity` gates the shared interface spec, `latency-snapshot` re-checks
-the committed bench inventory, `docs-drift` enforces the wiki's `detail_level`
-guardrail (`L<line>` citations fail), `docs-links` fails on wiki link rot, and
-`publish.yml` gates `deno publish`.
+`latency-snapshot` re-checks the committed bench inventory, `docs-drift`
+enforces the wiki's `detail_level` guardrail (`L<line>` citations fail),
+`docs-links` fails on wiki link rot, and `publish.yml` gates `deno publish`.
 
 ## Task reference
 
@@ -45,7 +44,6 @@ guardrail (`L<line>` citations fail), `docs-links` fails on wiki link rot, and
 | `deno task ci`                  | —                              | All of the above in dependency order                                                                                  | ci job                     |
 | `deno task test:w3c`            | `test/w3c/w3c-main.ts`         | [SPARQL 1.1](https://www.w3.org/TR/sparql11-query/) evaluation-core differential vs [Comunica](https://comunica.dev/) | w3c-parity job             |
 | `deno task docs:link-check`     | `docs/link-check.ts`           | Wiki link rot: every external markdown link (JSR/GitHub/W3C/…) must resolve (404/410 fails)                           | docs-links job             |
-| `deno task interface-parity`    | `test/interface-parity.ts`     | `src/sparql-engine-interface.ts` matches `@worlds/sdk`'s copy (line endings normalized)                               | interface-parity job       |
 | `deno task bench:latency:check` | `bench/latency-check.ts`       | Committed `bench/latency-data.json` bench inventory matches a fresh run                                               | latency-snapshot job       |
 | `deno task test:ref`            | `test/w3c/ref-crosscheck.ts`   | Allowlisted divergence audit vs Oxigraph + N3.js                                                                      | manual (on grammar change) |
 | `deno task bench`               | `deno bench --allow-all`       | Three-engine benchmarks                                                                                               | manual                     |
