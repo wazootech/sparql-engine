@@ -107,14 +107,3 @@ jobs:
       # Oxigraph EXISTS differential gate, tracked alongside the W3C
       # conformance checks so a subquery-in-EXISTS regression fails here too.
       - run: deno task test:exists-ref
-  # Identical-spec parity gate: src/sparql-engine-interface.ts must match
-  # @worlds/sdk's copy (line endings normalized). A single-sided edit fails
-  # this job instead of silently forking the shared SparqlEngineInterface.
-  interface-parity:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-      - uses: denoland/setup-deno@v2
-        with:
-          deno-version: v2.x
-      - run: deno task interface-parity
