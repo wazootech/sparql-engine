@@ -41,6 +41,17 @@ Deno.test("termKey agrees with sameRdfTerm on term identity", () => {
     quad(ex("s"), ex("p"), literal("o")),
     quad(ex("s"), ex("p"), literal("other")),
     quad(quad(ex("s1"), ex("p1"), ex("o1")), ex("p"), literal("nested")),
+    literal("a|b"),
+    literal("a", "b"),
+    literal("a\\|b"),
+    literal("a\\b"),
+    namedNode("http://x/a|b"),
+    blankNode("a|b"),
+    literal("a", namedNode("http://x/|")),
+    quad(ex("s"), ex("p"), literal("a|b")),
+    quad(ex("s"), ex("p"), literal("a", "b")),
+    quad(namedNode("a"), namedNode("x|uri:y"), namedNode("z")),
+    quad(namedNode("a"), namedNode("x"), namedNode("y|uri:z")),
   ];
   for (let i = 0; i < terms.length; i++) {
     for (let j = 0; j < terms.length; j++) {
@@ -51,6 +62,48 @@ Deno.test("termKey agrees with sameRdfTerm on term identity", () => {
       );
     }
   }
+});
+
+Deno.test("termKey escapes delimiters so term values can never collide", () => {
+  // Regression: `"a|b"` (plain literal) and `"a"` with language `b` both
+  // used to render `literal:a|b||` and collide onto the same key.
+  const pipeInValue = literal("a|b");
+  const pipeAsLang = literal("a", "b");
+  assertNotEquals(termKey(pipeInValue), termKey(pipeAsLang));
+
+  // Backslash is escaped before pipe so a literal backslash + pipe cannot
+  // mimic an escaped pipe.
+  const backslashThenPipe = literal("a\\|b");
+  const plainBackslash = literal("a\\b");
+  assertNotEquals(termKey(backslashThenPipe), termKey(plainBackslash));
+  assertNotEquals(termKey(backslashThenPipe), termKey(literal("a|b")));
+
+  // Delimiters in non-literal term values and datatype URIs stay distinct.
+  assertNotEquals(
+    termKey(namedNode("http://x/a|b")),
+    termKey(namedNode("http://x/a")),
+  );
+  assertNotEquals(termKey(blankNode("a|b")), termKey(blankNode("a")));
+  assertNotEquals(
+    termKey(literal("a", namedNode("http://x/|"))),
+    termKey(literal("a", namedNode("http://x/"))),
+  );
+
+  // RDF-star nesting composes safely.
+  assertNotEquals(
+    termKey(quad(ex("s"), ex("p"), literal("a|b"))),
+    termKey(quad(ex("s"), ex("p"), literal("a", "b"))),
+  );
+
+  // Pre-fix, these two distinct RDF-star terms rendered the identical key
+  // because `|` inside a term value could be read as a field separator:
+  //   quad(namedNode("a"), namedNode("x|uri:y"), namedNode("z"))
+  //   quad(namedNode("a"), namedNode("x"), namedNode("y|uri:z"))
+  // both encoded to `quad:uri:a|uri:x|uri:y|uri:z`.
+  assertNotEquals(
+    termKey(quad(namedNode("a"), namedNode("x|uri:y"), namedNode("z"))),
+    termKey(quad(namedNode("a"), namedNode("x"), namedNode("y|uri:z"))),
+  );
 });
 
 Deno.test("canonicalize agrees across the RDF/JS and SparqlValue representations", () => {

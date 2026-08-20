@@ -6,20 +6,32 @@ import type * as rdfjs from "@rdfjs/types";
  * nesting handled recursively. Two terms produce the same key exactly when
  * they are the same RDF term, so termKey is a sound hash-index key.
  */
+/**
+ * escapeTermValue escapes the characters reserved by the termKey
+ * serialization (the `|` field separators and the \` escape marker) so
+ * that distinct term values can never render the same key. Backslash is
+ * escaped first so escape sequences themselves stay unambiguous.
+ */
+function escapeTermValue(value: string): string {
+  return value.replaceAll("\\", "\\\\").replaceAll("|", "\\|");
+}
+
 export function termKey(term: rdfjs.Term): string {
   switch (term.termType) {
     case "NamedNode":
-      return `uri:${term.value}`;
+      return `uri:${escapeTermValue(term.value)}`;
     case "BlankNode":
-      return `bnode:${term.value}`;
+      return `bnode:${escapeTermValue(term.value)}`;
     case "Variable":
-      return `var:${term.value}`;
+      return `var:${escapeTermValue(term.value)}`;
     case "DefaultGraph":
       return "default";
     case "Literal":
       return (
-        `literal:${term.value}|${term.language ?? ""}|` +
-        `${term.direction ?? ""}|${term.datatype?.value ?? ""}`
+        `literal:${escapeTermValue(term.value)}|` +
+        `${escapeTermValue(term.language ?? "")}|` +
+        `${escapeTermValue(term.direction ?? "")}|` +
+        `${escapeTermValue(term.datatype?.value ?? "")}`
       );
     case "Quad":
       return (
