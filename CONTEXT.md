@@ -5,8 +5,8 @@
 - **SparqlEngineInterface** — the shared execution contract
   (`execute(request) => Promise<SparqlResponse>`) that `WazooSparqlEngine`
   implements and `@worlds/sdk`'s durable client factories wire into every `Sdk`.
-  The interface is duplicated identically in `@worlds/sdk` under an
-  identical-spec policy; reconcile any drift deliberately.
+  The interface lives in this repo as the single source of truth; `@worlds/sdk`
+  re-exports it from `@wazoo/sparql-engine`.
 - **ComunicaSparqlEngine** — the retired `@worlds/sdk` adapter
   (`@worlds/sdk/comunica`) that `WazooSparqlEngine` used to mirror as a drop-in
   replacement. The SDK removed the adapter on 2026-08-17; Comunica now lives on
