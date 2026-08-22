@@ -137,3 +137,16 @@ nothing in the wiki. If the `AGENTS.md` directive opts into `line-numbers`,
 `measurements`, or `full`, run the full-tree verification passes (Steps 3–4 with
 the opt-in sub-steps) every few source merges — incremental passes miss drift
 that accumulates in line citations and snapshot tables.
+
+## Scheduled syncs
+
+A GitHub Actions workflow (`.github/workflows/wiki-sync.yml`, installed from the
+copy-to-install template shipped with the `wiki-sync` skill) drives this
+procedure unattended. It gates on the Step 1 quiet check, reuses an open
+`docs/sync-ci` pull request instead of stacking branches, and lands all edits as
+one `github-actions[bot]` commit whose `.sync-base` bump anchors the wiki on
+merge; interrupted runs leave the anchor untouched. Trigger runs manually via
+_Actions → Wiki sync → Run workflow_ until dogfooded loops prove out, then
+enable the weekly cron in the workflow's commented schedule block. The workflow
+invokes the [Pi](https://pi.dev/) coding agent, which resolves its model from
+whichever provider key is configured as a repository secret.
