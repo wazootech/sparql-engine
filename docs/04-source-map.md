@@ -32,7 +32,10 @@ sparql-engine/
 │   └── w3c/                  W3C SPARQL 1.1/1.2 + RDF 1.1/1.2 gates, fixtures/
 ├── bench/                    benchmarks + regression budget
 ├── docs/                     this wiki
-└── .github/workflows/        ci.yml (ci, w3c-parity, docs-drift, docs-links jobs), publish.yml
+├── playground/               browser SPARQL playground (static page + bundle)
+└── .github/workflows/        ci.yml (ci, w3c-parity, latency-snapshot,
+                              docs-drift, docs-links jobs), pages.yml
+                              (GitHub Pages deploy), publish.yml
 ```
 
 ## `src/` — the package
