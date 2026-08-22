@@ -77,6 +77,27 @@ jobs:
         if: steps.state.outputs.relevant == 'false'
         run: echo "Nothing to sync; stopping cleanly."
 
+      # This repo does not vendor the skill; fetch it pinned to a
+      # wazootech/wiki commit so prompts stay reproducible.
+      - name: Resolve skill prompt file
+        id: skill
+        if: steps.state.outputs.relevant == 'true'
+        env:
+          SKILL_PIN: 884b8eccaa98b5e003aa7a3d1e78e58f8ad65fb0
+        run: |
+          LOCAL="skills/wiki-sync/SKILL.md"
+          if [ -f "$LOCAL" ]; then
+            echo "path=$LOCAL" >> "$GITHUB_OUTPUT"
+            echo "Using vendored $LOCAL"
+          else
+            DEST="$RUNNER_TEMP/wiki-sync-SKILL.md"
+            curl -fsSL \
+              "https://raw.githubusercontent.com/wazootech/wiki/$SKILL_PIN/$LOCAL" \
+              -o "$DEST"
+            echo "path=$DEST" >> "$GITHUB_OUTPUT"
+            echo "Fetched skill at pinned commit $SKILL_PIN"
+          fi
+
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
@@ -87,21 +108,27 @@ jobs:
       # below; OPENAI_API_KEY, GEMINI_API_KEY, ... equally valid — set the
       # chosen key as a repository secret of the same name).
       # Alternative wirings (OpenCode, Claude Code, Codex) live in the
-      # upstream template: skills/wiki-sync/workflows/wiki-sync.yml.
+      # upstream template: skills/wiki-sync/workflows/wiki-sync.yml in
+      # wazootech/wiki.
       #
-      # The skill file IS the prompt: follow skills/wiki-sync/SKILL.md end
-      # to end against THIS checkout, editing only docs/, leaving ALL
-      # changes uncommitted (no git add/commit/push, no PRs) — the workflow
-      # owns committing and PR creation below.
+      # The skill file IS the prompt (resolved to SKILL_PATH above): follow
+      # it end to end against THIS checkout, editing only docs/, leaving
+      # ALL changes uncommitted (no git add/commit/push, no PRs) — the
+      # workflow owns committing and PR creation below.
       # =====================================================================
       - name: Run wiki-sync via Pi
         if: steps.state.outputs.relevant == 'true'
         env:
           BASE: ${{ steps.state.outputs.base }}
+          SKILL_PATH: ${{ steps.skill.outputs.path }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
           curl -fsSL https://pi.dev/install.sh | sh
-          PROMPT="$(cat skills/wiki-sync/SKILL.md)
+          if [ -z "$ANTHROPIC_API_KEY" ]; then
+            echo "::error::ANTHROPIC_API_KEY is not set; add a provider API key as the ANTHROPIC_API_KEY repository secret so Pi can run the sync agent."
+            exit 1
+          fi
+          PROMPT="$(cat "$SKILL_PATH")
             Follow this skill end to end for THIS checkout. Base commit:
             ${BASE}. Edit only docs/; bump docs/.sync-base last, after the
             skill's Step 8 validation passes. Leave all changes
