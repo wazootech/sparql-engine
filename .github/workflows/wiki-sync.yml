@@ -1,8 +1,15 @@
-# Wiki sync — scheduled CI driver for the wiki-sync skill.
+# Wiki sync — optional CI layer for the wiki-sync skill.
 #
 # Instantiated for wazootech/sparql-engine from skills/wiki-sync/workflows/
 # wiki-sync.yml in wazootech/wiki (copy-to-install; local customizations:
 # Deno toolchain, docs validation step, Pi wiring enabled).
+#
+# The default wiki-sync posture is local generation: an agent runs the skill
+# directly in a checkout that already holds its model credentials. This
+# workflow is an extra layer — dispatch it manually when you want CI to run
+# the same procedure. Scheduling is intentionally absent: recurring runs need
+# a provider credential available every cycle; add a cron only if that
+# changes.
 #
 # Contract (skills/wiki-sync/SKILL.md, "Scheduled syncs (CI)"):
 # - Exits cheaply when no wiki-relevant source changed since docs/.sync-base.
@@ -12,16 +19,11 @@
 #   leave the anchor untouched and the next run redoes the delta.
 # - Verification rides the PR via this repo's CI (ci.yml: docs-drift,
 #   docs-links, deno task ci); humans merge.
-#
-# Trigger: workflow_dispatch only until the first manual runs prove the loop;
-# then uncomment the weekly cron below.
 
 name: Wiki sync
 
 on:
   workflow_dispatch:
-  # schedule:
-  #   - cron: "0 6 * * 1"
 
 permissions:
   contents: write
@@ -103,13 +105,14 @@ jobs:
           deno-version: v2.x
 
       # =====================================================================
-      # AGENT WIRING — Pi, provider-agnostic: Pi resolves its model from
-      # whichever provider key the environment carries (ANTHROPIC_API_KEY
-      # below; OPENAI_API_KEY, GEMINI_API_KEY, ... equally valid — set the
-      # chosen key as a repository secret of the same name).
-      # Alternative wirings (OpenCode, Claude Code, Codex) live in the
-      # upstream template: skills/wiki-sync/workflows/wiki-sync.yml in
-      # wazootech/wiki.
+      # AGENT WIRING — harness/provider is the maintainer's choice; this
+      # instantiation ships with Pi (provider-agnostic: it resolves its
+      # model from whichever provider key the environment carries). For
+      # local development we use OpenCode — swap to its wiring from the
+      # upstream template (skills/wiki-sync/workflows/wiki-sync.yml in
+      # wazootech/wiki) if you prefer the same harness in CI.
+      # Set whichever provider key your chosen wiring reads as a repository
+      # secret of the same name.
       #
       # The skill file IS the prompt (resolved to SKILL_PATH above): follow
       # it end to end against THIS checkout, editing only docs/, leaving

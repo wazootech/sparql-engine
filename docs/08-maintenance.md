@@ -140,13 +140,18 @@ that accumulates in line citations and snapshot tables.
 
 ## Scheduled syncs
 
-A GitHub Actions workflow (`.github/workflows/wiki-sync.yml`, installed from the
-copy-to-install template shipped with the `wiki-sync` skill) drives this
-procedure unattended. It gates on the Step 1 quiet check, reuses an open
-`docs/sync-ci` pull request instead of stacking branches, and lands all edits as
-one `github-actions[bot]` commit whose `.sync-base` bump anchors the wiki on
-merge; interrupted runs leave the anchor untouched. Trigger runs manually via
-_Actions → Wiki sync → Run workflow_ until dogfooded loops prove out, then
-enable the weekly cron in the workflow's commented schedule block. The workflow
-invokes the [Pi](https://pi.dev/) coding agent, which resolves its model from
-whichever provider key is configured as a repository secret.
+The default sync posture is **local generation** — an agent runs the `wiki-sync`
+skill directly in a checkout that already holds its model credentials, on demand
+after source changes land. Following the software-factory pattern of build value
+locally, then move to the cloud, CI is an opt-in extra layer rather than the
+primary path: `.github/workflows/wiki-sync.yml` (installed from the
+copy-to-install template shipped with the skill) wraps the same procedure for
+manual dispatch via _Actions → Wiki sync → Run workflow_. It gates on the Step 1
+quiet check, reuses an open `docs/sync-ci` pull request instead of stacking
+branches, and lands all edits as one `github-actions[bot]` commit whose
+`.sync-base` bump anchors the wiki on merge; interrupted runs leave the anchor
+untouched. No schedule is configured — recurring runs need a provider credential
+available every cycle, so add a cron only if that changes. The agent harness and
+provider are the maintainer's choice (the instantiation ships with
+[Pi](https://pi.dev/); we use OpenCode locally), selected by whichever key is
+configured as a repository secret.
