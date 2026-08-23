@@ -81,16 +81,12 @@ jobs:
         run: echo "Nothing to sync; stopping cleanly."
 
       # This repo does not vendor the skill; fetch it pinned to a
-      # wazootech/wiki commit so prompts stay reproducible. NOTE: the pin
-      # below predates the wiki-sync consolidation into
-      # skills/wiki/references/sync.md — bump it to the first
-      # wazootech/wiki main commit containing that file when landing this
-      # change (merge order: wazootech/wiki first, then here).
+      # wazootech/wiki commit so prompts stay reproducible.
       - name: Resolve skill prompt file
         id: skill
         if: steps.state.outputs.relevant == 'true'
         env:
-          SKILL_PIN: 884b8eccaa98b5e003aa7a3d1e78e58f8ad65fb0
+          SKILL_PIN: b730f9e48ae93589a8da65ec423c321d212912bd
         run: |
           LOCAL="skills/wiki/references/sync.md"
           if [ -f "$LOCAL" ]; then
