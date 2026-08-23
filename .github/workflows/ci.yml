@@ -43,7 +43,7 @@ jobs:
           deno-version: v2.x
       - if: steps.bench-changed.outputs.bench == 'true'
         run: deno task bench:latency:check
-  # Wiki drift guardrail (wiki-sync detail_level: minimal): the wiki declares
+  # Wiki drift guardrail (wiki sync detail_level: minimal): the wiki declares
   # its detail level in AGENTS.md and must never re-introduce L<line>
   # citations — the drift-prone artifact the minimal default removes. Greps
   # docs/*.md only; committed SVG charts (regenerated artifacts) are out of
@@ -63,7 +63,7 @@ jobs:
       - if: steps.docs-changed.outputs.docs == 'true'
         run: |
           grep -q "detail_level" AGENTS.md \
-            || { echo "AGENTS.md must declare the wiki-sync detail_level (see the wiki-sync skill)"; exit 1; }
+            || { echo "AGENTS.md must declare the wiki sync detail_level (see the wiki skill's sync reference)"; exit 1; }
           hits=$(grep -rnE "\bL[0-9]+\b" docs --include="*.md" | grep -v sync-base || true)
           if [ -n "$hits" ]; then
             echo "L<line> citations found in docs/ — forbidden under detail_level: minimal:"

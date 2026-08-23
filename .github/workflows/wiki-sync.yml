@@ -1,7 +1,8 @@
-# Wiki sync — optional CI layer for the wiki-sync skill.
+# Wiki sync — optional CI layer for the wiki skill's sync reference.
 #
-# Instantiated for wazootech/sparql-engine from skills/wiki-sync/workflows/
-# wiki-sync.yml in wazootech/wiki (copy-to-install; local customizations:
+# Instantiated for wazootech/sparql-engine from
+# skills/wiki/references/workflow-template-wiki-sync.yml in wazootech/wiki
+# (copy-to-install; local customizations:
 # Deno toolchain, docs validation step, Pi wiring enabled).
 #
 # The default wiki-sync posture is local generation: an agent runs the skill
@@ -11,7 +12,7 @@
 # a provider credential available every cycle; add a cron only if that
 # changes.
 #
-# Contract (skills/wiki-sync/SKILL.md, "Scheduled syncs (CI)"):
+# Contract (skills/wiki/references/sync.md, "Scheduled syncs (CI)"):
 # - Exits cheaply when no wiki-relevant source changed since docs/.sync-base.
 # - Resumes an open docs/sync-ci PR; new deltas force-push onto it.
 # - The agent bumps docs/.sync-base inside the single docs-only commit this
@@ -80,14 +81,18 @@ jobs:
         run: echo "Nothing to sync; stopping cleanly."
 
       # This repo does not vendor the skill; fetch it pinned to a
-      # wazootech/wiki commit so prompts stay reproducible.
+      # wazootech/wiki commit so prompts stay reproducible. NOTE: the pin
+      # below predates the wiki-sync consolidation into
+      # skills/wiki/references/sync.md — bump it to the first
+      # wazootech/wiki main commit containing that file when landing this
+      # change (merge order: wazootech/wiki first, then here).
       - name: Resolve skill prompt file
         id: skill
         if: steps.state.outputs.relevant == 'true'
         env:
           SKILL_PIN: 884b8eccaa98b5e003aa7a3d1e78e58f8ad65fb0
         run: |
-          LOCAL="skills/wiki-sync/SKILL.md"
+          LOCAL="skills/wiki/references/sync.md"
           if [ -f "$LOCAL" ]; then
             echo "path=$LOCAL" >> "$GITHUB_OUTPUT"
             echo "Using vendored $LOCAL"
@@ -109,7 +114,7 @@ jobs:
       # instantiation ships with Pi (provider-agnostic: it resolves its
       # model from whichever provider key the environment carries). For
       # local development we use OpenCode — swap to its wiring from the
-      # upstream template (skills/wiki-sync/workflows/wiki-sync.yml in
+      # upstream template (skills/wiki/references/workflow-template-wiki-sync.yml in
       # wazootech/wiki) if you prefer the same harness in CI.
       # Set whichever provider key your chosen wiring reads as a repository
       # secret of the same name.

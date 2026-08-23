@@ -9,10 +9,9 @@ This wiki is kept in sync with the source tree by a **Git-anchored delta
 process** (the approach LangChain's OpenWiki uses for documentation
 maintenance): the last-synced commit is the anchor, Git history is diffed
 forward, and only the pages the diff touches get edited. The procedure below is
-codified as a reusable skill (`wiki-sync` in
-`repos/wiki/skills/wiki-sync/SKILL.md` in the Wazoo wiki toolchain repo,
-alongside the `wiki` and `wiki-feedback` skills) so syncing docs after source
-changes is a command, not a prompt.
+codified as a routed reference in the `wiki` skill
+(`repos/wiki/skills/wiki/references/sync.md` in the Wazoo wiki toolchain repo)
+so syncing docs after source changes is a command, not a prompt.
 
 **This wiki uses the drift-free default (`detail_level: minimal`), declared in
 this repo's `AGENTS.md`.** `docs/` carries no line numbers, no machine-specific
@@ -140,18 +139,18 @@ that accumulates in line citations and snapshot tables.
 
 ## Scheduled syncs
 
-The default sync posture is **local generation** — an agent runs the `wiki-sync`
-skill directly in a checkout that already holds its model credentials, on demand
-after source changes land. Following the software-factory pattern of build value
-locally, then move to the cloud, CI is an opt-in extra layer rather than the
-primary path: `.github/workflows/wiki-sync.yml` (installed from the
-copy-to-install template shipped with the skill) wraps the same procedure for
-manual dispatch via _Actions → Wiki sync → Run workflow_. It gates on the Step 1
-quiet check, reuses an open `docs/sync-ci` pull request instead of stacking
-branches, and lands all edits as one `github-actions[bot]` commit whose
-`.sync-base` bump anchors the wiki on merge; interrupted runs leave the anchor
-untouched. No schedule is configured — recurring runs need a provider credential
-available every cycle, so add a cron only if that changes. The agent harness and
-provider are the maintainer's choice (the instantiation ships with
+The default sync posture is **local generation** — an agent runs the wiki
+skill's sync reference directly in a checkout that already holds its model
+credentials, on demand after source changes land. Following the software-factory
+pattern of build value locally, then move to the cloud, CI is an opt-in extra
+layer rather than the primary path: `.github/workflows/wiki-sync.yml` (installed
+from the copy-to-install template shipped alongside that reference) wraps the
+same procedure for manual dispatch via _Actions → Wiki sync → Run workflow_. It
+gates on the Step 1 quiet check, reuses an open `docs/sync-ci` pull request
+instead of stacking branches, and lands all edits as one `github-actions[bot]`
+commit whose `.sync-base` bump anchors the wiki on merge; interrupted runs leave
+the anchor untouched. No schedule is configured — recurring runs need a provider
+credential available every cycle, so add a cron only if that changes. The agent
+harness and provider are the maintainer's choice (the instantiation ships with
 [Pi](https://pi.dev/); we use OpenCode locally), selected by whichever key is
 configured as a repository secret.
