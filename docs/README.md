@@ -98,10 +98,10 @@ LangChain's OpenWiki uses): `docs/.sync-base` records the last-synced commit,
 and syncing means diffing `origin/main` forward from that anchor and editing
 only the affected pages — never regenerating. The procedure — structure verified
 from `git ls-tree` and `deno doc --json`; this wiki uses the drift-free
-`detail_level: minimal` style, so no line numbers or counts — is codified as the
-`wiki-sync` skill and documented on [08 — Wiki Maintenance](08-maintenance.md).
-If you land a source change, sync the wiki the same way — it is a command, not a
-prompt.
+`detail_level: minimal` style, so no line numbers or counts — is codified in the
+wiki skill's sync reference and documented on
+[08 — Wiki Maintenance](08-maintenance.md). If you land a source change, sync
+the wiki the same way — it is a command, not a prompt.
 
 ## GitHub Pages setup
 
