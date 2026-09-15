@@ -40,8 +40,19 @@ jobs:
       - name: Publish to JSR
         if: steps.release-check.outputs.match == 'false'
         run: |
+          # Capture without losing the failure: under the step's default
+          # `bash -e`, `output=$(deno publish 2>&1)` aborts the script before
+          # echo when publish exits nonzero, which silently discarded the
+          # actual error (the 0.4.2 release failed twice with no output).
+          set +e
           output=$(deno publish 2>&1)
+          status=$?
+          set -e
           echo "$output"
+          if [ "$status" -ne 0 ]; then
+            echo "::error::deno publish failed with exit $status (full output above)."
+            exit 1
+          fi
           if echo "$output" | grep -q "already published"; then
             echo "::error::deno publish skipped even though local version ${{ steps.release-check.outputs.version }} differs from published ${{ steps.release-check.outputs.published }}. Investigate before merging to main."
             exit 1
