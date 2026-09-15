@@ -86,22 +86,22 @@ chain penalty.
 
 ## `deno task bench:check` — regression budget
 
-`bench/budget.ts` is the CI perf gate. It runs two queries — a 2-pattern BGP
-join and the reorder chain — 50× each against a 100-subject store and fails if
-the average latency exceeds the budget in `bench/baseline.json`:
+`bench/budget.ts` is the CI perf gate. It runs four queries — a 2-pattern BGP
+join, the reorder chain, an EXISTS filter, and a nested EXISTS filter — 50× each
+after a short warmup, against a 100-subject store, and fails if any row's
+average latency exceeds that row's `budgetMs` ceiling (the budgets live as
+per-test values in `bench/budget.ts`; `bench/baseline.json` records the
+durable-store comparison and does not gate this task).
 
-```json
-{
-  "maxAllowedMs": 50.0,
-  "maxRegressionRatio": 0.15
-}
-```
-
-A change fails the gate if either query averages more than `maxAllowedMs` (50
-ms) or regresses more than `maxRegressionRatio` (15%) versus the recorded
-baseline. Tune `bench/baseline.json` deliberately: raise `maxAllowedMs` only for
-hardware-dependent thresholds, and re-baseline via the recorded average when a
-measured improvement lands.
+Budgets are calibrated to the GitHub Actions runner — the environment the gate
+actually runs in — at roughly 2.5–3× the **median** of recent main-branch CI
+runs, with headroom over the slowest observed run. CI runners vary widely, so a
+single-run calibration under-budgets noise: the chain row was originally
+calibrated from one lucky-fast run, and a later noise-slowed runner red-gated a
+PR whose code an A/B benchmark proved at parity. Recalibrate only from the
+median of main-branch CI history — never from one run, and never from a local
+machine (~3× faster than CI); catastrophic algorithmic regressions (≥3×) still
+trip every row instantly.
 
 ## `bench/concurrency-probe.ts` — EXISTS concurrency stress
 

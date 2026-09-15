@@ -8,15 +8,25 @@ interface BudgetTest {
   name: string;
   query: string;
   /**
-   * Per-test ceiling in ms/iter, calibrated to ~2.5x the baseline measured on the
-   * GitHub Actions runner (the environment bench:check actually gates in), so a
-   * ~3x regression on any row trips the gate while run-to-run CI noise passes.
+   * Per-test ceiling in ms/iter, calibrated to ~2.5-3x the median measured
+   * on the GitHub Actions runner (the environment bench:check actually gates
+   * in), so a ~3x regression on any row trips the gate while run-to-run CI
+   * noise passes.
    *
-   * CI-runner baselines (ms/iter, 50-iteration loop after 5-iteration warmup):
-   *   BGP 2-pattern join: 1.30 -> budget 3.5 (~2.7x)
-   *   Reorder chain join: 0.82 -> budget 2.0 (~2.4x)
-   *   EXISTS filter:      1.16 -> budget 3.0 (~2.6x)
-   *   Nested EXISTS:      1.61 -> budget 4.0 (~2.5x)
+   * Calibration must come from the MEDIAN of recent main-branch CI runs, not
+   * a single run: runner hardware varies widely (issue #203 investigation).
+   * Main-branch CI history (14 runs, Aug 2026, ms/iter, median -> observed max):
+   *   BGP 2-pattern join: 1.25 -> 2.79, budget 3.5 (~2.8x median, 1.3x max)
+   *   Reorder chain join: 1.02 -> 1.98, budget 2.5 (~2.5x median, 1.3x max)
+   *   EXISTS filter:      0.94 -> 1.59, budget 3.0 (~3.2x median, 1.9x max)
+   *   Nested EXISTS:      1.44 -> 2.58, budget 4.0 (~2.8x median, 1.6x max)
+   *
+   * The chain row's original 2.0 ceiling was calibrated from one lucky-fast
+   * run (0.82); main itself later measured 1.98 — within 1.2% of tripping —
+   * and a noise-slowed CI runner (all four rows inflated together, code A/B
+   * -verified at parity) pushed it to 2.62 and red-gated PR #203. Budgets
+   * must clear the slowest observed main run, not the median, or noise beats
+   * the gate before any regression does.
    *
    * Note: GitHub runners are ~3x slower than a quiet dev machine (this machine
    * measures the same rows at 0.3-0.5 ms), so budgets must not be calibrated
@@ -41,7 +51,7 @@ const tests: BudgetTest[] = [
     name: "Reorder chain join",
     query:
       "SELECT ?s WHERE { ?s <http://example.org/p1> ?o1 . ?o1 <http://example.org/p2> ?o2 }",
-    budgetMs: 2.0,
+    budgetMs: 2.5,
   },
   {
     name: "EXISTS filter",
