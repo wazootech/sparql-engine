@@ -566,4 +566,9 @@ bumped** to something newer than the published latest:
   expected, not an error.
 
 To ship a release, bump `version` in `deno.json` (minor for additive public API,
-patch for fixes) in the same PR that should publish.
+patch for fixes) in the same PR that should publish. One caveat, learned when
+the 0.4.2 release failed to ship twice
+([#206](https://github.com/wazootech/sparql-engine/pull/206)): any pinned
+`jsr:@wazoo/sparql-engine@<version>` import (the playground bundle pins one)
+must have its entry committed to `deno.lock`, or a cold `deno check` on CI
+rewrites the lockfile, the tree lands dirty, and `deno publish` aborts.
