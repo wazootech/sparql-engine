@@ -47,6 +47,24 @@ export function pipelineNeedsExistsIndex(query: SelectQuery): boolean {
 }
 
 /**
+ * projectionAliases collects the SELECT clause's `(expression AS ?v)`
+ * projections as a variable-name-to-expression map. The same map drives
+ * projection (applySelectPipeline) and ORDER BY alias resolution: per
+ * SPARQL 1.1 §18.2.4.4 the alias is bound by the projection-conversion
+ * Extend, which happens before the solution modifiers (§18.2.5), so a bare
+ * alias reference in ORDER BY sorts by the projected value.
+ */
+function projectionAliases(query: SelectQuery): Map<string, Expression> {
+  const aliases = new Map<string, Expression>();
+  for (const v of query.variables) {
+    if ("variable" in v && v.variable) {
+      aliases.set(v.variable.value, v.expression);
+    }
+  }
+  return aliases;
+}
+
+/**
  * applySelectPipeline turns a query's raw BGP solutions into its final
  * projected term bindings: VALUES join, GROUP BY / aggregates, HAVING,
  * ORDER BY, projection, DISTINCT/REDUCED dedup, OFFSET, and LIMIT. It is
@@ -88,7 +106,7 @@ export function applySelectPipeline(
   }
 
   const vars: string[] = [];
-  const projections = new Map<string, Expression>();
+  const projections = projectionAliases(query);
   let wildcard = false;
   for (const v of query.variables) {
     if (typeof v === "string") {
@@ -138,7 +156,13 @@ export function applySelectPipeline(
   }
 
   const ordered = query.order?.length
-    ? orderBindings(solutions, query.order, expressionEvaluator, context)
+    ? orderBindings(
+      solutions,
+      query.order,
+      expressionEvaluator,
+      context,
+      projections,
+    )
     : solutions;
 
   const projected: TermBinding[] = ordered.map((solution) =>
@@ -295,16 +319,49 @@ function projectSolutionToTermBinding(
  * stable, so ties keep the evaluation order. Any expression the expression
  * evaluator supports (variables, constants, builtin function calls) can be
  * sorted on; genuinely unsupported expressions raise a clear error.
+ *
+ * A bare reference to a SELECT `(expression AS ?v)` alias (issue #201) sorts
+ * by the alias's value: the alias is bound by the projection-conversion
+ * Extend (§18.2.4.4) before ORDER BY runs (§18.2.5.1), so the comparator
+ * evaluates the alias's expression over the solution — with aggregate
+ * resolution for grouped solutions — instead of reading the (absent)
+ * projected binding.
  */
 function orderBindings(
   solutions: SelectSolution[],
   order: NonNullable<SelectQuery["order"]>,
   expressionEvaluator: ExpressionEvaluator,
   context?: ExpressionEvaluationContext,
+  projectionAliasMap: Map<string, Expression> = new Map(),
 ): SelectSolution[] {
+  const aliasValue = (
+    solution: SelectSolution,
+    alias: Expression,
+  ): rdfjs.Term | undefined => {
+    const resolver = solution.group === null
+      ? undefined
+      : aggregateResolver(solution, expressionEvaluator, context);
+    return resolver === undefined
+      ? expressionEvaluator.evaluate(alias, solution.binding, context)
+      : expressionEvaluator.evaluateWithAggregates(
+        alias,
+        solution.binding,
+        resolver,
+        context,
+      );
+  };
   const comparators = order.map((clause) => ({
     descending: clause.descending === true,
     resolve: (solution: SelectSolution): rdfjs.Term | undefined => {
+      if (
+        "termType" in clause.expression &&
+        clause.expression.termType === "Variable"
+      ) {
+        const alias = projectionAliasMap.get(clause.expression.value);
+        if (alias !== undefined) {
+          return aliasValue(solution, alias);
+        }
+      }
       const resolver = solution.group === null
         ? undefined
         : aggregateResolver(solution, expressionEvaluator, context);

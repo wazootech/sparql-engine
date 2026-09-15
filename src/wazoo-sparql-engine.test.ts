@@ -1894,6 +1894,76 @@ Deno.test("WazooSparqlEngine - ORDER BY an aggregate expression orders the group
   );
 });
 
+Deno.test("WazooSparqlEngine - ORDER BY a SELECT aggregate alias orders the groups", async () => {
+  // Regression for issue #201: a bare reference to a SELECT aggregate alias
+  // (?c) must sort by the projected value per SPARQL 1.1 — the alias is
+  // bound by the projection-conversion Extend (§18.2.4.4) before the ORDER
+  // BY solution modifier runs (§18.2.5.1). The lower-count group is
+  // inserted first, so a no-op sort leaves it in front and fails.
+  const store = new Store();
+  const count = (subject: string, values: string[]) => {
+    for (const value of values) {
+      store.addQuad(
+        quad(
+          namedNode(`http://example.org/${subject}`),
+          namedNode("http://example.org/p"),
+          literal(value, namedNode("http://www.w3.org/2001/XMLSchema#integer")),
+        ),
+      );
+    }
+  };
+  count("a", ["1"]);
+  count("b", ["1", "2", "3"]);
+  const engine = new WazooSparqlEngine({ store });
+  assertEquals(
+    await aggregateRows(
+      engine,
+      "SELECT ?s (COUNT(?o) AS ?c) WHERE { ?s <http://example.org/p> ?o } " +
+        "GROUP BY ?s ORDER BY DESC(?c) ?s",
+    ),
+    [
+      '{"s":"http://example.org/b","c":"3^^http://www.w3.org/2001/XMLSchema#integer"}',
+      '{"s":"http://example.org/a","c":"1^^http://www.w3.org/2001/XMLSchema#integer"}',
+    ],
+  );
+});
+
+Deno.test("WazooSparqlEngine - ORDER BY an aggregate alias separates ties and non-ties", async () => {
+  // Issue #201 discriminator: counts {2, 2, 1} under DESC(?n) must yield
+  // 2, 2, 1 — the order of the two tied groups is free, but the count-1
+  // group must sort after both. The count-1 group is inserted between the
+  // two count-2 groups, so the pre-fix engine returned 2, 1, 2: the alias
+  // resolved unbound for every group and the stable sort kept
+  // group-formation order.
+  const store = new Store();
+  const typed = (subject: string, type: string) =>
+    store.addQuad(
+      quad(
+        namedNode(`http://example.org/${subject}`),
+        namedNode("http://www.w3.org/1999/02/22-rdf-syntax-ns#type"),
+        namedNode(`http://example.org/${type}`),
+      ),
+    );
+  typed("a", "Event");
+  typed("b", "Event");
+  typed("c", "Person");
+  typed("d", "Place");
+  typed("e", "Place");
+  const engine = new WazooSparqlEngine({ store });
+  const result = await engine.execute({
+    query:
+      "SELECT ?type (COUNT(*) AS ?n) WHERE { ?s <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> ?type } " +
+      "GROUP BY ?type ORDER BY DESC(?n)",
+  });
+  assertEquals(result.kind, "select");
+  if (result.kind === "select") {
+    assertEquals(
+      result.data.results.bindings.map((b) => (b.n as { value: string }).value),
+      ["2", "2", "1"],
+    );
+  }
+});
+
 Deno.test("WazooSparqlEngine - SELECT * wildcard projects all bound variables", async () => {
   const store = new Store();
   store.addQuad(
