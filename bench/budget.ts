@@ -11,7 +11,9 @@ interface BudgetTest {
    * Per-test ceiling in ms/iter, calibrated to ~2.5-3x the median measured
    * on the GitHub Actions runner (the environment bench:check actually gates
    * in), so a ~3x regression on any row trips the gate while run-to-run CI
-   * noise passes.
+   * noise passes. The gate compares against the median of interleaved
+   * measurement rounds (see the protocol constants below), which keeps the
+   * same ms/iter scale as these single-run calibration numbers.
    *
    * Calibration must come from the MEDIAN of recent main-branch CI runs, not
    * a single run: runner hardware varies widely (issue #203 investigation).
@@ -38,7 +40,34 @@ interface BudgetTest {
 }
 
 const WARMUP_ITERATIONS = 5;
-const MEASURED_ITERATIONS = 50;
+
+/**
+ * Measurement protocol: every test is measured as ROUNDS round averages of
+ * MEASURED_ITERATIONS_PER_ROUND iterations each, with the tests interleaved
+ * round by round, and the gate compares each row's MEDIAN round average
+ * against its budget. A transient runner spike lands in one round — spread
+ * across whichever tests it overlaps — and the median discards it, instead
+ * of poisoning a single test's whole contiguous measurement window (the
+ * single-average protocol is what let one noise-slowed runner red-gate the
+ * at-parity code of PR #203). Budgets keep the same ms/iter scale either
+ * way: a quiet average and a median of round averages estimate the same
+ * per-iteration cost.
+ */
+const ROUNDS = 5;
+const MEASURED_ITERATIONS_PER_ROUND = 30;
+
+/**
+ * median returns the middle value of a sorted sample (averaging the two
+ * middle values for even lengths). The gate uses it to discard transient
+ * runner spikes: see the measurement protocol constants above.
+ */
+function median(values: number[]): number {
+  const sorted = [...values].sort((a, b) => a - b);
+  const middle = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 1
+    ? sorted[middle]
+    : (sorted[middle - 1] + sorted[middle]) / 2;
+}
 
 const tests: BudgetTest[] = [
   {
@@ -99,32 +128,50 @@ async function main() {
   }
 
   const engine = new WazooSparqlEngine({ store });
-  let failed = false;
 
+  // Warm up every query before any timed round: lets V8 optimize the hot
+  // path and pays the one-time EXISTS snapshot drain up front, so the timed
+  // rounds are stable.
   console.log("Running performance regression budget checks...");
   for (const test of tests) {
-    // Warm up first: lets V8 optimize the hot path and pays the one-time
-    // EXISTS snapshot drain before the timed loop, so measurements are stable.
     for (let i = 0; i < WARMUP_ITERATIONS; i++) {
       await engine.execute({ query: test.query });
     }
+  }
 
-    const start = performance.now();
-    for (let i = 0; i < MEASURED_ITERATIONS; i++) {
-      await engine.execute({ query: test.query });
+  // Interleave the tests round by round so no single test owns a contiguous
+  // slice of machine time, then gate on the per-test median round average.
+  const roundAverages: number[][] = tests.map(() => []);
+  for (let round = 0; round < ROUNDS; round++) {
+    for (const [testIndex, test] of tests.entries()) {
+      const start = performance.now();
+      for (let i = 0; i < MEASURED_ITERATIONS_PER_ROUND; i++) {
+        await engine.execute({ query: test.query });
+      }
+      const averageMs = (performance.now() - start) /
+        MEASURED_ITERATIONS_PER_ROUND;
+      roundAverages[testIndex].push(averageMs);
     }
-    const elapsed = performance.now() - start;
-    const avgMs = elapsed / MEASURED_ITERATIONS;
+  }
+
+  let failed = false;
+  for (const [testIndex, test] of tests.entries()) {
+    const averages = roundAverages[testIndex];
+    const medianMs = median(averages);
+    const minMs = Math.min(...averages);
+    const maxMs = Math.max(...averages);
     console.log(
-      `- ${test.name}: ${
-        avgMs.toFixed(3)
-      } ms/iter (budget: <= ${test.budgetMs} ms/iter)`,
+      `- ${test.name}: median ${
+        medianMs.toFixed(3)
+      } ms/iter over ${ROUNDS} rounds of ${MEASURED_ITERATIONS_PER_ROUND} iters (min ${
+        minMs.toFixed(3)
+      }, max ${maxMs.toFixed(3)}; budget: <= ${test.budgetMs} ms/iter)`,
     );
 
-    if (avgMs > test.budgetMs) {
+    if (medianMs > test.budgetMs) {
       console.error(
-        `  FAIL: ${test.name} exceeded performance budget (${
-          avgMs.toFixed(3)
+        `  FAIL: ${test.name} exceeded performance budget (median ${
+          medianMs.toFixed(3)
         } ms > ${test.budgetMs} ms)`,
       );
       failed = true;

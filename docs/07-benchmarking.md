@@ -87,11 +87,18 @@ chain penalty.
 ## `deno task bench:check` — regression budget
 
 `bench/budget.ts` is the CI perf gate. It runs four queries — a 2-pattern BGP
-join, the reorder chain, an EXISTS filter, and a nested EXISTS filter — 50× each
-after a short warmup, against a 100-subject store, and fails if any row's
-average latency exceeds that row's `budgetMs` ceiling (the budgets live as
-per-test values in `bench/budget.ts`; `bench/baseline.json` records the
-durable-store comparison and does not gate this task).
+join, the reorder chain, an EXISTS filter, and a nested EXISTS filter — against
+a 100-subject store, measuring each as the median of five interleaved rounds of
+30 iterations (after a short warmup), and fails if any row's median round
+average exceeds that row's `budgetMs` ceiling (the budgets live as per-test
+values in `bench/budget.ts`; `bench/baseline.json` records the durable-store
+comparison and does not gate this task).
+
+Interleaving the tests round by round means no query owns a contiguous slice of
+machine time, and gating on the median discards a transient runner spike that
+lands in one round — the single 50-iteration average gave one slow stretch the
+power to fail exactly one test (which is how a noise-slowed CI runner red-gated
+an at-parity PR before the median protocol).
 
 Budgets are calibrated to the GitHub Actions runner — the environment the gate
 actually runs in — at roughly 2.5–3× the **median** of recent main-branch CI
