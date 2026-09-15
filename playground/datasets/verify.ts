@@ -6,11 +6,7 @@
 // serializeTurtle → re-parse, asserting the quad counts match the generator's
 // expectations and the round-trip loses nothing. Prints one line per fixture.
 
-import {
-  MemoryStore,
-  parseTurtleQuads,
-  serializeTurtle,
-} from "../../src/mod.ts";
+import { MemoryStore, parseTurtleQuads, serializeTurtle } from "@/mod.ts";
 
 interface Fixture {
   file: string;

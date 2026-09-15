@@ -24,7 +24,7 @@ anything structural. Run `deno task bench`, `deno task bench:size`, or
 | Tool                         | Task                            | Measures                                                                              | Gate |
 | ---------------------------- | ------------------------------- | ------------------------------------------------------------------------------------- | ---- |
 | `bench/engine_bench.ts`      | `deno task bench`               | Query/update latency vs [Comunica](https://comunica.dev/) + Oxigraph                  | no   |
-| `bench/budget.ts`            | `deno task bench:check`         | Latency regression vs `bench/baseline.json`                                           | CI   |
+| `bench/budget.ts`            | `deno task bench:check`         | Query latency regression gate (per-row budgets; rows recorded to the CI job summary)  | CI   |
 | `bench/concurrency-probe.ts` | (manual)                        | EXISTS snapshot isolation under concurrency                                           | no   |
 | `bench/measure-libs.ts`      | `deno task bench:size`          | On-disk footprint of each engine                                                      | no   |
 | `bench/measure-closures.ts`  | `deno task bench:size:closures` | Per-entrypoint import closure (what each subpath loads)                               | no   |
@@ -86,22 +86,38 @@ chain penalty.
 
 ## `deno task bench:check` — regression budget
 
-`bench/budget.ts` is the CI perf gate. It runs two queries — a 2-pattern BGP
-join and the reorder chain — 50× each against a 100-subject store and fails if
-the average latency exceeds the budget in `bench/baseline.json`:
+`bench/budget.ts` is the CI perf gate. It runs four queries — a 2-pattern BGP
+join, the reorder chain, an EXISTS filter, and a nested EXISTS filter — against
+a 100-subject store, measuring each as the median of five interleaved rounds of
+30 iterations (after a short warmup), and fails if any row's median round
+average exceeds that row's `budgetMs` ceiling (the budgets live as per-test
+values in `bench/budget.ts`; `bench/baseline.json` records the durable-store
+comparison and does not gate this task).
 
-```json
-{
-  "maxAllowedMs": 50.0,
-  "maxRegressionRatio": 0.15
-}
-```
+Interleaving the tests round by round means no query owns a contiguous slice of
+machine time, and gating on the median discards a transient runner spike that
+lands in one round — the single 50-iteration average gave one slow stretch the
+power to fail exactly one test (which is how a noise-slowed CI runner red-gated
+an at-parity PR before the median protocol).
 
-A change fails the gate if either query averages more than `maxAllowedMs` (50
-ms) or regresses more than `maxRegressionRatio` (15%) versus the recorded
-baseline. Tune `bench/baseline.json` deliberately: raise `maxAllowedMs` only for
-hardware-dependent thresholds, and re-baseline via the recorded average when a
-measured improvement lands.
+Budgets are calibrated to the GitHub Actions runner — the environment the gate
+actually runs in — at roughly 2.5–3× the **median** of recent main-branch CI
+runs, with headroom over the slowest observed run. CI runners vary widely, so a
+single-run calibration under-budgets noise: the chain row was originally
+calibrated from one lucky-fast run, and a later noise-slowed runner red-gated a
+PR whose code an A/B benchmark proved at parity. Recalibrate only from the
+median of main-branch CI history — never from one run, and never from a local
+machine (~3× faster than CI); catastrophic algorithmic regressions (≥3×) still
+trip every row instantly.
+
+On GitHub Actions the gate also records what it measured: every row's
+median/min/max round average, its budget, and its verdict are appended to the
+job summary (`$GITHUB_STEP_SUMMARY`) as a markdown table plus a raw JSON block.
+CI runs therefore accumulate a per-run measurement record for free — when a
+budget next needs recalibrating, aggregate the JSON blocks from recent
+main-branch runs into a real distribution instead of hand-scraping run logs (how
+the current calibration numbers were recovered). Outside CI the recording is a
+silent no-op.
 
 ## `bench/concurrency-probe.ts` — EXISTS concurrency stress
 
@@ -181,7 +197,7 @@ The committed charts:
 
 ```bash
 deno task bench        # latency: prints tables, verifies results first
-deno task bench:check  # CI gate: pass/fail vs bench/baseline.json
+deno task bench:check  # CI gate: per-row latency budgets (job summary on CI)
 deno run --allow-all bench/concurrency-probe.ts   # exit 1 on any divergence
 deno task bench:size   # measure-libs → size-data.json → chart SVGs → fmt
 deno task bench:size:closures # measure-closures → closures-data.json → closures chart + submodule treemap SVGs → fmt
