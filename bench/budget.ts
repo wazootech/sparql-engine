@@ -8,33 +8,19 @@ interface BudgetTest {
   name: string;
   query: string;
   /**
-   * Per-test ceiling in ms/iter, calibrated to ~2.5-3x the median measured
-   * on the GitHub Actions runner (the environment bench:check actually gates
-   * in), so a ~3x regression on any row trips the gate while run-to-run CI
-   * noise passes. The gate compares against the median of interleaved
-   * measurement rounds (see the protocol constants below), which keeps the
-   * same ms/iter scale as these single-run calibration numbers.
-   *
-   * Calibration must come from the MEDIAN of recent main-branch CI runs, not
-   * a single run: runner hardware varies widely (issue #203 investigation).
-   * Main-branch CI history (14 runs, Aug 2026, ms/iter, median -> observed max):
-   *   BGP 2-pattern join: 1.25 -> 2.79, budget 3.5 (~2.8x median, 1.3x max)
-   *   Reorder chain join: 1.02 -> 1.98, budget 2.5 (~2.5x median, 1.3x max)
-   *   EXISTS filter:      0.94 -> 1.59, budget 3.0 (~3.2x median, 1.9x max)
-   *   Nested EXISTS:      1.44 -> 2.58, budget 4.0 (~2.8x median, 1.6x max)
-   *
-   * The chain row's original 2.0 ceiling was calibrated from one lucky-fast
-   * run (0.82); main itself later measured 1.98 — within 1.2% of tripping —
-   * and a noise-slowed CI runner (all four rows inflated together, code A/B
-   * -verified at parity) pushed it to 2.62 and red-gated PR #203. Budgets
-   * must clear the slowest observed main run, not the median, or noise beats
-   * the gate before any regression does.
-   *
-   * Note: GitHub runners are ~3x slower than a quiet dev machine (this machine
-   * measures the same rows at 0.3-0.5 ms), so budgets must not be calibrated
-   * locally. A regression of ~2.5-3x trips the gate; catastrophic algorithmic
-   * regressions (e.g. EXISTS per-probe re-indexing was ~480x at its worst) trip
-   * instantly.
+   * Per-test ceiling in ms/iter on the GitHub Actions runner — the
+   * environment this gate actually runs in. Calibrate only from the MEDIAN
+   * of recent main-branch CI runs, at ~2.5-3x the median with headroom over
+   * the slowest observed run: the original chain ceiling came from one
+   * lucky-fast run, and a noise-slowed runner later red-gated at-parity
+   * code with it (PR #203 — the median gate below is the other half of the
+   * fix). Never calibrate locally; dev machines run ~3x faster than CI.
+   * A genuine ~3x regression still trips every row, and catastrophic ones
+   * (EXISTS per-probe re-indexing once hit ~480x) at any budget. Current
+   * ceilings derive from 14 Aug-2026 main runs (row medians 0.9-1.4 ms,
+   * observed maxima up to 2.8); fresher distributions accumulate in the
+   * job-summary JSON blocks this script appends on CI (see
+   * writeStepSummary below).
    */
   budgetMs: number;
 }
@@ -48,10 +34,9 @@ const WARMUP_ITERATIONS = 5;
  * against its budget. A transient runner spike lands in one round — spread
  * across whichever tests it overlaps — and the median discards it, instead
  * of poisoning a single test's whole contiguous measurement window (the
- * single-average protocol is what let one noise-slowed runner red-gate the
- * at-parity code of PR #203). Budgets keep the same ms/iter scale either
- * way: a quiet average and a median of round averages estimate the same
- * per-iteration cost.
+ * failure mode behind the PR #203 red gate; see the BudgetTest note).
+ * Budgets keep the same ms/iter scale either way: a quiet average and a
+ * median of round averages estimate the same per-iteration cost.
  */
 const ROUNDS = 5;
 const MEASURED_ITERATIONS_PER_ROUND = 30;
@@ -67,6 +52,56 @@ function median(values: number[]): number {
   return sorted.length % 2 === 1
     ? sorted[middle]
     : (sorted[middle - 1] + sorted[middle]) / 2;
+}
+
+interface BudgetRow {
+  name: string;
+  budgetMs: number;
+  medianMs: number;
+  minMs: number;
+  maxMs: number;
+  exceeded: boolean;
+}
+
+/**
+ * writeStepSummary records each measured row — median/min/max round averages
+ * against its budget — into `$GITHUB_STEP_SUMMARY` when running on GitHub
+ * Actions, as a human-readable markdown table plus a raw JSON block. The
+ * JSON is the durable artifact: CI runs accumulate one table per run, and a
+ * future budget recalibration can aggregate those blocks into a real
+ * main-branch distribution instead of hand-scraping run logs (how the
+ * numbers in the BudgetTest doc comment above were recovered). Outside CI
+ * the function is a silent no-op.
+ */
+function writeStepSummary(rows: BudgetRow[]): void {
+  const summaryPath = Deno.env.get("GITHUB_STEP_SUMMARY");
+  if (summaryPath === undefined || summaryPath === "") return;
+
+  const header =
+    `### bench:check — perf budget rows\n\n| Test | Median | Min | Max | Budget | Result |\n| --- | --- | --- | --- | --- | --- |\n`;
+  const table = rows.map((row) =>
+    `| ${row.name} | ${row.medianMs.toFixed(3)} | ${row.minMs.toFixed(3)} | ${
+      row.maxMs.toFixed(3)
+    } | ${row.budgetMs.toFixed(1)} | ${row.exceeded ? "❌ FAIL" : "✅ pass"} |`
+  ).join("\n");
+  const payload = JSON.stringify(
+    rows.map(({ name, medianMs, minMs, maxMs, budgetMs, exceeded }) => ({
+      name,
+      medianMs: Number(medianMs.toFixed(6)),
+      minMs: Number(minMs.toFixed(6)),
+      maxMs: Number(maxMs.toFixed(6)),
+      budgetMs,
+      exceeded,
+    })),
+  );
+  // Append, never truncate: $GITHUB_STEP_SUMMARY is shared per job across
+  // steps, and the GitHub docs require appending to preserve what other
+  // steps in the job wrote.
+  Deno.writeTextFileSync(
+    summaryPath,
+    `${header}${table}\n\n\`\`\`json\n${payload}\n\`\`\`\n`,
+    { append: true },
+  );
 }
 
 const tests: BudgetTest[] = [
@@ -155,7 +190,7 @@ async function main() {
   }
 
   let failed = false;
-  for (const [testIndex, test] of tests.entries()) {
+  const rows = tests.map((test, testIndex) => {
     const averages = roundAverages[testIndex];
     const medianMs = median(averages);
     const minMs = Math.min(...averages);
@@ -168,7 +203,8 @@ async function main() {
       }, max ${maxMs.toFixed(3)}; budget: <= ${test.budgetMs} ms/iter)`,
     );
 
-    if (medianMs > test.budgetMs) {
+    const exceeded = medianMs > test.budgetMs;
+    if (exceeded) {
       console.error(
         `  FAIL: ${test.name} exceeded performance budget (median ${
           medianMs.toFixed(3)
@@ -176,7 +212,10 @@ async function main() {
       );
       failed = true;
     }
-  }
+    return { ...test, medianMs, minMs, maxMs, exceeded };
+  });
+
+  writeStepSummary(rows);
 
   if (failed) {
     console.error("Performance regression budget checks failed.");

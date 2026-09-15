@@ -24,7 +24,7 @@ anything structural. Run `deno task bench`, `deno task bench:size`, or
 | Tool                         | Task                            | Measures                                                                              | Gate |
 | ---------------------------- | ------------------------------- | ------------------------------------------------------------------------------------- | ---- |
 | `bench/engine_bench.ts`      | `deno task bench`               | Query/update latency vs [Comunica](https://comunica.dev/) + Oxigraph                  | no   |
-| `bench/budget.ts`            | `deno task bench:check`         | Latency regression vs `bench/baseline.json`                                           | CI   |
+| `bench/budget.ts`            | `deno task bench:check`         | Query latency regression gate (per-row budgets; rows recorded to the CI job summary)  | CI   |
 | `bench/concurrency-probe.ts` | (manual)                        | EXISTS snapshot isolation under concurrency                                           | no   |
 | `bench/measure-libs.ts`      | `deno task bench:size`          | On-disk footprint of each engine                                                      | no   |
 | `bench/measure-closures.ts`  | `deno task bench:size:closures` | Per-entrypoint import closure (what each subpath loads)                               | no   |
@@ -110,6 +110,15 @@ median of main-branch CI history — never from one run, and never from a local
 machine (~3× faster than CI); catastrophic algorithmic regressions (≥3×) still
 trip every row instantly.
 
+On GitHub Actions the gate also records what it measured: every row's
+median/min/max round average, its budget, and its verdict are appended to the
+job summary (`$GITHUB_STEP_SUMMARY`) as a markdown table plus a raw JSON block.
+CI runs therefore accumulate a per-run measurement record for free — when a
+budget next needs recalibrating, aggregate the JSON blocks from recent
+main-branch runs into a real distribution instead of hand-scraping run logs (how
+the current calibration numbers were recovered). Outside CI the recording is a
+silent no-op.
+
 ## `bench/concurrency-probe.ts` — EXISTS concurrency stress
 
 Standalone probe for issue #72 (a concurrent `execute()` must never observe
@@ -188,7 +197,7 @@ The committed charts:
 
 ```bash
 deno task bench        # latency: prints tables, verifies results first
-deno task bench:check  # CI gate: pass/fail vs bench/baseline.json
+deno task bench:check  # CI gate: per-row latency budgets (job summary on CI)
 deno run --allow-all bench/concurrency-probe.ts   # exit 1 on any divergence
 deno task bench:size   # measure-libs → size-data.json → chart SVGs → fmt
 deno task bench:size:closures # measure-closures → closures-data.json → closures chart + submodule treemap SVGs → fmt
