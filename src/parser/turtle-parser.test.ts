@@ -313,3 +313,93 @@ Deno.test("turtle-parser: accepts well-formed language tags", () => {
     assertEquals(lit.datatype.value, datatype);
   }
 });
+
+/**
+ * #210: a blank-node property list nested inside another must not replace the
+ * outer list's node. The expected graphs are the W3C Turtle suite's
+ * `nested_blankNodePropertyLists` and `blankNodePropertyList_containing_collection`
+ * shapes, plus the SHACL complex-path case that surfaced the bug.
+ */
+Deno.test("turtle-parser: nested blank-node property list in object position (#210)", () => {
+  const quads = parseTurtleQuads(
+    `@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix ex: <http://example.org/> .
+ex:S sh:property [ sh:path [ sh:inversePath ex:knows ] ; sh:minCount 1 ] .`,
+  );
+  const sh = (local: string) =>
+    namedNode(`http://www.w3.org/ns/shacl#${local}`);
+  const outer = blankNode("outer");
+  const inner = blankNode("inner");
+  const one = literal(
+    "1",
+    namedNode("http://www.w3.org/2001/XMLSchema#integer"),
+  );
+  assertEquals(
+    quadSetsIsomorphicAsSets(quads, [
+      quad(ex("S"), sh("property"), outer, defaultGraph()),
+      quad(outer, sh("path"), inner, defaultGraph()),
+      quad(inner, sh("inversePath"), ex("knows"), defaultGraph()),
+      quad(outer, sh("minCount"), one, defaultGraph()),
+    ]),
+    true,
+  );
+});
+
+Deno.test("turtle-parser: nested blank-node property lists as subject (#210)", () => {
+  // W3C Turtle: nested_blankNodePropertyLists.ttl
+  const quads = parseTurtleQuads(
+    `[ <http://a.example/p1> [ <http://a.example/p2> <http://a.example/o2> ] ;
+  <http://a.example/p> <http://a.example/o> ].`,
+  );
+  const b0 = blankNode("b0");
+  const b1 = blankNode("b1");
+  const a = (local: string) => namedNode(`http://a.example/${local}`);
+  assertEquals(
+    quadSetsIsomorphicAsSets(quads, [
+      quad(b0, a("p1"), b1, defaultGraph()),
+      quad(b1, a("p2"), a("o2"), defaultGraph()),
+      quad(b0, a("p"), a("o"), defaultGraph()),
+    ]),
+    true,
+  );
+});
+
+Deno.test("turtle-parser: collections and blank-node property lists nest (#210)", () => {
+  const rdf = (local: string) =>
+    namedNode(`http://www.w3.org/1999/02/22-rdf-syntax-ns#${local}`);
+  // W3C Turtle: blankNodePropertyList_containing_collection.ttl
+  const containing = parseTurtleQuads(
+    `[ <http://a.example/p1> (1) ] .`,
+  );
+  const b0 = blankNode("b0");
+  const l0 = blankNode("l0");
+  const one = literal(
+    "1",
+    namedNode("http://www.w3.org/2001/XMLSchema#integer"),
+  );
+  assertEquals(
+    quadSetsIsomorphicAsSets(containing, [
+      quad(b0, namedNode("http://a.example/p1"), l0, defaultGraph()),
+      quad(l0, rdf("first"), one, defaultGraph()),
+      quad(l0, rdf("rest"), rdf("nil"), defaultGraph()),
+    ]),
+    true,
+  );
+
+  // A collection whose member is a nested list: the member is the outer node.
+  const members = parseTurtleQuads(
+    `<http://example.org/s> <http://example.org/p> ( [ <http://example.org/q> [ <http://example.org/r> <http://example.org/o> ] ] ) .`,
+  );
+  const outer = blankNode("outer");
+  const inner = blankNode("inner");
+  assertEquals(
+    quadSetsIsomorphicAsSets(members, [
+      quad(s, p, l0, defaultGraph()),
+      quad(l0, rdf("first"), outer, defaultGraph()),
+      quad(l0, rdf("rest"), rdf("nil"), defaultGraph()),
+      quad(outer, ex("q"), inner, defaultGraph()),
+      quad(inner, ex("r"), o, defaultGraph()),
+    ]),
+    true,
+  );
+});

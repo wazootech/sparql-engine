@@ -425,11 +425,15 @@
 
   // --- blank node property lists (TriG 5.3.8) ---
 
+  // Each list's node rides on the save stack with the enclosing subject and
+  // predicate: a single "current list node" slot would be overwritten by a
+  // nested list, so `[ p [ q o ] ]` would return the inner node (#210).
   function startBnpl() {
     var st = state();
-    st.saveStack.push({ subject: st.subject, predicate: st.predicate });
-    st.bnplNode = freshBnode();
-    st.subject = st.bnplNode;
+    var node = freshBnode();
+    st.saveStack.push({ subject: st.subject, predicate: st.predicate, node: node });
+    st.bnplNode = node;
+    st.subject = node;
   }
 
   function endBnpl() {
@@ -437,7 +441,8 @@
     var saved = st.saveStack.pop();
     st.subject = saved.subject;
     st.predicate = saved.predicate;
-    return st.bnplNode;
+    st.bnplNode = saved.node;
+    return saved.node;
   }
 
   // --- collections (TriG 5.3.9) ---
