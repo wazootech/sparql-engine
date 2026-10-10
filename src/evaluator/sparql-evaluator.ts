@@ -37,7 +37,6 @@ import {
 import type { JoinCostEstimator } from "@/planner/join-cost-estimator.ts";
 import type { ExpressionEvaluationContext } from "@/evaluator/expression-evaluator.ts";
 import {
-  compareRdfTerms,
   rdfTermToSparqlValue,
   sparqlTermToRdfTerm,
   termKey,
@@ -519,54 +518,6 @@ export class SparqlEvaluator {
       }
     }
     return { quads: graph };
-  }
-
-  /**
-   * orderBindings sorts term bindings by the query's ORDER BY clauses, using
-   * the term module's ordering (unbound lowest, then blank nodes, IRIs, and
-   * literals; literals by datatype, numeric value, then lexical form, with
-   * rdf:dirLangString values tie-broken by base direction). Comparison is
-   * stable, so ties keep the evaluation order. Any expression the expression
-   * evaluator supports (variables, constants, builtin function calls) can be
-   * sorted on; genuinely unsupported expressions raise a clear error.
-   */
-  private orderBindings(
-    solutions: SelectSolution[],
-    order: NonNullable<SelectQuery["order"]>,
-    context?: ExpressionEvaluationContext,
-  ): SelectSolution[] {
-    const comparators = order.map((clause) => ({
-      descending: clause.descending === true,
-      resolve: (solution: SelectSolution): rdfjs.Term | undefined => {
-        const resolver = solution.group === null
-          ? undefined
-          : this.aggregateResolver(solution, context);
-        return resolver === undefined
-          ? this.expressionEvaluator.evaluate(
-            clause.expression,
-            solution.binding,
-            context,
-          )
-          : this.expressionEvaluator.evaluateWithAggregates(
-            clause.expression,
-            solution.binding,
-            resolver,
-            context,
-          );
-      },
-    }));
-    return [...solutions].sort((a, b) => {
-      for (const comparator of comparators) {
-        const result = compareRdfTerms(
-          comparator.resolve(a),
-          comparator.resolve(b),
-        );
-        if (result !== 0) {
-          return comparator.descending ? -result : result;
-        }
-      }
-      return 0;
-    });
   }
 
   private resolveConstructTerm(
