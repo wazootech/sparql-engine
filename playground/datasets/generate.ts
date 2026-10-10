@@ -16,8 +16,7 @@
 //
 // The 10k fixture is TriG with a small named graph so GRAPH / FROM demo
 // queries have graph material to chew on, but the bulk sits in the default
-// graph because the engine's TriG parser is quadratic inside named-graph
-// blocks (see generatePeople10k).
+// graph (see generatePeople10k).
 
 const FOAF = "https://xmlns.com/foaf/0.1/";
 const EX = "https://example.org/";
@@ -70,12 +69,10 @@ function generateSocial(count: number): string {
   return `${out.join("\n")}`;
 }
 
-// Layout note (measured): the engine's TriG parser is quadratic inside
-// named-graph blocks (5.5k quads in a block ≈ 0.8 s, 22k ≈ 13 s — n²), while
-// default-graph Turtle parses linearly (55k quads ≈ 0.9 s). So the 10k
-// fixture puts the bulk in the default graph and keeps only a tiny named
-// graph for GRAPH demo material — the page loads in under a second and GRAPH
-// queries still have a graph to chew on.
+// Layout note: the 10k fixture puts the bulk in the default graph and keeps
+// only a tiny named graph for GRAPH demo material. The layout dates from when
+// the TriG parser was quadratic inside named-graph blocks (#175, since fixed);
+// both layouts now parse in linear time.
 function generatePeople10k(
   count: number,
   metaQuads: Array<[string, string, string]>,

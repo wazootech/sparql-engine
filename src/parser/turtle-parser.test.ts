@@ -150,6 +150,48 @@ Deno.test("turtle-parser: TriG graph blocks keep their graph labels", () => {
   assertEquals(quads[1].graph.value, "http://ex/g2");
 });
 
+Deno.test("turtle-parser: graph block statement separators", () => {
+  const prefix = "@prefix : <http://ex/> . ";
+  assertEquals(parseTurtleQuads(prefix + ":g { }").length, 0);
+  assertEquals(parseTurtleQuads(prefix + ":g { :s :p :o }").length, 1);
+  assertEquals(parseTurtleQuads(prefix + ":g { :s :p :o . }").length, 1);
+  const quads = parseTurtleQuads(prefix + ":g { :a :p :o . :b :p :o }");
+  assertEquals(quads.map((quad) => quad.subject.value), [
+    "http://ex/a",
+    "http://ex/b",
+  ]);
+  assertEquals(quads[1].graph.value, "http://ex/g");
+  assertThrows(() => parseTurtleQuads(prefix + ":g { :s :p :o . . }"));
+  assertThrows(() => parseTurtleQuads(prefix + ":g { . }"));
+});
+
+// Regression for #175: a large named-graph block parsed in quadratic time
+// (8,000 quads took ~19 s, versus ~0.1 s in the default graph). Compare the
+// two layouts of the same statements so the bound does not depend on the
+// machine's absolute speed.
+Deno.test("turtle-parser: named-graph blocks parse in linear time", () => {
+  const statements = Array.from(
+    { length: 10_000 },
+    (_, index) => `<https://ex/p${index}> <https://ex/name> "P${index}" .`,
+  );
+  const timeParse = (document: string) => {
+    const start = performance.now();
+    assertEquals(parseTurtleQuads(document).length, statements.length);
+    return performance.now() - start;
+  };
+  const defaultGraphDocument = statements.join("\n");
+  const blockDocument = `<https://ex/g> {\n${statements.join("\n")}\n}`;
+  timeParse(defaultGraphDocument); // warm up
+  const defaultGraphTime = timeParse(defaultGraphDocument);
+  const blockTime = timeParse(blockDocument);
+  if (blockTime > 5 * defaultGraphTime + 250) {
+    throw new Error(
+      `named-graph block took ${blockTime.toFixed(0)} ms vs ` +
+        `${defaultGraphTime.toFixed(0)} ms in the default graph`,
+    );
+  }
+});
+
 Deno.test("turtle-parser: N-Quads graph labels on top-level statements", () => {
   const quads = parseTurtleQuads("<s> <p> <o> <g> .");
   assertEquals(quads.length, 1);
