@@ -639,8 +639,18 @@ triplesStatement
   : triples -> finishStatement()
   ;
 
+// Statements separated by '.', with an optional trailing '.'. The list is
+// left-recursive so the LR stack stays shallow: the right-recursive form kept
+// every statement of a block on the stack until '}', and each reduction copies
+// the stack, making parse time quadratic in block size (#175).
 triplesBlock
-  : triplesStatement ("." triplesBlock?)?
+  : triplesList
+  | triplesList "."
+  ;
+
+triplesList
+  : triplesStatement
+  | triplesList "." triplesStatement
   ;
 
 labelOrSubject
