@@ -19,6 +19,11 @@ jobs:
       # EXISTS gate runs even if the ci task's dependency list changes.
       - run: deno task test:exists-ref
       - run: deno task publish:dry
+      # The compiled `sparql` binary must build and answer a query.
+      - run: deno task compile
+      - run: |
+          echo '<http://example.org/s> <http://example.org/p> <http://example.org/o> .' > "$RUNNER_TEMP/smoke.nt"
+          ./dist/sparql --data "$RUNNER_TEMP/smoke.nt" --query 'ASK { ?s ?p ?o }' | grep -q '"boolean":true'
   # The committed bench/latency-data.json snapshot must match the current
   # bench suite — otherwise the published latency chart shows a stale query
   # inventory. Timings are machine-specific and never compared; the bench
