@@ -30,6 +30,7 @@ sparql-engine/
 ├── test/
 │   ├── parity/               differential tests vs Comunica
 │   └── w3c/                  W3C SPARQL 1.1/1.2 + RDF 1.1/1.2 gates, fixtures/
+├── cli/                      `sparql` command (deno compile entry + runtime-agnostic core)
 ├── bench/                    benchmarks + regression budget
 ├── docs/                     this wiki
 ├── playground/               browser SPARQL playground (static page + bundle)
@@ -171,9 +172,18 @@ sparql-engine/
 | `bench/latency-chart.ts`                                         | Renders `bench/latency-data.json` → `docs/assets/chart-latency.svg` (per-query-class bars)                                                                                         |
 | `bench/latency-check.ts`                                         | CI gate: fresh `deno bench --json` inventory must match the committed snapshot (timings never compared)                                                                            |
 | `bench/latency-data.json`                                        | Committed latency snapshot (avg ms/iter per query class)                                                                                                                           |
+| `bench/cli-bench.ts`                                             | Process-level `sparql` CLI bench (`deno task bench:cli`): binary size, startup, load, join, peak RSS; any build honoring `cli/run-cli.ts` can be added as a `--target`             |
 
 | `bench/treemap.ts` | Renders `bench/{size,memory,closures}-data.json` into the
 `docs/assets/*.svg` charts |
+
+## `cli/` — the `sparql` command
+
+| File                  | Role                                                                                                      |
+| --------------------- | --------------------------------------------------------------------------------------------------------- |
+| `cli/run-cli.ts`      | Runtime-agnostic core: argument parsing, loading RDF files into a `MemoryStore`, one query, serialization |
+| `cli/main.ts`         | Deno host entrypoint compiled by `deno task compile` into `dist/sparql`                                   |
+| `cli/run-cli.test.ts` | CLI contract tests over an in-memory host                                                                 |
 
 ## `docs/` — this wiki ↔ source mapping
 
