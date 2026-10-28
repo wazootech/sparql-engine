@@ -200,7 +200,7 @@ export interface InternalDataFactory extends rdfjs.DataFactory {
 
 export const DataFactory: InternalDataFactory = {
   namedNode<Iri extends string = string>(value: Iri): rdfjs.NamedNode<Iri> {
-    return new NamedNodeImpl(value);
+    return new NamedNodeImpl<string>(value) as rdfjs.NamedNode<Iri>;
   },
   blankNode(value?: string): rdfjs.BlankNode {
     return new BlankNodeImpl(value ?? `b${++blankNodeCounter}`);

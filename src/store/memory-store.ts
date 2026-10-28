@@ -1,4 +1,5 @@
 import type * as rdfjs from "@rdfjs/types";
+import type { QuadEventSource } from "@/store/quad-event-source.ts";
 import { sameRdfTerm, termKey } from "@/term/mod.ts";
 import { DataFactory, NamedNodeImpl } from "@/term/data-factory.ts";
 
@@ -352,12 +353,18 @@ export class MemoryStore implements rdfjs.Store<rdfjs.Quad> {
   }
 
   public remove(stream: rdfjs.Stream<rdfjs.Quad>): rdfjs.Stream<rdfjs.Quad> {
-    stream.on("data", (q: rdfjs.Quad) => this.removeQuad(q));
+    (stream as unknown as QuadEventSource).on(
+      "data",
+      (quad) => this.removeQuad(quad),
+    );
     return stream;
   }
 
   public import(stream: rdfjs.Stream<rdfjs.Quad>): rdfjs.Stream<rdfjs.Quad> {
-    stream.on("data", (q: rdfjs.Quad) => this.addQuad(q));
+    (stream as unknown as QuadEventSource).on(
+      "data",
+      (quad) => this.addQuad(quad),
+    );
     return stream;
   }
 
@@ -433,10 +440,10 @@ export class MemoryStore implements rdfjs.Store<rdfjs.Quad> {
   }
 
   public deleteGraph(graph: rdfjs.Quad_Graph | string): MemoryStream {
-    const graphTerm = typeof graph === "string"
-      ? new NamedNodeImpl(graph)
-      : graph;
-    return this.removeMatches(null, null, null, graphTerm);
+    if (typeof graph === "string") {
+      return this.removeMatches(null, null, null, new NamedNodeImpl(graph));
+    }
+    return this.removeMatches(null, null, null, graph);
   }
 
   public match(

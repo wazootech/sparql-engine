@@ -40,7 +40,15 @@ import {
   XSD_STRING,
 } from "@/term/mod.ts";
 
-const { blankNode, literal, namedNode, quad } = DataFactory;
+const { blankNode, literal, quad } = DataFactory;
+
+/**
+ * namedNode builds a plain NamedNode; a concrete (non-generic) signature of
+ * DataFactory.namedNode so the function value can be held in a binding.
+ */
+function namedNode(iri: string): rdfjs.NamedNode {
+  return DataFactory.namedNode(iri);
+}
 
 /**
  * Ebv is the effective boolean value of a term: true, false, or "error"
