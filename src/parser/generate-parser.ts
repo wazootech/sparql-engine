@@ -23,6 +23,11 @@
  *   - runs `deno fmt` so the checked-in artifacts are fmt-stable and
  *     regenerating reproduces them byte-for-byte.
  *
+ * The Turtle half does not use jison's runtime at all (it is untyped JavaScript
+ * that cannot pass strict type checking, issue #221): jison only builds the LR
+ * tables, and `generateTypedParserSource` emits a typed module on top of
+ * `lr-runtime.ts`, with no `@ts-nocheck`.
+ *
  * Run via `deno task parser:generate`. With `--check`, it verifies instead of
  * writing: it exits non-zero when a checked-in artifact has drifted from its
  * grammar (used by `deno task parser:check` in CI).
@@ -47,7 +52,74 @@ interface ParserTarget {
   moduleName: string;
   /** Human-readable label used in logs and the generated-file header. */
   label: string;
+  /**
+   * When set, the artifact is emitted by `generateTypedParserSource` (typed
+   * tables, lexer and actions on top of `lr-runtime.ts`) instead of being
+   * post-processed from jison's own runtime.
+   */
+  typed?: TypedParserConfig;
 }
+
+const TURTLE_TERM = "rdfjs.Term";
+const TURTLE_LIST = "Array<string | rdfjs.Term | undefined>";
+
+/**
+ * TURTLE_VALUE_TYPES declares the value each Turtle nonterminal leaves on the
+ * parser's value stack (terminals are `string`). It is what lets the
+ * generator cast every `$n` in an action to a precise type.
+ */
+const TURTLE_VALUE_TYPES: Record<string, string> = {
+  document: TURTLE_LIST,
+  directive: "string | undefined",
+  block: "string | undefined",
+  subjectHeader: "undefined",
+  graphLabelHeader: TURTLE_TERM,
+  setGraphLabel: TURTLE_TERM,
+  reifiedSubject: TURTLE_TERM,
+  bnplSubject: TURTLE_TERM,
+  triplesOrGraph: "undefined",
+  triples2: "undefined",
+  collectionSubject: TURTLE_TERM,
+  wrappedGraph: "string",
+  triplesStatement: "undefined",
+  triplesBlock: "undefined",
+  triplesList: "undefined",
+  labelOrSubject: TURTLE_TERM,
+  triples: TURTLE_TERM,
+  subject: TURTLE_TERM,
+  predicateObjectList: TURTLE_TERM,
+  objectList: "undefined",
+  objectEmission: TURTLE_TERM,
+  verb: TURTLE_TERM,
+  ttVerb: TURTLE_TERM,
+  predicate: TURTLE_TERM,
+  object: TURTLE_TERM,
+  literal: TURTLE_TERM,
+  RDFLiteral: TURTLE_TERM,
+  NumericLiteral: TURTLE_TERM,
+  BooleanLiteral: TURTLE_TERM,
+  bnplStart: "undefined",
+  blankNodePropertyList: TURTLE_TERM,
+  collectionStart: "undefined",
+  collection: TURTLE_TERM,
+  collectionItems: "undefined",
+  iri: TURTLE_TERM,
+  PrefixedName: "string",
+  BlankNode: TURTLE_TERM,
+  tripleTerm: TURTLE_TERM,
+  ttSubject: TURTLE_TERM,
+  ttObject: TURTLE_TERM,
+  reifiedTripleBody: TURTLE_TERM,
+  reifiedTripleStart: "undefined",
+  reifiedTriple: TURTLE_TERM,
+  rtSubject: TURTLE_TERM,
+  rtObject: TURTLE_TERM,
+  reifier: "undefined",
+  annotation: TURTLE_LIST,
+  annotationPart: "undefined",
+  annotationBlockStart: "undefined",
+  annotationBlock: "undefined",
+};
 
 const TARGETS: ParserTarget[] = [
   {
@@ -61,6 +133,15 @@ const TARGETS: ParserTarget[] = [
     outputPath: new URL("./turtle-generated.ts", import.meta.url),
     moduleName: "TurtleParser",
     label: "turtle-generated.ts",
+    typed: {
+      parserClassName: "TurtleLrParser",
+      lexerClassName: "TurtleLexer",
+      entryFunctionName: "parseTurtleDocument",
+      valueTypeName: "TurtleValue",
+      valueUnion: `string | rdfjs.Term | undefined | ${TURTLE_LIST}`,
+      listType: TURTLE_LIST,
+      valueTypes: TURTLE_VALUE_TYPES,
+    },
   },
 ];
 
@@ -133,6 +214,459 @@ export function generateParserSource(
 }
 
 /**
+ * JisonProduction is the slice of a jison `Production` the typed emitter
+ * reads: its numeric id, left-hand side, and right-hand-side symbols.
+ */
+interface JisonProduction {
+  id: number;
+  symbol: string;
+  handle: string[];
+}
+
+/** JisonGeneratorState is the slice of a built jison `Generator` read below. */
+interface JisonGeneratorState {
+  productions: JisonProduction[];
+  productions_: Array<number | [number, number]>;
+  symbols_: Record<string, number>;
+  terminals_: Record<number, string>;
+  nonterminals: Record<string, unknown>;
+  table: Array<Record<number, number | number[] | number[][]>>;
+  defaultActions: Record<number, number[]>;
+  lexer: { rules: RegExp[] };
+}
+
+/** ParsedGrammar is the slice of ebnf-parser's output read below. */
+interface ParsedGrammar {
+  bnf: Record<string, Array<string | [string, string]> | string>;
+  lex: { rules: Array<[string, string]> };
+  moduleInclude?: string;
+}
+
+/**
+ * TypedParserConfig configures `generateTypedParserSource`: the names of the
+ * emitted symbols and the TypeScript value type of every nonterminal.
+ */
+interface TypedParserConfig {
+  /** Name of the emitted `LrParser` subclass. */
+  parserClassName: string;
+  /** Name of the emitted `LrLexer` subclass. */
+  lexerClassName: string;
+  /** Name of the emitted entry function, `(input: string) => void`. */
+  entryFunctionName: string;
+  /** Name of the emitted semantic-value union type. */
+  valueTypeName: string;
+  /** Right-hand side of the semantic-value union type. */
+  valueUnion: string;
+  /** Type of the arrays EBNF `*` / `+` helper nonterminals build. */
+  listType: string;
+  /**
+   * The TypeScript type of the value each nonterminal's reduction leaves on
+   * the value stack. Terminals are always `string`; EBNF helper nonterminals
+   * (`*_option0`, `*_group0`, `*_repetition0`) are derived. Every other
+   * nonterminal must be listed, so a grammar edit that adds or renames one
+   * fails generation until its type is declared.
+   */
+  valueTypes: Record<string, string>;
+}
+
+const HELPER_NONTERMINAL = /_(option|group|repetition)\d+$/;
+
+/** ActionEmitter turns grammar action text into typed TypeScript. */
+class ActionEmitter {
+  private readonly productions: JisonProduction[];
+  private readonly nonterminals: Set<string>;
+  private readonly config: TypedParserConfig;
+
+  public constructor(
+    state: JisonGeneratorState,
+    config: TypedParserConfig,
+  ) {
+    this.productions = state.productions;
+    this.nonterminals = new Set(Object.keys(state.nonterminals));
+    this.config = config;
+    this.assertValueTypesComplete();
+  }
+
+  private assertValueTypesComplete(): void {
+    for (const symbol of this.nonterminals) {
+      if (symbol === "$accept" || HELPER_NONTERMINAL.test(symbol)) continue;
+      if (!(symbol in this.config.valueTypes)) {
+        throw new Error(
+          `No value type declared for nonterminal "${symbol}"; add it to the target's valueTypes.`,
+        );
+      }
+    }
+    for (const symbol of Object.keys(this.config.valueTypes)) {
+      if (!this.nonterminals.has(symbol)) {
+        throw new Error(
+          `valueTypes declares "${symbol}", which is not a nonterminal of the grammar.`,
+        );
+      }
+    }
+  }
+
+  /** The TypeScript type of the value a symbol leaves on the value stack. */
+  public valueTypeOf(symbol: string): string {
+    if (!this.nonterminals.has(symbol)) {
+      return "string";
+    }
+    const declared = this.config.valueTypes[symbol];
+    if (declared !== undefined) {
+      return declared;
+    }
+    if (/_repetition\d+$/.test(symbol)) {
+      return this.config.listType;
+    }
+    if (HELPER_NONTERMINAL.test(symbol)) {
+      const alternatives: string[] = [];
+      for (const production of this.productions) {
+        if (production.symbol !== symbol) continue;
+        const first = production.handle[0];
+        const type = first === undefined
+          ? "undefined"
+          : this.valueTypeOf(first);
+        if (!alternatives.includes(type)) alternatives.push(type);
+      }
+      return alternatives.join(" | ");
+    }
+    throw new Error(`No value type declared for nonterminal "${symbol}".`);
+  }
+
+  /** The body of one `case` of the typed action switch. */
+  public emitCase(
+    production: JisonProduction,
+    action: string | undefined,
+  ): string {
+    const length = production.handle.length;
+    const defaultValue = length === 0
+      ? "undefined"
+      : `values[top - ${length - 1}]`;
+    const text = (action ?? "").trim();
+    if (text === "") {
+      return `return ${defaultValue};`;
+    }
+    const assignment = /^\$\$ = ([\s\S]*);$/.exec(text);
+    if (assignment !== null && !assignment[1]!.includes("$$")) {
+      return `return ${this.rewriteReferences(production, assignment[1]!)};`;
+    }
+    if (text.includes("$$")) {
+      throw new Error(
+        `Unsupported action in "${production.symbol}": ${text}. ` +
+          "Only `$$ = expression;` and statements that leave the default `$1` value are supported.",
+      );
+    }
+    return `${
+      this.rewriteReferences(production, text)
+    }\nreturn ${defaultValue};`;
+  }
+
+  private rewriteReferences(
+    production: JisonProduction,
+    code: string,
+  ): string {
+    const length = production.handle.length;
+    const rewritten = code.replace(/\$(\d+)/g, (_match, digits: string) => {
+      const position = Number(digits);
+      if (position < 1 || position > length) {
+        throw new Error(
+          `Action of "${production.symbol}" refers to $${position} but the production has ${length} symbols.`,
+        );
+      }
+      const type = this.valueTypeOf(production.handle[position - 1]!);
+      if (type === "undefined") {
+        // A symbol declared to leave no value: no cast (scriptc cannot check one).
+        return "undefined";
+      }
+      return `(values[top - ${length - position}] as ${type})`;
+    });
+    const withoutStrings = rewritten.replace(
+      /"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'/g,
+      "",
+    );
+    if (/\$|@/.test(withoutStrings)) {
+      throw new Error(
+        `Unsupported reference in action of "${production.symbol}": ${code}`,
+      );
+    }
+    return rewritten;
+  }
+}
+
+/** collectActions returns the raw action text of each production, by id. */
+function collectActions(
+  grammar: ParsedGrammar,
+  state: JisonGeneratorState,
+): Array<string | undefined> {
+  const actions: Array<string | undefined> = [undefined]; // $accept
+  for (const symbol of Object.keys(grammar.bnf)) {
+    const entry = grammar.bnf[symbol]!;
+    const alternatives = typeof entry === "string"
+      ? entry.split(/\s*\|\s*/g)
+      : entry;
+    for (const alternative of alternatives) {
+      actions.push(
+        typeof alternative === "string" ? undefined : alternative[1],
+      );
+      const production = state.productions[actions.length - 1];
+      if (production === undefined || production.symbol !== symbol) {
+        throw new Error(
+          `Production ${
+            actions.length - 1
+          } of the grammar does not line up with jison's ("${symbol}").`,
+        );
+      }
+    }
+  }
+  if (actions.length !== state.productions.length) {
+    throw new Error(
+      `Collected ${actions.length} productions but jison built ${state.productions.length}.`,
+    );
+  }
+  return actions;
+}
+
+/** LexerRule is one lexer rule: its pattern and the token id it returns. */
+interface LexerRule {
+  pattern: RegExp;
+  /** The token id, or 0 for text the lexer skips. */
+  token: number;
+  name: string;
+}
+
+/** collectLexerRules maps the grammar's lexer rules to patterns and token ids. */
+function collectLexerRules(
+  grammar: ParsedGrammar,
+  state: JisonGeneratorState,
+): { rules: LexerRule[]; extraTerminals: Record<number, string> } {
+  const rules: LexerRule[] = [];
+  const extraTerminals: Record<number, string> = {};
+  const extraIds: Record<string, number> = {};
+  let nextTokenId = Math.max(...Object.values(state.symbols_)) + 1;
+  const seenPatterns: string[] = [];
+  grammar.lex.rules.forEach(([pattern, action], index) => {
+    const trimmed = action.trim();
+    const returned = /^return (['"])([^'"]+)\1;?$/.exec(trimmed);
+    if (/^\/\*.*\*\/$/s.test(trimmed)) {
+      rules.push({
+        pattern: state.lexer.rules[index]!,
+        token: 0,
+        name: "ignore",
+      });
+    } else if (returned !== null) {
+      const name = returned[2]!;
+      let token = state.symbols_[name];
+      if (token === undefined) {
+        // A token the grammar never consumes (e.g. INVALID): give it an id no
+        // table row uses, so the parser reports it as an unexpected token.
+        token = extraIds[name];
+        if (token === undefined) {
+          token = nextTokenId++;
+          extraIds[name] = token;
+          extraTerminals[token] = name;
+        }
+      }
+      rules.push({ pattern: state.lexer.rules[index]!, token, name });
+    } else if (
+      trimmed === "console.log(yytext);" && seenPatterns.includes(pattern)
+    ) {
+      // jison-lex appends a debugging echo rule after the grammar's own
+      // catch-all `.`; under longest-match-first-wins it can never match, so
+      // it is dropped.
+    } else {
+      throw new Error(`Unsupported lexer action for ${pattern}: ${action}`);
+    }
+    seenPatterns.push(pattern);
+  });
+  return { rules, extraTerminals };
+}
+
+/** objectLiteral formats integer-keyed entries as a single-line object literal. */
+function objectLiteral(entries: Array<[number, string]>): string {
+  return `{ ${entries.map(([key, value]) => `${key}: ${value}`).join(", ")} }`;
+}
+
+/**
+ * generateTypedParserSource emits a fully typed parser module for a jison
+ * grammar. jison is used only as a table generator: the emitted module holds
+ * the LR tables, the lexer's regular expressions, and a typed `switch` of
+ * semantic actions, and extends the `lr-runtime.ts` classes, so it needs no
+ * `@ts-nocheck`.
+ */
+export function generateTypedParserSource(
+  rawGrammar: string,
+  config: TypedParserConfig,
+): string {
+  // The grammar must declare `%ebnf`: ebnf-parser keeps that flag in module
+  // state, so without the declaration the expansion would depend on which
+  // grammar happened to be parsed first.
+  const grammar = (parseGrammar as unknown as EbnfParser["parse"])(
+    rawGrammar,
+  ) as unknown as ParsedGrammar;
+  const generator = new (jison as unknown as JisonModule).Generator(
+    grammar as unknown as Record<string, unknown>,
+    { type: "slr", moduleType: "js", debug: false },
+  ) as unknown as JisonGeneratorState;
+
+  const emitter = new ActionEmitter(generator, config);
+  const actions = collectActions(grammar, generator);
+  const { rules, extraTerminals } = collectLexerRules(grammar, generator);
+
+  const actionRows: string[] = [];
+  const gotoRows: string[] = [];
+  for (const row of generator.table) {
+    const actionEntries: Array<[number, string]> = [];
+    const gotoEntries: Array<[number, string]> = [];
+    for (const key of Object.keys(row).map(Number).sort((a, b) => a - b)) {
+      const cell = row[key]!;
+      if (typeof cell === "number") {
+        gotoEntries.push([key, String(cell)]);
+      } else if (Array.isArray(cell[0])) {
+        throw new Error(
+          `Unresolved conflict in the parse table (symbol ${key}).`,
+        );
+      } else {
+        actionEntries.push([key, `[${(cell as number[]).join(", ")}]`]);
+      }
+    }
+    actionRows.push(objectLiteral(actionEntries));
+    gotoRows.push(objectLiteral(gotoEntries));
+  }
+  const defaultActions = objectLiteral(
+    Object.keys(generator.defaultActions).map(Number).sort((a, b) => a - b)
+      .map((stateId): [number, string] => [
+        stateId,
+        `[${generator.defaultActions[stateId]!.join(", ")}]`,
+      ]),
+  );
+  const terminalNames = objectLiteral(
+    Object.entries({ ...generator.terminals_, ...extraTerminals })
+      .map(([id, name]): [number, string] => [Number(id), JSON.stringify(name)])
+      .sort((a, b) => a[0] - b[0]),
+  );
+  const productionSymbols = generator.productions_.map((entry) =>
+    typeof entry === "number" ? entry : entry[0]
+  );
+  const productionLengths = generator.productions_.map((entry) =>
+    typeof entry === "number" ? 0 : entry[1]
+  );
+
+  // Productions whose action bodies are identical share one `case`.
+  const caseBodies = new Map<string, number[]>();
+  generator.productions.forEach((production, id) => {
+    if (id === 0) return;
+    const body = emitter.emitCase(production, actions[id]);
+    const ids = caseBodies.get(body) ?? [];
+    ids.push(id);
+    caseBodies.set(body, ids);
+  });
+  const caseSource = [...caseBodies.entries()]
+    .sort((a, b) => a[1][0]! - b[1][0]!)
+    .map(([body, ids]) =>
+      `${ids.map((id) => `case ${id}:`).join(" ")} {\n${body}\n}`
+    )
+    .join("\n");
+
+  const lexerCaseBodies = new Map<number, number[]>();
+  rules.forEach((rule, index) => {
+    const ids = lexerCaseBodies.get(rule.token) ?? [];
+    ids.push(index);
+    lexerCaseBodies.set(rule.token, ids);
+  });
+  const lexerCaseSource = [...lexerCaseBodies.entries()]
+    .sort((a, b) => a[1][0]! - b[1][0]!)
+    .map(([token, ids]) => {
+      const names = [...new Set(ids.map((id) => rules[id]!.name))].join(", ");
+      return `${
+        ids.map((id) => `case ${id}:`).join(" ")
+      } // ${names}\nreturn ${token};`;
+    })
+    .join("\n");
+
+  const imports = (grammar.moduleInclude ?? "")
+    .replace(/^\s*\/\*[\s\S]*?\*\//, "")
+    .trim();
+  if (imports !== "" && !imports.startsWith("import ")) {
+    throw new Error(
+      "The grammar prologue may contain only import declarations.",
+    );
+  }
+
+  const { parserClassName, lexerClassName, valueTypeName } = config;
+  return `// deno-lint-ignore-file no-control-regex
+// Generated by \`deno task parser:generate\` from the jison grammar: edit the
+// grammar (or src/parser/generate-parser.ts) instead. jison supplies only the
+// LR tables; the driver and lexer loop are in lr-runtime.ts.
+${imports}
+import { LrLexer, LrParser, type LrTables } from "./lr-runtime.ts";
+
+/** ${valueTypeName} is what a grammar symbol leaves on the parser's value stack. */
+type ${valueTypeName} = ${config.valueUnion};
+
+const TABLES: LrTables = {
+  terminalNames: ${terminalNames},
+  productionSymbols: [${productionSymbols.join(", ")}],
+  productionLengths: [${productionLengths.join(", ")}],
+  actions: [
+${actionRows.map((row) => `    ${row},`).join("\n")}
+  ],
+  gotos: [
+${gotoRows.map((row) => `    ${row},`).join("\n")}
+  ],
+  defaultActions: ${defaultActions},
+};
+
+const LEXER_RULES: RegExp[] = [
+${rules.map((rule) => `  ${rule.pattern.toString()},`).join("\n")}
+];
+
+class ${lexerClassName} extends LrLexer {
+  public constructor(input: string) {
+    super(input, LEXER_RULES);
+  }
+
+  override performAction(rule: number): number {
+    switch (rule) {
+${lexerCaseSource}
+      default:
+        throw new Error("Unknown lexer rule " + rule);
+    }
+  }
+}
+
+class ${parserClassName} extends LrParser<${valueTypeName}> {
+  public constructor() {
+    super(TABLES);
+  }
+
+  override tokenValue(text: string): ${valueTypeName} {
+    return text;
+  }
+
+  override performAction(
+    production: number,
+    values: ${valueTypeName}[],
+  ): ${valueTypeName} {
+    const top = values.length - 1;
+    switch (production) {
+${caseSource}
+      default:
+        throw new Error("Unknown production " + production);
+    }
+  }
+}
+
+/**
+ * ${config.entryFunctionName} parses \`input\`, running the grammar's semantic
+ * actions (which write to the parse context) and throwing an \`LrParseError\`
+ * on a syntax error.
+ */
+export function ${config.entryFunctionName}(input: string): void {
+  new ${parserClassName}().parse(new ${lexerClassName}(input));
+}
+`;
+}
+
+/**
  * formatWithDenoFmt formats a source string with the project's `deno fmt`
  * rules (via a throwaway temp file), so the checked-in artifacts are
  * fmt-stable and regeneration reproduces them byte-for-byte.
@@ -170,7 +704,9 @@ async function main(): Promise<void> {
   for (const target of TARGETS) {
     const rawGrammar = await Deno.readTextFile(target.grammarPath);
     const formatted = await formatWithDenoFmt(
-      generateParserSource(rawGrammar, target.moduleName),
+      target.typed
+        ? generateTypedParserSource(rawGrammar, target.typed)
+        : generateParserSource(rawGrammar, target.moduleName),
     );
 
     if (checkOnly) {
