@@ -47,7 +47,9 @@ export function termKey(term: RdfTerm): string {
       );
     default:
       throw new Error(
-        `Unsupported RDF term type: ${(term as RdfTerm).termType}`,
+        `Unsupported RDF term type: ${
+          (term as Record<string, string>)["termType"]
+        }`,
       );
   }
 }
@@ -71,19 +73,24 @@ export function sameRdfTerm(a: RdfTerm, b: RdfTerm): boolean {
       return a.value === (b as RdfVariable).value;
     case "DefaultGraph":
       return true;
-    case "Literal":
-      return a.value === (b as RdfLiteral).value &&
-        a.language === (b as RdfLiteral).language &&
-        (a.direction ?? "") === ((b as RdfLiteral).direction ?? "") &&
-        (a.datatype?.value ?? "") ===
-          ((b as RdfLiteral).datatype?.value ?? "");
-    case "Quad":
-      return sameRdfTerm(a.subject, (b as RdfQuad).subject) &&
-        sameRdfTerm(a.predicate, (b as RdfQuad).predicate) &&
-        sameRdfTerm(a.object, (b as RdfQuad).object);
+    case "Literal": {
+      const other = b as RdfLiteral;
+      return a.value === other.value &&
+        a.language === other.language &&
+        (a.direction ?? "") === (other.direction ?? "") &&
+        (a.datatype?.value ?? "") === (other.datatype?.value ?? "");
+    }
+    case "Quad": {
+      const other = b as RdfQuad;
+      return sameRdfTerm(a.subject, other.subject) &&
+        sameRdfTerm(a.predicate, other.predicate) &&
+        sameRdfTerm(a.object, other.object);
+    }
     default:
       throw new Error(
-        `Unsupported RDF term type: ${(a as RdfTerm).termType}`,
+        `Unsupported RDF term type: ${
+          (a as Record<string, string>)["termType"]
+        }`,
       );
   }
 }

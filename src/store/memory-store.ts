@@ -1,5 +1,6 @@
 import type * as rdfjs from "@rdfjs/types";
 import type { RdfQuad, RdfQuadGraph, RdfTerm } from "@/parser/rdf-terms.ts";
+import type { QuadEventSource } from "@/store/quad-event-source.ts";
 import { sameRdfTerm, termKey } from "@/term/mod.ts";
 import { DataFactory } from "@/term/data-factory.ts";
 
@@ -353,12 +354,18 @@ export class MemoryStore implements rdfjs.Store<RdfQuad> {
   }
 
   public remove(stream: rdfjs.Stream<RdfQuad>): rdfjs.Stream<RdfQuad> {
-    stream.on("data", (q: RdfQuad) => this.removeQuad(q));
+    (stream as unknown as QuadEventSource).on(
+      "data",
+      (quad) => this.removeQuad(quad),
+    );
     return stream;
   }
 
   public import(stream: rdfjs.Stream<RdfQuad>): rdfjs.Stream<RdfQuad> {
-    stream.on("data", (q: RdfQuad) => this.addQuad(q));
+    (stream as unknown as QuadEventSource).on(
+      "data",
+      (quad) => this.addQuad(quad),
+    );
     return stream;
   }
 

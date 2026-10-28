@@ -6,6 +6,7 @@ import type {
   StoreStatisticsHook,
 } from "@/planner/pattern-statistics.ts";
 import { MemoryStore } from "@/store/memory-store.ts";
+import type { QuadEventSource } from "@/store/quad-event-source.ts";
 import { DataFactory } from "@/term/data-factory.ts";
 import { sameRdfTerm, termKey } from "@/term/mod.ts";
 
@@ -124,7 +125,7 @@ export function matchQuads(
 ): Promise<RdfQuad[]> {
   return new Promise<RdfQuad[]>((resolve, reject) => {
     const quads: RdfQuad[] = [];
-    const stream = store.match(s, p, o, g);
+    const stream = store.match(s, p, o, g) as unknown as QuadEventSource;
     stream.on("data", (q: RdfQuad) => quads.push(q));
     stream.on("end", () => resolve(quads));
     stream.on("error", reject);
