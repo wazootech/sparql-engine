@@ -67,6 +67,32 @@ export interface UpdateEvaluatorOptions {
    * order, never results.
    */
   estimator?: JoinCostEstimator;
+
+  /**
+   * readTextFile reads a local file for `LOAD <file://...>`. Defaults to
+   * Deno's reader when running under Deno; elsewhere (Node, Bun, native
+   * builds) pass one, e.g. `(path) => readFile(path, "utf8")` from
+   * `node:fs/promises`. Injected so the package graph stays free of `node:`
+   * imports and browser bundles never reference a filesystem module.
+   */
+  readTextFile?: (path: string) => Promise<string>;
+}
+
+/**
+ * defaultReadTextFile reads a file through Deno when it is the host runtime.
+ * It reaches Deno through globalThis rather than the bare global so the
+ * module also type-checks under non-Deno toolchains.
+ */
+function defaultReadTextFile(path: string): Promise<string> {
+  const deno = (globalThis as {
+    Deno?: { readTextFile(path: string): Promise<string> };
+  }).Deno;
+  if (deno === undefined) {
+    throw new Error(
+      "LOAD of a local file needs the readTextFile option outside Deno",
+    );
+  }
+  return deno.readTextFile(path);
 }
 
 type GraphRef = {
@@ -414,7 +440,9 @@ export class UpdateEvaluator {
         // Normalize the file-URL form a URL resolution can produce on
         // Windows (file:///C:/x) back to a readable drive path (C:/x).
         cleanPath = cleanPath.replace(/^\/([A-Za-z]:)/, "$1");
-        text = await Deno.readTextFile(cleanPath);
+        const readTextFile = this.options.readTextFile ??
+          defaultReadTextFile;
+        text = await readTextFile(cleanPath);
       }
 
       const parsedQuads = parseTurtleQuads(text, sourceIri);

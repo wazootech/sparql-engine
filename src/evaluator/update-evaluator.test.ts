@@ -252,6 +252,25 @@ Deno.test("UpdateEvaluator - LOAD merges the document dataset, preserving named 
   );
 });
 
+Deno.test("UpdateEvaluator - LOAD reads local files through an injected readTextFile", async () => {
+  const store = new Store();
+  const readPaths: string[] = [];
+  const engine = new WazooSparqlEngine({
+    store,
+    readTextFile: (path) => {
+      readPaths.push(path);
+      return Promise.resolve(
+        "<http://example.org/s> <http://example.org/p> <http://example.org/o> .",
+      );
+    },
+  });
+
+  await engine.execute({ query: "LOAD <file:///C:/data/doc.nt>" });
+
+  assertEquals(readPaths, ["C:/data/doc.nt"]);
+  assertEquals(store.countQuads(null, null, null, null), 1);
+});
+
 Deno.test("UpdateEvaluator - LOAD INTO GRAPH maps the default graph into the destination", async () => {
   const store = new Store();
   const engine = new WazooSparqlEngine({ store });
