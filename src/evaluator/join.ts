@@ -86,7 +86,7 @@ export function bindingsCompatible(
  * index — which is inherently eager — is required.
  */
 export function leftJoin(
-  left: TermBinding[] | Iterable<TermBinding>,
+  left: Iterable<TermBinding>,
   right: TermBinding[],
   filters: BindingFilter[] = [],
 ): Iterable<TermBinding> {
@@ -198,7 +198,7 @@ function* leftJoinStreamNested(
  * is inherently eager — is required.
  */
 export function innerJoin(
-  left: TermBinding[] | Iterable<TermBinding>,
+  left: Iterable<TermBinding>,
   right: TermBinding[],
 ): Iterable<TermBinding> {
   if (right.length === 0) {
@@ -276,7 +276,7 @@ function* innerJoinStreamNested(
  * hash index — which is inherently eager — is required.
  */
 export function minus(
-  left: TermBinding[] | Iterable<TermBinding>,
+  left: Iterable<TermBinding>,
   right: TermBinding[],
 ): Iterable<TermBinding> {
   if (right.length === 0) {
