@@ -25,37 +25,19 @@
  * AST shapes are identical to upstream sparqljs — this module is a drop-in
  * replacement for the `sparqljs` `Parser` export.
  */
-import { DataFactory } from "@/term/data-factory.ts";
 import type { SparqlQuery } from "./ast.ts";
 export type * from "./ast.ts";
 export { SparqlSyntaxError } from "./syntax-error.ts";
 import { SparqlSyntaxError, toSparqlSyntaxError } from "./syntax-error.ts";
 
-import generatedParser from "./parser.ts";
+import { parseSparql } from "./parser.ts";
+import {
+  resetBlankNodes,
+  resetSparqlContext,
+  sparqlContext,
+} from "./sparql-context.ts";
 
 export { parseTurtleQuads } from "./turtle-parser.ts";
-
-/** The generated jison parser constructor (upstream `SparqlParser.Parser`). */
-type GeneratedParserConstructor =
-  & (new () => {
-    parse(input: string, options?: Record<string, unknown>): SparqlQuery;
-  })
-  & {
-    // Statics the grammar reads during every parse (set by the wrapper below).
-    base: string;
-    prefixes: Record<string, string> | null;
-    factory: typeof DataFactory;
-    sparqlStar: boolean;
-    pathOnly: boolean;
-    skipValidation: boolean;
-    _resetBlanks: () => void;
-  };
-
-// Deno's CJS interop exposes the generated singleton as the default export;
-// its `.Parser` property is the constructor used by upstream's wrapper.
-const GeneratedParser = (generatedParser as unknown as {
-  Parser: GeneratedParserConstructor;
-}).Parser;
 
 export interface SparqlParserOptions {
   /** Pre-registered prefixes; the standard `xsd:` prefix is always included. */
@@ -71,50 +53,30 @@ export interface SparqlParserOptions {
 /**
  * Extended SPARQL parser.
  *
- * Mirrors upstream sparqljs's `Parser` wrapper: a fresh generated-parser
- * instance whose `parse` re-sets the static configuration (base, prefixes,
- * factory, sparqlStar) before delegating — the grammar reads those statics
- * during every parse.
+ * Mirrors upstream sparqljs's `Parser` wrapper: each `parse` resets the typed
+ * parse context (base, prefixes, factory, SPARQL-star and validation options,
+ * see `sparql-context.ts`) before running the generated parser, whose
+ * semantic actions read that context.
  */
 export class Parser {
-  private readonly parser: {
-    parse(input: string, options?: { baseIRI?: string }): SparqlQuery;
-  };
+  private readonly baseIri: string;
+  private readonly prefixTable: Map<string, string>;
+  private readonly sparqlStar: boolean;
+  private readonly skipValidation: boolean;
 
   public constructor(options: SparqlParserOptions = {}) {
-    const prefixes = options.prefixes ?? {};
-    const baseIRI = options.baseIRI ?? "";
-    const sparqlStar = Boolean(options.sparqlStar);
-    const skipValidation = Boolean(options.skipValidation);
-
-    const generated = new GeneratedParser();
-    const generatedParse = generated.parse;
+    this.baseIri = options.baseIRI ?? "";
+    this.sparqlStar = Boolean(options.sparqlStar);
+    this.skipValidation = Boolean(options.skipValidation);
 
     // Pre-register the standard XSD prefix so value constructors
     // (xsd:integer, xsd:double, ...) parse without an explicit PREFIX clause.
-    const prefixTable = {
-      xsd: "http://www.w3.org/2001/XMLSchema#",
-      ...prefixes,
-    };
-
-    generated.parse = function (
-      input: string,
-      parseOptions: { baseIRI?: string } = {},
-    ): SparqlQuery {
-      // The per-parse base overrides the construction-time base, and the
-      // grammar's BASE directive action in turn overrides both (resolving
-      // the directive against the current base) — so the directive always
-      // wins and the option is the fallback, matching sparqljs upstream.
-      GeneratedParser.base = parseOptions.baseIRI ?? baseIRI;
-      GeneratedParser.prefixes = Object.create(prefixTable);
-      GeneratedParser.factory = DataFactory;
-      GeneratedParser.sparqlStar = sparqlStar;
-      GeneratedParser.pathOnly = false;
-      GeneratedParser.skipValidation = skipValidation;
-      return generatedParse.apply(this, [input]);
-    };
-
-    this.parser = generated;
+    this.prefixTable = new Map<string, string>();
+    this.prefixTable.set("xsd", "http://www.w3.org/2001/XMLSchema#");
+    const prefixes = options.prefixes ?? {};
+    for (const prefix of Object.keys(prefixes)) {
+      this.prefixTable.set(prefix, prefixes[prefix]!);
+    }
   }
 
   /**
@@ -127,12 +89,23 @@ export class Parser {
     options: { baseIRI?: string } = {},
   ): SparqlQuery {
     try {
-      return this.parser.parse(query, options);
+      // The per-parse base overrides the construction-time base, and the
+      // grammar's BASE directive action in turn overrides both (resolving
+      // the directive against the current base) - so the directive always
+      // wins and the option is the fallback, matching sparqljs upstream.
+      resetSparqlContext({
+        base: options.baseIRI ?? this.baseIri,
+        prefixes: this.prefixTable,
+        sparqlStar: this.sparqlStar,
+        skipValidation: this.skipValidation,
+      });
+      parseSparql(query);
+      return parsedQuery();
     } catch (error) {
       if (error instanceof SparqlSyntaxError) {
         throw error;
       }
-      // Map the generated jison parse/lex error into a typed, position-aware
+      // Map the generated parse/lex error into a typed, position-aware
       // SparqlSyntaxError; non-syntax failures (e.g. sparqljs validation
       // errors) propagate unchanged.
       const syntax = toSparqlSyntaxError(query, error);
@@ -145,8 +118,20 @@ export class Parser {
 
   /** Reset the parser's blank-node label counter between parses. */
   public _resetBlanks(): void {
-    GeneratedParser._resetBlanks();
+    resetBlankNodes();
   }
+}
+
+// The result of a successful full-SPARQL parse is a query or an update.
+function parsedQuery(): SparqlQuery {
+  const result = sparqlContext.result;
+  if (result === undefined) {
+    throw new Error("The parser produced no result.");
+  }
+  if ("termType" in result || result.type === "path") {
+    throw new Error("Received only path in full SPARQL mode");
+  }
+  return result;
 }
 
 /** Alias kept for parity with upstream's `SparqlParser` export name. */
