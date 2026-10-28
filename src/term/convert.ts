@@ -4,7 +4,15 @@ import type { SparqlValue } from "@/sparql-engine-interface.ts";
 import { DataFactory } from "./data-factory.ts";
 import { XSD_STRING } from "./numeric.ts";
 
-const { namedNode, blankNode, literal } = DataFactory;
+const { blankNode, literal } = DataFactory;
+
+/**
+ * namedNode builds a plain NamedNode; a concrete (non-generic) signature of
+ * DataFactory.namedNode so the function value can be held in a binding.
+ */
+function namedNode(iri: string): rdfjs.NamedNode {
+  return DataFactory.namedNode(iri);
+}
 
 /**
  * sparqlTermToRdfTerm converts a sparqljs AST term to an RDF/JS term.
