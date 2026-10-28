@@ -566,9 +566,9 @@ export class SparqlEvaluator {
  * aggregate node (COUNT, SUM, ...) anywhere inside it.
  */
 function expressionContainsAggregate(
-  expression: Expression | Pattern,
+  expression: Expression | Expression[] | Pattern,
 ): boolean {
-  if ("termType" in expression) {
+  if (Array.isArray(expression) || "termType" in expression) {
     return false;
   }
   if (!("type" in expression)) {
