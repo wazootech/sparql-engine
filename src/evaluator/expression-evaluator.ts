@@ -1,8 +1,10 @@
 import type * as rdfjs from "@rdfjs/types";
 import type {
   AggregateExpression,
+  ExistsExpression,
   Expression,
   FunctionCallExpression,
+  MembershipExpression,
   OperationExpression,
   Pattern,
   Term as SparqlTerm,
@@ -304,7 +306,10 @@ export class ExpressionEvaluator {
   }
 
   private evaluateOperation(
-    operation: OperationExpression,
+    operation:
+      | OperationExpression
+      | ExistsExpression
+      | MembershipExpression,
     binding: TermBinding,
     aggregates?: (aggregate: AggregateExpression) => rdfjs.Term | undefined,
     context?: ExpressionEvaluationContext,

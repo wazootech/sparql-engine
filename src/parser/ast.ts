@@ -1,6 +1,6 @@
-import type * as rdfjs from "@rdfjs/types";
+import type { RdfBaseQuad, RdfNamedNode, RdfTerm } from "./rdf-terms.ts";
 
-export type Term = rdfjs.Term;
+export type Term = RdfTerm;
 
 export interface VariableTerm {
   termType: "Variable";
@@ -21,12 +21,12 @@ export interface Wildcard {
  * - `reifier` carries the reifier binding of `<< s p o ~ r >>` so the
  *   evaluator binds it instead of minting a fresh internal reifier.
  */
-export interface ReifiedQuad extends rdfjs.Quad {
+export interface ReifiedQuad extends RdfBaseQuad {
   tripleTerm?: boolean;
   reifier?: Term;
 }
 
-export type PathElement = rdfjs.NamedNode | PropertyPath;
+export type PathElement = RdfNamedNode | PropertyPath;
 
 export interface PropertyPath {
   type: "path";
@@ -42,6 +42,8 @@ export interface Triple {
 
 export type Expression =
   | OperationExpression
+  | ExistsExpression
+  | MembershipExpression
   | FunctionCallExpression
   | AggregateExpression
   | Term;
@@ -52,16 +54,39 @@ export interface OperationExpression {
   args: Expression[];
 }
 
+/**
+ * ExistsExpression is `EXISTS { ... }` / `NOT EXISTS { ... }`: its single
+ * argument is the group graph pattern, not an expression.
+ */
+export interface ExistsExpression {
+  type: "operation";
+  operator: "exists" | "notexists";
+  args: Pattern[];
+}
+
+/**
+ * MembershipExpression is `x IN (...)` / `x NOT IN (...)`: its arguments are
+ * the tested expression and the list of candidate expressions.
+ */
+export interface MembershipExpression {
+  type: "operation";
+  operator: "in" | "notin";
+  args: [Expression, Expression[]];
+}
+
 export interface FunctionCallExpression {
   type: "functionCall";
   function: string | Term;
   args: Expression[];
+  /** distinct is set by the parser for `f(DISTINCT ...)` argument lists. */
+  distinct?: boolean;
 }
 
 export interface AggregateExpression {
   type: "aggregate";
   aggregation: string;
-  expression: Expression;
+  /** expression is the aggregated expression, or the wildcard for `COUNT(*)`. */
+  expression: Expression | Wildcard;
   distinct: boolean;
   separator?: string;
 }
@@ -168,6 +193,19 @@ export interface VariableExpression {
   expression: Expression;
 }
 
+/**
+ * QueryModifiers are the solution modifiers (and trailing `VALUES`) every
+ * query form accepts in the SPARQL grammar.
+ */
+export interface QueryModifiers {
+  group?: Grouping[];
+  having?: Expression[];
+  order?: Ordering[];
+  limit?: number;
+  offset?: number;
+  values?: ValuePatternRow[];
+}
+
 export interface SelectQuery {
   type: "query";
   queryType: "SELECT";
@@ -186,7 +224,7 @@ export interface SelectQuery {
   from?: FromClause;
 }
 
-export interface AskQuery {
+export interface AskQuery extends QueryModifiers {
   type: "query";
   queryType: "ASK";
   prefixes?: Record<string, string>;
@@ -195,7 +233,7 @@ export interface AskQuery {
   from?: FromClause;
 }
 
-export interface ConstructQuery {
+export interface ConstructQuery extends QueryModifiers {
   type: "query";
   queryType: "CONSTRUCT";
   prefixes?: Record<string, string>;
@@ -205,7 +243,7 @@ export interface ConstructQuery {
   from?: FromClause;
 }
 
-export interface DescribeQuery {
+export interface DescribeQuery extends QueryModifiers {
   type: "query";
   queryType: "DESCRIBE";
   prefixes?: Record<string, string>;

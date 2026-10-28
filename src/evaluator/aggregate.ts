@@ -332,18 +332,17 @@ function numericLiteralFromExactDecimal(
 const WILDCARD_MARKER = { wildcard: true } as unknown as rdfjs.Term;
 
 /**
- * isAggregateWildcard detects the COUNT(*) form, which sparqljs represents
- * as an empty object (a Wildcard) rather than an expression.
+ * isAggregateWildcard detects the COUNT(*) form, which the parser represents
+ * as the Wildcard term (`termType: "Wildcard"`) rather than an expression.
  */
 function isAggregateWildcard(
   expression: Expression | Wildcard,
 ): boolean {
-  // sparqljs's Wildcard is an object with no own properties (its termType
-  // lives on the prototype), so own-key emptiness is the reliable test.
   return (
     typeof expression === "object" &&
     expression !== null &&
-    Object.keys(expression).length === 0
+    "termType" in expression &&
+    (expression.termType as string) === "Wildcard"
   );
 }
 
