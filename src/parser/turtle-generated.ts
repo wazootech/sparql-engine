@@ -2723,17 +2723,11 @@ class TurtleLrParser extends LrParser<TurtleValue> {
       case 107:
       case 110:
       case 111:
-      case 114:
       case 115:
-      case 116:
       case 117:
-      case 118:
       case 119:
-      case 120:
       case 121:
-      case 122:
       case 123:
-      case 124:
       case 125: {
         return values[top - 0];
       }
@@ -2952,6 +2946,14 @@ class TurtleLrParser extends LrParser<TurtleValue> {
           values[top - 0] as string | undefined,
         );
         return values[top - 1];
+      }
+      case 114:
+      case 116:
+      case 118:
+      case 120:
+      case 122:
+      case 124: {
+        return undefined;
       }
       case 127: {
         (values[top - 1] as Array<string | rdfjs.Term | undefined>).push(
