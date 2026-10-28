@@ -72,6 +72,7 @@
     "fmt": "deno fmt",
     "fmt:check": "deno fmt --check",
     "lint": "deno lint",
+    "native:coverage": "deno run --allow-read --allow-run --allow-env cli/native-coverage.ts",
     "parser:generate": "deno run --allow-all src/parser/generate-parser.ts",
     "parser:check": "deno run --allow-all src/parser/generate-parser.ts --check",
     "publish:dry": "deno publish --dry-run --allow-dirty",

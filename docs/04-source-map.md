@@ -179,11 +179,14 @@ sparql-engine/
 
 ## `cli/` — the `sparql` command
 
-| File                  | Role                                                                                                      |
-| --------------------- | --------------------------------------------------------------------------------------------------------- |
-| `cli/run-cli.ts`      | Runtime-agnostic core: argument parsing, loading RDF files into a `MemoryStore`, one query, serialization |
-| `cli/main.ts`         | Deno host entrypoint compiled by `deno task compile` into `dist/sparql`                                   |
-| `cli/run-cli.test.ts` | CLI contract tests over an in-memory host                                                                 |
+| File                     | Role                                                                                                                     |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
+| `cli/run-cli.ts`         | Runtime-agnostic core: argument parsing, loading RDF files into a `MemoryStore`, one query, serialization                |
+| `cli/main.ts`            | Deno host entrypoint compiled by `deno task compile` into `dist/sparql`                                                  |
+| `cli/run-cli.test.ts`    | CLI contract tests over an in-memory host                                                                                |
+| `cli/main-node.ts`       | Node-API host entrypoint for scriptc native builds (issue [#221](https://github.com/wazootech/sparql-engine/issues/221)) |
+| `cli/tsconfig.json`      | scriptc compiler config: strict mode, `@/` → `../src/` path mapping                                                      |
+| `cli/native-coverage.ts` | `deno task native:coverage`: pinned `scriptc coverage` of `cli/main-node.ts`, blockers by file and code                  |
 
 ## `docs/` — this wiki ↔ source mapping
 
