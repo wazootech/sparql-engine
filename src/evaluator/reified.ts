@@ -107,7 +107,7 @@ export function expandReifiedTriples(triples: Triple[]): Triple[] {
       p.value === RDF_REIFIES && triple.object.termType === "Quad"
     ) {
       const s = expandQuotedTerm(triple.subject);
-      expanded.push(...s.triples);
+      for (const expandedTriple of s.triples) expanded.push(expandedTriple);
       expanded.push({ subject: s.term, predicate: p, object: triple.object });
       continue;
     }
@@ -115,7 +115,8 @@ export function expandReifiedTriples(triples: Triple[]): Triple[] {
     const o = expandQuotedTerm(triple.object);
     // A predicate is never a quoted triple (property paths are not terms),
     // so it passes through unchanged.
-    expanded.push(...s.triples, ...o.triples);
+    for (const expandedTriple of s.triples) expanded.push(expandedTriple);
+    for (const expandedTriple of o.triples) expanded.push(expandedTriple);
     expanded.push({ subject: s.term, predicate: p, object: o.term });
   }
   return expanded;
