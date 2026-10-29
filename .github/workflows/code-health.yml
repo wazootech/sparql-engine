@@ -13,7 +13,7 @@ jobs:
       - name: File length (warn-only; 120 src / 300 test, blank/comment/import lines excluded)
         run: |
           git ls-files '*.ts' '*.tsx' '*.js' '*.mjs' \
-            | grep -vE '(^|/)(node_modules|dist|generated|fixtures|\.next)/|\.d\.ts$|\.gen\.|openapi|snapshot|schema|^src/parser/parser\.ts$|^playground/app\.js$' \
+            | grep -vE '(^|/)(node_modules|dist|generated|fixtures|\.next)/|\.d\.ts$|\.gen\.|openapi|snapshot|schema|^src/parser/(parser|turtle-generated)\.ts$|^playground/app\.js$' \
             | while read -r f; do
                 n=$(grep -cvE '^\s*($|//|/\*|\*|import |export .* from )' "$f" || true)
                 case "$f" in *.test.*|*.spec.*|*/tests/*|tests/*) max=300;; *) max=120;; esac
