@@ -28,11 +28,12 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: denoland/setup-deno@v2
+      - uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
         with:
-          deno-version: v2.x
+          deno-version: v2.9.8
+      - run: deno install --frozen
 
       # Rebuild the vendored bundle from the pinned JSR version so the
       # deployed playground always matches playground/bundle-entry.ts, even
@@ -43,7 +44,7 @@ jobs:
       # The wiki relies on the same Jekyll plugins the legacy Pages build
       # runs (kramdown GFM, jekyll-readme-index, jekyll-relative-links,
       # rouge) — all shipped by the github-pages gem.
-      - uses: ruby/setup-ruby@v1
+      - uses: ruby/setup-ruby@7f797815d8adceb1c412e7abefdd1ab4abc47a5f # v1.335.0
         with:
           ruby-version: "3.2"
       - name: Install the GitHub Pages gem
@@ -59,8 +60,8 @@ jobs:
           cp -r playground/datasets site/playground/
           cp -r playground/fonts site/playground/
 
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3.0.1
         with:
           path: site
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4.0.5

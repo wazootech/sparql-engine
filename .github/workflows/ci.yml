@@ -10,10 +10,11 @@ jobs:
   ci:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
-      - uses: denoland/setup-deno@v2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
         with:
-          deno-version: v2.x
+          deno-version: v2.9.8
+      - run: deno install --frozen
       - run: deno task ci
       # Explicit step (not just a deno task ci dependency) so the Oxigraph
       # EXISTS gate runs even if the ci task's dependency list changes.
@@ -28,9 +29,9 @@ jobs:
   latency-snapshot:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # Path-gated: only bench-touching PRs pay for the (inventory-mode) run.
-      - uses: dorny/paths-filter@v3
+      - uses: dorny/paths-filter@0e4a8c6effa4802afeda77dc8d303f8176d7dfad # v3.0.4
         id: bench-changed
         with:
           filters: |
@@ -38,9 +39,11 @@ jobs:
               - 'bench/engine_bench.ts'
               - 'bench/latency-data.json'
       - if: steps.bench-changed.outputs.bench == 'true'
-        uses: denoland/setup-deno@v2
+        uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
         with:
-          deno-version: v2.x
+          deno-version: v2.9.8
+      - if: steps.bench-changed.outputs.bench == 'true'
+        run: deno install --frozen
       - if: steps.bench-changed.outputs.bench == 'true'
         run: deno task bench:latency:check
   # Wiki drift guardrail (wiki sync detail_level: minimal): the wiki declares
@@ -51,8 +54,8 @@ jobs:
   docs-drift:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
-      - uses: dorny/paths-filter@v3
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: dorny/paths-filter@0e4a8c6effa4802afeda77dc8d303f8176d7dfad # v3.0.4
         id: docs-changed
         with:
           filters: |
@@ -77,8 +80,8 @@ jobs:
   docs-links:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
-      - uses: dorny/paths-filter@v3
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: dorny/paths-filter@0e4a8c6effa4802afeda77dc8d303f8176d7dfad # v3.0.4
         id: docs-changed
         with:
           filters: |
@@ -87,9 +90,11 @@ jobs:
               - 'README.md'
               - '.github/workflows/ci.yml'
       - if: steps.docs-changed.outputs.docs == 'true'
-        uses: denoland/setup-deno@v2
+        uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
         with:
-          deno-version: v2.x
+          deno-version: v2.9.8
+      - if: steps.docs-changed.outputs.docs == 'true'
+        run: deno install --frozen
       - if: steps.docs-changed.outputs.docs == 'true'
         run: deno task docs:link-check
   # W3C differential gate: wazoo must agree with comunica on the vendored
@@ -99,10 +104,11 @@ jobs:
   w3c-parity:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
-      - uses: denoland/setup-deno@v2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
         with:
-          deno-version: v2.x
+          deno-version: v2.9.8
+      - run: deno install --frozen
       - run: deno task test:w3c
       # Oxigraph EXISTS differential gate, tracked alongside the W3C
       # conformance checks so a subquery-in-EXISTS regression fails here too.
