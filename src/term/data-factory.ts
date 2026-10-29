@@ -1,142 +1,24 @@
 import type * as rdfjs from "@rdfjs/types";
+import {
+  BlankNodeImpl,
+  defaultGraphInstance,
+  NamedNodeImpl,
+  QuadImpl,
+  VariableImpl,
+} from "@/term/term-impl.ts";
+import { LiteralImpl } from "@/term/literal-impl.ts";
+export { RDF_LANG_STRING } from "@/term/term-impl.ts";
+export { RDF_DIR_LANG_STRING } from "@/term/term-impl.ts";
+export { XSD_STRING } from "@/term/term-impl.ts";
+export { NamedNodeImpl } from "@/term/term-impl.ts";
+export { BlankNodeImpl } from "@/term/term-impl.ts";
+export { LiteralImpl } from "@/term/literal-impl.ts";
+export { VariableImpl } from "@/term/term-impl.ts";
+export { DefaultGraphImpl } from "@/term/term-impl.ts";
+export { defaultGraphInstance } from "@/term/term-impl.ts";
+export { QuadImpl } from "@/term/term-impl.ts";
 
 let blankNodeCounter = 0;
-
-export const RDF_LANG_STRING =
-  "http://www.w3.org/1999/02/22-rdf-syntax-ns#langString";
-export const RDF_DIR_LANG_STRING =
-  "http://www.w3.org/1999/02/22-rdf-syntax-ns#dirLangString";
-export const XSD_STRING = "http://www.w3.org/2001/XMLSchema#string";
-
-export class NamedNodeImpl<Iri extends string = string>
-  implements rdfjs.NamedNode<Iri> {
-  public readonly termType = "NamedNode" as const;
-
-  public constructor(public readonly value: Iri) {}
-
-  public equals(other?: rdfjs.Term | null): boolean {
-    return other != null && other.termType === "NamedNode" &&
-      other.value === this.value;
-  }
-}
-
-export class BlankNodeImpl implements rdfjs.BlankNode {
-  public readonly termType = "BlankNode" as const;
-
-  public constructor(public readonly value: string) {}
-
-  public equals(other?: rdfjs.Term | null): boolean {
-    return other != null && other.termType === "BlankNode" &&
-      other.value === this.value;
-  }
-}
-
-export class LiteralImpl implements rdfjs.Literal {
-  public readonly termType = "Literal" as const;
-  public readonly language: string;
-  public readonly direction: "ltr" | "rtl" | "";
-  public readonly datatype: rdfjs.NamedNode;
-
-  public constructor(
-    public readonly value: string,
-    languageOrDatatype?: string | rdfjs.NamedNode | rdfjs.DirectionalLanguage,
-  ) {
-    if (typeof languageOrDatatype === "string") {
-      this.language = languageOrDatatype.toLowerCase();
-      this.direction = "";
-      this.datatype = new NamedNodeImpl(RDF_LANG_STRING);
-    } else if (
-      languageOrDatatype && typeof languageOrDatatype === "object" &&
-      "termType" in languageOrDatatype
-    ) {
-      this.language = "";
-      this.direction = "";
-      this.datatype = languageOrDatatype;
-    } else if (
-      languageOrDatatype && typeof languageOrDatatype === "object" &&
-      "language" in languageOrDatatype
-    ) {
-      // DirectionalLanguage: a language tag with an optional RDF 1.2 initial
-      // text direction. A direction makes this an rdf:dirLangString literal.
-      this.language = languageOrDatatype.language.toLowerCase();
-      this.direction = languageOrDatatype.direction ?? "";
-      this.datatype = new NamedNodeImpl(
-        this.direction ? RDF_DIR_LANG_STRING : RDF_LANG_STRING,
-      );
-    } else {
-      this.language = "";
-      this.direction = "";
-      this.datatype = new NamedNodeImpl(XSD_STRING);
-    }
-  }
-
-  public equals(other?: rdfjs.Term | null): boolean {
-    if (!other || other.termType !== "Literal") {
-      return false;
-    }
-    return (
-      this.value === other.value &&
-      this.language === other.language &&
-      (this.direction ?? "") === ((other as rdfjs.Literal).direction ?? "") &&
-      this.datatype.value === other.datatype.value
-    );
-  }
-}
-
-export class VariableImpl implements rdfjs.Variable {
-  public readonly termType = "Variable" as const;
-
-  public constructor(public readonly value: string) {}
-
-  public equals(other?: rdfjs.Term | null): boolean {
-    return other != null && other.termType === "Variable" &&
-      other.value === this.value;
-  }
-}
-
-export class DefaultGraphImpl implements rdfjs.DefaultGraph {
-  public readonly termType = "DefaultGraph" as const;
-  public readonly value = "" as const;
-
-  public equals(other?: rdfjs.Term | null): boolean {
-    return other != null && other.termType === "DefaultGraph";
-  }
-}
-
-export const defaultGraphInstance = new DefaultGraphImpl();
-
-export class QuadImpl implements rdfjs.Quad {
-  public readonly termType = "Quad" as const;
-  public readonly value = "" as const;
-  public readonly subject: rdfjs.Quad_Subject;
-  public readonly predicate: rdfjs.Quad_Predicate;
-  public readonly object: rdfjs.Quad_Object;
-  public readonly graph: rdfjs.Quad_Graph;
-
-  public constructor(
-    subject: rdfjs.Term,
-    predicate: rdfjs.Term,
-    object: rdfjs.Term,
-    graph?: rdfjs.Term,
-  ) {
-    this.subject = subject as rdfjs.Quad_Subject;
-    this.predicate = predicate as rdfjs.Quad_Predicate;
-    this.object = object as rdfjs.Quad_Object;
-    this.graph = (graph ?? defaultGraphInstance) as rdfjs.Quad_Graph;
-  }
-
-  public equals(other?: rdfjs.Term | null): boolean {
-    if (!other || other.termType !== "Quad") {
-      return false;
-    }
-    return (
-      this.subject.equals(other.subject) &&
-      this.predicate.equals(other.predicate) &&
-      this.object.equals(other.object) &&
-      this.graph.equals(other.graph)
-    );
-  }
-}
 
 function fromTermImpl(original: rdfjs.NamedNode): rdfjs.NamedNode;
 function fromTermImpl(original: rdfjs.BlankNode): rdfjs.BlankNode;

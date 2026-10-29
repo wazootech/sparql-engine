@@ -1,51 +1,17 @@
 import type * as rdfjs from "@rdfjs/types";
-import type { Term as SparqlTerm, Triple } from "@/parser/sparql-parser.ts";
-import type { ScanEntry } from "@/evaluator/join.ts";
 import { GraphScopedStore } from "@/quad-store.ts";
+import type {
+  PatternStats,
+  StoreStatisticsHook,
+} from "@/planner/pattern-stats-types.ts";
+import type { ScanEntry } from "@/evaluator/join.ts";
+import type { Term as SparqlTerm } from "@/parser/sparql-parser.ts";
+import { fallbackStats } from "@/planner/fallback-stats.ts";
 import { sparqlTermToRdfTerm, termKey } from "@/term/mod.ts";
-
-/**
- * PatternStats are the per-pattern statistics that feed the join-cost
- * estimator (planner piece 2, issue #129):
- *
- *   - candidates — how many quads the pattern matches in the store (the
- *     pattern's cardinality). For the default-graph scope this agrees with
- *     ScanEntry.candidates, which the join actually materializes;
- *   - distinctByVar — for each variable position of the pattern, how many
- *     distinct values that variable takes across the matched quads. This is
- *     the per-variable value-frequency that lets the estimator see true
- *     index bucket sizes, so two medium-selectivity patterns that share a
- *     variable are recognized as cheaper than unrelated patterns.
- *
- * Stats only ever influence join order — never results (SPARQL 1.1 §18.2.2).
- */
-export interface PatternStats {
-  candidates: number;
-  distinctByVar: Partial<Record<string, number>>;
-}
-
-/**
- * StoreStatisticsHook is the optional store capability that feeds the
- * statistics source (mirroring the countQuads precedent, decision #12): a
- * store that can answer pattern-cardinality questions efficiently exposes
- * estimateStats, and the engine uses it when present, falling back to a
- * bounded derivation from the pattern's own candidate scan otherwise.
- *
- * The hook returns the statistics for the given triple pattern over the same
- * universe the store's match() exposes. A store whose data lives in the
- * default graph (the typical case) thus returns numbers that agree exactly
- * with the engine's fallback on identical data; a store with named-graph
- * data should scope its own answer accordingly. Returning undefined (or not
- * implementing the hook at all) selects the fallback for that pattern.
- */
-export type StoreStatisticsHook = {
-  estimateStats?(
-    pattern: Triple,
-  ): PatternStats | undefined | Promise<PatternStats | undefined>;
-};
-
-/** DISTINCT_SAMPLE_CAP bounds the fallback distinct-value pass. */
-export const DISTINCT_SAMPLE_CAP = 1024;
+export type { PatternStats } from "@/planner/pattern-stats-types.ts";
+export type { StoreStatisticsHook } from "@/planner/pattern-stats-types.ts";
+export { DISTINCT_SAMPLE_CAP } from "@/planner/pattern-stats-types.ts";
+export { fallbackStats } from "@/planner/fallback-stats.ts";
 
 /**
  * patternSignature renders a stable cache key for a pattern: variables by
@@ -143,74 +109,4 @@ export class PatternStatistics {
     }
     return fallbackStats(entry);
   }
-}
-
-/**
- * fallbackStats derives PatternStats from the pattern's own candidate scan —
- * the candidates array evaluateWithReordering already materializes — so the
- * fallback needs no extra store access. The distinct-value pass is bounded:
- * candidates up to DISTINCT_SAMPLE_CAP count exactly; larger scans sample an
- * evenly spaced stride of at most the cap and scale the distinct count by
- * the sampling ratio, keeping large-store overhead constant.
- */
-export function fallbackStats(entry: ScanEntry): PatternStats {
-  const quads = entry.candidates;
-  // Track each variable position by its query variable name (the same
-  // name the join binds and the estimator reads), so distinctByVar is keyed
-  // like the hook's contract. Blank-node pattern positions act as query
-  // variables named `_:label` (matching getQueryVarName in join.ts).
-  const positions: { name: string; index: 0 | 1 | 2 }[] = [];
-  for (
-    const [term, index] of [
-      [entry.subject, 0],
-      [entry.predicate, 1],
-      [entry.object, 2],
-    ] as const
-  ) {
-    if (term.termType === "Variable" || term.termType === "BlankNode") {
-      positions.push({
-        name: term.termType === "BlankNode" ? `_:${term.value}` : term.value,
-        index,
-      });
-    }
-  }
-  const distinctByVar: Partial<Record<string, number>> = {};
-  const n = quads.length;
-  if (n === 0) {
-    return { candidates: 0, distinctByVar };
-  }
-  const quadTerm = (quad: rdfjs.Quad, index: 0 | 1 | 2): rdfjs.Term =>
-    index === 0 ? quad.subject : index === 1 ? quad.predicate : quad.object;
-  if (n <= DISTINCT_SAMPLE_CAP) {
-    const sets = positions.map(() => new Set<string>());
-    for (const quad of quads) {
-      for (let index = 0; index < positions.length; index++) {
-        sets[index].add(termKey(quadTerm(quad, positions[index].index)));
-      }
-    }
-    for (let index = 0; index < positions.length; index++) {
-      distinctByVar[positions[index].name] = sets[index].size;
-    }
-    return { candidates: n, distinctByVar };
-  }
-  // Bounded sample: stride = n / cap, so exactly ~cap candidates are
-  // examined, evenly spaced (deterministic — no randomness).
-  const stride = Math.ceil(n / DISTINCT_SAMPLE_CAP);
-  const sets = positions.map(() => new Set<string>());
-  let sampled = 0;
-  for (let index = 0; index < n; index += stride) {
-    const quad = quads[index];
-    for (let p = 0; p < positions.length; p++) {
-      sets[p].add(termKey(quadTerm(quad, positions[p].index)));
-    }
-    sampled++;
-  }
-  const scale = n / sampled;
-  for (let index = 0; index < positions.length; index++) {
-    distinctByVar[positions[index].name] = Math.min(
-      n,
-      Math.round(sets[index].size * scale),
-    );
-  }
-  return { candidates: n, distinctByVar };
 }

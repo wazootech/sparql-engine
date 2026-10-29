@@ -1,69 +1,22 @@
-import type * as rdfjs from "@rdfjs/types";
-import type {
-  AggregateExpression,
-  Expression,
-  SelectQuery,
-  VariableExpression,
-} from "@/parser/sparql-parser.ts";
-import { aggregateValue, groupSolutions } from "@/evaluator/aggregate.ts";
-import { innerJoin } from "@/evaluator/join.ts";
-import type { TermBinding } from "@/evaluator/join.ts";
 import type {
   ExpressionEvaluationContext,
   ExpressionEvaluator,
 } from "@/evaluator/expression-evaluator.ts";
+import type { SelectQuery } from "@/parser/sparql-parser.ts";
+import type { SelectSolution } from "@/evaluator/select-solution.ts";
+import { innerJoin } from "@/evaluator/join.ts";
+import type { TermBinding } from "@/evaluator/join.ts";
+import { expressionContainsAggregate } from "@/evaluator/expression-utils.ts";
+import { groupSolutions } from "@/evaluator/aggregate.ts";
+import { havingPasses } from "@/evaluator/select-having.ts";
+import { orderBindings } from "@/evaluator/select-order.ts";
 import {
-  expressionContainsAggregate,
-  expressionContainsExists,
-} from "@/evaluator/expression-utils.ts";
-import { compareRdfTerms, sparqlTermToRdfTerm, termKey } from "@/term/mod.ts";
-
-/**
- * SelectSolution is one SELECT output row: the binding to project plus,
- * when the query has GROUP BY, the group's raw solutions that aggregates
- * resolve over (null when ungrouped).
- */
-export type SelectSolution = {
-  binding: TermBinding;
-  group: TermBinding[] | null;
-};
-
-/**
- * pipelineNeedsExistsIndex reports whether any expression in the query's
- * projection, ORDER BY, or HAVING clauses contains an EXISTS/NOT EXISTS, in
- * which case the caller must prepare the synchronous EXISTS index before
- * applying the pipeline.
- */
-export function pipelineNeedsExistsIndex(query: SelectQuery): boolean {
-  const projections = query.variables.filter(
-    (v): v is VariableExpression =>
-      typeof v === "object" && "variable" in v && Boolean(v.variable),
-  );
-  return projections.some((v) => expressionContainsExists(v.expression)) ||
-    (query.order ?? []).some((clause) =>
-      expressionContainsExists(clause.expression)
-    ) ||
-    (query.having ?? []).some(expressionContainsExists);
-}
-
-/**
- * projectionAliases collects the SELECT clause's `(expression AS ?v)`
- * projections as a variable-name-to-expression map. The same map drives
- * projection (applySelectPipeline) and ORDER BY alias resolution: per
- * SPARQL 1.1 §18.2.4.4 the alias is bound by the projection-conversion
- * Extend, which happens before the solution modifiers (§18.2.5), so a bare
- * alias reference in ORDER BY sorts by the projected value.
- */
-function projectionAliases(query: SelectQuery): Map<string, Expression> {
-  const aliases = new Map<string, Expression>();
-  for (const v of query.variables) {
-    if ("variable" in v && v.variable) {
-      aliases.set(v.variable.value, v.expression);
-    }
-  }
-  return aliases;
-}
-
+  projectionAliases,
+  projectSolutionToTermBinding,
+} from "@/evaluator/select-project.ts";
+import { sparqlTermToRdfTerm, termKey } from "@/term/mod.ts";
+export { pipelineNeedsExistsIndex } from "@/evaluator/select-having.ts";
+export type { SelectSolution } from "@/evaluator/select-solution.ts";
 /**
  * applySelectPipeline turns a query's raw BGP solutions into its final
  * projected term bindings: VALUES join, GROUP BY / aggregates, HAVING,
@@ -205,190 +158,5 @@ export function applySelectPipeline(
       }
     }
     return clean;
-  });
-}
-
-/**
- * havingPasses applies one HAVING expression to a grouped solution: the
- * expression is evaluated with aggregate resolution over the group and its
- * EBV must be true (false and errors both drop the group).
- */
-function havingPasses(
-  expression: Expression,
-  solution: SelectSolution,
-  expressionEvaluator: ExpressionEvaluator,
-  context?: ExpressionEvaluationContext,
-): boolean {
-  if (solution.group === null) {
-    return false;
-  }
-  return expressionEvaluator.filterPassesWithAggregates(
-    expression,
-    solution.binding,
-    aggregateResolver(solution, expressionEvaluator, context),
-    context,
-  );
-}
-
-/**
- * aggregateResolver returns the aggregate resolver for a grouped solution:
- * each aggregate expression evaluates over the group's raw solutions.
- */
-function aggregateResolver(
-  solution: SelectSolution,
-  expressionEvaluator: ExpressionEvaluator,
-  context?: ExpressionEvaluationContext,
-): (aggregate: AggregateExpression) => rdfjs.Term | undefined {
-  const group = solution.group;
-  if (group === null) {
-    return () => undefined;
-  }
-  return (aggregate) =>
-    aggregateValue(
-      aggregate,
-      group,
-      (expression, binding) =>
-        expressionEvaluator.evaluate(expression, binding, context),
-    );
-}
-
-/**
- * projectSolutionToTermBinding renders one solution (raw or grouped) to its
- * projected binding. Projected variables resolve from the solution's binding
- * (group key variables are bound by grouping); projection expressions
- * evaluate with the solution's aggregate resolver when it is grouped.
- */
-function projectSolutionToTermBinding(
-  solution: SelectSolution,
-  wildcard: boolean,
-  vars: string[],
-  projections: Map<string, Expression>,
-  expressionEvaluator: ExpressionEvaluator,
-  context?: ExpressionEvaluationContext,
-): TermBinding {
-  const binding = solution.binding;
-  const result: TermBinding = {};
-  if (wildcard) {
-    for (const varName of Object.keys(binding)) {
-      result[varName] = binding[varName];
-    }
-    return result;
-  }
-  // BNODE(str) scopes its blank nodes to a single solution mapping, so each
-  // solution's projection carries a fresh bnode cache (SPARQL 1.1 §17.4.1.5).
-  const solutionContext: ExpressionEvaluationContext = {
-    ...(context ?? {}),
-    bnodeMap: new Map<string, rdfjs.BlankNode>(),
-  };
-  const resolver = solution.group === null
-    ? undefined
-    : aggregateResolver(solution, expressionEvaluator, solutionContext);
-  for (const varName of vars) {
-    const bound = binding[varName];
-    if (bound) {
-      result[varName] = bound;
-    }
-    const projection = projections.get(varName);
-    if (projection !== undefined && !(varName in result)) {
-      const mergedBinding = { ...binding, ...result };
-      const value = resolver === undefined
-        ? expressionEvaluator.evaluate(
-          projection,
-          mergedBinding,
-          solutionContext,
-        )
-        : expressionEvaluator.evaluateWithAggregates(
-          projection,
-          mergedBinding,
-          resolver,
-          solutionContext,
-        );
-      if (value !== undefined) {
-        result[varName] = value;
-      }
-    }
-  }
-  return result;
-}
-
-/**
- * orderBindings sorts term bindings by the query's ORDER BY clauses, using
- * the term module's ordering (unbound lowest, then blank nodes, IRIs, and
- * literals; literals by datatype, numeric value, then lexical form, with
- * rdf:dirLangString values tie-broken by base direction). Comparison is
- * stable, so ties keep the evaluation order. Any expression the expression
- * evaluator supports (variables, constants, builtin function calls) can be
- * sorted on; genuinely unsupported expressions raise a clear error.
- *
- * A bare reference to a SELECT `(expression AS ?v)` alias (issue #201) sorts
- * by the alias's value: the alias is bound by the projection-conversion
- * Extend (§18.2.4.4) before ORDER BY runs (§18.2.5.1), so the comparator
- * evaluates the alias's expression over the solution — with aggregate
- * resolution for grouped solutions — instead of reading the (absent)
- * projected binding.
- */
-function orderBindings(
-  solutions: SelectSolution[],
-  order: NonNullable<SelectQuery["order"]>,
-  expressionEvaluator: ExpressionEvaluator,
-  context?: ExpressionEvaluationContext,
-  projectionAliasMap: Map<string, Expression> = new Map(),
-): SelectSolution[] {
-  const aliasValue = (
-    solution: SelectSolution,
-    alias: Expression,
-  ): rdfjs.Term | undefined => {
-    const resolver = solution.group === null
-      ? undefined
-      : aggregateResolver(solution, expressionEvaluator, context);
-    return resolver === undefined
-      ? expressionEvaluator.evaluate(alias, solution.binding, context)
-      : expressionEvaluator.evaluateWithAggregates(
-        alias,
-        solution.binding,
-        resolver,
-        context,
-      );
-  };
-  const comparators = order.map((clause) => ({
-    descending: clause.descending === true,
-    resolve: (solution: SelectSolution): rdfjs.Term | undefined => {
-      if (
-        "termType" in clause.expression &&
-        clause.expression.termType === "Variable"
-      ) {
-        const alias = projectionAliasMap.get(clause.expression.value);
-        if (alias !== undefined) {
-          return aliasValue(solution, alias);
-        }
-      }
-      const resolver = solution.group === null
-        ? undefined
-        : aggregateResolver(solution, expressionEvaluator, context);
-      return resolver === undefined
-        ? expressionEvaluator.evaluate(
-          clause.expression,
-          solution.binding,
-          context,
-        )
-        : expressionEvaluator.evaluateWithAggregates(
-          clause.expression,
-          solution.binding,
-          resolver,
-          context,
-        );
-    },
-  }));
-  return [...solutions].sort((a, b) => {
-    for (const comparator of comparators) {
-      const result = compareRdfTerms(
-        comparator.resolve(a),
-        comparator.resolve(b),
-      );
-      if (result !== 0) {
-        return comparator.descending ? -result : result;
-      }
-    }
-    return 0;
   });
 }

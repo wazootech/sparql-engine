@@ -1,4 +1,6 @@
 import type * as rdfjs from "@rdfjs/types";
+import { escapeIri } from "@/serialize/turtle-escape.ts";
+import { term } from "@/serialize/turtle-term.ts";
 
 /**
  * TurtleWriterFormat selects the serialization dialect:
@@ -20,9 +22,6 @@ export interface TurtleWriterOptions {
   /** Namespace prefixes: `{ prefix: namespace }`, emitted as `@prefix` lines. */
   prefixes?: Record<string, string>;
 }
-
-const XSD_STRING = "http://www.w3.org/2001/XMLSchema#string";
-const RDF_LANG_STRING = "http://www.w3.org/1999/02/22-rdf-syntax-ns#langString";
 
 /**
  * serializeTurtle serializes RDF/JS quads into a Turtle-family document.
@@ -145,129 +144,4 @@ function statementLines(
     lines.push(subjectKey + " " + predicateGroups.join(" ;\n  ") + " .");
   }
   return lines;
-}
-
-/** term serializes a single RDF/JS term (Turtle term grammar). */
-function term(t: rdfjs.Term, prefixes: Record<string, string> = {}): string {
-  switch (t.termType) {
-    case "NamedNode":
-      return iriTerm(t.value, prefixes);
-    case "BlankNode":
-      return `_:${escapeBlankNodeLabel(t.value)}`;
-    case "Literal":
-      return literalTerm(t, prefixes);
-    case "Quad":
-      return `<<( ${term(t.subject, prefixes)} ${term(t.predicate, prefixes)} ${
-        term(t.object, prefixes)
-      } )>>`;
-    default:
-      throw new Error(
-        `Cannot serialize ${t.termType} term in Turtle: ${t.value}`,
-      );
-  }
-}
-
-/** iriTerm renders an IRI as a prefixed name when a registered namespace matches. */
-function iriTerm(
-  value: string,
-  prefixes: Record<string, string>,
-): string {
-  for (const [prefix, namespace] of Object.entries(prefixes)) {
-    if (
-      prefix.length > 0 && namespace.length > 0 && value.startsWith(namespace)
-    ) {
-      const local = value.slice(namespace.length);
-      // Only use the compact form when the local name is a plain PN_LOCAL,
-      // so the output always re-parses to the same IRI.
-      if (/^[A-Za-z0-9_][A-Za-z0-9_.-]*$/.test(local)) {
-        return `${prefix}:${local}`;
-      }
-    }
-  }
-  return `<${escapeIri(value)}>`;
-}
-
-/** literalTerm renders a literal with language/direction or datatype suffix. */
-function literalTerm(
-  term: rdfjs.Literal,
-  prefixes: Record<string, string>,
-): string {
-  const value = `"${escapeLiteral(term.value)}"`;
-  if (term.language) {
-    const direction = term.direction ? `--${term.direction}` : "";
-    return `${value}@${term.language}${direction}`;
-  }
-  if (
-    term.datatype.value !== XSD_STRING &&
-    term.datatype.value !== RDF_LANG_STRING
-  ) {
-    return `${value}^^${iriTerm(term.datatype.value, prefixes)}`;
-  }
-  return value;
-}
-
-/**
- * escapeIri escapes a value for use inside `<...>` (IRIREF grammar). The
- * grammar only permits `\u`/`\U` escapes inside an IRI (a literal backslash
- * is excluded), so every forbidden character is emitted as a UCHAR rather
- * than a backslash-escaped form.
- */
-function escapeIri(value: string): string {
-  let out = "";
-  for (const ch of value) {
-    const code = ch.codePointAt(0)!;
-    if (
-      ch === "\\" || ch === ">" || ch === "<" || ch === '"' || ch === "{" ||
-      ch === "}" || ch === "|" || ch === "^" || ch === "`" || code <= 0x20
-    ) {
-      out += `\\u${code.toString(16).padStart(4, "0")}`;
-    } else {
-      out += ch;
-    }
-  }
-  return out;
-}
-
-/** escapeLiteral escapes a literal value for use inside `"..."` (STRING_LITERAL_QUOTE grammar). */
-function escapeLiteral(value: string): string {
-  let out = "";
-  for (const ch of value) {
-    switch (ch) {
-      case "\\":
-        out += "\\\\";
-        break;
-      case '"':
-        out += '\\"';
-        break;
-      case "\n":
-        out += "\\n";
-        break;
-      case "\r":
-        out += "\\r";
-        break;
-      case "\t":
-        out += "\\t";
-        break;
-      default: {
-        const code = ch.codePointAt(0)!;
-        out += code <= 0x1f ? `\\u${code.toString(16).padStart(4, "0")}` : ch;
-      }
-    }
-  }
-  return out;
-}
-
-/**
- * escapeBlankNodeLabel escapes a blank node label for the `_:label` grammar
- * (PN_CHARS_U / PN_CHARS), hex-encoding characters outside the safe set the
- * same way the reference implementations do (`_xHH_`).
- */
-function escapeBlankNodeLabel(value: string): string {
-  let out = "";
-  for (const ch of value) {
-    const code = ch.codePointAt(0)!;
-    const safe = /[A-Za-z0-9_\u00C0-\uFFFF.-]/.test(ch);
-    out += safe ? ch : `_x${code.toString(16).toUpperCase().padStart(2, "0")}_`;
-  }
-  return out;
 }

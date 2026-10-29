@@ -3,24 +3,21 @@ import type {
   AggregateExpression,
   Expression,
   Grouping,
-  Wildcard,
 } from "@/parser/sparql-parser.ts";
-import { DataFactory } from "@/term/mod.ts";
+import { termKey } from "@/term/mod.ts";
 import type { TermBinding } from "@/evaluator/join.ts";
 import {
-  canonicalDouble,
-  compareRdfTerms,
-  formatNumber,
-  numericValue,
-  termKey,
-  XSD_DECIMAL,
-  XSD_DOUBLE,
-  XSD_FLOAT,
-  XSD_INTEGER,
-  XSD_STRING,
-} from "@/term/mod.ts";
-
-const { literal, namedNode } = DataFactory;
+  groupConcat,
+  isAggregateWildcard,
+  minMaxAggregate,
+  solutionKey,
+  WILDCARD_MARKER,
+} from "@/evaluator/aggregate-helpers.ts";
+import {
+  avgAggregate,
+  integerLiteral,
+  sumAggregate,
+} from "@/evaluator/aggregate-numeric.ts";
 
 /**
  * SolutionGroup is one GROUP BY partition: the group's key binding (the
@@ -150,210 +147,4 @@ export function aggregateValue(
     default:
       throw new Error(`Unsupported aggregate: ${aggregate.aggregation}`);
   }
-}
-
-function sumAggregate(defined: rdfjs.Term[]): rdfjs.Term | undefined {
-  if (defined.length === 0) {
-    return integerLiteral(0);
-  }
-  let datatype = XSD_INTEGER;
-  const nums: (number | bigint)[] = [];
-  for (const value of defined) {
-    if (value.termType !== "Literal") {
-      return undefined;
-    }
-    const numeric = numericValue(value);
-    if (numeric === null) {
-      return undefined;
-    }
-    nums.push(numeric);
-    const dt = value.datatype?.value ?? "";
-    if (dt === XSD_DOUBLE) {
-      datatype = XSD_DOUBLE;
-    } else if (dt === XSD_FLOAT && datatype !== XSD_DOUBLE) {
-      datatype = XSD_FLOAT;
-    } else if (dt === XSD_DECIMAL && datatype === XSD_INTEGER) {
-      datatype = XSD_DECIMAL;
-    }
-  }
-  if (datatype === XSD_INTEGER && nums.every((n) => typeof n === "bigint")) {
-    let total = 0n;
-    for (const n of nums) {
-      total += n as bigint;
-    }
-    return integerLiteral(total);
-  }
-  if (datatype === XSD_DECIMAL) {
-    return exactDecimalSum(defined);
-  }
-  let total = 0;
-  for (const n of nums) {
-    total += Number(n);
-  }
-  return numericLiteral(total, datatype);
-}
-
-function avgAggregate(defined: rdfjs.Term[]): rdfjs.Term | undefined {
-  if (defined.length === 0) {
-    return integerLiteral(0);
-  }
-  let datatype = XSD_DECIMAL;
-  let total = 0;
-  for (const value of defined) {
-    if (value.termType !== "Literal") {
-      return undefined;
-    }
-    const numeric = numericValue(value);
-    if (numeric === null) {
-      return undefined;
-    }
-    total += Number(numeric);
-    const dt = value.datatype?.value ?? "";
-    if (dt === XSD_DOUBLE || dt === XSD_FLOAT) {
-      datatype = XSD_DOUBLE;
-    }
-  }
-  return numericLiteral(total / defined.length, datatype);
-}
-
-function minMaxAggregate(
-  aggregation: "min" | "max",
-  defined: rdfjs.Term[],
-): rdfjs.Term | undefined {
-  if (defined.length === 0) {
-    return undefined;
-  }
-  let best = defined[0];
-  for (const value of defined) {
-    const comparison = compareRdfTerms(value, best);
-    if (aggregation === "min" ? comparison < 0 : comparison > 0) {
-      best = value;
-    }
-  }
-  return best;
-}
-
-function groupConcat(
-  separator: string | undefined,
-  defined: rdfjs.Term[],
-): rdfjs.Term {
-  const parts: string[] = [];
-  for (const value of defined) {
-    if (value.termType === "Literal" || value.termType === "NamedNode") {
-      parts.push(value.value);
-    }
-    // Blank nodes have no string form per SPARQL str(); they are excluded.
-  }
-  return literal(parts.join(separator ?? " "), namedNode(XSD_STRING));
-}
-
-function integerLiteral(value: number | bigint): rdfjs.Literal {
-  return literal(String(value), namedNode(XSD_INTEGER));
-}
-
-function numericLiteral(
-  value: number,
-  datatype: string,
-): rdfjs.Literal {
-  const text = datatype === XSD_DOUBLE || datatype === XSD_FLOAT
-    ? canonicalDouble(value)
-    : formatNumber(value, datatype);
-  return literal(text, namedNode(datatype));
-}
-
-/**
- * exactDecimalSum sums numeric literals exactly when the aggregate's result
- * datatype is xsd:decimal, so JS float accumulation noise never leaks into
- * the lexical result (1.0 + 2.2 + 3.5 + 2.2 + 2.2 must be "11.1", not
- * "11.100000000000001"). Each term parses to a BigInt significand and a
- * scale; scales align to the maximum and the sum renders with trailing
- * fractional zeros stripped.
- *
- * Prior art: fixed-point arithmetic on (BigInt significand, scale) pairs
- * — summing scaled integers instead of binary floats — avoids the
- * rounding error that Goldberg's analysis shows in naive floating-point
- * accumulation.
- * @see {@link https://doi.org/10.1145/103162.103163 Goldberg, "What Every Computer Scientist Should Know About Floating-Point Arithmetic," ACM Computing Surveys 23(1), 1991, pp. 5–48}
- */
-function exactDecimalSum(defined: rdfjs.Term[]): rdfjs.Literal {
-  let maxScale = 0;
-  const parts: { significand: bigint; scale: number }[] = [];
-  for (const value of defined) {
-    const literalValue = value as rdfjs.Literal;
-    const text = literalValue.value;
-    const dot = text.indexOf(".");
-    const scale = dot === -1 ? 0 : text.length - dot - 1;
-    const digits = dot === -1 ? text : text.slice(0, dot) + text.slice(dot + 1);
-    maxScale = Math.max(maxScale, scale);
-    parts.push({ significand: BigInt(digits), scale });
-  }
-  let total = 0n;
-  for (const part of parts) {
-    total += part.significand * 10n ** BigInt(maxScale - part.scale);
-  }
-  return numericLiteralFromExactDecimal(total, maxScale);
-}
-
-/**
- * numericLiteralFromExactDecimal renders an exact decimal sum (a BigInt
- * significand plus a scale) as an xsd:decimal literal with trailing
- * fractional zeros stripped ("111"/1 -> "11.1", "32"/1 -> "3.2", "3"/1 ->
- * "3").
- */
-function numericLiteralFromExactDecimal(
-  total: bigint,
-  scale: number,
-): rdfjs.Literal {
-  const negative = total < 0n;
-  const absolute = (negative ? -total : total).toString().padStart(
-    scale + 1,
-    "0",
-  );
-  let text: string;
-  if (scale === 0) {
-    text = absolute;
-  } else {
-    const intPart = absolute.slice(0, absolute.length - scale);
-    const fracPart = absolute.slice(absolute.length - scale).replace(
-      /0+$/,
-      "",
-    );
-    text = fracPart.length === 0 ? intPart : `${intPart}.${fracPart}`;
-  }
-  if (negative) {
-    text = "-" + text;
-  }
-  return literal(text, namedNode(XSD_DECIMAL));
-}
-
-/**
- * WILDCARD_MARKER stands in for COUNT(*) arguments; only count uses it.
- */
-const WILDCARD_MARKER = { wildcard: true } as unknown as rdfjs.Term;
-
-/**
- * isAggregateWildcard detects the COUNT(*) form, which sparqljs represents
- * as an empty object (a Wildcard) rather than an expression.
- */
-function isAggregateWildcard(
-  expression: Expression | Wildcard,
-): boolean {
-  // sparqljs's Wildcard is an object with no own properties (its termType
-  // lives on the prototype), so own-key emptiness is the reliable test.
-  return (
-    typeof expression === "object" &&
-    expression !== null &&
-    Object.keys(expression).length === 0
-  );
-}
-
-/**
- * solutionKey renders a binding as a deterministic string for DISTINCT *
- * counting.
- */
-function solutionKey(solution: TermBinding): string {
-  return Object.keys(solution)
-    .sort()
-    .map((name) => `${name}=${termKey(solution[name])}`)
-    .join("|");
 }
