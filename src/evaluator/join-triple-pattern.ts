@@ -1,4 +1,5 @@
 import type * as rdfjs from "@rdfjs/types";
+import type { RdfTerm } from "@/parser/rdf-terms.ts";
 import { buildQuadIndex, probeQuadIndex } from "@/quad-store.ts";
 import type { QuadIndex } from "@/quad-store.ts";
 import type { ScanEntry, TermBinding } from "@/evaluator/join-bindings.ts";
@@ -37,13 +38,13 @@ export function joinTriplePattern(
   currentBindings: TermBinding[],
   entry: ScanEntry,
   prebuiltIndex?: QuadIndex | null,
-  graphScope?: rdfjs.Term | null,
+  graphScope?: RdfTerm | null,
 ): TermBinding[] {
   if (entry.reifies) {
-    return [...joinReifiesPattern(currentBindings, entry)];
+    return joinReifiesPattern(currentBindings, entry);
   }
   if (entry.tripleTermObject) {
-    return [...joinTripleTermObject(currentBindings, entry)];
+    return joinTripleTermObject(currentBindings, entry);
   }
   const subject = entry.subject;
   const predicate = entry.predicate;
@@ -71,7 +72,12 @@ export function joinTriplePattern(
 
   const nextBindings: TermBinding[] = [];
 
-  for (const binding of currentBindings) {
+  for (
+    let bindingIndex = 0;
+    bindingIndex < currentBindings.length;
+    bindingIndex++
+  ) {
+    const binding = currentBindings[bindingIndex];
     const resolvedSubject = resolveTerm(subject, binding);
     const resolvedPredicate = resolveTerm(predicate, binding);
     const resolvedObject = resolveTerm(object, binding);
@@ -87,7 +93,8 @@ export function joinTriplePattern(
       ? matchingQuads
       : matchingQuads.filter((item) => sameRdfTerm(item.graph, graphScope));
 
-    for (const matchQuad of scopedQuads) {
+    for (let quadIndex2 = 0; quadIndex2 < scopedQuads.length; quadIndex2++) {
+      const matchQuad = scopedQuads[quadIndex2];
       const newBinding = { ...binding };
       let valid = true;
 

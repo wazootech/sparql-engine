@@ -25,7 +25,7 @@ import {
  * hash index — which is inherently eager — is required.
  */
 export function minus(
-  left: TermBinding[] | Iterable<TermBinding>,
+  left: Iterable<TermBinding>,
   right: TermBinding[],
 ): Iterable<TermBinding> {
   if (right.length === 0) {
@@ -36,14 +36,11 @@ export function minus(
       return EMPTY_BINDINGS;
     }
     if (left.length * right.length <= JOIN_PRODUCT_THRESHOLD) {
-      return minusNested(left, right);
+      return [...minusNested(left, right)];
     }
-    return minusHash(left, right);
+    return [...minusHash(left, right)];
   }
-  if (right.length <= STREAM_NESTED_THRESHOLD) {
-    return minusStreamNested(left, right);
-  }
-  return minusHash([...left], right);
+  return EMPTY_BINDINGS;
 }
 
 function* minusNested(
@@ -84,6 +81,17 @@ function* minusHash(
 }
 
 function* minusStreamNested(
+  left: Iterable<TermBinding>,
+  right: TermBinding[],
+): Generator<TermBinding> {
+  for (const l of left) {
+    if (!right.some((r) => sharesVariable(l, r) && bindingsCompatible(l, r))) {
+      yield l;
+    }
+  }
+}
+
+function* _minusStreamNested(
   left: Iterable<TermBinding>,
   right: TermBinding[],
 ): Generator<TermBinding> {

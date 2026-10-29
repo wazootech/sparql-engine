@@ -1,4 +1,5 @@
 import type * as rdfjs from "@rdfjs/types";
+import type { RdfQuad, RdfTerm } from "@/parser/rdf-terms.ts";
 import { isMultisetPath } from "@/evaluator/path-types.ts";
 import type { PathEntry, PathPair } from "@/evaluator/path-types.ts";
 import type {
@@ -17,7 +18,7 @@ import { sparqlTermToRdfTerm, termKey } from "@/term/mod.ts";
  * endpoint prunes the evaluation to that end.
  */
 export function scanPathEntrySync(
-  candidates: rdfjs.Quad[],
+  candidates: RdfQuad[],
   path: PropertyPath,
   subject: SparqlTerm,
   object: SparqlTerm,
@@ -25,7 +26,7 @@ export function scanPathEntrySync(
   const pairs: PathPair[] = [];
   const seen = new Set<string>();
   const allowDuplicates = isMultisetPath(path);
-  const addPair = (s: rdfjs.Term, o: rdfjs.Term): void => {
+  const addPair = (s: RdfTerm, o: RdfTerm): void => {
     if (allowDuplicates) {
       pairs.push({ subject: s, object: o });
     } else {

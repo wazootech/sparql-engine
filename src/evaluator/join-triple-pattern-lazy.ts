@@ -1,7 +1,9 @@
 import type * as rdfjs from "@rdfjs/types";
+import type { RdfTerm } from "@/parser/rdf-terms.ts";
 import { buildQuadIndex, probeQuadIndex } from "@/quad-store.ts";
 import type { QuadIndex } from "@/quad-store.ts";
 import type { ScanEntry, TermBinding } from "@/evaluator/join-bindings.ts";
+import { EMPTY_BINDINGS } from "@/evaluator/join-bindings.ts";
 import {
   getQueryVarName,
   isQueryVar,
@@ -27,14 +29,26 @@ export function* joinTriplePatternLazy(
   currentBindings: Iterable<TermBinding>,
   entry: ScanEntry,
   prebuiltIndex?: QuadIndex | null,
-  graphScope?: rdfjs.Term | null,
+  graphScope?: RdfTerm | null,
 ): Generator<TermBinding> {
   if (entry.reifies) {
-    yield* joinReifiesPattern(currentBindings, entry);
+    const materialized = Array.isArray(currentBindings)
+      ? currentBindings
+      : EMPTY_BINDINGS;
+    const joined = joinReifiesPattern(materialized, entry);
+    for (let index = 0; index < joined.length; index++) {
+      yield joined[index];
+    }
     return;
   }
   if (entry.tripleTermObject) {
-    yield* joinTripleTermObject(currentBindings, entry);
+    const materialized = Array.isArray(currentBindings)
+      ? currentBindings
+      : EMPTY_BINDINGS;
+    const joined = joinTripleTermObject(materialized, entry);
+    for (let index = 0; index < joined.length; index++) {
+      yield joined[index];
+    }
     return;
   }
   const subject = entry.subject;

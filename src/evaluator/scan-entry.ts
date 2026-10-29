@@ -3,6 +3,7 @@ import type { ScanEntry, TermBinding } from "@/evaluator/join-bindings.ts";
 import type { Term as SparqlTerm, Triple } from "@/parser/sparql-parser.ts";
 import { isReifiesPattern } from "@/evaluator/reified.ts";
 import { matchQuads, simplePredicate } from "@/quad-store.ts";
+import type { RdfBaseQuad, RdfQuad, RdfTerm } from "@/parser/rdf-terms.ts";
 import { sameRdfTerm, sparqlTermToRdfTerm } from "@/term/mod.ts";
 
 /**
@@ -10,7 +11,7 @@ import { sameRdfTerm, sparqlTermToRdfTerm } from "@/term/mod.ts";
  * matching its constant positions.
  */
 export function scanEntry(
-  store: rdfjs.Source<rdfjs.Quad>,
+  store: rdfjs.Source<RdfQuad>,
   pattern: Triple,
 ): Promise<ScanEntry> {
   const subject = pattern.subject;
@@ -38,7 +39,7 @@ export function scanEntry(
       patternConstant(predicate),
       patternConstant(object),
     );
-  return candidates.then((cs) => ({
+  return candidates.then((cs): ScanEntry => ({
     subject,
     predicate,
     object,
@@ -69,7 +70,7 @@ export function getQueryVarName(term: SparqlTerm): string {
  */
 export function matchPatternTerm(
   term: SparqlTerm,
-  value: rdfjs.Term,
+  value: RdfTerm,
   binding: TermBinding,
 ): TermBinding | null {
   if (isQueryVar(term)) {
@@ -84,8 +85,11 @@ export function matchPatternTerm(
     if (value.termType !== "Quad") {
       return null;
     }
-    const pattern = term as rdfjs.Quad;
-    const data = value as rdfjs.Quad;
+    // Both operands are narrowed to the base quad arm by the termType checks
+    // above, so their components are plain terms: the narrowed RdfQuad shape
+    // is not needed and cannot be laid out across the narrowing.
+    const pattern: RdfBaseQuad = term;
+    const data: RdfBaseQuad = value;
     let extended = matchPatternTerm(pattern.subject, data.subject, binding);
     if (extended === null) {
       return null;
@@ -103,7 +107,7 @@ export function matchPatternTerm(
  * patternConstant returns the RDF/JS term for a constant pattern position, or
  * null when the position is a variable that must not constrain the scan.
  */
-function patternConstant(term: SparqlTerm): rdfjs.Term | null {
+export function patternConstant(term: SparqlTerm): RdfTerm | null {
   if (isQueryVar(term)) {
     return null;
   }
@@ -118,7 +122,7 @@ function patternConstant(term: SparqlTerm): rdfjs.Term | null {
 export function resolveTerm(
   term: SparqlTerm,
   binding: TermBinding,
-): rdfjs.Term | null {
+): RdfTerm | null {
   if (isQueryVar(term)) {
     const bound = binding[getQueryVarName(term)];
     if (bound) {

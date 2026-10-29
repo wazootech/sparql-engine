@@ -1,4 +1,5 @@
 import type * as rdfjs from "@rdfjs/types";
+import type { RdfQuad, RdfTerm } from "@/parser/rdf-terms.ts";
 import { isMultisetPath } from "@/evaluator/path-types.ts";
 import type { PathEntry, PathPair } from "@/evaluator/path-types.ts";
 import type {
@@ -24,7 +25,7 @@ import { sparqlTermToRdfTerm, termKey } from "@/term/mod.ts";
  * queries. {@link https://doi.org/10.1007/978-3-319-25007-6_1 Kostylev et al., "SPARQL with Property Paths," ISWC 2015, LNCS 9366, pp. 3–18} (see also pathSteps)
  */
 export async function scanPathEntry(
-  store: rdfjs.Source<rdfjs.Quad>,
+  store: rdfjs.Source<RdfQuad>,
   path: PropertyPath,
   subject: SparqlTerm,
   object: SparqlTerm,
@@ -32,7 +33,7 @@ export async function scanPathEntry(
   const pairs: PathPair[] = [];
   const seen = new Set<string>();
   const allowDuplicates = isMultisetPath(path);
-  const addPair = (s: rdfjs.Term, o: rdfjs.Term): void => {
+  const addPair = (s: RdfTerm, o: RdfTerm): void => {
     if (allowDuplicates) {
       pairs.push({ subject: s, object: o });
     } else {
@@ -76,10 +77,10 @@ export async function scanPathEntry(
  * over (per SPARQL 1.1 §9.1, matching Comunica, literals count as nodes).
  */
 async function graphNodes(
-  store: rdfjs.Source<rdfjs.Quad>,
-): Promise<rdfjs.Term[]> {
+  store: rdfjs.Source<RdfQuad>,
+): Promise<RdfTerm[]> {
   const quads = await matchQuads(store, null, null, null);
-  const nodes = new Map<string, rdfjs.Term>();
+  const nodes = new Map<string, RdfTerm>();
   for (const quad of quads) {
     nodes.set(termKey(quad.subject), quad.subject);
     nodes.set(termKey(quad.object), quad.object);

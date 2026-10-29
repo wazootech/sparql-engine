@@ -1,5 +1,6 @@
 import type * as rdfjs from "@rdfjs/types";
 import type { ScanEntry, TermBinding } from "@/evaluator/join-bindings.ts";
+import type { RdfQuad, RdfQuadGraph, RdfTerm, RdfBaseQuad } from "@/parser/rdf-terms.ts";
 import { matchPatternTerm } from "@/evaluator/scan-entry.ts";
 
 /**
@@ -9,18 +10,29 @@ import { matchPatternTerm } from "@/evaluator/scan-entry.ts";
  * positions (binding variables, recursively through nested triple terms),
  * then binds the reifier position to X. Emits incrementally (issue #74).
  */
-export function* joinReifiesPattern(
-  currentBindings: Iterable<TermBinding>,
+export function joinReifiesPattern(
+  currentBindings: TermBinding[],
   entry: ScanEntry,
-): Generator<TermBinding> {
+): TermBinding[] {
   const reifier = entry.subject;
-  const tripleTerm = entry.object as rdfjs.Quad;
-  for (const binding of currentBindings) {
-    for (const candidate of entry.candidates) {
+  const tripleTerm = entry.object as RdfBaseQuad;
+  const out: TermBinding[] = [];
+  for (
+    let bindingIndex = 0;
+    bindingIndex < currentBindings.length;
+    bindingIndex++
+  ) {
+    const binding = currentBindings[bindingIndex];
+    for (
+      let candidateIndex = 0;
+      candidateIndex < entry.candidates.length;
+      candidateIndex++
+    ) {
+      const candidate = entry.candidates[candidateIndex];
       if (candidate.object.termType !== "Quad") {
         continue;
       }
-      const quoted = candidate.object as rdfjs.Quad;
+      const quoted = candidate.object as RdfBaseQuad;
       let extended = matchPatternTerm(
         tripleTerm.subject,
         quoted.subject,
@@ -47,10 +59,11 @@ export function* joinReifiesPattern(
       }
       const bound = matchPatternTerm(reifier, candidate.subject, extended);
       if (bound !== null) {
-        yield bound;
+        out.push(bound);
       }
     }
   }
+  return out;
 }
 
 /**
@@ -58,14 +71,24 @@ export function* joinReifiesPattern(
  * is a triple-term pattern `?s ?p <<( ?st ?pt ?ot )>>`. Each candidate quad
  * with a triple-term object matches the subject/predicate positionally and
  * the object recursively through the triple-term pattern's positions.
- * Emits incrementally (issue #74).
  */
-export function* joinTripleTermObject(
-  currentBindings: Iterable<TermBinding>,
+export function joinTripleTermObject(
+  currentBindings: TermBinding[],
   entry: ScanEntry,
-): Generator<TermBinding> {
-  for (const binding of currentBindings) {
-    for (const candidate of entry.candidates) {
+): TermBinding[] {
+  const out: TermBinding[] = [];
+  for (
+    let bindingIndex = 0;
+    bindingIndex < currentBindings.length;
+    bindingIndex++
+  ) {
+    const binding = currentBindings[bindingIndex];
+    for (
+      let candidateIndex = 0;
+      candidateIndex < entry.candidates.length;
+      candidateIndex++
+    ) {
+      const candidate = entry.candidates[candidateIndex];
       if (candidate.object.termType !== "Quad") {
         continue;
       }
@@ -91,8 +114,9 @@ export function* joinTripleTermObject(
         extended,
       );
       if (bound !== null) {
-        yield bound;
+        out.push(bound);
       }
     }
   }
+  return out;
 }

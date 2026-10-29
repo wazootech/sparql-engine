@@ -1,6 +1,7 @@
 import type * as rdfjs from "@rdfjs/types";
 import {
   canonicalDouble,
+  numberFromNumeric,
   DataFactory,
   formatNumber,
   numericValue,
@@ -48,7 +49,7 @@ export function sumAggregate(defined: rdfjs.Term[]): rdfjs.Term | undefined {
   }
   let total = 0;
   for (const n of nums) {
-    total += Number(n);
+    total += numberFromNumeric(n);
   }
   return numericLiteral(total, datatype);
 }
@@ -67,7 +68,7 @@ export function avgAggregate(defined: rdfjs.Term[]): rdfjs.Term | undefined {
     if (numeric === null) {
       return undefined;
     }
-    total += Number(numeric);
+    total += numberFromNumeric(numeric);
     const dt = value.datatype?.value ?? "";
     if (dt === XSD_DOUBLE || dt === XSD_FLOAT) {
       datatype = XSD_DOUBLE;

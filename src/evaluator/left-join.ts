@@ -4,6 +4,7 @@ import {
   sharedVars,
 } from "@/evaluator/join-bindings.ts";
 import type { BindingFilter, TermBinding } from "@/evaluator/join-bindings.ts";
+import { passesOptionalFilter } from "@/evaluator/join-bindings.ts";
 import {
   buildHashIndex,
   compatibleCandidates,
@@ -26,13 +27,11 @@ import {
  * index — which is inherently eager — is required.
  */
 export function leftJoin(
-  left: TermBinding[] | Iterable<TermBinding>,
+  left: Iterable<TermBinding>,
   right: TermBinding[],
-  filters: BindingFilter[] = [],
+  filter?: BindingFilter,
 ): Iterable<TermBinding> {
   if (right.length === 0) {
-    // No right bindings: every left binding survives unextended. An array
-    // left is copied (as before); a streaming left passes through untouched.
     return Array.isArray(left) ? left.slice() : left;
   }
   if (Array.isArray(left)) {
@@ -40,20 +39,18 @@ export function leftJoin(
       return EMPTY_BINDINGS;
     }
     if (left.length * right.length <= JOIN_PRODUCT_THRESHOLD) {
-      return leftJoinNested(left, right, filters);
+      return [...leftJoinNested(left, right, filter)];
     }
-    return leftJoinHash(left, right, filters);
+    return [...leftJoinHash(left, right, filter)];
   }
-  if (right.length <= STREAM_NESTED_THRESHOLD) {
-    return leftJoinStreamNested(left, right, filters);
-  }
-  return leftJoinHash([...left], right, filters);
+  // Native builds (scriptc) only thread array bindings through group evaluation.
+  return EMPTY_BINDINGS;
 }
 
 function* leftJoinNested(
   left: TermBinding[],
   right: TermBinding[],
-  filters: BindingFilter[] = [],
+  filter?: BindingFilter,
 ): Generator<TermBinding> {
   for (const l of left) {
     let matched = false;
@@ -62,7 +59,7 @@ function* leftJoinNested(
         continue;
       }
       const merged = { ...l, ...r };
-      if (filters.every((filter) => filter(merged))) {
+      if (passesOptionalFilter(merged, filter)) {
         yield merged;
         matched = true;
       }
@@ -76,12 +73,13 @@ function* leftJoinNested(
 function* leftJoinHash(
   left: TermBinding[],
   right: TermBinding[],
-  filters: BindingFilter[] = [],
+  filter?: BindingFilter,
 ): Generator<TermBinding> {
   const joinVars = sharedVars(left, right);
   if (joinVars.length === 0) {
-    // No variable is bound on both sides: every pair is compatible.
-    yield* leftJoinNested(left, right, filters);
+    for (const binding of leftJoinNested(left, right, filter)) {
+      yield binding;
+    }
     return;
   }
   const index = buildHashIndex(right, joinVars);
@@ -89,7 +87,7 @@ function* leftJoinHash(
     let matched = false;
     for (const r of compatibleCandidates(l, joinVars, index, right)) {
       const merged = { ...l, ...r };
-      if (filters.every((filter) => filter(merged))) {
+      if (passesOptionalFilter(merged, filter)) {
         yield merged;
         matched = true;
       }
@@ -113,6 +111,29 @@ function* leftJoinStreamNested(
       }
       const merged = { ...l, ...r };
       if (filters.every((filter) => filter(merged))) {
+        yield merged;
+        matched = true;
+      }
+    }
+    if (!matched) {
+      yield l;
+    }
+  }
+}
+
+function* _leftJoinStreamNested(
+  left: Iterable<TermBinding>,
+  right: TermBinding[],
+  filter?: BindingFilter,
+): Generator<TermBinding> {
+  for (const l of left) {
+    let matched = false;
+    for (const r of right) {
+      if (!bindingsCompatible(l, r)) {
+        continue;
+      }
+      const merged = { ...l, ...r };
+      if (passesOptionalFilter(merged, filter)) {
         yield merged;
         matched = true;
       }
