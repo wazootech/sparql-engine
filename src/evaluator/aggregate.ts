@@ -20,11 +20,7 @@ import {
   XSD_STRING,
 } from "@/term/mod.ts";
 
-const { literal } = DataFactory;
-
-/** namedNode creates an IRI term; a concrete (non-generic) signature for scriptc. */
-const namedNode = (value: string): rdfjs.NamedNode =>
-  DataFactory.namedNode(value);
+const { literal, namedNode } = DataFactory;
 
 /**
  * SolutionGroup is one GROUP BY partition: the group's key binding (the
