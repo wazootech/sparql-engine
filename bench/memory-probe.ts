@@ -7,7 +7,7 @@
 //
 // Prints one JSON document to stdout.
 import type * as rdfjs from "@rdfjs/types";
-import { DataFactory } from "@/term/mod.ts";
+import { DataFactory } from "@/term/public.ts";
 import { MemoryStore as Store } from "@/store/memory-store.ts";
 
 const { blankNode, literal, namedNode, quad } = DataFactory;

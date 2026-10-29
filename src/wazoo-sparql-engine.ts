@@ -1,4 +1,5 @@
 import type * as rdfjs from "@rdfjs/types";
+import type { RdfQuad } from "@/parser/rdf-terms.ts";
 import type {
   SparqlEngineInterface,
   SparqlRequest,
@@ -23,10 +24,10 @@ export type {
  */
 export interface WazooSparqlTransaction {
   /** add buffers a single quad for insertion on the next commit. */
-  add(quad: rdfjs.Quad): unknown;
+  add(quad: RdfQuad): unknown;
 
   /** delete buffers a single quad for deletion on the next commit. */
-  delete(quad: rdfjs.Quad): unknown;
+  delete(quad: RdfQuad): unknown;
 
   /** commit persists the buffered patch. */
   commit(): Promise<void>;

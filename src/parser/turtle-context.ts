@@ -1,5 +1,10 @@
-import type * as rdfjs from "@rdfjs/types";
-import { DataFactory, type InternalDataFactory } from "@/term/data-factory.ts";
+import type {
+  RdfDirectionalLanguage,
+  RdfNamedNode,
+  RdfQuad,
+  RdfTerm,
+} from "@/parser/rdf-terms.ts";
+import { DataFactory, type LocalDataFactory } from "@/term/data-factory.ts";
 
 /**
  * Typed parse context and semantic actions for the generated Turtle / TriG /
@@ -37,9 +42,9 @@ const XSD_BOOLEAN = XSD + "boolean";
 
 /** PendingTriple is a buffered, not yet flushed triple. */
 interface PendingTriple {
-  subject: rdfjs.Term;
-  predicate: rdfjs.Term;
-  object: rdfjs.Term;
+  subject: RdfTerm;
+  predicate: RdfTerm;
+  object: RdfTerm;
 }
 
 /**
@@ -48,32 +53,32 @@ interface PendingTriple {
  * leaves. Each construct fills only the fields it restores.
  */
 interface TurtleSaveFrame {
-  subject: rdfjs.Term | undefined;
-  predicate: rdfjs.Term | undefined;
-  tripleTerm: rdfjs.Term | undefined;
-  reifier: rdfjs.Term | undefined;
-  node: rdfjs.Term | undefined;
+  subject: RdfTerm | undefined;
+  predicate: RdfTerm | undefined;
+  tripleTerm: RdfTerm | undefined;
+  reifier: RdfTerm | undefined;
+  node: RdfTerm | undefined;
 }
 
 /** TurtleReifierFrame saves the reifier context around a reified triple. */
 interface TurtleReifierFrame {
-  reifier: rdfjs.Term | undefined;
-  tripleTerm: rdfjs.Term | undefined;
+  reifier: RdfTerm | undefined;
+  tripleTerm: RdfTerm | undefined;
 }
 
 /** TurtleCollectionFrame accumulates the items of a collection being parsed. */
 interface TurtleCollectionFrame {
-  items: rdfjs.Term[];
+  items: RdfTerm[];
 }
 
 /** TurtleParseState is the statement-level state machine of one parse. */
 export interface TurtleParseState {
-  graph: rdfjs.Term | undefined;
-  subject: rdfjs.Term | undefined;
-  predicate: rdfjs.Term | undefined;
-  object: rdfjs.Term | undefined;
-  reifier: rdfjs.Term | undefined;
-  tripleTerm: rdfjs.Term | undefined;
+  graph: RdfTerm | undefined;
+  subject: RdfTerm | undefined;
+  predicate: RdfTerm | undefined;
+  object: RdfTerm | undefined;
+  reifier: RdfTerm | undefined;
+  tripleTerm: RdfTerm | undefined;
   bnodeCounter: number;
   saveStack: TurtleSaveFrame[];
   reifierStack: TurtleReifierFrame[];
@@ -84,13 +89,13 @@ export interface TurtleParseState {
 /** TurtleParseContext is everything one Turtle parse reads and writes. */
 export interface TurtleParseContext {
   /** The RDF/JS data factory every term is built with. */
-  factory: InternalDataFactory;
+  factory: LocalDataFactory;
   /** The current base IRI (mutated by `@base` / `BASE`). */
   base: string;
   /** The `{ prefix: namespace }` map (mutated by `@prefix` / `PREFIX`). */
   prefixes: Map<string, string>;
   /** The output quads (reset per parse). */
-  quads: rdfjs.Quad[];
+  quads: RdfQuad[];
   /** The statement-level state machine. */
   state: TurtleParseState;
 }
@@ -136,7 +141,7 @@ export function resetTurtleContext(baseIri: string): undefined {
   turtleContext.state = createTurtleParseState();
 }
 
-function graphTerm(): rdfjs.Term {
+function graphTerm(): RdfTerm {
   const graph = turtleContext.state.graph;
   return graph === undefined ? turtleContext.factory.defaultGraph() : graph;
 }
@@ -145,9 +150,9 @@ function graphTerm(): rdfjs.Term {
 // N-Quads graph label (which appears after the object list) can set the
 // graph before the quads are emitted.
 function emitQuad(
-  subject: rdfjs.Term,
-  predicate: rdfjs.Term,
-  object: rdfjs.Term,
+  subject: RdfTerm,
+  predicate: RdfTerm,
+  object: RdfTerm,
 ): undefined {
   turtleContext.state.pending.push({ subject, predicate, object });
 }
@@ -182,13 +187,13 @@ export function resetGraph(): undefined {
 }
 
 /** setGraph records the current graph label and returns it. */
-export function setGraph(graph: rdfjs.Term): rdfjs.Term {
+export function setGraph(graph: RdfTerm): RdfTerm {
   turtleContext.state.graph = graph;
   return graph;
 }
 
 /** setSubject records the statement subject and returns it. */
-export function setSubject(subject: rdfjs.Term): rdfjs.Term {
+export function setSubject(subject: RdfTerm): RdfTerm {
   turtleContext.state.subject = subject;
   return subject;
 }
@@ -197,24 +202,24 @@ export function setSubject(subject: rdfjs.Term): rdfjs.Term {
  * startStatementSubject records a label-or-subject in subject position and
  * resets the graph to the default (TriG 5.3.1).
  */
-export function startStatementSubject(subject: rdfjs.Term): undefined {
+export function startStatementSubject(subject: RdfTerm): undefined {
   turtleContext.state.subject = subject;
   turtleContext.state.graph = undefined;
 }
 
 /** setPredicate records the statement predicate and returns it. */
-export function setPredicate(predicate: rdfjs.Term): rdfjs.Term {
+export function setPredicate(predicate: RdfTerm): RdfTerm {
   turtleContext.state.predicate = predicate;
   return predicate;
 }
 
 /** rdfTypeTerm returns the `rdf:type` IRI (the `a` keyword). */
-export function rdfTypeTerm(): rdfjs.Term {
+export function rdfTypeTerm(): RdfTerm {
   return turtleContext.factory.namedNode(RDF_TYPE);
 }
 
 /** freshBlankNode mints a blank node unique within the current document. */
-export function freshBlankNode(): rdfjs.Term {
+export function freshBlankNode(): RdfTerm {
   turtleContext.state.bnodeCounter += 1;
   return turtleContext.factory.blankNode(
     "b" + turtleContext.state.bnodeCounter,
@@ -222,16 +227,16 @@ export function freshBlankNode(): rdfjs.Term {
 }
 
 /** labelledBlankNode builds the blank node of a `_:label` token. */
-export function labelledBlankNode(token: string): rdfjs.Term {
+export function labelledBlankNode(token: string): RdfTerm {
   return turtleContext.factory.blankNode(token.slice(2));
 }
 
 /** makeQuad builds a triple term (a quad without a graph). */
 export function makeQuad(
-  subject: rdfjs.Term,
-  predicate: rdfjs.Term,
-  object: rdfjs.Term,
-): rdfjs.Term {
+  subject: RdfTerm,
+  predicate: RdfTerm,
+  object: RdfTerm,
+): RdfTerm {
   return turtleContext.factory.quad(subject, predicate, object);
 }
 
@@ -450,14 +455,14 @@ export function unescapeIri(iri: string): string {
 }
 
 /** iriFromToken builds the named node of an `<IRIREF>` token. */
-export function iriFromToken(token: string): rdfjs.Term {
+export function iriFromToken(token: string): RdfTerm {
   return turtleContext.factory.namedNode(
     resolveIri(unescapeIri(token.slice(1, -1))),
   );
 }
 
 /** prefixedName builds the named node of a `prefix:local` token. */
-export function prefixedName(token: string): rdfjs.Term {
+export function prefixedName(token: string): RdfTerm {
   const colon = token.indexOf(":");
   const prefix = token.slice(0, colon);
   const namespace = turtleContext.prefixes.get(prefix);
@@ -621,7 +626,7 @@ function isWellFormedLanguageTag(tag: string): boolean {
 // a direction is present.
 function languageWithDirection(
   languageDirection: string,
-): rdfjs.DirectionalLanguage {
+): RdfDirectionalLanguage {
   const dash = languageDirection.indexOf("--");
   const tag = dash === -1
     ? languageDirection
@@ -639,7 +644,7 @@ function languageWithDirection(
 }
 
 /** stringLiteral builds a plain (xsd:string) literal from a string token. */
-export function stringLiteral(token: string): rdfjs.Term {
+export function stringLiteral(token: string): RdfTerm {
   return turtleContext.factory.literal(unescapeString(token));
 }
 
@@ -647,7 +652,7 @@ export function stringLiteral(token: string): rdfjs.Term {
 export function languageLiteral(
   token: string,
   languageDirectionToken: string,
-): rdfjs.Term {
+): RdfTerm {
   return turtleContext.factory.literal(
     unescapeString(token),
     languageWithDirection(languageDirectionToken.slice(1)),
@@ -657,8 +662,8 @@ export function languageLiteral(
 /** datatypedLiteral builds a literal with an explicit datatype IRI. */
 export function datatypedLiteral(
   token: string,
-  datatype: rdfjs.Term,
-): rdfjs.Term {
+  datatype: RdfTerm,
+): RdfTerm {
   if (
     datatype.value === RDF_LANGSTRING || datatype.value === RDF_DIRLANGSTRING
   ) {
@@ -668,12 +673,12 @@ export function datatypedLiteral(
   }
   return turtleContext.factory.literal(
     unescapeString(token),
-    datatype as rdfjs.NamedNode,
+    datatype as RdfNamedNode,
   );
 }
 
 /** integerLiteral builds an xsd:integer literal from an INTEGER token. */
-export function integerLiteral(token: string): rdfjs.Term {
+export function integerLiteral(token: string): RdfTerm {
   return turtleContext.factory.literal(
     token,
     turtleContext.factory.namedNode(XSD_INTEGER),
@@ -681,7 +686,7 @@ export function integerLiteral(token: string): rdfjs.Term {
 }
 
 /** decimalLiteral builds an xsd:decimal literal from a DECIMAL token. */
-export function decimalLiteral(token: string): rdfjs.Term {
+export function decimalLiteral(token: string): RdfTerm {
   return turtleContext.factory.literal(
     token,
     turtleContext.factory.namedNode(XSD_DECIMAL),
@@ -689,7 +694,7 @@ export function decimalLiteral(token: string): rdfjs.Term {
 }
 
 /** doubleLiteral builds an xsd:double literal from a DOUBLE token. */
-export function doubleLiteral(token: string): rdfjs.Term {
+export function doubleLiteral(token: string): RdfTerm {
   return turtleContext.factory.literal(
     token,
     turtleContext.factory.namedNode(XSD_DOUBLE),
@@ -697,7 +702,7 @@ export function doubleLiteral(token: string): rdfjs.Term {
 }
 
 /** booleanLiteral builds an xsd:boolean literal from a BOOLEAN token. */
-export function booleanLiteral(token: string): rdfjs.Term {
+export function booleanLiteral(token: string): RdfTerm {
   return turtleContext.factory.literal(
     token,
     turtleContext.factory.namedNode(XSD_BOOLEAN),
@@ -756,7 +761,7 @@ export function endAnnotationBlock(): undefined {
 }
 
 /** applyReifier handles `~ [reifier]` after a triple. */
-export function applyReifier(reifierTerm: rdfjs.Term | undefined): undefined {
+export function applyReifier(reifierTerm: RdfTerm | undefined): undefined {
   const state = turtleContext.state;
   state.reifier = reifierTerm === undefined ? freshBlankNode() : reifierTerm;
   emitQuad(
@@ -777,7 +782,7 @@ export function startReifiedTriple(): undefined {
 }
 
 /** setTripleTerm records the triple term of a reified triple body. */
-export function setTripleTerm(tripleTerm: rdfjs.Term): rdfjs.Term {
+export function setTripleTerm(tripleTerm: RdfTerm): RdfTerm {
   turtleContext.state.tripleTerm = tripleTerm;
   return tripleTerm;
 }
@@ -787,7 +792,7 @@ export function setTripleTerm(tripleTerm: rdfjs.Term): rdfjs.Term {
 // reifier production when a reifier was present. The node produced by the
 // production is the reifier.
 /** finishReifiedTriple closes `<< s p o >>` and returns its reifier. */
-export function finishReifiedTriple(): rdfjs.Term {
+export function finishReifiedTriple(): RdfTerm {
   const state = turtleContext.state;
   if (state.reifier === undefined) {
     state.reifier = freshBlankNode();
@@ -810,7 +815,7 @@ export function finishReifiedTriple(): rdfjs.Term {
 // Emits the triple for a parsed object and prepares the annotation context
 // (TriG 5.3.3 / 5.3.6). Returns the object value.
 /** emitObject emits the statement triple for an object and opens its annotation. */
-export function emitObject(object: rdfjs.Term): rdfjs.Term {
+export function emitObject(object: RdfTerm): RdfTerm {
   const state = turtleContext.state;
   state.object = object;
   emitQuad(state.subject!, state.predicate!, object);
@@ -838,7 +843,7 @@ export function startBlankNodePropertyList(): undefined {
 }
 
 /** endBlankNodePropertyList closes `[ ... ]` and returns its node. */
-export function endBlankNodePropertyList(): rdfjs.Term {
+export function endBlankNodePropertyList(): RdfTerm {
   const state = turtleContext.state;
   const saved = state.saveStack.pop();
   if (saved === undefined || saved.node === undefined) {
@@ -865,13 +870,13 @@ export function startCollection(): undefined {
 }
 
 /** collectionAdd appends one item to the collection being parsed. */
-export function collectionAdd(item: rdfjs.Term): undefined {
+export function collectionAdd(item: RdfTerm): undefined {
   const stack = turtleContext.state.collectionStack;
   stack[stack.length - 1]!.items.push(item);
 }
 
 /** endCollection closes `( ... )`, emits its rdf:first/rest chain, returns its head. */
-export function endCollection(): rdfjs.Term {
+export function endCollection(): RdfTerm {
   const state = turtleContext.state;
   const collection = state.collectionStack.pop();
   const saved = state.saveStack.pop();

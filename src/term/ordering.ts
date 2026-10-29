@@ -1,4 +1,10 @@
-import type * as rdfjs from "@rdfjs/types";
+import type {
+  RdfBlankNode,
+  RdfLiteral,
+  RdfNamedNode,
+  RdfQuad,
+  RdfTerm,
+} from "@/parser/rdf-terms.ts";
 import { termKey } from "./identity.ts";
 import {
   compareNumericValues,
@@ -19,7 +25,7 @@ function compareStrings(a: string, b: string): number {
  * plain literals are treated as xsd:string, matching SPARQL 1.1 result
  * semantics and the reference engines.
  */
-function literalDatatype(literal: rdfjs.Literal): string {
+function literalDatatype(literal: RdfLiteral): string {
   return literal.datatype?.value ?? XSD_STRING;
 }
 
@@ -31,7 +37,7 @@ function literalDatatype(literal: rdfjs.Literal): string {
  * matches the SPARQL 1.1 §12.4 ordering rules as implemented by the
  * reference engines, including the lang-tagged (rdf:langString) case.
  */
-function compareLiterals(a: rdfjs.Literal, b: rdfjs.Literal): number {
+function compareLiterals(a: RdfLiteral, b: RdfLiteral): number {
   const da = literalDatatype(a);
   const db = literalDatatype(b);
   const an = NUMERIC_DATATYPES.has(da) ? numericValue(a) : null;
@@ -71,8 +77,8 @@ function compareLiterals(a: rdfjs.Literal, b: rdfjs.Literal): number {
  * @see {@link https://www.w3.org/TR/2010/REC-xpath-functions-20101214/ Malhotra, Melton & Walsh (eds.), "XQuery 1.0 and XPath 2.0 Functions and Operators (Second Edition)," W3C Recommendation, 2010}
  */
 export function compareRdfTerms(
-  a: rdfjs.Term | undefined,
-  b: rdfjs.Term | undefined,
+  a: RdfTerm | undefined,
+  b: RdfTerm | undefined,
 ): number {
   if (a === undefined) {
     return b === undefined ? 0 : -1;
@@ -80,7 +86,7 @@ export function compareRdfTerms(
   if (b === undefined) {
     return 1;
   }
-  const rank = (term: rdfjs.Term): number => {
+  const rank = (term: RdfTerm): number => {
     switch (term.termType) {
       case "BlankNode":
         return 0;
@@ -100,16 +106,16 @@ export function compareRdfTerms(
   }
   switch (a.termType) {
     case "BlankNode":
-      return compareStrings(a.value, (b as rdfjs.BlankNode).value);
+      return compareStrings(a.value, (b as RdfBlankNode).value);
     case "NamedNode":
-      return compareStrings(a.value, (b as rdfjs.NamedNode).value);
+      return compareStrings(a.value, (b as RdfNamedNode).value);
     case "Literal":
-      return compareLiterals(a as rdfjs.Literal, b as rdfjs.Literal);
+      return compareLiterals(a as RdfLiteral, b as RdfLiteral);
     case "Quad": {
       // Triple terms order lexicographically by subject, predicate, then
       // object (recursively), ignoring the graph component.
-      const qa = a as rdfjs.Quad;
-      const qb = b as rdfjs.Quad;
+      const qa = a as RdfQuad;
+      const qb = b as RdfQuad;
       return compareRdfTerms(qa.subject, qb.subject) ||
         compareRdfTerms(qa.predicate, qb.predicate) ||
         compareRdfTerms(qa.object, qb.object);

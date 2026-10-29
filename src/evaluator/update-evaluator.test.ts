@@ -1,6 +1,6 @@
 import { assertEquals, assertNotEquals, assertRejects } from "@std/assert";
 import type * as rdfjs from "@rdfjs/types";
-import { DataFactory } from "@/term/mod.ts";
+import { DataFactory } from "@/term/public.ts";
 import { MemoryStore as Store } from "@/store/memory-store.ts";
 import { WazooSparqlEngine } from "@/wazoo-sparql-engine.ts";
 import type { WazooSparqlTransaction } from "@/wazoo-sparql-engine.ts";

@@ -1,4 +1,4 @@
-import type * as rdfjs from "@rdfjs/types";
+import type { RdfBlankNode, RdfTerm } from "@/parser/rdf-terms.ts";
 import type {
   AggregateExpression,
   Expression,
@@ -238,7 +238,7 @@ function aggregateResolver(
   solution: SelectSolution,
   expressionEvaluator: ExpressionEvaluator,
   context?: ExpressionEvaluationContext,
-): (aggregate: AggregateExpression) => rdfjs.Term | undefined {
+): (aggregate: AggregateExpression) => RdfTerm | undefined {
   const group = solution.group;
   if (group === null) {
     return () => undefined;
@@ -278,7 +278,7 @@ function projectSolutionToTermBinding(
   // solution's projection carries a fresh bnode cache (SPARQL 1.1 §17.4.1.5).
   const solutionContext: ExpressionEvaluationContext = {
     ...(context ?? {}),
-    bnodeMap: new Map<string, rdfjs.BlankNode>(),
+    bnodeMap: new Map<string, RdfBlankNode>(),
   };
   const resolver = solution.group === null
     ? undefined
@@ -337,7 +337,7 @@ function orderBindings(
   const aliasValue = (
     solution: SelectSolution,
     alias: Expression,
-  ): rdfjs.Term | undefined => {
+  ): RdfTerm | undefined => {
     const resolver = solution.group === null
       ? undefined
       : aggregateResolver(solution, expressionEvaluator, context);
@@ -352,7 +352,7 @@ function orderBindings(
   };
   const comparators = order.map((clause) => ({
     descending: clause.descending === true,
-    resolve: (solution: SelectSolution): rdfjs.Term | undefined => {
+    resolve: (solution: SelectSolution): RdfTerm | undefined => {
       if (
         "termType" in clause.expression &&
         clause.expression.termType === "Variable"

@@ -1,6 +1,7 @@
 import type * as rdfjs from "@rdfjs/types";
+import type { RdfQuad, RdfQuadGraph, RdfTerm } from "@/parser/rdf-terms.ts";
 import { sameRdfTerm, termKey } from "@/term/mod.ts";
-import { DataFactory, NamedNodeImpl } from "@/term/data-factory.ts";
+import { DataFactory } from "@/term/data-factory.ts";
 
 type Listener = (...args: unknown[]) => void;
 
@@ -10,7 +11,7 @@ type Listener = (...args: unknown[]) => void;
  * (identity without a graph), quad identity in a dataset includes the graph,
  * so two quads that differ only by graph must not collide.
  */
-function quadKey(quad: rdfjs.Quad): string {
+function quadKey(quad: RdfQuad): string {
   return [
     termKey(quad.subject),
     termKey(quad.predicate),
@@ -34,16 +35,16 @@ function quadKey(quad: rdfjs.Quad): string {
  * interface without depending on Node's `events` module, keeping the engine
  * runtime dependency-free and browser-friendly.
  */
-export class MemoryStream implements rdfjs.Stream<rdfjs.Quad> {
+export class MemoryStream implements rdfjs.Stream<RdfQuad> {
   private _listeners = new Map<string | symbol, Listener[]>();
   private _maxListeners = 10;
   private _ended = false;
   private _flowing = false;
   private _readStarted = false;
 
-  public constructor(private readonly quads: rdfjs.Quad[]) {}
+  public constructor(private readonly quads: RdfQuad[]) {}
 
-  public read(): rdfjs.Quad | null {
+  public read(): RdfQuad | null {
     this._readStarted = true;
     const quad = this.quads.shift();
     if (quad === undefined) {
@@ -53,7 +54,7 @@ export class MemoryStream implements rdfjs.Stream<rdfjs.Quad> {
     return quad;
   }
 
-  public [Symbol.iterator](): Iterator<rdfjs.Quad> {
+  public [Symbol.iterator](): Iterator<RdfQuad> {
     return this.quads[Symbol.iterator]();
   }
 
@@ -226,9 +227,9 @@ export class MemoryStream implements rdfjs.Stream<rdfjs.Quad> {
  * indexPosition appends a quad to the bucket for the given term key.
  */
 function indexPosition(
-  index: Map<string, rdfjs.Quad[]>,
+  index: Map<string, RdfQuad[]>,
   key: string,
-  quad: rdfjs.Quad,
+  quad: RdfQuad,
 ): void {
   const bucket = index.get(key);
   if (bucket) {
@@ -245,9 +246,9 @@ function indexPosition(
  * pass a freshly constructed quad rather than the stored instance.
  */
 function unindexPosition(
-  index: Map<string, rdfjs.Quad[]>,
+  index: Map<string, RdfQuad[]>,
   key: string,
-  quad: rdfjs.Quad,
+  quad: RdfQuad,
 ): void {
   const bucket = index.get(key);
   if (bucket === undefined) {
@@ -279,12 +280,12 @@ function unindexPosition(
  * @see {@link https://doi.org/10.14778/1453856.1453965 Weiss, Karras & Bernstein, "Hexastore: Sextuple Indexing for Semantic Web Data Management," PVLDB 1(1), 2008, pp. 1008–1019}
  * @see {@link https://doi.org/10.1145/582095.582099 Selinger et al., "Access Path Selection in a Relational Database Management System," SIGMOD '79, pp. 23–34}
  */
-export class MemoryStore implements rdfjs.Store<rdfjs.Quad> {
-  private quads: Map<string, rdfjs.Quad> = new Map();
-  private bySubject: Map<string, rdfjs.Quad[]> = new Map();
-  private byPredicate: Map<string, rdfjs.Quad[]> = new Map();
-  private byObject: Map<string, rdfjs.Quad[]> = new Map();
-  private byGraph: Map<string, rdfjs.Quad[]> = new Map();
+export class MemoryStore implements rdfjs.Store<RdfQuad> {
+  private quads: Map<string, RdfQuad> = new Map();
+  private bySubject: Map<string, RdfQuad[]> = new Map();
+  private byPredicate: Map<string, RdfQuad[]> = new Map();
+  private byObject: Map<string, RdfQuad[]> = new Map();
+  private byGraph: Map<string, RdfQuad[]> = new Map();
   private _version = 0;
 
   /**
@@ -296,7 +297,7 @@ export class MemoryStore implements rdfjs.Store<rdfjs.Quad> {
     return this._version;
   }
 
-  public constructor(initialQuads?: rdfjs.Quad[]) {
+  public constructor(initialQuads?: RdfQuad[]) {
     if (initialQuads) {
       for (const q of initialQuads) {
         this.addQuad(q);
@@ -304,27 +305,27 @@ export class MemoryStore implements rdfjs.Store<rdfjs.Quad> {
     }
   }
 
-  public addQuad(quad: rdfjs.Quad): this;
+  public addQuad(quad: RdfQuad): this;
   public addQuad(
-    subject: rdfjs.Term,
-    predicate: rdfjs.Term,
-    object: rdfjs.Term,
-    graph?: rdfjs.Term,
+    subject: RdfTerm,
+    predicate: RdfTerm,
+    object: RdfTerm,
+    graph?: RdfTerm,
   ): this;
   public addQuad(
-    quadOrSubject: rdfjs.Quad | rdfjs.Term,
-    predicate?: rdfjs.Term,
-    object?: rdfjs.Term,
-    graph?: rdfjs.Term,
+    quadOrSubject: RdfQuad | RdfTerm,
+    predicate?: RdfTerm,
+    object?: RdfTerm,
+    graph?: RdfTerm,
   ): this {
     const quad = predicate !== undefined && object !== undefined
       ? DataFactory.quad(
-        quadOrSubject as rdfjs.Term,
+        quadOrSubject as RdfTerm,
         predicate,
         object,
         graph,
       )
-      : quadOrSubject as rdfjs.Quad;
+      : quadOrSubject as RdfQuad;
     const key = quadKey(quad);
     // Re-adding an existing quad keeps the canonical map (and the indexes)
     // unchanged; only genuinely new quads are indexed.
@@ -339,7 +340,7 @@ export class MemoryStore implements rdfjs.Store<rdfjs.Quad> {
     return this;
   }
 
-  public removeQuad(quad: rdfjs.Quad): this {
+  public removeQuad(quad: RdfQuad): this {
     const key = quadKey(quad);
     if (this.quads.delete(key)) {
       unindexPosition(this.bySubject, termKey(quad.subject), quad);
@@ -351,22 +352,22 @@ export class MemoryStore implements rdfjs.Store<rdfjs.Quad> {
     return this;
   }
 
-  public remove(stream: rdfjs.Stream<rdfjs.Quad>): rdfjs.Stream<rdfjs.Quad> {
-    stream.on("data", (q: rdfjs.Quad) => this.removeQuad(q));
+  public remove(stream: rdfjs.Stream<RdfQuad>): rdfjs.Stream<RdfQuad> {
+    stream.on("data", (q: RdfQuad) => this.removeQuad(q));
     return stream;
   }
 
-  public import(stream: rdfjs.Stream<rdfjs.Quad>): rdfjs.Stream<rdfjs.Quad> {
-    stream.on("data", (q: rdfjs.Quad) => this.addQuad(q));
+  public import(stream: rdfjs.Stream<RdfQuad>): rdfjs.Stream<RdfQuad> {
+    stream.on("data", (q: RdfQuad) => this.addQuad(q));
     return stream;
   }
 
   public getQuads(
-    subject?: rdfjs.Term | null,
-    predicate?: rdfjs.Term | null,
-    object?: rdfjs.Term | null,
-    graph?: rdfjs.Term | null,
-  ): rdfjs.Quad[] {
+    subject?: RdfTerm | null,
+    predicate?: RdfTerm | null,
+    object?: RdfTerm | null,
+    graph?: RdfTerm | null,
+  ): RdfQuad[] {
     // A constrained position with no indexed quads means nothing can match.
     if (
       (subject != null && !this.bySubject.has(termKey(subject))) ||
@@ -378,7 +379,7 @@ export class MemoryStore implements rdfjs.Store<rdfjs.Quad> {
     }
     // Probe the smallest constrained bucket, then filter the rest positionally
     // (buckets are never empty: unindexPosition drops empty keys).
-    const constrained: rdfjs.Quad[][] = [];
+    const constrained: RdfQuad[][] = [];
     if (subject != null) {
       constrained.push(this.bySubject.get(termKey(subject))!);
     }
@@ -411,19 +412,19 @@ export class MemoryStore implements rdfjs.Store<rdfjs.Quad> {
   }
 
   public countQuads(
-    subject?: rdfjs.Term | null,
-    predicate?: rdfjs.Term | null,
-    object?: rdfjs.Term | null,
-    graph?: rdfjs.Term | null,
+    subject?: RdfTerm | null,
+    predicate?: RdfTerm | null,
+    object?: RdfTerm | null,
+    graph?: RdfTerm | null,
   ): number {
     return this.getQuads(subject, predicate, object, graph).length;
   }
 
   public removeMatches(
-    subject?: rdfjs.Term | null,
-    predicate?: rdfjs.Term | null,
-    object?: rdfjs.Term | null,
-    graph?: rdfjs.Term | null,
+    subject?: RdfTerm | null,
+    predicate?: RdfTerm | null,
+    object?: RdfTerm | null,
+    graph?: RdfTerm | null,
   ): MemoryStream {
     const matches = this.getQuads(subject, predicate, object, graph);
     for (const q of matches) {
@@ -432,18 +433,18 @@ export class MemoryStore implements rdfjs.Store<rdfjs.Quad> {
     return new MemoryStream(matches);
   }
 
-  public deleteGraph(graph: rdfjs.Quad_Graph | string): MemoryStream {
+  public deleteGraph(graph: RdfQuadGraph | string): MemoryStream {
     const graphTerm = typeof graph === "string"
-      ? new NamedNodeImpl(graph)
+      ? DataFactory.namedNode(graph)
       : graph;
     return this.removeMatches(null, null, null, graphTerm);
   }
 
   public match(
-    subject?: rdfjs.Term | null,
-    predicate?: rdfjs.Term | null,
-    object?: rdfjs.Term | null,
-    graph?: rdfjs.Term | null,
+    subject?: RdfTerm | null,
+    predicate?: RdfTerm | null,
+    object?: RdfTerm | null,
+    graph?: RdfTerm | null,
   ): MemoryStream {
     return new MemoryStream(this.getQuads(subject, predicate, object, graph));
   }

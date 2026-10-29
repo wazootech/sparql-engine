@@ -1,4 +1,5 @@
 import type * as rdfjs from "@rdfjs/types";
+import type { RdfNamedNode, RdfQuad, RdfTerm } from "@/parser/rdf-terms.ts";
 import type {
   PropertyPath,
   Term as SparqlTerm,
@@ -19,7 +20,7 @@ import { sameRdfTerm, sparqlTermToRdfTerm, termKey } from "@/term/mod.ts";
  * evaluation. Bindings stay in term space internally; they are converted to
  * the SparqlValue wire format exactly once, at the response boundary.
  */
-export type TermBinding = Record<string, rdfjs.Term>;
+export type TermBinding = Record<string, RdfTerm>;
 
 /**
  * ScanEntry is a triple pattern with its resolved terms and pre-fetched
@@ -30,7 +31,7 @@ export interface ScanEntry {
   subject: SparqlTerm;
   predicate: SparqlTerm;
   object: SparqlTerm;
-  candidates: rdfjs.Quad[];
+  candidates: RdfQuad[];
   /**
    * reifies marks a `?r rdf:reifies <<( s p o )>>` pattern, which joins by
    * decomposing each candidate's quoted-triple-term object instead of
@@ -612,7 +613,7 @@ function sharesVariable(a: TermBinding, b: TermBinding): boolean {
  * matching its constant positions.
  */
 export function scanEntry(
-  store: rdfjs.Source<rdfjs.Quad>,
+  store: rdfjs.Source<RdfQuad>,
   pattern: Triple,
 ): Promise<ScanEntry> {
   const subject = pattern.subject;
@@ -685,7 +686,7 @@ export function joinTriplePattern(
   currentBindings: TermBinding[],
   entry: ScanEntry,
   prebuiltIndex?: QuadIndex | null,
-  graphScope?: rdfjs.Term | null,
+  graphScope?: RdfTerm | null,
 ): TermBinding[] {
   if (entry.reifies) {
     return [...joinReifiesPattern(currentBindings, entry)];
@@ -801,7 +802,7 @@ export function* joinTriplePatternLazy(
   currentBindings: Iterable<TermBinding>,
   entry: ScanEntry,
   prebuiltIndex?: QuadIndex | null,
-  graphScope?: rdfjs.Term | null,
+  graphScope?: RdfTerm | null,
 ): Generator<TermBinding> {
   if (entry.reifies) {
     yield* joinReifiesPattern(currentBindings, entry);
@@ -909,7 +910,7 @@ export function* joinTriplePatternLazy(
  */
 function matchPatternTerm(
   term: SparqlTerm,
-  value: rdfjs.Term,
+  value: RdfTerm,
   binding: TermBinding,
 ): TermBinding | null {
   if (isQueryVar(term)) {
@@ -924,8 +925,8 @@ function matchPatternTerm(
     if (value.termType !== "Quad") {
       return null;
     }
-    const pattern = term as rdfjs.Quad;
-    const data = value as rdfjs.Quad;
+    const pattern = term as RdfQuad;
+    const data = value as RdfQuad;
     let extended = matchPatternTerm(pattern.subject, data.subject, binding);
     if (extended === null) {
       return null;
@@ -951,13 +952,13 @@ function* joinReifiesPattern(
   entry: ScanEntry,
 ): Generator<TermBinding> {
   const reifier = entry.subject;
-  const tripleTerm = entry.object as rdfjs.Quad;
+  const tripleTerm = entry.object as RdfQuad;
   for (const binding of currentBindings) {
     for (const candidate of entry.candidates) {
       if (candidate.object.termType !== "Quad") {
         continue;
       }
-      const quoted = candidate.object as rdfjs.Quad;
+      const quoted = candidate.object as RdfQuad;
       let extended = matchPatternTerm(
         tripleTerm.subject,
         quoted.subject,
@@ -1038,8 +1039,8 @@ function* joinTripleTermObject(
  * PathPair is one (subject, object) connection produced by a property path.
  */
 export interface PathPair {
-  subject: rdfjs.Term;
-  object: rdfjs.Term;
+  subject: RdfTerm;
+  object: RdfTerm;
 }
 
 /**
@@ -1055,7 +1056,7 @@ export interface PathEntry {
 /**
  * PathElement is either a plain predicate IRI or a nested property path.
  */
-type PathElement = rdfjs.NamedNode | PropertyPath;
+type PathElement = RdfNamedNode | PropertyPath;
 
 /**
  * isPropertyPath reports whether a triple predicate is a property path
@@ -1104,7 +1105,7 @@ export function isMultisetPath(path: PathElement): boolean {
  * queries. {@link https://doi.org/10.1007/978-3-319-25007-6_1 Kostylev et al., "SPARQL with Property Paths," ISWC 2015, LNCS 9366, pp. 3–18} (see also pathSteps)
  */
 export async function scanPathEntry(
-  store: rdfjs.Source<rdfjs.Quad>,
+  store: rdfjs.Source<RdfQuad>,
   path: PropertyPath,
   subject: SparqlTerm,
   object: SparqlTerm,
@@ -1112,7 +1113,7 @@ export async function scanPathEntry(
   const pairs: PathPair[] = [];
   const seen = new Set<string>();
   const allowDuplicates = isMultisetPath(path);
-  const addPair = (s: rdfjs.Term, o: rdfjs.Term): void => {
+  const addPair = (s: RdfTerm, o: RdfTerm): void => {
     if (allowDuplicates) {
       pairs.push({ subject: s, object: o });
     } else {
@@ -1279,10 +1280,10 @@ export function* joinPathPatternLazy(
  * over (per SPARQL 1.1 §9.1, matching Comunica, literals count as nodes).
  */
 async function graphNodes(
-  store: rdfjs.Source<rdfjs.Quad>,
-): Promise<rdfjs.Term[]> {
+  store: rdfjs.Source<RdfQuad>,
+): Promise<RdfTerm[]> {
   const quads = await matchQuads(store, null, null, null);
-  const nodes = new Map<string, rdfjs.Term>();
+  const nodes = new Map<string, RdfTerm>();
   for (const quad of quads) {
     nodes.set(termKey(quad.subject), quad.subject);
     nodes.set(termKey(quad.object), quad.object);
@@ -1305,11 +1306,11 @@ async function graphNodes(
  * @see Cormen, Leiserson, Rivest & Stein, "Introduction to Algorithms," 3rd ed., MIT Press, 2009, §22.2 (breadth-first search)
  */
 async function pathSteps(
-  store: rdfjs.Source<rdfjs.Quad>,
+  store: rdfjs.Source<RdfQuad>,
   path: PathElement,
   direction: "forward" | "backward",
-  term: rdfjs.Term,
-): Promise<rdfjs.Term[]> {
+  term: RdfTerm,
+): Promise<RdfTerm[]> {
   // A plain IRI is a link path: forward matches outgoing edges, backward
   // matches incoming edges.
   if ("termType" in path) {
@@ -1331,7 +1332,7 @@ async function pathSteps(
       if (direction === "forward") {
         let current = [term];
         for (const item of path.items) {
-          const next: rdfjs.Term[] = [];
+          const next: RdfTerm[] = [];
           for (const node of current) {
             for (
               const target of await pathSteps(store, item, "forward", node)
@@ -1349,7 +1350,7 @@ async function pathSteps(
         let current = [term];
         for (let i = path.items.length - 1; i >= 0; i--) {
           const item = path.items[i];
-          const next: rdfjs.Term[] = [];
+          const next: RdfTerm[] = [];
           for (const node of current) {
             for (
               const source of await pathSteps(store, item, "backward", node)
@@ -1366,7 +1367,7 @@ async function pathSteps(
       }
     }
     case "|": {
-      const results: rdfjs.Term[] = [];
+      const results: RdfTerm[] = [];
       const seen = new Set<string>();
       for (const item of path.items) {
         for (const target of await pathSteps(store, item, direction, term)) {
@@ -1380,7 +1381,7 @@ async function pathSteps(
     }
     case "?": {
       // Zero-or-one: the anchor itself plus the inner path's targets.
-      const results: rdfjs.Term[] = [term];
+      const results: RdfTerm[] = [term];
       for (
         const target of await pathSteps(
           store,
@@ -1397,9 +1398,9 @@ async function pathSteps(
     }
     case "*": {
       // Zero-or-more: reflexive-transitive closure of the inner path.
-      const results: rdfjs.Term[] = [term];
+      const results: RdfTerm[] = [term];
       const visited = new Set<string>([termKey(term)]);
-      const queue: rdfjs.Term[] = [term];
+      const queue: RdfTerm[] = [term];
       while (queue.length > 0) {
         const current = queue.shift()!;
         for (
@@ -1425,9 +1426,9 @@ async function pathSteps(
       // not reflexive for +, but in a cycle it IS reachable from itself via
       // one or more steps, so when the walk returns to it it is emitted once
       // (and never re-queued, keeping the traversal finite).
-      const results: rdfjs.Term[] = [];
+      const results: RdfTerm[] = [];
       const visited = new Set<string>();
-      const queue: rdfjs.Term[] = [term];
+      const queue: RdfTerm[] = [term];
       const startKey = termKey(term);
       let startEmitted = false;
       while (queue.length > 0) {
@@ -1490,7 +1491,7 @@ async function pathSteps(
       };
       collectNpsItems(path.items);
 
-      const results: rdfjs.Term[] = [];
+      const results: RdfTerm[] = [];
       const seen = new Set<string>();
 
       if (direction === "forward") {
@@ -1559,7 +1560,7 @@ async function pathSteps(
  * patternConstant returns the RDF/JS term for a constant pattern position, or
  * null when the position is a variable that must not constrain the scan.
  */
-function patternConstant(term: SparqlTerm): rdfjs.Term | null {
+function patternConstant(term: SparqlTerm): RdfTerm | null {
   if (isQueryVar(term)) {
     return null;
   }
@@ -1574,7 +1575,7 @@ function patternConstant(term: SparqlTerm): rdfjs.Term | null {
 function resolveTerm(
   term: SparqlTerm,
   binding: TermBinding,
-): rdfjs.Term | null {
+): RdfTerm | null {
   if (isQueryVar(term)) {
     const bound = binding[getQueryVarName(term)];
     if (bound) {
@@ -1597,11 +1598,11 @@ function resolveTerm(
  * instead of issuing stream matches.
  */
 export function matchQuadsSync(
-  candidates: rdfjs.Quad[],
-  s: rdfjs.Term | null,
-  p: rdfjs.Term | null,
-  o: rdfjs.Term | null,
-): rdfjs.Quad[] {
+  candidates: RdfQuad[],
+  s: RdfTerm | null,
+  p: RdfTerm | null,
+  o: RdfTerm | null,
+): RdfQuad[] {
   return candidates.filter((quad) =>
     (s === null || sameRdfTerm(quad.subject, s)) &&
     (p === null || sameRdfTerm(quad.predicate, p)) &&
@@ -1614,8 +1615,8 @@ export function matchQuadsSync(
  * candidate quad — the node set the reflexive path forms (? and *) are
  * defined over, restricted to the EXISTS snapshot's graph scope.
  */
-export function graphNodesSync(candidates: rdfjs.Quad[]): rdfjs.Term[] {
-  const nodes = new Map<string, rdfjs.Term>();
+export function graphNodesSync(candidates: RdfQuad[]): RdfTerm[] {
+  const nodes = new Map<string, RdfTerm>();
   for (const quad of candidates) {
     nodes.set(termKey(quad.subject), quad.subject);
     nodes.set(termKey(quad.object), quad.object);
@@ -1634,11 +1635,11 @@ export function graphNodesSync(candidates: rdfjs.Quad[]): rdfjs.Term[] {
  * and negated property sets).
  */
 export function pathStepsSync(
-  candidates: rdfjs.Quad[],
+  candidates: RdfQuad[],
   path: PathElement,
   direction: "forward" | "backward",
-  term: rdfjs.Term,
-): rdfjs.Term[] {
+  term: RdfTerm,
+): RdfTerm[] {
   // A plain IRI is a link path: forward matches outgoing edges, backward
   // matches incoming edges.
   if ("termType" in path) {
@@ -1660,7 +1661,7 @@ export function pathStepsSync(
       if (direction === "forward") {
         let current = [term];
         for (const item of path.items) {
-          const next: rdfjs.Term[] = [];
+          const next: RdfTerm[] = [];
           for (const node of current) {
             for (
               const target of pathStepsSync(candidates, item, "forward", node)
@@ -1678,7 +1679,7 @@ export function pathStepsSync(
       let current = [term];
       for (let i = path.items.length - 1; i >= 0; i--) {
         const item = path.items[i];
-        const next: rdfjs.Term[] = [];
+        const next: RdfTerm[] = [];
         for (const node of current) {
           for (
             const source of pathStepsSync(
@@ -1699,7 +1700,7 @@ export function pathStepsSync(
       return current;
     }
     case "|": {
-      const results: rdfjs.Term[] = [];
+      const results: RdfTerm[] = [];
       const seen = new Set<string>();
       for (const item of path.items) {
         for (
@@ -1715,7 +1716,7 @@ export function pathStepsSync(
     }
     case "?": {
       // Zero-or-one: the anchor itself plus the inner path's targets.
-      const results: rdfjs.Term[] = [term];
+      const results: RdfTerm[] = [term];
       for (
         const target of pathStepsSync(
           candidates,
@@ -1732,9 +1733,9 @@ export function pathStepsSync(
     }
     case "*": {
       // Zero-or-more: reflexive-transitive closure of the inner path.
-      const results: rdfjs.Term[] = [term];
+      const results: RdfTerm[] = [term];
       const visited = new Set<string>([termKey(term)]);
-      const queue: rdfjs.Term[] = [term];
+      const queue: RdfTerm[] = [term];
       while (queue.length > 0) {
         const current = queue.shift()!;
         for (
@@ -1760,9 +1761,9 @@ export function pathStepsSync(
       // not reflexive for +, but in a cycle it IS reachable from itself via
       // one or more steps, so when the walk returns to it it is emitted once
       // (and never re-queued, keeping the traversal finite).
-      const results: rdfjs.Term[] = [];
+      const results: RdfTerm[] = [];
       const visited = new Set<string>();
-      const queue: rdfjs.Term[] = [term];
+      const queue: RdfTerm[] = [term];
       const startKey = termKey(term);
       let startEmitted = false;
       while (queue.length > 0) {
@@ -1826,7 +1827,7 @@ export function pathStepsSync(
       };
       collectNpsItems(path.items);
 
-      const results: rdfjs.Term[] = [];
+      const results: RdfTerm[] = [];
       const seen = new Set<string>();
 
       if (direction === "forward") {
@@ -1895,7 +1896,7 @@ export function pathStepsSync(
  * endpoint prunes the evaluation to that end.
  */
 export function scanPathEntrySync(
-  candidates: rdfjs.Quad[],
+  candidates: RdfQuad[],
   path: PropertyPath,
   subject: SparqlTerm,
   object: SparqlTerm,
@@ -1903,7 +1904,7 @@ export function scanPathEntrySync(
   const pairs: PathPair[] = [];
   const seen = new Set<string>();
   const allowDuplicates = isMultisetPath(path);
-  const addPair = (s: rdfjs.Term, o: rdfjs.Term): void => {
+  const addPair = (s: RdfTerm, o: RdfTerm): void => {
     if (allowDuplicates) {
       pairs.push({ subject: s, object: o });
     } else {

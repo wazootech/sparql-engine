@@ -1,6 +1,6 @@
 import { assertEquals } from "@std/assert";
 import type * as rdfjs from "@rdfjs/types";
-import { DataFactory } from "@/term/mod.ts";
+import { DataFactory } from "@/term/public.ts";
 import type { ScanEntry, TermBinding } from "@/evaluator/join.ts";
 import { BaselineJoinCostEstimator } from "@/planner/join-cost-estimator.ts";
 import { MemoryStore as Store } from "@/store/memory-store.ts";
