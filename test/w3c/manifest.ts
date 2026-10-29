@@ -1,131 +1,38 @@
 import type * as rdfjs from "@rdfjs/types";
-import { Parser as N3Parser } from "n3";
-import { DataFactory } from "@/term/mod.ts";
+import {
+  MF,
+  MF_ACTION,
+  MF_ENTRIES,
+  MF_INCLUDE,
+  MF_NAME,
+  MF_RESULT,
+  QT_DATA,
+  QT_GRAPHDATA,
+  QT_QUERY,
+  RDF_TYPE,
+  TYPE_NEG_SYNTAX,
+  TYPE_NEG_SYNTAX_LEGACY,
+  TYPE_POS_SYNTAX,
+  TYPE_POS_SYNTAX_LEGACY,
+  TYPE_QUERY_EVAL,
+  TYPE_UPDATE_EVAL,
+  UT_DATA,
+  UT_GRAPH,
+  UT_GRAPHDATA,
+  UT_REQUEST,
+} from "./manifest-vocab.ts";
 import { MemoryStore } from "@/store/memory-store.ts";
-
-const MF = "http://www.w3.org/2001/sw/DataAccess/tests/test-manifest#";
-const QT = "http://www.w3.org/2001/sw/DataAccess/tests/test-query#";
-const UT = "http://www.w3.org/2009/sparql/tests/test-update#";
-const RDF = "http://www.w3.org/1999/02/22-rdf-syntax-ns#";
-const RDFS = "http://www.w3.org/2000/01/rdf-schema#";
-
-const RDF_TYPE = RDF + "type";
-const RDF_FIRST = RDF + "first";
-const RDF_REST = RDF + "rest";
-const RDF_NIL = RDF + "nil";
-
-const MF_ENTRIES = MF + "entries";
-const MF_INCLUDE = MF + "include";
-const MF_NAME = MF + "name";
-const MF_RESULT = MF + "result";
-const MF_ACTION = MF + "action";
-
-const QT_QUERY = QT + "query";
-const QT_DATA = QT + "data";
-const QT_GRAPHDATA = QT + "graphData";
-
-const UT_REQUEST = UT + "request";
-const UT_DATA = UT + "data";
-const UT_GRAPHDATA = UT + "graphData";
-const UT_GRAPH = UT + "graph";
-
-const TYPE_QUERY_EVAL = MF + "QueryEvaluationTest";
-const TYPE_UPDATE_EVAL = MF + "UpdateEvaluationTest";
-const TYPE_NEG_SYNTAX = MF + "NegativeSyntaxTest11";
-const TYPE_NEG_SYNTAX_LEGACY = MF + "NegativeSyntaxTest";
-const TYPE_POS_SYNTAX = MF + "PositiveSyntaxTest11";
-const TYPE_POS_SYNTAX_LEGACY = MF + "PositiveSyntaxTest";
-
-/**
- * W3cGraphData describes one named-graph data entry: the data file and the
- * graph it loads into. A null graph means the graph is named by the data
- * file's own resolved IRI (per the W3C test framework for unlabeled
- * qt:graphData/ut:graphData entries).
- */
-export interface W3cGraphData {
-  file: string;
-  graph: string | null;
-}
-
-/**
- * W3cTestCase is one manifest entry: a query or update evaluation test with
- * its data references, all relative to the fixtures root.
- */
-export interface W3cTestCase {
-  /** id is `<category>:<manifest local name>` — the allowlist key. */
-  id: string;
-  category: string;
-  kind: "query" | "update";
-  name: string;
-  /** negativeSyntax marks NegativeSyntaxTest11 entries: both engines must reject. */
-  negativeSyntax: boolean;
-  /** queryFile / requestFile is the .rq / .ru path relative to the fixtures root. */
-  queryFile: string;
-  /** dataFiles load into the default graph. */
-  dataFiles: string[];
-  graphData: W3cGraphData[];
-  /** resultFile, when present, is the mf:result file (used for the soft conformance report). */
-  resultFile: string | null;
-}
-
-/**
- * listTerms walks an RDF list (rdf:first/rdf:rest) collecting its terms.
- */
-function listTerms(store: MemoryStore, head: rdfjs.Term): rdfjs.Term[] {
-  const terms: rdfjs.Term[] = [];
-  let node = head;
-  const seen = new Set<string>();
-  while (node.termType !== "NamedNode" || node.value !== RDF_NIL) {
-    const key = node.termType + ":" + node.value;
-    if (seen.has(key) || node.termType === "Literal") {
-      break;
-    }
-    seen.add(key);
-    const first =
-      store.getQuads(node, rdfjsNamedNode(RDF_FIRST), null, null)[0];
-    if (!first) {
-      break;
-    }
-    terms.push(first.object);
-    const rest = store.getQuads(node, rdfjsNamedNode(RDF_REST), null, null)[0];
-    if (!rest) {
-      break;
-    }
-    node = rest.object;
-  }
-  return terms;
-}
-
-/**
- * collectValues gathers every object of a property on a subject, expanding
- * RDF-list values into their elements (qt:data ( <a> <b> ) and single-file
- * qt:data <a> both resolve to the file list).
- */
-function collectValues(
-  store: MemoryStore,
-  subject: rdfjs.Term,
-  predicate: string,
-): rdfjs.Term[] {
-  const values: rdfjs.Term[] = [];
-  for (
-    const quad of store.getQuads(subject, rdfjsNamedNode(predicate), null, null)
-  ) {
-    if (
-      quad.object.termType === "BlankNode" &&
-      store.getQuads(quad.object, rdfjsNamedNode(RDF_FIRST), null, null)
-          .length > 0
-    ) {
-      values.push(...listTerms(store, quad.object));
-    } else {
-      values.push(quad.object);
-    }
-  }
-  return values;
-}
-
-function rdfjsNamedNode(value: string): rdfjs.NamedNode {
-  return DataFactory.namedNode(value);
-}
+import { Parser as N3Parser } from "n3";
+import type { W3cTestCase } from "./manifest-types.ts";
+import {
+  collectGraphData,
+  collectValues,
+  filePath,
+  listTerms,
+  rdfjsNamedNode,
+} from "./manifest-helpers.ts";
+export type { W3cGraphData } from "./manifest-types.ts";
+export type { W3cTestCase } from "./manifest-types.ts";
 
 /**
  * parseTestCase resolves one manifest entry into a W3cTestCase.
@@ -279,46 +186,6 @@ function parseTestCase(
     graphData,
     resultFile,
   };
-}
-
-function filePath(term: rdfjs.Term): string {
-  return term.value.split("/").pop() ?? "";
-}
-
-/**
- * collectGraphData gathers graphData entries: each object is either a file
- * IRI (unlabeled → graph named by that file's resolved IRI) or a blank node
- * with a ut:graph file and an rdfs:label graph name.
- */
-function collectGraphData(
-  store: MemoryStore,
-  subject: rdfjs.Term,
-  predicate: string,
-  filePredicate: string,
-): W3cGraphData[] {
-  const entries: W3cGraphData[] = [];
-  for (
-    const quad of store.getQuads(subject, rdfjsNamedNode(predicate), null, null)
-  ) {
-    const node = quad.object;
-    if (node.termType === "NamedNode") {
-      entries.push({ file: filePath(node), graph: null });
-      continue;
-    }
-    const graphQuad =
-      store.getQuads(node, rdfjsNamedNode(filePredicate), null, null)[0];
-    const labelQuad =
-      store.getQuads(node, rdfjsNamedNode(RDFS + "label"), null, null)[0];
-    const file = graphQuad ? filePath(graphQuad.object) : null;
-    if (file === null) {
-      continue;
-    }
-    entries.push({
-      file,
-      graph: labelQuad ? labelQuad.object.value : null,
-    });
-  }
-  return entries;
 }
 
 /**
