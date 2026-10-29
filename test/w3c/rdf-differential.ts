@@ -1,6 +1,5 @@
 import type * as rdfjs from "@rdfjs/types";
-// deno-lint-ignore no-import-prefix
-import { Parser as N3Parser } from "npm:n3@2.2.0";
+import { Parser as N3Parser } from "n3";
 import { parseTurtleQuads } from "@/parser/turtle-parser.ts";
 import {
   loadRdfManifest,

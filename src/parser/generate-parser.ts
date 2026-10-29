@@ -1,4 +1,3 @@
-// deno-lint-ignore-file no-import-prefix
 /**
  * Regenerates the parser artifacts — pure ESM TypeScript parsers — from the
  * in-repo jison grammars (`sparql.jison`, `turtle.jison`).
@@ -27,8 +26,8 @@
  * writing: it exits non-zero when a checked-in artifact has drifted from its
  * grammar (used by `deno task parser:check` in CI).
  */
-import jison from "npm:jison@0.4.18";
-import { parse as parseGrammar } from "npm:ebnf-parser@0.1.10";
+import jison from "jison";
+import { parse as parseGrammar } from "ebnf-parser";
 
 // jison@0.4.18 and ebnf-parser@0.1.10 ship no TypeScript types, so their
 // surfaces are typed `any` here (guarded by the generation diff in CI).

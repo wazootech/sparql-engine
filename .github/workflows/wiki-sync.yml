@@ -38,7 +38,7 @@ jobs:
   sync:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
 
@@ -101,9 +101,10 @@ jobs:
             echo "Fetched skill at pinned commit $SKILL_PIN"
           fi
 
-      - uses: denoland/setup-deno@v2
+      - uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
         with:
-          deno-version: v2.x
+          deno-version: v2.9.8
+      - run: deno install --frozen
 
       # =====================================================================
       # AGENT WIRING — harness/provider is the maintainer's choice; this
