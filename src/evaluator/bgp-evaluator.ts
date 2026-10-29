@@ -1,11 +1,12 @@
 import type * as rdfjs from "@rdfjs/types";
+import type { RdfQuad, RdfQuadGraph, RdfTerm } from "@/parser/rdf-terms.ts";
 import type {
   Expression,
   Pattern,
   SelectQuery,
   Triple,
 } from "@/parser/sparql-parser.ts";
-import { DataFactory } from "@/term/mod.ts";
+import { DataFactory } from "@/term/data-factory.ts";
 import {
   type ExpressionEvaluationContext,
   ExpressionEvaluator,
@@ -69,7 +70,7 @@ export type { TermBinding } from "@/evaluator/join.ts";
  * other (issue #72).
  */
 interface ExistsSnapshot {
-  quads: rdfjs.Quad[];
+  quads: RdfQuad[];
   index: QuadIndex;
   version: number | null;
 }
@@ -152,7 +153,7 @@ export class BgpEvaluator {
    * cached across queries and rebuilt by prepareExistsIndex only when the
    * store's mutation version changes (or when the store exposes no version).
    */
-  private existsQuads: rdfjs.Quad[] | null = null;
+  private existsQuads: RdfQuad[] | null = null;
   private existsIndex: QuadIndex | null = null;
   /** existsVersion is the store version the snapshot was drained from. */
   private existsVersion: number | null = null;
@@ -161,7 +162,7 @@ export class BgpEvaluator {
   private readonly expressionEvaluator: ExpressionEvaluator;
 
   public constructor(
-    private readonly store: rdfjs.Source<rdfjs.Quad>,
+    private readonly store: rdfjs.Source<RdfQuad>,
     options: BgpEvaluatorOptions = {},
   ) {
     this.reorderPatterns = options.reorderPatterns ?? true;
@@ -269,7 +270,7 @@ export class BgpEvaluator {
    * stays.
    */
   private existsIndexForScope(
-    store: rdfjs.Source<rdfjs.Quad>,
+    store: rdfjs.Source<RdfQuad>,
     snapshot: ExistsSnapshot | null,
   ): QuadIndex | null {
     if (snapshot === null) {
@@ -298,7 +299,7 @@ export class BgpEvaluator {
   public evaluateExists(
     pattern: Pattern,
     solution: TermBinding,
-    graph?: rdfjs.Term,
+    graph?: RdfTerm,
     baseIri?: string,
   ): boolean {
     // Capture the current snapshot once at entry, so a concurrent call's
@@ -338,10 +339,10 @@ export class BgpEvaluator {
   private evaluateExistsScoped(
     pattern: Pattern,
     solution: TermBinding,
-    candidates: rdfjs.Quad[],
-    graph: rdfjs.Term,
+    candidates: RdfQuad[],
+    graph: RdfTerm,
     index: QuadIndex,
-    quads: rdfjs.Quad[],
+    quads: RdfQuad[],
     baseIri?: string,
   ): boolean {
     const patterns = pattern.type === "group" ? pattern.patterns : [pattern];
@@ -368,10 +369,10 @@ export class BgpEvaluator {
   private evaluateExistsGroup(
     patterns: Pattern[],
     bindings: TermBinding[],
-    candidates: rdfjs.Quad[],
-    graph: rdfjs.Term,
+    candidates: RdfQuad[],
+    graph: RdfTerm,
     index: QuadIndex,
-    quads: rdfjs.Quad[],
+    quads: RdfQuad[],
     baseIri?: string,
   ): TermBinding[] {
     // The synchronous EXISTS path stays eager (the decided sync-hook
@@ -395,10 +396,10 @@ export class BgpEvaluator {
   private evaluateExistsPattern(
     pattern: Pattern,
     bindings: TermBinding[],
-    candidates: rdfjs.Quad[],
-    graph: rdfjs.Term,
+    candidates: RdfQuad[],
+    graph: RdfTerm,
     index: QuadIndex,
-    quads: rdfjs.Quad[],
+    quads: RdfQuad[],
     baseIri?: string,
   ): TermBinding[] {
     const context: ExpressionEvaluationContext = {
@@ -705,7 +706,7 @@ export class BgpEvaluator {
    * conditions evaluated inside it.
    */
   private existsContext(
-    store: rdfjs.Source<rdfjs.Quad>,
+    store: rdfjs.Source<RdfQuad>,
     baseIri?: string,
   ): ExpressionEvaluationContext {
     const graph = store instanceof GraphScopedStore
@@ -727,7 +728,7 @@ export class BgpEvaluator {
    * call's candidates for the main-path FILTER / BIND / OPTIONAL conditions.
    */
   private scopedExistsContext(
-    store: rdfjs.Source<rdfjs.Quad>,
+    store: rdfjs.Source<RdfQuad>,
     snapshot: ExistsSnapshot | null,
     baseIri?: string,
   ): ExpressionEvaluationContext {
@@ -794,7 +795,7 @@ export class BgpEvaluator {
    * same options, used by SparqlEvaluator to evaluate a query against its
    * FROM / FROM NAMED dataset.
    */
-  public forStore(store: rdfjs.Source<rdfjs.Quad>): BgpEvaluator {
+  public forStore(store: rdfjs.Source<RdfQuad>): BgpEvaluator {
     return new BgpEvaluator(store, {
       reorderPatterns: this.reorderPatterns,
       functions: this.functions,
@@ -824,7 +825,7 @@ export class BgpEvaluator {
   private async evaluateGroup(
     patterns: Pattern[],
     bindings: TermBinding[],
-    store: rdfjs.Source<rdfjs.Quad>,
+    store: rdfjs.Source<RdfQuad>,
     stats: PatternStatistics,
     baseIri?: string,
     signal?: AbortSignal,
@@ -887,7 +888,7 @@ export class BgpEvaluator {
   private async evaluatePattern(
     pattern: Pattern,
     bindings: TermBinding[] | Iterable<TermBinding>,
-    store: rdfjs.Source<rdfjs.Quad>,
+    store: rdfjs.Source<RdfQuad>,
     snapshot: ExistsSnapshot | null,
     stats: PatternStatistics,
     baseIri?: string,
@@ -1134,7 +1135,7 @@ export class BgpEvaluator {
   private async joinBgp(
     triples: Triple[],
     bindings: TermBinding[] | Iterable<TermBinding>,
-    store: rdfjs.Source<rdfjs.Quad>,
+    store: rdfjs.Source<RdfQuad>,
     snapshot: ExistsSnapshot | null,
     stats: PatternStatistics,
     signal?: AbortSignal,
@@ -1213,7 +1214,7 @@ export class BgpEvaluator {
   private async evaluateWithReordering(
     triplePatterns: Triple[],
     bindings: TermBinding[] | Iterable<TermBinding>,
-    store: rdfjs.Source<rdfjs.Quad>,
+    store: rdfjs.Source<RdfQuad>,
     prebuiltIndex: QuadIndex | null,
     stats: PatternStatistics,
     signal?: AbortSignal,
@@ -1326,8 +1327,8 @@ function patternContainsExists(pattern: Pattern): boolean {
  * namedGraphTerms returns every named graph term present in the drained quad
  * snapshot (the synchronous twin of namedGraphs, for the EXISTS evaluator).
  */
-function namedGraphTerms(quads: rdfjs.Quad[]): rdfjs.Quad_Graph[] {
-  const graphs = new Map<string, rdfjs.Quad_Graph>();
+function namedGraphTerms(quads: RdfQuad[]): RdfQuadGraph[] {
+  const graphs = new Map<string, RdfQuadGraph>();
   for (const item of quads) {
     if (item.graph.termType !== "DefaultGraph") {
       graphs.set(termKey(item.graph), item.graph);

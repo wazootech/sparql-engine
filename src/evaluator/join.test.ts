@@ -1,5 +1,5 @@
 import { assertEquals } from "@std/assert";
-import { DataFactory, termKey } from "@/term/mod.ts";
+import { DataFactory, termKey } from "@/term/public.ts";
 import {
   bindingsCompatible,
   innerJoin,

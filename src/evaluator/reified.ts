@@ -1,5 +1,11 @@
-import type * as rdfjs from "@rdfjs/types";
-import { DataFactory } from "@/term/mod.ts";
+import type {
+  RdfBlankNode,
+  RdfQuad,
+  RdfQuadObject,
+  RdfQuadPredicate,
+  RdfQuadSubject,
+} from "@/parser/rdf-terms.ts";
+import { DataFactory } from "@/term/data-factory.ts";
 import type {
   ReifiedQuad,
   Term as SparqlTerm,
@@ -23,7 +29,7 @@ export const RDF_REIFIES = "http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies";
  */
 let reifierCounter = 0;
 
-function freshReifier(): rdfjs.BlankNode {
+function freshReifier(): RdfBlankNode {
   return DataFactory.blankNode(`reifier-${reifierCounter++}`);
 }
 
@@ -55,10 +61,10 @@ function expandQuotedTerm(term: SparqlTerm): ExpandedTerm {
   const p = expandQuotedTerm(quad.predicate);
   const o = expandQuotedTerm(quad.object);
   const reifier = quad.reifier ?? freshReifier();
-  const tripleTerm: rdfjs.Quad = DataFactory.quad(
-    s.term as rdfjs.Quad_Subject,
-    p.term as rdfjs.Quad_Predicate,
-    o.term as rdfjs.Quad_Object,
+  const tripleTerm: RdfQuad = DataFactory.quad(
+    s.term as RdfQuadSubject,
+    p.term as RdfQuadPredicate,
+    o.term as RdfQuadObject,
   );
   const reifies: Triple = {
     subject: reifier,

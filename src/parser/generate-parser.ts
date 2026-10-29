@@ -43,8 +43,8 @@ interface ParserTarget {
   typed: TypedParserConfig;
 }
 
-const TURTLE_TERM = "rdfjs.Term";
-const TURTLE_LIST = "Array<string | rdfjs.Term | undefined>";
+const TURTLE_TERM = "RdfTerm";
+const TURTLE_LIST = "Array<string | RdfTerm | undefined>";
 
 /**
  * TURTLE_VALUE_TYPES declares the value each Turtle nonterminal leaves on the
@@ -261,7 +261,7 @@ const TARGETS: ParserTarget[] = [
       lexerClassName: "TurtleLexer",
       entryFunctionName: "parseTurtleDocument",
       valueTypeName: "TurtleValue",
-      valueUnion: `string | rdfjs.Term | undefined | ${TURTLE_LIST}`,
+      valueUnion: `string | RdfTerm | undefined | ${TURTLE_LIST}`,
       listType: TURTLE_LIST,
       valueTypes: TURTLE_VALUE_TYPES,
     },

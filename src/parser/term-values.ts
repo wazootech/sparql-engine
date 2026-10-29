@@ -25,15 +25,31 @@ const RDF_DIR_LANG_STRING =
   "http://www.w3.org/1999/02/22-rdf-syntax-ns#dirLangString";
 const XSD_STRING = "http://www.w3.org/2001/XMLSchema#string";
 
+function namedNodeEquals(
+  this: RdfNamedNode,
+  other: RdfTerm | null | undefined,
+): boolean {
+  return other !== null && other !== undefined &&
+    other.termType === "NamedNode" &&
+    other.value === this.value;
+}
+
 /** namedNodeTerm builds an IRI term. */
 export function namedNodeTerm(value: string): RdfNamedNode {
   return {
     termType: "NamedNode",
     value,
-    equals: (other: RdfTerm | null | undefined): boolean =>
-      other !== null && other !== undefined && other.termType === "NamedNode" &&
-      other.value === value,
+    equals: namedNodeEquals,
   };
+}
+
+function blankNodeEquals(
+  this: RdfBlankNode,
+  other: RdfTerm | null | undefined,
+): boolean {
+  return other !== null && other !== undefined &&
+    other.termType === "BlankNode" &&
+    other.value === this.value;
 }
 
 /** blankNodeTerm builds a blank node term. */
@@ -41,10 +57,17 @@ export function blankNodeTerm(value: string): RdfBlankNode {
   return {
     termType: "BlankNode",
     value,
-    equals: (other: RdfTerm | null | undefined): boolean =>
-      other !== null && other !== undefined && other.termType === "BlankNode" &&
-      other.value === value,
+    equals: blankNodeEquals,
   };
+}
+
+function variableEquals(
+  this: RdfVariable,
+  other: RdfTerm | null | undefined,
+): boolean {
+  return other !== null && other !== undefined &&
+    other.termType === "Variable" &&
+    other.value === this.value;
 }
 
 /** variableTerm builds a query variable term. */
@@ -52,22 +75,39 @@ export function variableTerm(value: string): RdfVariable {
   return {
     termType: "Variable",
     value,
-    equals: (other: RdfTerm | null | undefined): boolean =>
-      other !== null && other !== undefined && other.termType === "Variable" &&
-      other.value === value,
+    equals: variableEquals,
   };
+}
+
+function defaultGraphEquals(
+  this: RdfDefaultGraph,
+  other: RdfTerm | null | undefined,
+): boolean {
+  return other !== null && other !== undefined &&
+    other.termType === "DefaultGraph";
 }
 
 const DEFAULT_GRAPH: RdfDefaultGraph = {
   termType: "DefaultGraph",
   value: "",
-  equals: (other: RdfTerm | null | undefined): boolean =>
-    other !== null && other !== undefined && other.termType === "DefaultGraph",
+  equals: defaultGraphEquals,
 };
 
 /** defaultGraphTerm returns the default graph term. */
 export function defaultGraphTerm(): RdfDefaultGraph {
   return DEFAULT_GRAPH;
+}
+
+function literalEquals(
+  this: RdfLiteral,
+  other: RdfTerm | null | undefined,
+): boolean {
+  if (other === null || other === undefined || other.termType !== "Literal") {
+    return false;
+  }
+  return this.value === other.value && this.language === other.language &&
+    (this.direction ?? "") === (other.direction ?? "") &&
+    this.datatype.value === other.datatype.value;
 }
 
 function literalOf(
@@ -82,16 +122,7 @@ function literalOf(
     language,
     direction,
     datatype,
-    equals: (other: RdfTerm | null | undefined): boolean => {
-      if (
-        other === null || other === undefined || other.termType !== "Literal"
-      ) {
-        return false;
-      }
-      return value === other.value && language === other.language &&
-        direction === (other.direction ?? "") &&
-        datatype.value === other.datatype.value;
-    },
+    equals: literalEquals,
   };
 }
 
@@ -131,6 +162,19 @@ export interface QuadTermValue extends RdfBaseQuad {
   reifier?: RdfTerm;
 }
 
+/** quadEquals compares two quads component by component, graph included. */
+export function quadEquals(
+  this: RdfBaseQuad,
+  other: RdfTerm | null | undefined,
+): boolean {
+  if (other === null || other === undefined || other.termType !== "Quad") {
+    return false;
+  }
+  return this.subject.equals(other.subject) &&
+    this.predicate.equals(other.predicate) &&
+    this.object.equals(other.object) && this.graph.equals(other.graph);
+}
+
 /** quadTerm builds a quad in the default graph. */
 export function quadTerm(
   subject: RdfTerm,
@@ -145,13 +189,6 @@ export function quadTerm(
     predicate,
     object,
     graph,
-    equals: (other: RdfTerm | null | undefined): boolean => {
-      if (other === null || other === undefined || other.termType !== "Quad") {
-        return false;
-      }
-      return subject.equals(other.subject) &&
-        predicate.equals(other.predicate) &&
-        object.equals(other.object) && graph.equals(other.graph);
-    },
+    equals: quadEquals,
   };
 }

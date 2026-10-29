@@ -1,7 +1,7 @@
 import type * as rdfjs from "@rdfjs/types";
 // deno-lint-ignore no-import-prefix
 import { Parser as N3Parser } from "npm:n3@2.2.0";
-import { canonicalizeRdfTerm, DataFactory } from "@/term/mod.ts";
+import { canonicalizeRdfTerm, DataFactory } from "@/term/public.ts";
 import type { CanonicalTerm } from "@/term/mod.ts";
 import { MemoryStore } from "@/store/memory-store.ts";
 

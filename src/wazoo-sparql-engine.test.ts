@@ -1,6 +1,6 @@
 import type * as rdfjs from "@rdfjs/types";
 import { assertEquals, assertRejects } from "@std/assert";
-import { DataFactory, XSD_BOOLEAN } from "@/term/mod.ts";
+import { DataFactory, XSD_BOOLEAN } from "@/term/public.ts";
 import { MemoryStore as Store } from "@/store/memory-store.ts";
 import { SparqlSyntaxError } from "@/parser/syntax-error.ts";
 import { SparqlParser } from "@/parser/sparql-parser.ts";

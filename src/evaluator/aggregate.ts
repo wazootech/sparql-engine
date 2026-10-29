@@ -1,11 +1,11 @@
-import type * as rdfjs from "@rdfjs/types";
+import type { RdfLiteral, RdfTerm } from "@/parser/rdf-terms.ts";
 import type {
   AggregateExpression,
   Expression,
   Grouping,
   Wildcard,
 } from "@/parser/sparql-parser.ts";
-import { DataFactory } from "@/term/mod.ts";
+import { DataFactory } from "@/term/data-factory.ts";
 import type { TermBinding } from "@/evaluator/join.ts";
 import {
   canonicalDouble,
@@ -51,7 +51,7 @@ export function groupSolutions(
   evaluate: (
     expression: Expression,
     binding: TermBinding,
-  ) => rdfjs.Term | undefined,
+  ) => RdfTerm | undefined,
 ): SolutionGroup[] {
   const groups = new Map<string, SolutionGroup>();
   for (const solution of solutions) {
@@ -101,18 +101,18 @@ export function aggregateValue(
   evaluate: (
     expression: Expression,
     binding: TermBinding,
-  ) => rdfjs.Term | undefined,
-): rdfjs.Term | undefined {
+  ) => RdfTerm | undefined,
+): RdfTerm | undefined {
   const wildcard = isAggregateWildcard(aggregate.expression);
   if (wildcard && aggregate.aggregation !== "count") {
     throw new Error(
       `Unsupported aggregate over *: ${aggregate.aggregation}`,
     );
   }
-  const values: (rdfjs.Term | undefined)[] = [];
+  const values: (RdfTerm | undefined)[] = [];
   const distinctSeen = new Set<string>();
   for (const solution of solutions) {
-    let value: rdfjs.Term | undefined;
+    let value: RdfTerm | undefined;
     let key: string;
     if (wildcard) {
       value = WILDCARD_MARKER;
@@ -131,7 +131,7 @@ export function aggregateValue(
     }
     values.push(value);
   }
-  const defined = values.filter((v) => v !== undefined) as rdfjs.Term[];
+  const defined = values.filter((v) => v !== undefined) as RdfTerm[];
 
   switch (aggregate.aggregation) {
     case "count":
@@ -152,7 +152,7 @@ export function aggregateValue(
   }
 }
 
-function sumAggregate(defined: rdfjs.Term[]): rdfjs.Term | undefined {
+function sumAggregate(defined: RdfTerm[]): RdfTerm | undefined {
   if (defined.length === 0) {
     return integerLiteral(0);
   }
@@ -193,7 +193,7 @@ function sumAggregate(defined: rdfjs.Term[]): rdfjs.Term | undefined {
   return numericLiteral(total, datatype);
 }
 
-function avgAggregate(defined: rdfjs.Term[]): rdfjs.Term | undefined {
+function avgAggregate(defined: RdfTerm[]): RdfTerm | undefined {
   if (defined.length === 0) {
     return integerLiteral(0);
   }
@@ -218,8 +218,8 @@ function avgAggregate(defined: rdfjs.Term[]): rdfjs.Term | undefined {
 
 function minMaxAggregate(
   aggregation: "min" | "max",
-  defined: rdfjs.Term[],
-): rdfjs.Term | undefined {
+  defined: RdfTerm[],
+): RdfTerm | undefined {
   if (defined.length === 0) {
     return undefined;
   }
@@ -235,8 +235,8 @@ function minMaxAggregate(
 
 function groupConcat(
   separator: string | undefined,
-  defined: rdfjs.Term[],
-): rdfjs.Term {
+  defined: RdfTerm[],
+): RdfTerm {
   const parts: string[] = [];
   for (const value of defined) {
     if (value.termType === "Literal" || value.termType === "NamedNode") {
@@ -247,14 +247,14 @@ function groupConcat(
   return literal(parts.join(separator ?? " "), namedNode(XSD_STRING));
 }
 
-function integerLiteral(value: number | bigint): rdfjs.Literal {
+function integerLiteral(value: number | bigint): RdfLiteral {
   return literal(String(value), namedNode(XSD_INTEGER));
 }
 
 function numericLiteral(
   value: number,
   datatype: string,
-): rdfjs.Literal {
+): RdfLiteral {
   const text = datatype === XSD_DOUBLE || datatype === XSD_FLOAT
     ? canonicalDouble(value)
     : formatNumber(value, datatype);
@@ -275,11 +275,11 @@ function numericLiteral(
  * accumulation.
  * @see {@link https://doi.org/10.1145/103162.103163 Goldberg, "What Every Computer Scientist Should Know About Floating-Point Arithmetic," ACM Computing Surveys 23(1), 1991, pp. 5–48}
  */
-function exactDecimalSum(defined: rdfjs.Term[]): rdfjs.Literal {
+function exactDecimalSum(defined: RdfTerm[]): RdfLiteral {
   let maxScale = 0;
   const parts: { significand: bigint; scale: number }[] = [];
   for (const value of defined) {
-    const literalValue = value as rdfjs.Literal;
+    const literalValue = value as RdfLiteral;
     const text = literalValue.value;
     const dot = text.indexOf(".");
     const scale = dot === -1 ? 0 : text.length - dot - 1;
@@ -303,7 +303,7 @@ function exactDecimalSum(defined: rdfjs.Term[]): rdfjs.Literal {
 function numericLiteralFromExactDecimal(
   total: bigint,
   scale: number,
-): rdfjs.Literal {
+): RdfLiteral {
   const negative = total < 0n;
   const absolute = (negative ? -total : total).toString().padStart(
     scale + 1,
@@ -329,7 +329,7 @@ function numericLiteralFromExactDecimal(
 /**
  * WILDCARD_MARKER stands in for COUNT(*) arguments; only count uses it.
  */
-const WILDCARD_MARKER = { wildcard: true } as unknown as rdfjs.Term;
+const WILDCARD_MARKER = { wildcard: true } as unknown as RdfTerm;
 
 /**
  * isAggregateWildcard detects the COUNT(*) form, which the parser represents

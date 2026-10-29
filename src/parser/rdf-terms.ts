@@ -76,3 +76,21 @@ export type RdfTerm =
   | RdfVariable
   | RdfDefaultGraph
   | RdfBaseQuad;
+
+/** RdfQuadSubject is a term allowed in a quad's subject position. */
+export type RdfQuadSubject = RdfQuad["subject"];
+
+/** RdfQuadPredicate is a term allowed in a quad's predicate position. */
+export type RdfQuadPredicate = RdfQuad["predicate"];
+
+/** RdfQuadObject is a term allowed in a quad's object position. */
+export type RdfQuadObject = RdfQuad["object"];
+
+/** RdfQuadGraph is a term allowed in a quad's graph position. */
+export type RdfQuadGraph = RdfQuad["graph"];
+
+/** RdfDirectionalLanguage is a language tag with an optional direction. */
+export interface RdfDirectionalLanguage {
+  language: string;
+  direction?: "ltr" | "rtl" | "" | null;
+}

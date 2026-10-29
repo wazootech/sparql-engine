@@ -22,7 +22,7 @@
     action below is a call into `turtle-context.ts`, which owns the parse
     state and the RFC 3986 / BCP47 / escape handling.
   */
-  import type * as rdfjs from "@rdfjs/types";
+  import type { RdfTerm } from "./rdf-terms.ts";
   import {
     addPrefix,
     applyReifier,

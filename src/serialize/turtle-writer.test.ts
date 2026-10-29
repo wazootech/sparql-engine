@@ -1,6 +1,6 @@
 import { assertEquals, assertThrows } from "@std/assert";
 import type * as rdfjs from "@rdfjs/types";
-import { DataFactory } from "@/term/mod.ts";
+import { DataFactory } from "@/term/public.ts";
 import { parseTurtleQuads } from "@/parser/turtle-parser.ts";
 import { serializeTurtle } from "@/serialize/turtle-writer.ts";
 import { quadSetsIsomorphicAsSets } from "../../test/w3c/rdf-harness.ts";

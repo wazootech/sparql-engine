@@ -1,6 +1,6 @@
 import { assertEquals } from "@std/assert";
 import type * as rdfjs from "@rdfjs/types";
-import { canonicalizeRdfTerm, DataFactory } from "@/term/mod.ts";
+import { canonicalizeRdfTerm, DataFactory } from "@/term/public.ts";
 import type { CanonicalTerm } from "@/term/mod.ts";
 import { compareConstructRecords, dedupeRecords } from "./runner.ts";
 

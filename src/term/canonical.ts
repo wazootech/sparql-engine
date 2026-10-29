@@ -1,4 +1,4 @@
-import type * as rdfjs from "@rdfjs/types";
+import type { RdfTerm } from "@/parser/rdf-terms.ts";
 import type { SparqlValue } from "@/sparql-engine-interface.ts";
 import { XSD_STRING } from "./numeric.ts";
 
@@ -24,7 +24,7 @@ export type CanonicalTerm = {
  * Plain xsd:string literals drop their datatype (it is implicit), and
  * RDF-star triple terms flatten to subject/predicate/object.
  */
-export function canonicalizeRdfTerm(term: rdfjs.Term): CanonicalTerm {
+export function canonicalizeRdfTerm(term: RdfTerm): CanonicalTerm {
   switch (term.termType) {
     case "NamedNode":
       return { termType: "NamedNode", value: term.value };
