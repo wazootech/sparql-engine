@@ -15,8 +15,8 @@ jobs:
           git ls-files '*.ts' '*.tsx' '*.js' '*.mjs' \
             | grep -vE '(^|/)(node_modules|dist|generated|fixtures|\.next)/|\.d\.ts$|\.gen\.|openapi|snapshot|schema|^src/parser/(parser|turtle-generated)\.ts$|^playground/app\.js$' \
             | while read -r f; do
-                n=$(grep -cvE '^\s*($|//|/\*|\*|import |export .* from )' "$f" || true)
-                case "$f" in *.test.*|*.spec.*|*/tests/*|tests/*) max=300;; *) max=120;; esac
+                n=$(awk -f .github/scripts/code-lines.awk "$f")
+                case "$f" in *.test.*|*.spec.*|*/tests/*|tests/*|test/*) max=300;; *) max=120;; esac
                 if [ "$n" -gt "$max" ]; then echo "::warning file=$f::$n lines of code (limit $max)"; echo "- \`$f\`: $n (limit $max)" >> "$GITHUB_STEP_SUMMARY"; fi
               done
       - name: TODO/FIXME without an issue link (warn-only)
