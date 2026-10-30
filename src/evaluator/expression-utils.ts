@@ -38,9 +38,9 @@ export function expressionContainsExists(expression: Expression): boolean {
  * aggregate node (COUNT, SUM, ...) anywhere inside it.
  */
 export function expressionContainsAggregate(
-  expression: Expression | Pattern,
+  expression: Expression | Expression[] | Pattern,
 ): boolean {
-  if ("termType" in expression) {
+  if (Array.isArray(expression) || "termType" in expression) {
     return false;
   }
   if (!("type" in expression)) {

@@ -1,32 +1,20 @@
 // deno-lint-ignore-file no-import-prefix
 /**
- * Regenerates the parser artifacts — pure ESM TypeScript parsers — from the
+ * Regenerates the parser artifacts — typed ESM TypeScript parsers — from the
  * in-repo jison grammars (`sparql.jison`, `turtle.jison`).
  *
- * The SPARQL half mirrors sparqljs@3.7.4's own build step:
- *   jison lib/sparql.jison -p slr -m js -o lib/SparqlParser.js
- *   echo 'module.exports=SparqlParser' >> lib/SparqlParser.js
- *
- * Prior art: the generated parsers are table-driven LR (SLR) parsers built
- * from a context-free grammar — the classic compiler-construction
- * technique of Aho, Sethi & Ullman (the grammar itself is sparqljs 3.7.4's
- * jison grammar; see README.md).
+ * The SPARQL grammar is sparqljs@3.7.4's own jison grammar (built upstream by
+ * `jison lib/sparql.jison -p slr -m js`), extended in-repo. Neither parser
+ * uses jison's runtime: it is untyped JavaScript that cannot pass strict type
+ * checking, so it could not be analysed by the native compiler (issue #221).
+ * jison only builds the LR tables (the generated parsers are table-driven SLR
+ * parsers, the classic compiler-construction technique of Aho, Sethi &
+ * Ullman), and `generateTypedParserSource` emits a typed module on top of
+ * `lr-runtime.ts`, with no `@ts-nocheck`.
  * @see Aho, Sethi & Ullman, "Compilers: Principles, Techniques, and Tools," Addison-Wesley, 1986, ch. 4 (syntax analysis, LR parsing)
  *
- * then post-processes the output into ESM/TS:
- *
- *   - inlines `Wildcard` (upstream `lib/Wildcard.js`) so the generated SPARQL
- *     module has no `require` and the file can be deleted,
- *   - replaces `module.exports=<ModuleName>` with a default ESM export,
- *   - prepends `// @ts-nocheck` and `// deno-lint-ignore-file` so the files
- *     need no `deno.json` fmt/lint excludes (they are generated code),
- *   - runs `deno fmt` so the checked-in artifacts are fmt-stable and
- *     regenerating reproduces them byte-for-byte.
- *
- * The Turtle half does not use jison's runtime at all (it is untyped JavaScript
- * that cannot pass strict type checking, issue #221): jison only builds the LR
- * tables, and `generateTypedParserSource` emits a typed module on top of
- * `lr-runtime.ts`, with no `@ts-nocheck`.
+ * The emitted modules are formatted with `deno fmt`, so the checked-in
+ * artifacts are fmt-stable and regenerating reproduces them byte-for-byte.
  *
  * Run via `deno task parser:generate`. With `--check`, it verifies instead of
  * writing: it exits non-zero when a checked-in artifact has drifted from its
@@ -41,7 +29,7 @@ type JisonModule = {
   Generator: new (
     grammar: Record<string, unknown>,
     options: Record<string, unknown>,
-  ) => { generate: (options: Record<string, unknown>) => string };
+  ) => unknown;
 };
 type EbnfParser = { parse: (grammar: string) => Record<string, unknown> };
 
@@ -49,15 +37,10 @@ type EbnfParser = { parse: (grammar: string) => Record<string, unknown> };
 interface ParserTarget {
   grammarPath: URL;
   outputPath: URL;
-  moduleName: string;
   /** Human-readable label used in logs and the generated-file header. */
   label: string;
-  /**
-   * When set, the artifact is emitted by `generateTypedParserSource` (typed
-   * tables, lexer and actions on top of `lr-runtime.ts`) instead of being
-   * post-processed from jison's own runtime.
-   */
-  typed?: TypedParserConfig;
+  /** The names and value types of the emitted module. */
+  typed: TypedParserConfig;
 }
 
 const TURTLE_TERM = "rdfjs.Term";
@@ -121,17 +104,157 @@ const TURTLE_VALUE_TYPES: Record<string, string> = {
   annotationBlock: "undefined",
 };
 
+const SPARQL_TERM = "Term";
+const SPARQL_PATH = "NamedNodeTerm | PropertyPath";
+
+/**
+ * SPARQL_VALUE_TYPES declares the value each SPARQL nonterminal leaves on the
+ * parser's value stack (terminals are `string`). The types live in
+ * `sparql-context.ts` and `ast.ts`; the grammar prologue imports them.
+ */
+const SPARQL_VALUE_TYPES: Record<string, string> = {
+  QueryOrUpdate: "SparqlResult",
+  Query: "Query",
+  Prologue: "Array<string>",
+  BaseDecl: "string",
+  PrefixDecl: "string",
+  Qry: "QueryFragment",
+  SelectClauseWildcard: "QueryFragment",
+  SelectClauseVars: "QueryFragment",
+  SelectClauseBase: "QueryFragment",
+  SelectClauseItem: "VariableNode | VariableExpression",
+  SubSelect: "SelectQuery",
+  DatasetClause: "DatasetEntry",
+  WhereClause: "QueryFragment",
+  SolutionModifier: "QueryFragment",
+  SolutionModifierNoGroup: "QueryFragment",
+  GroupClause: "QueryFragment",
+  GroupCondition: "Grouping",
+  HavingClause: "QueryFragment",
+  OrderClause: "QueryFragment",
+  OrderCondition: "Ordering",
+  LimitOffsetClauses: "QueryFragment",
+  ValuesClause: "ValuesPattern",
+  InlineData: "InlineDataValue",
+  DataBlockValueList: "Array<Term | undefined>",
+  Update: "UpdateQuery",
+  Update1: "UpdateOperation",
+  IntoGraphClause: SPARQL_TERM,
+  InsertDeleteClause: "InsertDeleteParts",
+  InsertClause: "QuadBlock[]",
+  UsingClause: "DatasetEntry",
+  WithClause: "WithValue",
+  GraphOrDefault: "GraphOrDefaultValue",
+  GraphRef: SPARQL_TERM,
+  GraphRefAll: "GraphReference",
+  QuadPattern: "QuadBlock[]",
+  Quads: "QuadBlock[]",
+  QuadsNotTriples: "QuadBlock[]",
+  TriplesTemplate: "BgpPattern",
+  GroupGraphPattern: "GroupPattern",
+  GroupGraphPatternSub: "Pattern[]",
+  GroupGraphPatternSubTail: "Pattern[]",
+  TriplesBlock: "BgpPattern",
+  GraphPatternNotTriples: "Pattern",
+  DataBlock: "ValuePatternRow[]",
+  InlineDataOneVar: "ValuePatternRow[]",
+  InlineDataFull: "ValuePatternRow[]",
+  DataBlockValue: "Term | undefined",
+  GroupOrUnionGraphPattern: "Pattern",
+  Constraint: "Expression",
+  FunctionCall: "FunctionCallExpression",
+  ArgList: "ArgListValue",
+  ExpressionList: "Expression[]",
+  ConstructTemplate: "Triple[] | undefined",
+  ConstructTriples: "Triple[]",
+  TriplesSameSubject: "Triple[]",
+  PropertyList: "ParsedTriple[] | undefined",
+  PropertyListNotEmpty: "ParsedTriple[]",
+  SemiOptionalVerbObjectList: "ParsedTriple[]",
+  VerbObjectList: "ParsedTriple[]",
+  Verb: SPARQL_TERM,
+  ObjectList: "ObjectEntry[]",
+  Object: "ObjectEntry",
+  TriplesSameSubjectPath: "Triple[]",
+  PropertyListPathNotEmpty: "ParsedTriple[]",
+  PropertyListPathNotEmptyTail: "ParsedTriple[]",
+  O: "PathVerbObjects",
+  ObjectListPath: "ObjectEntry[]",
+  ObjectPath: "ObjectEntry",
+  Path: SPARQL_PATH,
+  PathSequence: SPARQL_PATH,
+  PathElt: SPARQL_PATH,
+  PathEltOrInverse: SPARQL_PATH,
+  PathPrimary: SPARQL_PATH,
+  PathNegatedPropertySet: `${SPARQL_PATH} | Array<${SPARQL_PATH}>`,
+  PathOneInPropertySet: SPARQL_PATH,
+  TriplesNode: "EntityNode",
+  TriplesNodePath: "EntityNode",
+  GraphNode: "EntityNode",
+  GraphNodePath: "EntityNode",
+  VarOrTermOrQuotedTPExpr: "EntityNode",
+  VarOrTerm: SPARQL_TERM,
+  VarOrIri: SPARQL_TERM,
+  Var: "VariableNode",
+  GraphTerm: SPARQL_TERM,
+  Expression: "Expression",
+  ConditionalOrExpression: "Expression",
+  ConditionalOrExpressionTail: "OperatorTail",
+  ConditionalAndExpression: "Expression",
+  ConditionalAndExpressionTail: "OperatorTail",
+  RelationalExpression: "Expression",
+  NumericExpression: "Expression",
+  AdditiveExpressionTail: "OperatorTail",
+  MultiplicativeExpression: "Expression",
+  MultiplicativeExpressionTail: "OperatorTail",
+  UnaryExpression: "Expression",
+  PrimaryExpression: "Expression",
+  BrackettedExpression: "Expression",
+  BuiltInCall: "Expression",
+  Aggregate: "AggregateExpression",
+  GroupConcatSeparator: "string",
+  Literal: SPARQL_TERM,
+  NumericLiteralPositive: SPARQL_TERM,
+  NumericLiteralNegative: SPARQL_TERM,
+  String: "string",
+  iri: "NamedNodeTerm",
+  PrefixedName: "NamedNodeTerm",
+  BlankNode: SPARQL_TERM,
+  QuotedTP: "QuadTerm",
+  QuotedTriple: "QuadTerm",
+  qtSubjectOrObject: SPARQL_TERM,
+  DataValueTerm: SPARQL_TERM,
+  TripleTerm: "QuadTerm",
+  reifier: SPARQL_TERM,
+  VarOrTermOrQuotedTP: SPARQL_TERM,
+  AnnotationPattern: "ParsedTriple[]",
+  AnnotationPatternPath: "ParsedTriple[]",
+  Annotation: "AnnotationPart[]",
+  AnnotationPart: "AnnotationPart",
+  AnnotationPath: "AnnotationPart[]",
+  AnnotationPartPath: "AnnotationPart",
+  Reifier: "ReifierPart",
+  ExprQuotedTP: "QuadTerm",
+  ExprVarOrTerm: SPARQL_TERM,
+  IriOrA: "NamedNodeTerm",
+};
+
 const TARGETS: ParserTarget[] = [
   {
     grammarPath: new URL("./sparql.jison", import.meta.url),
     outputPath: new URL("./parser.ts", import.meta.url),
-    moduleName: "SparqlParser",
     label: "parser.ts",
+    typed: {
+      parserClassName: "SparqlLrParser",
+      lexerClassName: "SparqlLexer",
+      entryFunctionName: "parseSparql",
+      valueTypeName: "SparqlValue",
+      valueTypes: SPARQL_VALUE_TYPES,
+    },
   },
   {
     grammarPath: new URL("./turtle.jison", import.meta.url),
     outputPath: new URL("./turtle-generated.ts", import.meta.url),
-    moduleName: "TurtleParser",
     label: "turtle-generated.ts",
     typed: {
       parserClassName: "TurtleLrParser",
@@ -144,74 +267,6 @@ const TARGETS: ParserTarget[] = [
     },
   },
 ];
-
-/**
- * wildcardSource is upstream `lib/Wildcard.js` (sparqljs@3.7.4) with the
- * `module.exports` line removed, inlined so the generated SPARQL parser has no
- * `require` and `Wildcard.js` can be deleted from the tree. The Turtle parser
- * never emits this `require`, so the replacement is a no-op for it.
- */
-const WILDCARD_SOURCE = `
-// Wildcard singleton (inlined from sparqljs@3.7.4 lib/Wildcard.js)
-class Wildcard {
-  constructor() {
-    return WILDCARD || this;
-  }
-
-  equals(other) {
-    return other && (this.termType === other.termType);
-  }
-}
-
-Object.defineProperty(Wildcard.prototype, 'value', {
-  enumerable: true,
-  value: '*',
-});
-
-Object.defineProperty(Wildcard.prototype, 'termType', {
-  enumerable: true,
-  value: 'Wildcard',
-});
-
-var WILDCARD = new Wildcard();
-`;
-
-/** Generates the ESM/TS parser source for the given grammar text (no I/O). */
-export function generateParserSource(
-  rawGrammar: string,
-  moduleName: string,
-): string {
-  const grammar = (parseGrammar as unknown as EbnfParser["parse"])(rawGrammar);
-  const generator = new (jison as unknown as JisonModule).Generator(grammar, {
-    type: "slr",
-    moduleType: "js",
-    moduleName,
-    debug: false,
-  });
-  const source = generator.generate({
-    type: "slr",
-    moduleType: "js",
-    moduleName,
-    debug: false,
-  });
-
-  // sparqljs's build appends the CommonJS export line to jison's raw output;
-  // append the ESM default export the maintained wrappers import instead.
-  const esm = source.replace(
-    "var Wildcard = require('./Wildcard').Wildcard;",
-    WILDCARD_SOURCE,
-  );
-
-  // Generated code is not hand-maintained: skip type checking and linting so
-  // deno.json needs no excludes for these files.
-  return (
-    "// @ts-nocheck\n" +
-    "// deno-lint-ignore-file\n" +
-    `// Generated by \`deno task parser:generate\` — edit the .jison grammar instead.\n` +
-    esm +
-    `export default ${moduleName};\n`
-  );
-}
 
 /**
  * JisonProduction is the slice of a jison `Production` the typed emitter
@@ -255,10 +310,17 @@ interface TypedParserConfig {
   entryFunctionName: string;
   /** Name of the emitted semantic-value union type. */
   valueTypeName: string;
-  /** Right-hand side of the semantic-value union type. */
-  valueUnion: string;
-  /** Type of the arrays EBNF `*` / `+` helper nonterminals build. */
-  listType: string;
+  /**
+   * Right-hand side of the semantic-value union type. When omitted it is the
+   * union of `string` (tokens), `undefined`, and the type of every
+   * nonterminal.
+   */
+  valueUnion?: string;
+  /**
+   * Type of the arrays EBNF `*` / `+` helper nonterminals build. When omitted
+   * it is derived per helper from the type of the repeated element.
+   */
+  listType?: string;
   /**
    * The TypeScript type of the value each nonterminal's reduction leaves on
    * the value stack. Terminals are always `string`; EBNF helper nonterminals
@@ -269,7 +331,7 @@ interface TypedParserConfig {
   valueTypes: Record<string, string>;
 }
 
-const HELPER_NONTERMINAL = /_(option|group|repetition)\d+$/;
+const HELPER_NONTERMINAL = /_(option|group|repetition|repetition_plus)\d+$/;
 
 /** ActionEmitter turns grammar action text into typed TypeScript. */
 class ActionEmitter {
@@ -314,15 +376,16 @@ class ActionEmitter {
     if (declared !== undefined) {
       return declared;
     }
-    if (/_repetition\d+$/.test(symbol)) {
-      return this.config.listType;
+    if (/_repetition(_plus)?\d+$/.test(symbol)) {
+      return this.config.listType ??
+        `Array<${this.repetitionElementType(symbol)}>`;
     }
     if (HELPER_NONTERMINAL.test(symbol)) {
       const alternatives: string[] = [];
       for (const production of this.productions) {
         if (production.symbol !== symbol) continue;
         const first = production.handle[0];
-        const type = first === undefined
+        const type = first === undefined || first === ""
           ? "undefined"
           : this.valueTypeOf(first);
         if (!alternatives.includes(type)) alternatives.push(type);
@@ -332,12 +395,51 @@ class ActionEmitter {
     throw new Error(`No value type declared for nonterminal "${symbol}".`);
   }
 
+  // The type of the element a `*` / `+` helper nonterminal repeats: the first
+  // symbol of its `plus` base production, or the symbol following the helper
+  // in its recursive production.
+  private repetitionElementType(symbol: string): string {
+    const plus = /_repetition_plus\d+$/.test(symbol);
+    for (const production of this.productions) {
+      if (production.symbol !== symbol) continue;
+      const handle = production.handle;
+      const element = plus
+        ? handle[0]
+        : handle[0] === symbol
+        ? handle[1]
+        : undefined;
+      if (element !== undefined && element !== symbol) {
+        return this.valueTypeOf(element);
+      }
+    }
+    throw new Error(`No element found for repetition "${symbol}".`);
+  }
+
+  /** The union of the types of every value the parser can hold. */
+  public valueUnion(): string {
+    const members: string[] = ["string", "undefined"];
+    for (const symbol of this.nonterminals) {
+      if (symbol === "$accept") continue;
+      const type = this.valueTypeOf(symbol);
+      if (!members.includes(type)) members.push(type);
+    }
+    return members.join(" | ");
+  }
+
+  // jison models an empty right-hand side as the single empty symbol `''`, but
+  // its parse tables (and so the value stack) treat the production as length 0.
+  private lengthOf(production: JisonProduction): number {
+    return production.handle.length === 1 && production.handle[0] === ""
+      ? 0
+      : production.handle.length;
+  }
+
   /** The body of one `case` of the typed action switch. */
   public emitCase(
     production: JisonProduction,
     action: string | undefined,
   ): string {
-    const length = production.handle.length;
+    const length = this.lengthOf(production);
     const defaultValue = length === 0
       ? "undefined"
       : `values[top - ${length - 1}]`;
@@ -364,7 +466,7 @@ class ActionEmitter {
     production: JisonProduction,
     code: string,
   ): string {
-    const length = production.handle.length;
+    const length = this.lengthOf(production);
     const rewritten = code.replace(/\$(\d+)/g, (_match, digits: string) => {
       const position = Number(digits);
       if (position < 1 || position > length) {
@@ -600,7 +702,7 @@ ${imports}
 import { LrLexer, LrParser, type LrTables } from "./lr-runtime.ts";
 
 /** ${valueTypeName} is what a grammar symbol leaves on the parser's value stack. */
-type ${valueTypeName} = ${config.valueUnion};
+type ${valueTypeName} = ${config.valueUnion ?? emitter.valueUnion()};
 
 const TABLES: LrTables = {
   terminalNames: ${terminalNames},
@@ -704,9 +806,7 @@ async function main(): Promise<void> {
   for (const target of TARGETS) {
     const rawGrammar = await Deno.readTextFile(target.grammarPath);
     const formatted = await formatWithDenoFmt(
-      target.typed
-        ? generateTypedParserSource(rawGrammar, target.typed)
-        : generateParserSource(rawGrammar, target.moduleName),
+      generateTypedParserSource(rawGrammar, target.typed),
     );
 
     if (checkOnly) {
