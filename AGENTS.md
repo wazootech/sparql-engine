@@ -61,7 +61,14 @@ this repo's specifics:
 - Workflow actions are pinned to full commit SHAs with a version comment, Deno
   is pinned to `v2.9.8`, and CI installs with `deno install --frozen`, so commit
   any `deno.lock` change.
-- `code-health.yml` only warns: files over 120 lines of code (300 for tests) and
-  `TODO`/`FIXME` without an issue link. It skips the two generated parsers and
-  `playground/app.js`.
+- `code-health.yml` enforces file length: it fails on any file over 120 lines of
+  code (300 for tests and `*-test-helpers.*`), counted by
+  `.github/scripts/code-lines.awk` (blank, comment, and import / re-export
+  lines, wrapped or not, are skipped). It skips the two generated parsers and
+  `playground/app.js`. Split an oversized file along its seams and keep the
+  original module path as a re-export so the public surface stays put. A short
+  explicit allowlist in the workflow covers single large classes, two
+  single-function path generators, the AST type file, build tooling and bench
+  scripts; it may only shrink, so add nothing to it. `TODO`/`FIXME` without an
+  issue link still only warn.
 - `.github/CODEOWNERS` routes review to the repo owner.
