@@ -468,6 +468,14 @@ const SHA512_K: bigint[] = [
 ];
 
 /**
+ * wordAt reads a 64-bit word at an in-range index. SHA-512 indexes are
+ * bounded by construction, so the checked-index `undefined` never occurs.
+ */
+function wordAt(words: readonly bigint[], index: number): bigint {
+  return words[index] as bigint;
+}
+
+/**
  * sha512Digest runs the SHA-512 compression over the input with the given
  * initial hash values, returning the 8 state words (or a prefix of them for
  * SHA-384).
@@ -494,18 +502,28 @@ function sha512Words(
       w[index] = view.getBigUint64(offset + index * 8, false);
     }
     for (let index = 16; index < 80; index++) {
-      const s0 = rotateRight64(w[index - 15], 1n) ^
-        rotateRight64(w[index - 15], 8n) ^ (w[index - 15] >> 7n);
-      const s1 = rotateRight64(w[index - 2], 19n) ^
-        rotateRight64(w[index - 2], 61n) ^ (w[index - 2] >> 6n);
-      w[index] = (w[index - 16] + s0 + w[index - 7] + s1) & MASK64;
+      const s0 = rotateRight64(wordAt(w, index - 15), 1n) ^
+        rotateRight64(wordAt(w, index - 15), 8n) ^
+        (wordAt(w, index - 15) >> 7n);
+      const s1 = rotateRight64(wordAt(w, index - 2), 19n) ^
+        rotateRight64(wordAt(w, index - 2), 61n) ^ (wordAt(w, index - 2) >> 6n);
+      w[index] = (wordAt(w, index - 16) + s0 + wordAt(w, index - 7) + s1) &
+        MASK64;
     }
-    let [a, b, c, d, e, f, g, h] = state;
+    let a = wordAt(state, 0);
+    let b = wordAt(state, 1);
+    let c = wordAt(state, 2);
+    let d = wordAt(state, 3);
+    let e = wordAt(state, 4);
+    let f = wordAt(state, 5);
+    let g = wordAt(state, 6);
+    let h = wordAt(state, 7);
     for (let index = 0; index < 80; index++) {
       const s1 = rotateRight64(e, 14n) ^ rotateRight64(e, 18n) ^
         rotateRight64(e, 41n);
       const ch = (e & f) ^ (~e & g);
-      const temp1 = (h + s1 + ch + SHA512_K[index] + w[index]) & MASK64;
+      const temp1 = (h + s1 + ch + wordAt(SHA512_K, index) + wordAt(w, index)) &
+        MASK64;
       const s0 = rotateRight64(a, 28n) ^ rotateRight64(a, 34n) ^
         rotateRight64(a, 39n);
       const maj = (a & b) ^ (a & c) ^ (b & c);
@@ -520,14 +538,14 @@ function sha512Words(
       a = (temp1 + temp2) & MASK64;
     }
     state = [
-      (a + state[0]) & MASK64,
-      (b + state[1]) & MASK64,
-      (c + state[2]) & MASK64,
-      (d + state[3]) & MASK64,
-      (e + state[4]) & MASK64,
-      (f + state[5]) & MASK64,
-      (g + state[6]) & MASK64,
-      (h + state[7]) & MASK64,
+      (a + wordAt(state, 0)) & MASK64,
+      (b + wordAt(state, 1)) & MASK64,
+      (c + wordAt(state, 2)) & MASK64,
+      (d + wordAt(state, 3)) & MASK64,
+      (e + wordAt(state, 4)) & MASK64,
+      (f + wordAt(state, 5)) & MASK64,
+      (g + wordAt(state, 6)) & MASK64,
+      (h + wordAt(state, 7)) & MASK64,
     ];
   }
   return state;

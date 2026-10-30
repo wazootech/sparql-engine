@@ -1,4 +1,4 @@
-import type * as rdfjs from "@rdfjs/types";
+import type { RdfTerm } from "@/parser/rdf-terms.ts";
 import type { Term as SparqlTerm } from "@/parser/sparql-parser.ts";
 import type { SparqlValue } from "@/sparql-engine-interface.ts";
 import { DataFactory } from "./data-factory.ts";
@@ -9,7 +9,7 @@ const { namedNode, blankNode, literal } = DataFactory;
 /**
  * sparqlTermToRdfTerm converts a sparqljs AST term to an RDF/JS term.
  */
-export function sparqlTermToRdfTerm(term: SparqlTerm): rdfjs.Term {
+export function sparqlTermToRdfTerm(term: SparqlTerm): RdfTerm {
   switch (term.termType) {
     case "NamedNode":
       return namedNode(term.value);
@@ -42,7 +42,7 @@ export function sparqlTermToRdfTerm(term: SparqlTerm): rdfjs.Term {
  * implicit in SPARQL results); lang-tagged and typed literals carry their
  * language or datatype.
  */
-export function rdfTermToSparqlValue(term: rdfjs.Term): SparqlValue {
+export function rdfTermToSparqlValue(term: RdfTerm): SparqlValue {
   switch (term.termType) {
     case "NamedNode":
       return { type: "uri", value: term.value };

@@ -1,5 +1,13 @@
 import type * as rdfjs from "@rdfjs/types";
 import type {
+  RdfBlankNode,
+  RdfQuad,
+  RdfQuadObject,
+  RdfQuadPredicate,
+  RdfQuadSubject,
+  RdfTerm,
+} from "@/parser/rdf-terms.ts";
+import type {
   AggregateExpression,
   AskQuery,
   ConstructQuery,
@@ -41,7 +49,7 @@ import {
   sparqlTermToRdfTerm,
   termKey,
 } from "@/term/mod.ts";
-import { DataFactory } from "@/term/mod.ts";
+import { DataFactory } from "@/term/data-factory.ts";
 
 /**
  * SparqlEvaluatorOptions configures SparqlEvaluator.
@@ -94,10 +102,10 @@ export class SparqlEvaluator {
    */
   private nextConstructBnodeId = 0;
 
-  private readonly store: rdfjs.Source<rdfjs.Quad>;
+  private readonly store: rdfjs.Source<RdfQuad>;
 
   public constructor(
-    store: rdfjs.Source<rdfjs.Quad>,
+    store: rdfjs.Source<RdfQuad>,
     options: SparqlEvaluatorOptions = {},
   ) {
     this.store = store;
@@ -293,7 +301,7 @@ export class SparqlEvaluator {
   private aggregateResolver(
     solution: SelectSolution,
     context?: ExpressionEvaluationContext,
-  ): (aggregate: AggregateExpression) => rdfjs.Term | undefined {
+  ): (aggregate: AggregateExpression) => RdfTerm | undefined {
     const group = solution.group;
     if (group === null) {
       return () => undefined;
@@ -332,7 +340,7 @@ export class SparqlEvaluator {
     // solution's projection carries a fresh bnode cache (SPARQL 1.1 §17.4.1.5).
     const solutionContext: ExpressionEvaluationContext = {
       ...(context ?? {}),
-      bnodeMap: new Map<string, rdfjs.BlankNode>(),
+      bnodeMap: new Map<string, RdfBlankNode>(),
     };
     const resolver = solution.group === null
       ? undefined
@@ -384,7 +392,7 @@ export class SparqlEvaluator {
    */
   private async describeStoreFor(
     from: { default: SparqlTerm[]; named: SparqlTerm[] } | undefined,
-  ): Promise<rdfjs.Source<rdfjs.Quad>> {
+  ): Promise<rdfjs.Source<RdfQuad>> {
     if (
       from === undefined ||
       (from.default.length === 0 && from.named.length === 0)
@@ -420,8 +428,8 @@ export class SparqlEvaluator {
       )
       : [];
 
-    const resources = new Set<rdfjs.Term>();
-    const collect = (term: rdfjs.Term | undefined): void => {
+    const resources = new Set<RdfTerm>();
+    const collect = (term: RdfTerm | undefined): void => {
       if (
         term !== undefined &&
         (term.termType === "NamedNode" || term.termType === "BlankNode")
@@ -433,7 +441,7 @@ export class SparqlEvaluator {
       const termType = (variable as { termType?: string }).termType;
       if (termType === "NamedNode") {
         // DESCRIBE <iri> — the WHERE clause does not add resources.
-        resources.add(variable as unknown as rdfjs.Term);
+        resources.add(variable as unknown as RdfTerm);
       } else if (termType === "Variable") {
         const name = (variable as { value: string }).value;
         for (const binding of bindings) {
@@ -449,12 +457,12 @@ export class SparqlEvaluator {
     }
 
     const source = await this.describeStoreFor(query.from);
-    const quads: rdfjs.Quad[] = [];
+    const quads: RdfQuad[] = [];
     for (const resource of resources) {
       quads.push(...(await matchQuads(source, resource, null, null)));
     }
     const seen = new Set<string>();
-    const graph: rdfjs.Quad[] = [];
+    const graph: RdfQuad[] = [];
     for (const quad of quads) {
       const key = termKey(quad);
       if (!seen.has(key)) {
@@ -487,12 +495,12 @@ export class SparqlEvaluator {
     // never materialized, so peak holds the dedup key set plus the graph
     // instead of that plus every constructed quad.
     const seen = new Set<string>();
-    const graph: rdfjs.Quad[] = [];
+    const graph: RdfQuad[] = [];
     for (const binding of bindings) {
       // Blank nodes in a CONSTRUCT template are fresh per solution mapping
       // (SPARQL 1.1 §16.2.1): the parser expands RDF collections and _:b
       // template terms into shared labels, so remap them per binding.
-      const bnodeMap = new Map<string, rdfjs.BlankNode>();
+      const bnodeMap = new Map<string, RdfBlankNode>();
       for (const t of template) {
         const s = this.resolveConstructTerm(t.subject, binding, bnodeMap);
         const p = this.resolveConstructTerm(
@@ -504,9 +512,9 @@ export class SparqlEvaluator {
 
         if (s && p && o) {
           const quad = DataFactory.quad(
-            s as rdfjs.Quad_Subject,
-            p as rdfjs.Quad_Predicate,
-            o as rdfjs.Quad_Object,
+            s as RdfQuadSubject,
+            p as RdfQuadPredicate,
+            o as RdfQuadObject,
             DataFactory.defaultGraph(),
           );
           const key = termKey(quad);
@@ -523,8 +531,8 @@ export class SparqlEvaluator {
   private resolveConstructTerm(
     term: SparqlTerm,
     binding: TermBinding,
-    bnodeMap: Map<string, rdfjs.BlankNode>,
-  ): rdfjs.Term | null {
+    bnodeMap: Map<string, RdfBlankNode>,
+  ): RdfTerm | null {
     if (term.termType === "Variable") {
       const bound = binding[term.value];
       if (bound) {
@@ -552,9 +560,9 @@ export class SparqlEvaluator {
         return null;
       }
       return DataFactory.quad(
-        s as rdfjs.Quad_Subject,
-        p as rdfjs.Quad_Predicate,
-        o as rdfjs.Quad_Object,
+        s as RdfQuadSubject,
+        p as RdfQuadPredicate,
+        o as RdfQuadObject,
       );
     }
     return sparqlTermToRdfTerm(term);

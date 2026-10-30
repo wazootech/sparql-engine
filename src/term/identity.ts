@@ -1,4 +1,11 @@
-import type * as rdfjs from "@rdfjs/types";
+import type {
+  RdfBlankNode,
+  RdfLiteral,
+  RdfNamedNode,
+  RdfQuad,
+  RdfTerm,
+  RdfVariable,
+} from "@/parser/rdf-terms.ts";
 
 /**
  * termKey renders a deterministic key for an RDF/JS term, normalizing its
@@ -16,7 +23,7 @@ function escapeTermValue(value: string): string {
   return value.replaceAll("\\", "\\\\").replaceAll("|", "\\|");
 }
 
-export function termKey(term: rdfjs.Term): string {
+export function termKey(term: RdfTerm): string {
   switch (term.termType) {
     case "NamedNode":
       return `uri:${escapeTermValue(term.value)}`;
@@ -40,7 +47,9 @@ export function termKey(term: rdfjs.Term): string {
       );
     default:
       throw new Error(
-        `Unsupported RDF term type: ${(term as rdfjs.Term).termType}`,
+        `Unsupported RDF term type: ${
+          (term as Record<string, string>)["termType"]
+        }`,
       );
   }
 }
@@ -51,32 +60,37 @@ export function termKey(term: rdfjs.Term): string {
  * subject, predicate, and object — the graph is a property of the statement,
  * not of the triple term, so it is not part of term identity.
  */
-export function sameRdfTerm(a: rdfjs.Term, b: rdfjs.Term): boolean {
+export function sameRdfTerm(a: RdfTerm, b: RdfTerm): boolean {
   if (a.termType !== b.termType) {
     return false;
   }
   switch (a.termType) {
     case "NamedNode":
-      return a.value === (b as rdfjs.NamedNode).value;
+      return a.value === (b as RdfNamedNode).value;
     case "BlankNode":
-      return a.value === (b as rdfjs.BlankNode).value;
+      return a.value === (b as RdfBlankNode).value;
     case "Variable":
-      return a.value === (b as rdfjs.Variable).value;
+      return a.value === (b as RdfVariable).value;
     case "DefaultGraph":
       return true;
-    case "Literal":
-      return a.value === (b as rdfjs.Literal).value &&
-        a.language === (b as rdfjs.Literal).language &&
-        (a.direction ?? "") === ((b as rdfjs.Literal).direction ?? "") &&
-        (a.datatype?.value ?? "") ===
-          ((b as rdfjs.Literal).datatype?.value ?? "");
-    case "Quad":
-      return sameRdfTerm(a.subject, (b as rdfjs.Quad).subject) &&
-        sameRdfTerm(a.predicate, (b as rdfjs.Quad).predicate) &&
-        sameRdfTerm(a.object, (b as rdfjs.Quad).object);
+    case "Literal": {
+      const other = b as RdfLiteral;
+      return a.value === other.value &&
+        a.language === other.language &&
+        (a.direction ?? "") === (other.direction ?? "") &&
+        (a.datatype?.value ?? "") === (other.datatype?.value ?? "");
+    }
+    case "Quad": {
+      const other = b as RdfQuad;
+      return sameRdfTerm(a.subject, other.subject) &&
+        sameRdfTerm(a.predicate, other.predicate) &&
+        sameRdfTerm(a.object, other.object);
+    }
     default:
       throw new Error(
-        `Unsupported RDF term type: ${(a as rdfjs.Term).termType}`,
+        `Unsupported RDF term type: ${
+          (a as Record<string, string>)["termType"]
+        }`,
       );
   }
 }

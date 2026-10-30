@@ -5,8 +5,8 @@
   "license": "MIT",
   "exports": {
     ".": "./src/mod.ts",
-    "./term": "./src/term/mod.ts",
-    "./data-model": "./src/term/mod.ts",
+    "./term": "./src/term/public.ts",
+    "./data-model": "./src/term/public.ts",
     "./store": "./src/store/memory-store.ts",
     "./parser": "./src/parser/mod.ts",
     "./serialize": "./src/serialize/mod.ts"

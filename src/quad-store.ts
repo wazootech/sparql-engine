@@ -1,11 +1,14 @@
 import type * as rdfjs from "@rdfjs/types";
+import type { RdfQuad, RdfQuadGraph, RdfTerm } from "@/parser/rdf-terms.ts";
 import type { Term as SparqlTerm, Triple } from "@/parser/sparql-parser.ts";
 import type {
   PatternStats,
   StoreStatisticsHook,
 } from "@/planner/pattern-statistics.ts";
 import { MemoryStore } from "@/store/memory-store.ts";
-import { DataFactory, sameRdfTerm, termKey } from "@/term/mod.ts";
+import type { QuadEventSource } from "@/store/quad-event-source.ts";
+import { DataFactory } from "@/term/data-factory.ts";
+import { sameRdfTerm, termKey } from "@/term/mod.ts";
 
 /**
  * QuadIndex maps each of the three quad positions to the candidate quads
@@ -23,19 +26,19 @@ import { DataFactory, sameRdfTerm, termKey } from "@/term/mod.ts";
  * @see {@link https://doi.org/10.1145/582095.582099 Selinger et al., "Access Path Selection in a Relational Database Management System," SIGMOD '79, pp. 23–34}
  */
 export interface QuadIndex {
-  bySubject: Map<string, rdfjs.Quad[]>;
-  byPredicate: Map<string, rdfjs.Quad[]>;
-  byObject: Map<string, rdfjs.Quad[]>;
+  bySubject: Map<string, RdfQuad[]>;
+  byPredicate: Map<string, RdfQuad[]>;
+  byObject: Map<string, RdfQuad[]>;
 }
 
 /**
  * buildQuadIndex indexes candidate quads by each of their three positions,
  * keyed by termKey, for O(1) bucket probes per solution.
  */
-export function buildQuadIndex(quads: rdfjs.Quad[]): QuadIndex {
-  const bySubject = new Map<string, rdfjs.Quad[]>();
-  const byPredicate = new Map<string, rdfjs.Quad[]>();
-  const byObject = new Map<string, rdfjs.Quad[]>();
+export function buildQuadIndex(quads: RdfQuad[]): QuadIndex {
+  const bySubject = new Map<string, RdfQuad[]>();
+  const byPredicate = new Map<string, RdfQuad[]>();
+  const byObject = new Map<string, RdfQuad[]>();
   for (const item of quads) {
     indexQuad(bySubject, termKey(item.subject), item);
     indexQuad(byPredicate, termKey(item.predicate), item);
@@ -48,9 +51,9 @@ export function buildQuadIndex(quads: rdfjs.Quad[]): QuadIndex {
  * indexQuad appends a quad to the bucket for the given key.
  */
 function indexQuad(
-  index: Map<string, rdfjs.Quad[]>,
+  index: Map<string, RdfQuad[]>,
   key: string,
-  item: rdfjs.Quad,
+  item: RdfQuad,
 ): void {
   const bucket = index.get(key);
   if (bucket) {
@@ -69,12 +72,12 @@ function indexQuad(
  */
 export function probeQuadIndex(
   index: QuadIndex,
-  candidates: rdfjs.Quad[],
-  subject: rdfjs.Term | null,
-  predicate: rdfjs.Term | null,
-  object: rdfjs.Term | null,
-): rdfjs.Quad[] {
-  const options: rdfjs.Quad[][] = [];
+  candidates: RdfQuad[],
+  subject: RdfTerm | null,
+  predicate: RdfTerm | null,
+  object: RdfTerm | null,
+): RdfQuad[] {
+  const options: RdfQuad[][] = [];
   if (subject !== null) {
     options.push(index.bySubject.get(termKey(subject)) ?? []);
   }
@@ -103,7 +106,7 @@ export function probeQuadIndex(
  * the snapshot per query.
  */
 export function storeVersion(
-  store: rdfjs.Source<rdfjs.Quad>,
+  store: rdfjs.Source<RdfQuad>,
 ): number | null {
   const version = (store as { version?: unknown }).version;
   return typeof version === "number" ? version : null;
@@ -114,16 +117,16 @@ export function storeVersion(
  * store, resolving the store's match stream into an array.
  */
 export function matchQuads(
-  store: rdfjs.Source<rdfjs.Quad>,
-  s: rdfjs.Term | null,
-  p: rdfjs.Term | null,
-  o: rdfjs.Term | null,
-  g: rdfjs.Term | null = null,
-): Promise<rdfjs.Quad[]> {
-  return new Promise<rdfjs.Quad[]>((resolve, reject) => {
-    const quads: rdfjs.Quad[] = [];
-    const stream = store.match(s, p, o, g);
-    stream.on("data", (q: rdfjs.Quad) => quads.push(q));
+  store: rdfjs.Source<RdfQuad>,
+  s: RdfTerm | null,
+  p: RdfTerm | null,
+  o: RdfTerm | null,
+  g: RdfTerm | null = null,
+): Promise<RdfQuad[]> {
+  return new Promise<RdfQuad[]>((resolve, reject) => {
+    const quads: RdfQuad[] = [];
+    const stream = store.match(s, p, o, g) as unknown as QuadEventSource;
+    stream.on("data", (q: RdfQuad) => quads.push(q));
     stream.on("end", () => resolve(quads));
     stream.on("error", reject);
   });
@@ -158,10 +161,10 @@ export function simplePredicate(predicate: unknown): SparqlTerm {
  * paths, graph node enumeration) runs against one named graph through it
  * without any call site knowing the scope exists.
  */
-export class GraphScopedStore implements rdfjs.Source<rdfjs.Quad> {
+export class GraphScopedStore implements rdfjs.Source<RdfQuad> {
   public constructor(
-    private readonly store: rdfjs.Source<rdfjs.Quad>,
-    public readonly graph: rdfjs.Term,
+    private readonly store: rdfjs.Source<RdfQuad>,
+    public readonly graph: RdfTerm,
   ) {}
 
   /** version delegates to the wrapped store so snapshot caches see through
@@ -187,11 +190,11 @@ export class GraphScopedStore implements rdfjs.Source<rdfjs.Quad> {
   }
 
   public match(
-    subject?: rdfjs.Term | null,
-    predicate?: rdfjs.Term | null,
-    object?: rdfjs.Term | null,
-    graph?: rdfjs.Term | null,
-  ): rdfjs.Stream<rdfjs.Quad> {
+    subject?: RdfTerm | null,
+    predicate?: RdfTerm | null,
+    object?: RdfTerm | null,
+    graph?: RdfTerm | null,
+  ): rdfjs.Stream<RdfQuad> {
     // An explicit graph wins; otherwise the view's fixed graph applies. The
     // pipeline always scans with a null graph, so the scope is applied, and
     // nested scopes (GRAPH inside GRAPH) compose correctly.
@@ -204,10 +207,10 @@ export class GraphScopedStore implements rdfjs.Source<rdfjs.Quad> {
  * graph term is not the default graph), for GRAPH ?g evaluation.
  */
 export async function namedGraphs(
-  store: rdfjs.Source<rdfjs.Quad>,
-): Promise<rdfjs.Quad_Graph[]> {
+  store: rdfjs.Source<RdfQuad>,
+): Promise<RdfQuadGraph[]> {
   const quads = await matchQuads(store, null, null, null);
-  const graphs = new Map<string, rdfjs.Quad_Graph>();
+  const graphs = new Map<string, RdfQuadGraph>();
   for (const item of quads) {
     if (item.graph.termType !== "DefaultGraph") {
       graphs.set(termKey(item.graph), item.graph);
@@ -227,9 +230,9 @@ export async function namedGraphs(
  * dataset simply do not exist in the view.
  */
 export async function buildDatasetStore(
-  store: rdfjs.Source<rdfjs.Quad>,
-  from: readonly rdfjs.Term[],
-  fromNamed: readonly rdfjs.Term[],
+  store: rdfjs.Source<RdfQuad>,
+  from: readonly RdfTerm[],
+  fromNamed: readonly RdfTerm[],
 ): Promise<rdfjs.Store> {
   const dataset = new MemoryStore();
   const seen = new Set<string>();

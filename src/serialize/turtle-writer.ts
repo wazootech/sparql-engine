@@ -1,4 +1,4 @@
-import type * as rdfjs from "@rdfjs/types";
+import type { RdfLiteral, RdfQuad, RdfTerm } from "@/parser/rdf-terms.ts";
 
 /**
  * TurtleWriterFormat selects the serialization dialect:
@@ -38,7 +38,7 @@ const RDF_LANG_STRING = "http://www.w3.org/1999/02/22-rdf-syntax-ns#langString";
  * @returns the serialized document (trailing newline, empty string for no quads)
  */
 export function serializeTurtle(
-  quads: Iterable<rdfjs.Quad>,
+  quads: Iterable<RdfQuad>,
   options: TurtleWriterOptions = {},
 ): string {
   const format = options.format ?? "turtle";
@@ -75,8 +75,8 @@ export function serializeTurtle(
     ([prefix, iri]) => `@prefix ${prefix}: <${escapeIri(iri)}> .`,
   );
 
-  const defaultGraph: rdfjs.Quad[] = [];
-  const byGraph = new Map<string, rdfjs.Quad[]>();
+  const defaultGraph: RdfQuad[] = [];
+  const byGraph = new Map<string, RdfQuad[]>();
   for (const q of quadArray) {
     if (q.graph.termType === "DefaultGraph") {
       defaultGraph.push(q);
@@ -108,10 +108,10 @@ export function serializeTurtle(
  * groups and `,` between objects of the same predicate.
  */
 function statementLines(
-  quads: rdfjs.Quad[],
+  quads: RdfQuad[],
   prefixes: Record<string, string>,
 ): string[] {
-  const bySubject = new Map<string, rdfjs.Quad[]>();
+  const bySubject = new Map<string, RdfQuad[]>();
   for (const q of quads) {
     const key = term(q.subject, prefixes);
     const bucket = bySubject.get(key);
@@ -124,7 +124,7 @@ function statementLines(
 
   const lines: string[] = [];
   for (const [subjectKey, subjectQuads] of bySubject) {
-    const byPredicate = new Map<string, rdfjs.Quad[]>();
+    const byPredicate = new Map<string, RdfQuad[]>();
     for (const q of subjectQuads) {
       const key = term(q.predicate, prefixes);
       const bucket = byPredicate.get(key);
@@ -148,7 +148,7 @@ function statementLines(
 }
 
 /** term serializes a single RDF/JS term (Turtle term grammar). */
-function term(t: rdfjs.Term, prefixes: Record<string, string> = {}): string {
+function term(t: RdfTerm, prefixes: Record<string, string> = {}): string {
   switch (t.termType) {
     case "NamedNode":
       return iriTerm(t.value, prefixes);
@@ -189,7 +189,7 @@ function iriTerm(
 
 /** literalTerm renders a literal with language/direction or datatype suffix. */
 function literalTerm(
-  term: rdfjs.Literal,
+  term: RdfLiteral,
   prefixes: Record<string, string>,
 ): string {
   const value = `"${escapeLiteral(term.value)}"`;
