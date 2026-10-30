@@ -48,7 +48,9 @@
     "bench:memory": "deno run --allow-all bench/collect-memory.ts && deno run --allow-read --allow-write bench/treemap.ts && deno fmt docs/assets/chart-*.svg docs/assets/treemap-*.svg",
     "bench:latency": "deno bench --allow-all --json bench/engine_bench.ts > bench/latency-data.json && deno run --allow-read --allow-write bench/latency-chart.ts && deno fmt docs/assets/chart-latency.svg",
     "bench:latency:check": "BENCH_INVENTORY=1 deno bench --allow-all --json bench/engine_bench.ts | deno run --allow-read bench/latency-check.ts",
+    "bench:cli": "deno run --allow-all bench/cli-bench.ts",
     "check": "deno check",
+    "compile": "deno compile --allow-read --output dist/sparql cli/main.ts",
     "docs:link-check": "deno run --allow-read --allow-net docs/link-check.ts",
     "ci": {
       "description": "Formats, lints, checks, and tests the code",

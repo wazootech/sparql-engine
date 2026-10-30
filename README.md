@@ -97,6 +97,20 @@ if (result.kind === "select") {
 }
 ```
 
+### Command line
+
+`deno task compile` builds a standalone `sparql` binary at `dist/sparql` (no
+Deno install needed to run it):
+
+```sh
+deno task compile
+./dist/sparql --data people.ttl --query 'SELECT * WHERE { ?s ?p ?o } LIMIT 10'
+```
+
+SELECT and ASK print SPARQL 1.1 Query Results JSON, and CONSTRUCT and DESCRIBE
+print N-Quads. `deno task bench:cli` measures the binary's size, startup, load,
+and join time; see `bench/cli-bench.ts`.
+
 ## Tree-shakeable subpath imports
 
 The package also exposes five subpath entrypoints — `./term`, `./data-model`,
