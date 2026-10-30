@@ -75,6 +75,13 @@ export interface WazooSparqlEngineOptions {
    * greedy loop. Only affects join order, never results.
    */
   estimator?: JoinCostEstimator;
+
+  /**
+   * readTextFile reads a local file for `LOAD <file://...>`. Defaults to
+   * Deno's reader under Deno; elsewhere (Node, Bun, native builds) pass
+   * one, e.g. `(path) => readFile(path, "utf8")` from `node:fs/promises`.
+   */
+  readTextFile?: (path: string) => Promise<string>;
 }
 
 /** Default SPARQL query timeout in milliseconds (matches Comunica). */
@@ -125,6 +132,7 @@ export class WazooSparqlEngine implements SparqlEngineInterface {
       createTransaction: options.createTransaction,
       reorderPatterns: options.reorderPatterns,
       estimator: options.estimator,
+      readTextFile: options.readTextFile,
     });
   }
 
