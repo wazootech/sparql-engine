@@ -1,8 +1,8 @@
 import type {
+  RdfBaseQuad,
   RdfBlankNode,
   RdfLiteral,
   RdfNamedNode,
-  RdfQuad,
   RdfTerm,
   RdfVariable,
 } from "@/parser/rdf-terms.ts";
@@ -81,7 +81,9 @@ export function sameRdfTerm(a: RdfTerm, b: RdfTerm): boolean {
         (a.datatype?.value ?? "") === (other.datatype?.value ?? "");
     }
     case "Quad": {
-      const other = b as RdfQuad;
+      // RdfQuad narrows its components; the structural comparison only needs
+      // the base quad shape (components are plain terms).
+      const other = b as RdfBaseQuad;
       return sameRdfTerm(a.subject, other.subject) &&
         sameRdfTerm(a.predicate, other.predicate) &&
         sameRdfTerm(a.object, other.object);

@@ -204,20 +204,20 @@ export class SparqlEvaluator {
       ? await evaluator.prepareExistsIndex()
       : null;
     const effectiveBase = baseIri ?? query.base;
-    const existsContext: ExpressionEvaluationContext = {
-      ...(needsPipelineExists
-        ? evaluator.pipelineExistsContext(pipelineSnapshot!)
-        : {
-          evaluateExists: (pattern: Pattern, solution: TermBinding) =>
-            evaluator.evaluateExists(
-              pattern,
-              solution,
-              undefined,
-              effectiveBase,
-            ),
-        }),
-      baseIri: effectiveBase,
-    };
+    const existsContext: ExpressionEvaluationContext = needsPipelineExists
+      ? evaluator.pipelineExistsContext(pipelineSnapshot!)
+      : {
+        evaluateExists: (pattern: Pattern, solution: TermBinding) =>
+          evaluator.evaluateExists(
+            pattern,
+            solution,
+            undefined,
+            effectiveBase,
+          ),
+      };
+    // Assigned after construction: scriptc has no layout for a two-arm
+    // conditional spread (one arm must be empty).
+    existsContext.baseIri = effectiveBase;
     // The post-BGP SELECT pipeline (VALUES, grouping/aggregates, HAVING,
     // ORDER BY, projection, DISTINCT/REDUCED, OFFSET/LIMIT) is shared with
     // the synchronous EXISTS subquery path — one implementation, two call

@@ -11,7 +11,6 @@ import type {
 import type {
   InsertDeleteOperation,
   Pattern,
-  Quads,
   Term as SparqlTerm,
   Triple,
   UpdateOperation,
@@ -104,12 +103,55 @@ function defaultReadTextFile(path: string): Promise<string> {
   return deno.readTextFile(path);
 }
 
+/**
+ * LoadInput is what applyLoad reads. The parser supplies a LOAD's IRI term and
+ * optional INTO graph; a hand-built request may instead carry the source as a
+ * bare IRI string, so the source stays unknown until it is read defensively.
+ */
+interface LoadInput {
+  silent?: boolean;
+  source?: unknown;
+  destination?: SparqlTerm;
+}
+
 type GraphRef = {
   default?: boolean;
   named?: boolean;
   all?: boolean;
   name?: SparqlTerm;
 };
+
+/**
+ * GraphSpec is the graph-target shape the parser builds for CLEAR/DROP (a
+ * keyword flag: default / named / all) and for COPY/MOVE/ADD (type "graph" plus
+ * either a default flag or a name). The AST types declare the type-keyed form
+ * while the parser emits the flag form, so both are read here.
+ */
+interface GraphSpec {
+  type?: "graph" | "default" | "named" | "all";
+  default?: boolean;
+  named?: boolean;
+  all?: boolean;
+  name?: SparqlTerm;
+}
+
+/**
+ * graphRefOf converts a grammar graph spec into a GraphRef. The flags are read
+ * first because that is the shape the parser emits; the type-keyed arms cover
+ * the declared AST form.
+ */
+function graphRefOf(spec: GraphSpec): GraphRef {
+  if (spec.default === true || spec.type === "default") {
+    return { default: true };
+  }
+  if (spec.named === true || spec.type === "named") {
+    return { named: true };
+  }
+  if (spec.all === true || spec.type === "all") {
+    return { all: true };
+  }
+  return spec.name === undefined ? { default: true } : { name: spec.name };
+}
 
 /**
  * ResolvedTemplateTerm is the result of resolving one template position
@@ -123,8 +165,8 @@ type ResolvedTemplateTerm =
 /**
  * UpdateEvaluator executes SPARQL 1.1 Update operations against an RDFJS
  * store. It supports INSERT DATA and DELETE DATA (including named graph
- * templates and composite updates), plus the WHERE forms — INSERT WHERE,
- * DELETE WHERE, and DELETE/INSERT — whose patterns are evaluated with the
+ * templates and composite updates), plus the WHERE forms â€” INSERT WHERE,
+ * DELETE WHERE, and DELETE/INSERT â€” whose patterns are evaluated with the
  * BgpEvaluator and whose templates are instantiated per solution.
  *
  * Template semantics follow SPARQL 1.1 Update: variables in templates bind to
@@ -217,61 +259,52 @@ export class UpdateEvaluator {
     baseIri?: string,
     signal?: AbortSignal,
   ): Promise<void> {
-    const op = operation as unknown as Record<string, unknown>;
-    const opType = (op.updateType || op.type || op.action) as
-      | string
-      | undefined;
-    if (!opType) {
-      throw new Error(
-        `Unsupported SPARQL update operation: missing type`,
-      );
+    const opType: string | undefined = operation.updateType ?? operation.type;
+    if (opType === undefined) {
+      throw new Error(`Unsupported SPARQL update operation: missing type`);
     }
-    switch (opType) {
-      case "insert": {
-        const bnodeMap = new Map<string, RdfBlankNode>();
-        for (
-          const pattern
-            of (operation as unknown as { insert: Quads[] }).insert ?? []
-        ) {
-          for (const item of this.patternQuads(pattern, bnodeMap)) {
-            add(item);
+    // The update AST carries two discriminants: updateType on the
+    // insert/delete family and type on the rest. Narrow on the real field in
+    // each branch instead of viewing the operation as a record: every read
+    // through a record view is an unknown that needs a checked cast, and
+    // scriptc has no layout for that conversion.
+    if (operation.updateType !== undefined) {
+      switch (operation.updateType) {
+        case "insert": {
+          const bnodeMap = new Map<string, RdfBlankNode>();
+          for (const pattern of operation.insert ?? []) {
+            for (const item of this.patternQuads(pattern, bnodeMap)) {
+              add(item);
+            }
           }
+          return;
         }
-        return;
-      }
-      case "delete": {
-        for (
-          const pattern
-            of (operation as unknown as { delete: Quads[] }).delete ?? []
-        ) {
-          for (const item of this.patternQuads(pattern, null)) {
-            remove(item);
+        case "delete": {
+          for (const pattern of operation.delete ?? []) {
+            for (const item of this.patternQuads(pattern, null)) {
+              remove(item);
+            }
           }
+          return;
         }
-        return;
+        case "insertdelete": {
+          await this.applyDeleteInsert(operation, add, remove, baseIri, signal);
+          return;
+        }
+        case "deletewhere": {
+          await this.applyDeleteWhere(operation, remove, baseIri, signal);
+          return;
+        }
+        default:
+          throw new Error(
+            `Unsupported SPARQL update operation: ${operation.updateType}`,
+          );
       }
-      case "insertdelete": {
-        await this.applyDeleteInsert(
-          operation as Extract<UpdateOperation, { updateType: "insertdelete" }>,
-          add,
-          remove,
-          baseIri,
-          signal,
-        );
-        return;
-      }
-      case "deletewhere": {
-        await this.applyDeleteWhere(
-          operation as Extract<UpdateOperation, { updateType: "deletewhere" }>,
-          remove,
-          baseIri,
-          signal,
-        );
-        return;
-      }
+    }
+    switch (operation.type) {
       case "clear":
       case "drop": {
-        await this.applyClear(this.getGraphRef(op), remove);
+        await this.applyClear(graphRefOf(operation.graph), remove);
         return;
       }
       case "create": {
@@ -279,8 +312,8 @@ export class UpdateEvaluator {
       }
       case "add": {
         await this.applyAdd(
-          op.source as GraphRef,
-          op.destination as GraphRef,
+          graphRefOf(operation.source),
+          graphRefOf(operation.destination),
           add,
         );
         return;
@@ -288,45 +321,44 @@ export class UpdateEvaluator {
       case "copy": {
         // Snapshot the source before clearing the destination so COPYing a
         // graph to itself is a no-op rather than an emptying.
-        const sourceQuads = await this.fetchGraphQuads(op.source as GraphRef);
-        await this.applyClear(op.destination as GraphRef, remove);
-        this.addQuads(sourceQuads, op.destination as GraphRef, add);
+        const sourceRef = graphRefOf(operation.source);
+        const destRef = graphRefOf(operation.destination);
+        const sourceQuads = await this.fetchGraphQuads(sourceRef);
+        await this.applyClear(destRef, remove);
+        this.addQuads(sourceQuads, destRef, add);
         return;
       }
       case "move": {
-        // MOVEing a graph to itself is a no-op (SPARQL 1.1 Update §3.3.3).
-        if (
-          this.sameGraphRef(
-            op.source as GraphRef,
-            op.destination as GraphRef,
-          )
-        ) {
+        // MOVEing a graph to itself is a no-op (SPARQL 1.1 Update A3.3.3).
+        const sourceRef = graphRefOf(operation.source);
+        const destRef = graphRefOf(operation.destination);
+        if (this.sameGraphRef(sourceRef, destRef)) {
           return;
         }
-        const sourceQuads = await this.fetchGraphQuads(op.source as GraphRef);
-        await this.applyClear(op.destination as GraphRef, remove);
-        this.addQuads(sourceQuads, op.destination as GraphRef, add);
-        await this.applyClear(op.source as GraphRef, remove);
+        const sourceQuads = await this.fetchGraphQuads(sourceRef);
+        await this.applyClear(destRef, remove);
+        this.addQuads(sourceQuads, destRef, add);
+        await this.applyClear(sourceRef, remove);
         return;
       }
       case "load": {
-        await this.applyLoad(op, add, baseIri);
+        // applyLoad reads its fields defensively (the source may arrive as a
+        // bare IRI string), so it keeps the record-shaped view; this literal
+        // is typed rather than cast through unknown.
+        await this.applyLoad(
+          {
+            silent: operation.silent,
+            source: operation.source,
+            destination: operation.destination,
+          },
+          add,
+          baseIri,
+        );
         return;
       }
       default:
-        throw new Error(
-          `Unsupported SPARQL update operation: ${opType}`,
-        );
+        throw new Error(`Unsupported SPARQL update operation: ${opType}`);
     }
-  }
-
-  private getGraphRef(op: Record<string, unknown>): GraphRef {
-    if (op.reference) return op.reference as GraphRef;
-    if (op.graph && typeof op.graph === "object" && !("termType" in op.graph)) {
-      return op.graph as GraphRef;
-    }
-    if (op.graph) return { name: op.graph as SparqlTerm };
-    return {};
   }
 
   private async fetchGraphQuads(graphRef: {
@@ -413,7 +445,7 @@ export class UpdateEvaluator {
   }
 
   private async applyLoad(
-    op: Record<string, unknown>,
+    op: LoadInput,
     add: (item: RdfQuad) => unknown,
     baseIri?: string,
   ): Promise<void> {
@@ -461,7 +493,7 @@ export class UpdateEvaluator {
       // operations. No destination means "merge the document's dataset
       // as-is".
       const intoGraph = op.destination
-        ? sparqlTermToRdfTerm(op.destination as SparqlTerm)
+        ? sparqlTermToRdfTerm(op.destination)
         : undefined;
 
       if (intoGraph) {
@@ -509,8 +541,8 @@ export class UpdateEvaluator {
   /**
    * remapLoadBlankNodes rewrites one parsed quad so every blank node
    * carries a fresh label minted from the evaluator's monotonic counter.
-   * Subject, object, and graph positions are remapped — including blank
-   * nodes nested inside triple-term (Quad) objects — with a per-LOAD map
+   * Subject, object, and graph positions are remapped â€” including blank
+   * nodes nested inside triple-term (Quad) objects â€” with a per-LOAD map
    * keeping one document's repeated label identical to itself.
    */
   private remapLoadBlankNodes(
@@ -649,10 +681,10 @@ export class UpdateEvaluator {
    * blank nodes act as wildcards.
    *
    * Prior art: running one store scan per template and probing its indexed
-   * candidates for every solution — instead of re-scanning per solution —
+   * candidates for every solution â€” instead of re-scanning per solution â€”
    * shares one access path across many evaluations, the multiple-query
    * optimization idea of Sellis.
-   * @see {@link https://doi.org/10.1145/42201.42203 Sellis, "Multiple-Query Optimization," ACM TODS 13(1), 1988, pp. 23–52}
+   * @see {@link https://doi.org/10.1145/42201.42203 Sellis, "Multiple-Query Optimization," ACM TODS 13(1), 1988, pp. 23â€“52}
    */
   private async deleteMatches(
     pattern: Pattern,
