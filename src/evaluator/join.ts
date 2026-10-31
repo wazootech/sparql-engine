@@ -1,5 +1,10 @@
 import type * as rdfjs from "@rdfjs/types";
-import type { RdfNamedNode, RdfQuad, RdfTerm } from "@/parser/rdf-terms.ts";
+import type {
+  RdfBaseQuad,
+  RdfNamedNode,
+  RdfQuad,
+  RdfTerm,
+} from "@/parser/rdf-terms.ts";
 import type {
   PropertyPath,
   Term as SparqlTerm,
@@ -641,7 +646,7 @@ export function scanEntry(
       patternConstant(predicate),
       patternConstant(object),
     );
-  return candidates.then((cs) => ({
+  return candidates.then((cs): ScanEntry => ({
     subject,
     predicate,
     object,
@@ -925,8 +930,11 @@ function matchPatternTerm(
     if (value.termType !== "Quad") {
       return null;
     }
-    const pattern = term as RdfQuad;
-    const data = value as RdfQuad;
+    // Both operands are narrowed to the base quad arm by the termType checks
+    // above, so their components are plain terms: the narrowed RdfQuad shape
+    // is not needed and cannot be laid out across the narrowing.
+    const pattern: RdfBaseQuad = term;
+    const data: RdfBaseQuad = value;
     let extended = matchPatternTerm(pattern.subject, data.subject, binding);
     if (extended === null) {
       return null;
@@ -952,13 +960,13 @@ function* joinReifiesPattern(
   entry: ScanEntry,
 ): Generator<TermBinding> {
   const reifier = entry.subject;
-  const tripleTerm = entry.object as RdfQuad;
+  const tripleTerm = entry.object as RdfBaseQuad;
   for (const binding of currentBindings) {
     for (const candidate of entry.candidates) {
       if (candidate.object.termType !== "Quad") {
         continue;
       }
-      const quoted = candidate.object as RdfQuad;
+      const quoted = candidate.object as RdfBaseQuad;
       let extended = matchPatternTerm(
         tripleTerm.subject,
         quoted.subject,

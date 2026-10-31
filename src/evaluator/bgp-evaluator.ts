@@ -415,6 +415,9 @@ export class BgpEvaluator {
         ),
       baseIri,
     };
+    // The dispatch arms are exhaustive, so the default arm has no typed
+    // pattern left to read a discriminant from; keep it as a plain string.
+    const patternType: string = pattern.type;
     switch (pattern.type) {
       case "bgp": {
         let result = bindings;
@@ -480,6 +483,11 @@ export class BgpEvaluator {
         );
       case "graph": {
         const name = pattern.name;
+        // Read the type once as a plain string: both arms below are known
+        // term shapes, so the fallthrough throw has no typed value left to
+        // read from (and scriptc has no layout for reading through a cast of
+        // the empty type).
+        const nameTermType: string = name.termType;
         if (name.termType === "NamedNode") {
           const graphTerm = sparqlTermToRdfTerm(name);
           const scopedCandidates = quads.filter((item) =>
@@ -541,8 +549,7 @@ export class BgpEvaluator {
           return result;
         }
         throw new Error(
-          "Unsupported GRAPH name term type inside EXISTS: " +
-            (name as { termType: string }).termType,
+          "Unsupported GRAPH name term type inside EXISTS: " + nameTermType,
         );
       }
       case "bind":
@@ -694,8 +701,7 @@ export class BgpEvaluator {
       }
       default:
         throw new Error(
-          `Unsupported graph pattern inside EXISTS: ` +
-            (pattern as { type: string }).type,
+          `Unsupported graph pattern inside EXISTS: ` + patternType,
         );
     }
   }
@@ -1029,18 +1035,22 @@ export class BgpEvaluator {
         // the whole inner pipeline (joins, paths, OPTIONAL, MINUS, VALUES,
         // BIND, nested GRAPH) graph-scoped without any of them knowing.
         const graphName = pattern.name;
-        if (
-          graphName.termType !== "NamedNode" &&
-          graphName.termType !== "Variable"
-        ) {
+        // The type is read once as a plain string: after the guard the union
+        // is exhausted, so there is no typed value left to read in the throw.
+        const graphTermType: string = graphName.termType;
+        if (graphTermType !== "NamedNode" && graphTermType !== "Variable") {
           throw new Error(
-            "Unsupported GRAPH name term type: " +
-              (graphName as { termType: string }).termType,
+            "Unsupported GRAPH name term type: " + graphTermType,
           );
         }
-        const graphTerms = graphName.termType === "Variable"
-          ? await namedGraphs(this.store)
-          : [sparqlTermToRdfTerm(graphName)];
+        const graphTerms: RdfTerm[] = [];
+        if (graphName.termType === "Variable") {
+          for (const term of await namedGraphs(this.store)) {
+            graphTerms.push(term);
+          }
+        } else {
+          graphTerms.push(sparqlTermToRdfTerm(graphName));
+        }
         const results: TermBinding[] = [];
         const innerPatterns: Pattern[] = pattern.patterns ?? [
           {

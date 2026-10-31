@@ -1,8 +1,8 @@
 import type {
+  RdfBaseQuad,
   RdfBlankNode,
   RdfLiteral,
   RdfNamedNode,
-  RdfQuad,
   RdfTerm,
 } from "@/parser/rdf-terms.ts";
 import { termKey } from "./identity.ts";
@@ -114,8 +114,8 @@ export function compareRdfTerms(
     case "Quad": {
       // Triple terms order lexicographically by subject, predicate, then
       // object (recursively), ignoring the graph component.
-      const qa = a as RdfQuad;
-      const qb = b as RdfQuad;
+      const qa = a as RdfBaseQuad;
+      const qb = b as RdfBaseQuad;
       return compareRdfTerms(qa.subject, qb.subject) ||
         compareRdfTerms(qa.predicate, qb.predicate) ||
         compareRdfTerms(qa.object, qb.object);

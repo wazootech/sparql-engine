@@ -194,7 +194,14 @@ export class WazooSparqlEngine implements SparqlEngineInterface {
         );
         this.queryCache.set(cacheKey, ast);
         if (this.queryCache.size > WazooSparqlEngine.QUERY_CACHE_MAX) {
-          const oldest = this.queryCache.keys().next().value;
+          // Oldest key wins the eviction: Map iteration is insertion-ordered,
+          // and the first key is taken directly (scriptc has no layout for
+          // keys().next()).
+          let oldest: string | undefined;
+          for (const key of this.queryCache.keys()) {
+            oldest = key;
+            break;
+          }
           if (oldest !== undefined) {
             this.queryCache.delete(oldest);
           }

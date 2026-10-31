@@ -324,8 +324,13 @@ export class ExpressionEvaluator {
     aggregates?: (aggregate: AggregateExpression) => RdfTerm | undefined,
     context?: ExpressionEvaluationContext,
   ): RdfTerm | undefined {
-    const arg = (index: number): Expression =>
-      operation.args[index] as Expression;
+    // args is a union of argument-list shapes (expressions, patterns, and the
+    // IN tuple). Each operator below reads exactly one of them, so narrow once
+    // here: scriptc cannot index the union, and indexing the narrowed list is
+    // the only statically typed form.
+    const args = operation.args as Expression[];
+    const patterns = operation.args as Pattern[];
+    const arg = (index: number): Expression => args[index];
     switch (operation.operator) {
       case "&&":
       case "||": {
@@ -422,7 +427,7 @@ export class ExpressionEvaluator {
         // behave as no-match -> false. The pattern argument evaluates
         // through the injected hook (correlated, graph-scoped); a missing
         // hook is a wiring bug and fails loudly.
-        const existsPattern = arg(0) as unknown as Pattern;
+        const existsPattern = patterns[0];
         const evaluateExists = context?.evaluateExists;
         if (evaluateExists === undefined) {
           throw new Error(
@@ -484,32 +489,32 @@ export class ExpressionEvaluator {
       case "lcase":
         return this.stringCase(operation.operator, arg(0), binding, aggregates);
       case "concat":
-        return this.concat(operation.args as Expression[], binding, aggregates);
+        return this.concat(args, binding, aggregates);
       case "substr":
-        return this.substr(operation.args as Expression[], binding, aggregates);
+        return this.substr(args, binding, aggregates);
       case "strdt":
-        return this.strdt(operation.args as Expression[], binding, aggregates);
+        return this.strdt(args, binding, aggregates);
       case "strlang":
         return this.strlang(
-          operation.args as Expression[],
+          args,
           binding,
           aggregates,
         );
       case "regex":
         return this.regex(
-          operation.args as Expression[],
+          args,
           binding,
           aggregates,
         );
       case "replace":
         return this.replace(
-          operation.args as Expression[],
+          args,
           binding,
           aggregates,
         );
       case "contains":
         return this.stringPredicate(
-          operation.args as Expression[],
+          args,
           binding,
           (value, argument) => value.includes(argument),
           aggregates,
@@ -517,7 +522,7 @@ export class ExpressionEvaluator {
         );
       case "strstarts":
         return this.stringPredicate(
-          operation.args as Expression[],
+          args,
           binding,
           (value, argument) => value.startsWith(argument),
           aggregates,
@@ -525,14 +530,14 @@ export class ExpressionEvaluator {
         );
       case "strends":
         return this.stringPredicate(
-          operation.args as Expression[],
+          args,
           binding,
           (value, argument) => value.endsWith(argument),
           aggregates,
         );
       case "strbefore":
         return this.stringSlice(
-          operation.args as Expression[],
+          args,
           binding,
           true,
           aggregates,
@@ -540,33 +545,37 @@ export class ExpressionEvaluator {
         );
       case "strafter":
         return this.stringSlice(
-          operation.args as Expression[],
+          args,
           binding,
           false,
           aggregates,
           context,
         );
       case "lang":
-        return this.lang(operation.args[0] as Expression, binding, aggregates);
+        return this.lang(arg(0), binding, aggregates);
       case "langmatches":
         return this.langmatches(
-          operation.args as Expression[],
+          args,
           binding,
           aggregates,
         );
       case "coalesce":
         return this.coalesce(
-          operation.args as Expression[],
+          args,
           binding,
           aggregates,
         );
       case "if":
-        return this.ifElse(operation.args as Expression[], binding, aggregates);
+        return this.ifElse(args, binding, aggregates);
       case "in":
-        return this.inList(operation.args as Expression[], binding, aggregates);
+        return this.inList(
+          operation.args as [Expression, Expression[]],
+          binding,
+          aggregates,
+        );
       case "notin": {
         const member = this.inList(
-          operation.args as Expression[],
+          operation.args as [Expression, Expression[]],
           binding,
           aggregates,
         );
@@ -577,7 +586,7 @@ export class ExpressionEvaluator {
       }
       case "sameterm":
         return this.sameterm(
-          operation.args as Expression[],
+          args,
           binding,
           aggregates,
         );
@@ -620,7 +629,7 @@ export class ExpressionEvaluator {
       case "BNODE":
       case "bnode":
         return this.bnode(
-          operation.args as Expression[],
+          args,
           binding,
           aggregates,
           context,
@@ -639,7 +648,7 @@ export class ExpressionEvaluator {
       case "round":
         return this.numericRound(
           operation.operator as "abs" | "ceil" | "floor" | "round",
-          operation.args[0] as Expression,
+          arg(0),
           binding,
           aggregates,
         );
@@ -652,19 +661,19 @@ export class ExpressionEvaluator {
       case "minutes":
         return this.dateComponent(
           operation.operator as "year" | "month" | "day" | "hours" | "minutes",
-          operation.args[0] as Expression,
+          arg(0),
           binding,
           aggregates,
         );
       case "seconds":
         return this.seconds(
-          operation.args[0] as Expression,
+          arg(0),
           binding,
           aggregates,
         );
       case "timezone":
         return this.timezone(
-          operation.args[0] as Expression,
+          arg(0),
           binding,
           aggregates,
         );
@@ -675,36 +684,36 @@ export class ExpressionEvaluator {
       case "sha512":
         return this.hash(
           operation.operator as "md5" | "sha1" | "sha256" | "sha384" | "sha512",
-          operation.args[0] as Expression,
+          arg(0),
           binding,
           aggregates,
         );
       case "triple":
-        return this.triple(operation.args as Expression[], binding, aggregates);
+        return this.triple(args, binding, aggregates);
       case "subject":
         return this.tripleComponent(
           "subject",
-          operation.args[0] as Expression,
+          arg(0),
           binding,
           aggregates,
         );
       case "predicate":
         return this.tripleComponent(
           "predicate",
-          operation.args[0] as Expression,
+          arg(0),
           binding,
           aggregates,
         );
       case "object":
         return this.tripleComponent(
           "object",
-          operation.args[0] as Expression,
+          arg(0),
           binding,
           aggregates,
         );
       case "istriple":
         return this.isTriple(
-          operation.args[0] as Expression,
+          arg(0),
           binding,
           aggregates,
         );
@@ -733,7 +742,6 @@ export class ExpressionEvaluator {
         //   hasLANG(langString, language)                — tag equals `language`
         //   hasLANG(simpleLiteral, language, direction)  — tag and base
         //     direction both match (direction canonicalized to lowercase).
-        const args = operation.args as Expression[];
         const val = this.evaluateWith(args[0], binding, aggregates, context);
         if (
           val === undefined || val.termType !== "Literal" ||
@@ -1896,7 +1904,7 @@ export class ExpressionEvaluator {
    * before any match, propagates as an error (SPARQL 1.1 §17.4.1.11).
    */
   private inList(
-    args: Expression[],
+    args: [Expression, Expression[]],
     binding: TermBinding,
     aggregates?: (aggregate: AggregateExpression) => RdfTerm | undefined,
     context?: ExpressionEvaluationContext,
@@ -1905,7 +1913,7 @@ export class ExpressionEvaluator {
     if (value === undefined) {
       return undefined;
     }
-    const list = args[1] as unknown as Expression[];
+    const list = args[1];
     let sawError = false;
     for (const element of list) {
       const candidate = this.evaluateWith(
@@ -2077,7 +2085,27 @@ export class ExpressionEvaluator {
     if (parts === null) {
       return undefined;
     }
-    return literal(String(parts[component]), namedNode(XSD_INTEGER));
+    // A switch, not a keyed read: scriptc has no layout for indexing a record
+    // by a literal union, and the mapping belongs in one place anyway.
+    let amount: number;
+    switch (component) {
+      case "year":
+        amount = parts.year;
+        break;
+      case "month":
+        amount = parts.month;
+        break;
+      case "day":
+        amount = parts.day;
+        break;
+      case "hours":
+        amount = parts.hours;
+        break;
+      default:
+        amount = parts.minutes;
+        break;
+    }
+    return literal(String(amount), namedNode(XSD_INTEGER));
   }
 
   /**
@@ -2212,7 +2240,16 @@ export class ExpressionEvaluator {
     if (value === undefined || value.termType !== "Quad") {
       return undefined;
     }
-    return value[component];
+    // A switch, not a keyed read: scriptc has no layout for indexing a quad
+    // record by a literal union of component names.
+    switch (component) {
+      case "subject":
+        return value.subject;
+      case "predicate":
+        return value.predicate;
+      default:
+        return value.object;
+    }
   }
 
   /**

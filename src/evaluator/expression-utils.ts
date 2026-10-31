@@ -17,9 +17,15 @@ export function expressionContainsExists(expression: Expression): boolean {
     ) {
       return true;
     }
-    return expression.args.some((arg) =>
-      expressionContainsExists(arg as Expression)
-    );
+    // Narrows the argument union to its expression arm once: scriptc has no
+    // representation for `some` over a union of array types.
+    const args = expression.args as Expression[];
+    for (const arg of args) {
+      if (expressionContainsExists(arg)) {
+        return true;
+      }
+    }
+    return false;
   }
   if (expression.type === "functionCall") {
     return expression.args.some(expressionContainsExists);
@@ -50,7 +56,15 @@ export function expressionContainsAggregate(
     return true;
   }
   if (expression.type === "operation") {
-    return expression.args.some(expressionContainsAggregate);
+    // Narrows the argument union to its expression arm once: scriptc has no
+    // representation for `some` over a union of array types.
+    const args = expression.args as Expression[];
+    for (const arg of args) {
+      if (expressionContainsAggregate(arg)) {
+        return true;
+      }
+    }
+    return false;
   }
   if (expression.type === "functionCall") {
     return expression.args.some(expressionContainsAggregate);
