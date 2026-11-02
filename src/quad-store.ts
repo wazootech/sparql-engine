@@ -117,12 +117,42 @@ export function storeVersion(
   return typeof version === "number" ? version : null;
 }
 
-function memoryStoreFor(source: rdfjs.Source<RdfQuad>): MemoryStore | null {
+/**
+ * memoryQuadsOf answers a pattern from a MemoryStore. The receiver is a
+ * statically typed parameter, not a dynamically narrowed one: the native
+ * compiler (scriptc) cannot convert typed arguments to a receiver it only
+ * knows as a dynamic value (SC1101).
+ */
+function memoryQuadsOf(
+  memory: MemoryStore,
+  s: RdfTerm | null,
+  p: RdfTerm | null,
+  o: RdfTerm | null,
+  g: RdfTerm | null,
+): RdfQuad[] {
+  return memory.getQuads(s, p, o, g);
+}
+
+/**
+ * memoryQuads answers the pattern from an indexed MemoryStore underneath any
+ * number of graph scopes, or null when the store is not one (the caller then
+ * falls back to the RDF/JS stream). It returns quads, never the store: the
+ * native compiler (scriptc) cannot represent a program class instance in a
+ * checked-dynamic slot or union (`MemoryStore | null`), so narrowing happens
+ * in place and only the plain `RdfQuad[]` result crosses the boundary.
+ */
+function memoryQuads(
+  source: rdfjs.Source<RdfQuad>,
+  s: RdfTerm | null,
+  p: RdfTerm | null,
+  o: RdfTerm | null,
+  g: RdfTerm | null,
+): RdfQuad[] | null {
   if (source instanceof MemoryStore) {
-    return source;
+    return memoryQuadsOf(source, s, p, o, g);
   }
   if (source instanceof GraphScopedStore) {
-    return memoryStoreFor(source.sourceStore);
+    return memoryQuads(source.sourceStore, s, p, o, g);
   }
   return null;
 }
@@ -153,9 +183,9 @@ export function matchQuads(
   g: RdfTerm | null = null,
 ): Promise<RdfQuad[]> {
   const graphTerm = resolveMatchGraph(store, g);
-  const memory = memoryStoreFor(store);
-  if (memory !== null) {
-    return Promise.resolve(memory.getQuads(s, p, o, graphTerm));
+  const quads = memoryQuads(store, s, p, o, graphTerm);
+  if (quads !== null) {
+    return Promise.resolve(quads);
   }
   return matchQuadsViaStream(store, s, p, o, graphTerm);
 }
