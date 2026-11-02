@@ -462,7 +462,7 @@ class ActionEmitter {
     }
     const assignment = /^\$\$ = ([\s\S]*);$/.exec(text);
     if (assignment !== null && !assignment[1]!.includes("$$")) {
-      return `return ${this.rewriteReferences(production, assignment[1]!)};`;
+      return `return ${this.expressionOf(production, assignment[1]!)};`;
     }
     if (text.includes("$$")) {
       throw new Error(
@@ -504,6 +504,47 @@ class ActionEmitter {
       );
     }
     return rewritten;
+  }
+
+  /**
+   * expressionOf renders one action expression. A bare `[]` becomes a typed
+   * `new Array<T>()` built from the production's declared value type: the
+   * native compiler (scriptc) types an untyped `[]` as `number[]`, which it
+   * cannot box into the parser's value union at runtime.
+   */
+  private expressionOf(production: JisonProduction, code: string): string {
+    if (code.trim() === "[]") {
+      const element = this.arrayElementTypeOf(
+        this.valueTypeOf(production.symbol),
+      );
+      if (element !== undefined) {
+        return `new Array<${element}>()`;
+      }
+    }
+    return this.rewriteReferences(production, code);
+  }
+
+  /**
+   * arrayElementTypeOf returns the element type when `type` is or contains an
+   * `Array<...>` type, or undefined when it does not. The scan balances angle
+   * brackets so a nested `Array<Array<Expression>>` keeps its inner brackets.
+   */
+  private arrayElementTypeOf(type: string): string | undefined {
+    const start = type.indexOf("Array<");
+    if (start < 0) return undefined;
+    let depth = 0;
+    for (let index = start + "Array".length; index < type.length; index++) {
+      const character = type[index];
+      if (character === "<") {
+        depth++;
+      } else if (character === ">") {
+        depth--;
+        if (depth === 0) {
+          return type.slice(start + "Array<".length, index);
+        }
+      }
+    }
+    return undefined;
   }
 }
 

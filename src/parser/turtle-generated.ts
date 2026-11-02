@@ -3091,7 +3091,7 @@ class TurtleLrParser extends LrParser<TurtleValue> {
       }
       case 112:
       case 126: {
-        return [];
+        return new Array<string | RdfTerm | undefined>();
       }
       case 113: {
         (values[top - 1] as Array<string | RdfTerm | undefined>).push(

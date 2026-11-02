@@ -18310,44 +18310,7 @@ class SparqlLrParser extends LrParser<SparqlValue> {
         );
       }
       case 99:
-      case 118:
-      case 131:
-      case 272:
-      case 274:
-      case 276:
-      case 278:
-      case 280:
-      case 288:
-      case 292:
-      case 322:
-      case 324:
-      case 328:
-      case 332:
-      case 353:
-      case 366:
-      case 374:
-      case 380:
-      case 386:
-      case 392:
-      case 394:
-      case 398:
-      case 400:
-      case 404:
-      case 406:
-      case 410:
-      case 416:
-      case 420:
-      case 428:
-      case 432:
-      case 436:
-      case 438:
-      case 447:
-      case 455:
-      case 457:
-      case 467:
-      case 471:
-      case 473:
-      case 475: {
+      case 118: {
         return [];
       }
       case 100: {
@@ -18479,6 +18442,12 @@ class SparqlLrParser extends LrParser<SparqlValue> {
       }
       case 129: {
         return (values[top - 1] as NamedNodeTerm | PropertyPath);
+      }
+      case 131:
+      case 436:
+      case 438:
+      case 447: {
+        return new Array<NamedNodeTerm | PropertyPath>();
       }
       case 132: {
         return negatedPropertySet(
@@ -18767,6 +18736,11 @@ class SparqlLrParser extends LrParser<SparqlValue> {
       case 255: {
         return reifierClause(values[top - 0] as undefined | Term);
       }
+      case 272:
+      case 324:
+      case 394: {
+        return new Array<string>();
+      }
       case 273:
       case 325:
       case 327:
@@ -18774,6 +18748,15 @@ class SparqlLrParser extends LrParser<SparqlValue> {
       case 397: {
         (values[top - 1] as Array<string>).push(values[top - 0] as string);
         return values[top - 1];
+      }
+      case 274:
+      case 276:
+      case 278:
+      case 280:
+      case 288:
+      case 292:
+      case 353: {
+        return new Array<DatasetEntry>();
       }
       case 275:
       case 277:
@@ -18826,6 +18809,10 @@ class SparqlLrParser extends LrParser<SparqlValue> {
         (values[top - 1] as Array<Ordering>).push(values[top - 0] as Ordering);
         return values[top - 1];
       }
+      case 322:
+      case 392: {
+        return new Array<Term | undefined>();
+      }
       case 323:
       case 331:
       case 393: {
@@ -18838,6 +18825,10 @@ class SparqlLrParser extends LrParser<SparqlValue> {
       case 396: {
         return [values[top - 0] as string];
       }
+      case 328:
+      case 398: {
+        return new Array<Array<Term | undefined>>();
+      }
       case 329:
       case 399: {
         (values[top - 1] as Array<Array<Term | undefined>>).push(
@@ -18848,6 +18839,9 @@ class SparqlLrParser extends LrParser<SparqlValue> {
       case 330: {
         return [values[top - 0] as Term | undefined];
       }
+      case 332: {
+        return new Array<UpdateOperation>();
+      }
       case 333: {
         (values[top - 3] as Array<UpdateOperation>).push(
           values[top - 2] as UpdateOperation,
@@ -18857,11 +18851,19 @@ class SparqlLrParser extends LrParser<SparqlValue> {
       case 335: {
         return values[top - 1];
       }
+      case 366: {
+        return new Array<QuadBlock[]>();
+      }
       case 367: {
         (values[top - 1] as Array<QuadBlock[]>).push(
           values[top - 0] as QuadBlock[],
         );
         return values[top - 1];
+      }
+      case 374:
+      case 386:
+      case 410: {
+        return new Array<Triple[]>();
       }
       case 375:
       case 387:
@@ -18869,17 +18871,27 @@ class SparqlLrParser extends LrParser<SparqlValue> {
         (values[top - 2] as Array<Triple[]>).push(values[top - 1] as Triple[]);
         return values[top - 2];
       }
+      case 380: {
+        return new Array<Pattern[]>();
+      }
       case 381: {
         (values[top - 1] as Array<Pattern[]>).push(
           values[top - 0] as Pattern[],
         );
         return values[top - 1];
       }
+      case 400: {
+        return new Array<GroupPattern>();
+      }
       case 401: {
         (values[top - 2] as Array<GroupPattern>).push(
           values[top - 1] as GroupPattern,
         );
         return values[top - 2];
+      }
+      case 404:
+      case 406: {
+        return new Array<Expression>();
       }
       case 405:
       case 407: {
@@ -18888,12 +18900,20 @@ class SparqlLrParser extends LrParser<SparqlValue> {
         );
         return values[top - 2];
       }
+      case 416:
+      case 428: {
+        return new Array<ParsedTriple[]>();
+      }
       case 417:
       case 429: {
         (values[top - 1] as Array<ParsedTriple[]>).push(
           values[top - 0] as ParsedTriple[],
         );
         return values[top - 1];
+      }
+      case 420:
+      case 432: {
+        return new Array<ObjectEntry>();
       }
       case 421:
       case 433: {
@@ -18920,6 +18940,14 @@ class SparqlLrParser extends LrParser<SparqlValue> {
           values[top - 0] as EntityNode,
         );
         return values[top - 1];
+      }
+      case 455:
+      case 457:
+      case 467:
+      case 471:
+      case 473:
+      case 475: {
+        return new Array<OperatorTail>();
       }
       case 456:
       case 458:
