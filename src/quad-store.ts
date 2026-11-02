@@ -140,7 +140,9 @@ export function matchQuads(
  * isSimplePredicate narrows a predicate to a simple (term) predicate,
  * excluding property-path predicates.
  */
-function isSimplePredicate(predicate: TriplePredicate): predicate is SparqlTerm {
+function isSimplePredicate(
+  predicate: TriplePredicate,
+): predicate is SparqlTerm {
   return (
     typeof predicate === "object" && predicate !== null &&
     "termType" in predicate
