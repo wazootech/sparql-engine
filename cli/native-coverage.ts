@@ -1,5 +1,5 @@
 // native-coverage summarizes `scriptc coverage` for the Node-API CLI entry
-// (cli/main-node.ts, issue #221): statement totals plus blocker groups by
+// (cli/node-main.ts, issue #221): statement totals plus blocker groups by
 // file and code, split into "reached" (a build fails on these today) and
 // "unreached" (behind a reached blocker; they surface as those clear).
 //
@@ -43,7 +43,7 @@ const { stdout, stderr } = await new Deno.Command(
       "--yes",
       `scriptc@${SCRIPTC_VERSION}`,
       "coverage",
-      "cli/main-node.ts",
+      "cli/node-main.ts",
       "--print",
       "diagnostics",
     ],
@@ -94,7 +94,7 @@ function tally(
 
 const { stats } = envelope;
 console.log(
-  `scriptc ${envelope.compilerVersion} coverage of cli/main-node.ts: ` +
+  `scriptc ${envelope.compilerVersion} coverage of cli/node-main.ts: ` +
     `${stats.statementsStatic}/${stats.statementsTotal} statements static ` +
     `(${stats.percentStatic}%), ${stats.statementsDynamic} in dynamic tier, ` +
     `${stats.functionsSkipped} functions signature-blocked`,
