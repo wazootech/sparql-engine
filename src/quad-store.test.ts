@@ -94,7 +94,8 @@ Deno.test("matchQuads resolves the store stream into an array", async () => {
 Deno.test("simplePredicate accepts terms and rejects property paths", () => {
   assertEquals(simplePredicate(name), name);
   assertThrows(
-    () => simplePredicate({ pathType: "/", items: [name] }),
+    () =>
+      simplePredicate({ type: "path", pathType: "/", items: [name] }),
     Error,
     "property path",
   );

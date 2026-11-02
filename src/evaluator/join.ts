@@ -9,6 +9,7 @@ import type {
   PropertyPath,
   Term as SparqlTerm,
   Triple,
+  TriplePredicate,
 } from "@/parser/sparql-parser.ts";
 import {
   buildQuadIndex,
@@ -1071,7 +1072,7 @@ type PathElement = RdfNamedNode | PropertyPath;
  * rather than a simple predicate term.
  */
 export function isPropertyPath(
-  predicate: unknown,
+  predicate: TriplePredicate,
 ): predicate is PropertyPath {
   return (
     typeof predicate === "object" &&

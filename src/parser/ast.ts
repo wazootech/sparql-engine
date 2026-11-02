@@ -34,9 +34,11 @@ export interface PropertyPath {
   items: PathElement[];
 }
 
+export type TriplePredicate = Term | PropertyPath;
+
 export interface Triple {
   subject: Term;
-  predicate: Term | PropertyPath;
+  predicate: TriplePredicate;
   object: Term;
 }
 
