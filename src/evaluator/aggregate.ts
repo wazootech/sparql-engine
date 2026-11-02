@@ -3,7 +3,6 @@ import type {
   AggregateExpression,
   Expression,
   Grouping,
-  Wildcard,
 } from "@/parser/sparql-parser.ts";
 import { DataFactory } from "@/term/data-factory.ts";
 import type { TermBinding } from "@/evaluator/join.ts";
@@ -98,7 +97,7 @@ export function aggregateValue(
     binding: TermBinding,
   ) => RdfTerm | undefined,
 ): RdfTerm | undefined {
-  const wildcard = isAggregateWildcard(aggregate.expression);
+  const wildcard = isAggregateWildcard(aggregate);
   if (wildcard && aggregate.aggregation !== "count") {
     throw new Error(
       `Unsupported aggregate over *: ${aggregate.aggregation}`,
@@ -331,18 +330,14 @@ function numericLiteralFromExactDecimal(
 const WILDCARD_MARKER: RdfTerm = namedNode("urn:wazoo:aggregate-wildcard");
 
 /**
- * isAggregateWildcard detects the COUNT(*) form, which the parser represents
- * as the Wildcard term (`termType: "Wildcard"`) rather than an expression.
+ * isAggregateWildcard detects the COUNT(*) form. The parser records it as the
+ * aggregate's `wildcard` flag: reading the Wildcard record back out of the
+ * `Expression | Wildcard` field and re-boxing it is representation the native
+ * compiler (scriptc) cannot lay out, because the record originated inside the
+ * parser's dynamic value union.
  */
-function isAggregateWildcard(
-  expression: Expression | Wildcard,
-): boolean {
-  return (
-    typeof expression === "object" &&
-    expression !== null &&
-    "termType" in expression &&
-    (expression.termType as string) === "Wildcard"
-  );
+function isAggregateWildcard(aggregate: AggregateExpression): boolean {
+  return aggregate.wildcard === true;
 }
 
 /**

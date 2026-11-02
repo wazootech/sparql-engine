@@ -89,6 +89,13 @@ export interface AggregateExpression {
   aggregation: string;
   /** expression is the aggregated expression, or the wildcard for `COUNT(*)`. */
   expression: Expression | Wildcard;
+  /**
+   * wildcard marks `COUNT(*)`. It is a flag rather than a re-inspection of
+   * `expression` because the native compiler (scriptc) cannot re-box the
+   * Wildcard record into the `Expression | Wildcard` union at evaluation
+   * time: the record was built inside the parser's dynamic value union.
+   */
+  wildcard?: boolean;
   distinct: boolean;
   separator?: string;
 }

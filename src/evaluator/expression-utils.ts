@@ -31,6 +31,9 @@ export function expressionContainsExists(expression: Expression): boolean {
     return expression.args.some(expressionContainsExists);
   }
   if (expression.type === "aggregate") {
+    if (expression.wildcard === true) {
+      return false;
+    }
     return (
       expression.expression !== undefined &&
       expressionContainsExists(expression.expression as Expression)

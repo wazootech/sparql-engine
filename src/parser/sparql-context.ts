@@ -1332,6 +1332,9 @@ export function aggregate(
     aggregation: lowercase(name),
     distinct: present(distinct),
   };
+  if (typeof argument === "string") {
+    result.wildcard = true;
+  }
   if (withSeparator) {
     result.separator = typeof separator === "string" ? separator : " ";
   }
