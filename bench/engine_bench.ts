@@ -205,10 +205,20 @@ const wazooEngineNoReorder = new WazooSparqlEngine({
 const wazooGreedyEngine = new WazooSparqlEngine({
   store: memoryStore,
   estimator: {
-    estimateJoinCost(scan, bindings, stats) {
+    estimateJoinCost(
+      subjectVar,
+      predicateVar,
+      objectVar,
+      candidateCount,
+      bindingCount,
+      stats,
+    ) {
       return new BaselineJoinCostEstimator().estimateJoinCost(
-        scan,
-        bindings,
+        subjectVar,
+        predicateVar,
+        objectVar,
+        candidateCount,
+        bindingCount,
         stats,
       );
     },

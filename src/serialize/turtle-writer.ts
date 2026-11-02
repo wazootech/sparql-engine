@@ -38,11 +38,11 @@ const RDF_LANG_STRING = "http://www.w3.org/1999/02/22-rdf-syntax-ns#langString";
  * @returns the serialized document (trailing newline, empty string for no quads)
  */
 export function serializeTurtle(
-  quads: Iterable<RdfQuad>,
+  quads: RdfQuad[],
   options: TurtleWriterOptions = {},
 ): string {
   const format = options.format ?? "turtle";
-  const quadArray = Array.from(quads);
+  const quadArray = quads;
 
   if (quadArray.length === 0) {
     return "";

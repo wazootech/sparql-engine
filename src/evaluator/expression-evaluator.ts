@@ -3,10 +3,6 @@ import type {
   RdfBlankNode,
   RdfLiteral,
   RdfNamedNode,
-  RdfQuad,
-  RdfQuadObject,
-  RdfQuadPredicate,
-  RdfQuadSubject,
   RdfTerm,
 } from "@/parser/rdf-terms.ts";
 import type {
@@ -51,6 +47,11 @@ import {
   XSD_INTEGER,
   XSD_STRING,
 } from "@/term/mod.ts";
+import {
+  narrowQuadObject,
+  narrowQuadPredicate,
+  narrowQuadSubject,
+} from "@/term/quad-narrow.ts";
 
 const { blankNode, literal, namedNode, quad } = DataFactory;
 
@@ -82,11 +83,16 @@ function substituteTripleTerm(
   if (object === undefined) {
     return undefined;
   }
-  return quad(
-    subject as RdfQuadSubject,
-    predicate as RdfQuadPredicate,
-    object as RdfQuadObject,
-  );
+  const subjectArm = narrowQuadSubject(subject);
+  const predicateArm = narrowQuadPredicate(predicate);
+  const objectArm = narrowQuadObject(object);
+  if (
+    subjectArm === undefined || predicateArm === undefined ||
+    objectArm === undefined
+  ) {
+    return undefined;
+  }
+  return quad(subjectArm, predicateArm, objectArm);
 }
 
 function substituteTripleTermPosition(
@@ -2208,7 +2214,7 @@ export class ExpressionEvaluator {
     binding: TermBinding,
     aggregates?: (aggregate: AggregateExpression) => RdfTerm | undefined,
     context?: ExpressionEvaluationContext,
-  ): RdfQuad | undefined {
+  ): RdfBaseQuad | undefined {
     const subject = this.evaluateWith(args[0], binding, aggregates, context);
     const predicate = this.evaluateWith(args[1], binding, aggregates, context);
     const object = this.evaluateWith(args[2], binding, aggregates, context);
@@ -2217,11 +2223,16 @@ export class ExpressionEvaluator {
     ) {
       return undefined;
     }
-    return quad(
-      subject as RdfQuadSubject,
-      predicate as RdfQuadPredicate,
-      object as RdfQuadObject,
-    );
+    const subjectArm = narrowQuadSubject(subject);
+    const predicateArm = narrowQuadPredicate(predicate);
+    const objectArm = narrowQuadObject(object);
+    if (
+      subjectArm === undefined || predicateArm === undefined ||
+      objectArm === undefined
+    ) {
+      return undefined;
+    }
+    return quad(subjectArm, predicateArm, objectArm);
   }
 
   /**

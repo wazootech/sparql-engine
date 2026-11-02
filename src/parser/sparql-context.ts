@@ -1471,7 +1471,7 @@ export function selectItemExpression(
   expression: Expression,
   variable: VariableTerm,
 ): VariableExpression {
-  return { expression, variable };
+  return { termType: "VariableExpression", expression, variable };
 }
 
 /** groupingFrom builds a GROUP BY condition. */

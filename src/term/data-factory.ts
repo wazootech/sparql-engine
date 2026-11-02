@@ -6,10 +6,6 @@ import type {
   RdfLiteral,
   RdfNamedNode,
   RdfQuad,
-  RdfQuadGraph,
-  RdfQuadObject,
-  RdfQuadPredicate,
-  RdfQuadSubject,
   RdfTerm,
   RdfVariable,
 } from "@/parser/rdf-terms.ts";
@@ -19,9 +15,15 @@ import {
   languageLiteralTerm,
   literalTerm,
   namedNodeTerm,
-  quadEquals,
+  quadComponentsEqual,
   variableTerm,
 } from "@/parser/term-values.ts";
+import {
+  narrowQuadGraph,
+  narrowQuadObject,
+  narrowQuadPredicate,
+  narrowQuadSubject,
+} from "@/term/quad-narrow.ts";
 
 let blankNodeCounter = 0;
 
@@ -105,14 +107,32 @@ function newQuad(
   graph?: RdfTerm,
 ): RdfQuad {
   const graphTerm: RdfTerm = graph === undefined ? defaultGraphInstance : graph;
+  const subjectArm = narrowQuadSubject(subject);
+  const predicateArm = narrowQuadPredicate(predicate);
+  const objectArm = narrowQuadObject(object);
+  const graphArm = narrowQuadGraph(graphTerm);
+  if (
+    subjectArm === undefined || predicateArm === undefined ||
+    objectArm === undefined || graphArm === undefined
+  ) {
+    throw new Error("Invalid quad term for one or more positions");
+  }
   return {
     termType: "Quad",
     value: "",
-    subject: subject as RdfQuadSubject,
-    predicate: predicate as RdfQuadPredicate,
-    object: object as RdfQuadObject,
-    graph: graphTerm as RdfQuadGraph,
-    equals: quadEquals,
+    subject: subjectArm,
+    predicate: predicateArm,
+    object: objectArm,
+    graph: graphArm,
+    equals(other) {
+      return quadComponentsEqual(
+        subjectArm,
+        predicateArm,
+        objectArm,
+        graphArm,
+        other,
+      );
+    },
   };
 }
 
@@ -154,7 +174,7 @@ export const DataFactory: LocalDataFactory = {
   blankNode: newBlankNode,
   literal: newLiteral,
   variable: variableTerm,
-  defaultGraph: defaultGraphTerm,
+  defaultGraph: () => defaultGraphInstance,
   quad: newQuad,
   fromTerm: newFromTerm,
   fromQuad: newFromQuad,

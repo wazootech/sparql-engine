@@ -191,6 +191,7 @@ export interface Grouping {
 }
 
 export interface VariableExpression {
+  termType: "VariableExpression";
   variable: VariableTerm;
   expression: Expression;
 }

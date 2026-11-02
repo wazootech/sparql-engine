@@ -1,5 +1,6 @@
 import { assertEquals, assertThrows } from "@std/assert";
 import type * as rdfjs from "@rdfjs/types";
+import type { RdfQuad } from "@/parser/rdf-terms.ts";
 import { DataFactory } from "@/term/public.ts";
 import { parseTurtleQuads } from "@/parser/turtle-parser.ts";
 import { serializeTurtle } from "@/serialize/turtle-writer.ts";
@@ -169,8 +170,12 @@ Deno.test("turtle-writer: empty input produces an empty document", () => {
 });
 
 Deno.test("turtle-writer: default graph term in a term position is rejected", () => {
+  const invalid = {
+    ...quad(ex("s"), ex("p"), ex("o")),
+    object: defaultGraph(),
+  };
   assertThrows(
-    () => serializeTurtle([quad(ex("s"), ex("p"), defaultGraph())]),
+    () => serializeTurtle([invalid as unknown as RdfQuad]),
     Error,
     "Cannot serialize DefaultGraph",
   );

@@ -6,7 +6,7 @@ import type {
   VariableExpression,
 } from "@/parser/sparql-parser.ts";
 import { aggregateValue, groupSolutions } from "@/evaluator/aggregate.ts";
-import { innerJoin } from "@/evaluator/join.ts";
+import { bindingsCompatible } from "@/evaluator/join.ts";
 import type { TermBinding } from "@/evaluator/join.ts";
 import type {
   ExpressionEvaluationContext,
@@ -102,22 +102,30 @@ export function applySelectPipeline(
     // The join now emits incrementally (issue #74); the select pipeline's
     // grouping/ordering steps are inherently materializing, so the streaming
     // left is collected here.
-    bindings = [...innerJoin(bindings, rows)];
+    const joined: TermBinding[] = [];
+    for (let leftIndex = 0; leftIndex < bindings.length; leftIndex++) {
+      const left = bindings[leftIndex];
+      for (let rightIndex = 0; rightIndex < rows.length; rightIndex++) {
+        const right = rows[rightIndex];
+        if (bindingsCompatible(left, right)) {
+          joined.push({ ...left, ...right });
+        }
+      }
+    }
+    bindings = joined;
   }
 
   const vars: string[] = [];
   const projections = projectionAliases(query);
   let wildcard = false;
   for (const v of query.variables) {
-    if (typeof v === "string") {
-      vars.push(v);
-    } else if ("termType" in v && v.termType === "Variable") {
+    if (v.termType === "Variable") {
       vars.push(v.value);
-    } else if ("variable" in v && v.variable) {
+    } else if (v.termType === "Wildcard") {
+      wildcard = true;
+    } else if (v.termType === "VariableExpression") {
       vars.push(v.variable.value);
       projections.set(v.variable.value, v.expression);
-    } else {
-      wildcard = true;
     }
   }
 
@@ -132,6 +140,7 @@ export function applySelectPipeline(
 
   let solutions: SelectSolution[];
   if (hasGrouping || hasAggregates) {
+    const ungroupedSolutions: TermBinding[] = bindings;
     const groups = hasGrouping
       ? groupSolutions(
         bindings,
@@ -139,7 +148,7 @@ export function applySelectPipeline(
         (expression, binding) =>
           expressionEvaluator.evaluate(expression, binding, context),
       )
-      : [{ key: {}, solutions: bindings }];
+      : [{ key: {} as TermBinding, solutions: ungroupedSolutions }];
     const grouped: SelectSolution[] = groups.map((group) => ({
       binding: group.key,
       group: group.solutions,

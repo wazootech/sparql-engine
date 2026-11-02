@@ -3,6 +3,7 @@ import type { RdfQuad, RdfTerm } from "@/parser/rdf-terms.ts";
 import type { Term as SparqlTerm, Triple } from "@/parser/sparql-parser.ts";
 import type { ScanEntry } from "@/evaluator/join.ts";
 import { GraphScopedStore } from "@/quad-store.ts";
+import { createPatternStatisticsHook } from "@/planner/pattern-statistics-hook.ts";
 import { sparqlTermToRdfTerm, termKey } from "@/term/mod.ts";
 
 /**
@@ -92,10 +93,7 @@ export class PatternStatistics {
   private readonly hook: StoreStatisticsHook["estimateStats"];
 
   public constructor(store: rdfjs.Source<RdfQuad>) {
-    const candidate = (store as StoreStatisticsHook).estimateStats;
-    this.hook = typeof candidate === "function"
-      ? candidate.bind(store)
-      : undefined;
+    this.hook = createPatternStatisticsHook(store);
   }
 
   /** hasHook reports whether the store exposes estimateStats. */

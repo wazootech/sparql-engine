@@ -132,7 +132,7 @@ Deno.test("leftJoin - filters apply to the merged binding", () => {
   const left = [0, 1].map((n) => ({ s: p(n) }));
   const right = [0, 1].map((n) => ({ s: p(n), b: lit(n) }));
   const keepHigh = (b: TermBinding) => b.b !== undefined && b.b.value === "v1";
-  const result = [...leftJoin(left, right, [keepHigh])];
+  const result = [...leftJoin(left, right, keepHigh)];
   // Only s1 matches the filter; s0 survives unextended.
   assertEquals(result.length, 2);
   assertMultisetEqual(
@@ -215,7 +215,7 @@ Deno.test("hash join - large leftJoin matches the nested reference", () => {
   const left = largeLeft();
   const right = largeRight();
   const filter = (b: TermBinding) => (b.c === undefined || b.c.value !== "v99");
-  const result = [...leftJoin(left, right, [filter])];
+  const result = [...leftJoin(left, right, filter)];
   assertMultisetEqual(
     result,
     leftJoinRef(left, right, [filter]),

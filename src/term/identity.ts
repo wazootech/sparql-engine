@@ -46,11 +46,7 @@ export function termKey(term: RdfTerm): string {
         termKey(term.object)
       );
     default:
-      throw new Error(
-        `Unsupported RDF term type: ${
-          (term as Record<string, string>)["termType"]
-        }`,
-      );
+      throw new Error("Unsupported RDF term type");
   }
 }
 
@@ -89,10 +85,6 @@ export function sameRdfTerm(a: RdfTerm, b: RdfTerm): boolean {
         sameRdfTerm(a.object, other.object);
     }
     default:
-      throw new Error(
-        `Unsupported RDF term type: ${
-          (a as Record<string, string>)["termType"]
-        }`,
-      );
+      throw new Error("Unsupported RDF term type");
   }
 }

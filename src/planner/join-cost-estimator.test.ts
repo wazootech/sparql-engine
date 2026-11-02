@@ -2,10 +2,13 @@ import { assertEquals } from "@std/assert";
 import type * as rdfjs from "@rdfjs/types";
 import { DataFactory } from "@/term/public.ts";
 import type { ScanEntry, TermBinding } from "@/evaluator/join.ts";
-import { BaselineJoinCostEstimator } from "@/planner/join-cost-estimator.ts";
+import {
+  estimateBaselineJoinCost,
+  type JoinCostEstimator,
+  patternVariableName,
+} from "@/planner/join-cost-estimator.ts";
 import { MemoryStore as Store } from "@/store/memory-store.ts";
 import { WazooSparqlEngine } from "@/wazoo-sparql-engine.ts";
-import type { JoinCostEstimator } from "@/planner/join-cost-estimator.ts";
 import type { Term as SparqlTerm } from "@/parser/sparql-parser.ts";
 
 const { namedNode, variable, quad } = DataFactory;
@@ -38,10 +41,25 @@ function entry(
 const patternVar = variable("x");
 const otherVar = variable("y");
 const constant = namedNode("http://example.org/constant");
-const baseline = new BaselineJoinCostEstimator();
+
+/** estimateEntryCost forwards a ScanEntry through the unpacked estimator API. */
+function estimateEntryCost(
+  scan: ScanEntry,
+  bindings: TermBinding[],
+  stats?: import("@/planner/pattern-statistics.ts").PatternStats,
+): number {
+  return estimateBaselineJoinCost(
+    patternVariableName(scan.subject),
+    patternVariableName(scan.predicate),
+    patternVariableName(scan.object),
+    scan.candidates.length,
+    bindings,
+    stats,
+  );
+}
 
 Deno.test("BaselineJoinCostEstimator - empty bindings cost zero", () => {
-  const cost = baseline.estimateJoinCost(
+  const cost = estimateEntryCost(
     entry(patternVar, constant, otherVar, candidateQuads(100)),
     [],
   );
@@ -53,7 +71,7 @@ Deno.test(
   () => {
     // Both pattern variables are unbound in every binding.
     const bindings: TermBinding[] = [{ a: namedNode("http://example.org/a") }];
-    const cost = baseline.estimateJoinCost(
+    const cost = estimateEntryCost(
       entry(patternVar, constant, otherVar, candidateQuads(50)),
       bindings,
     );
@@ -72,7 +90,7 @@ Deno.test(
       { x: namedNode("http://example.org/v1") },
       { x: namedNode("http://example.org/v2") },
     ];
-    const cost = baseline.estimateJoinCost(
+    const cost = estimateEntryCost(
       entry(patternVar, constant, otherVar, candidateQuads(100)),
       bindings,
     );
@@ -87,7 +105,7 @@ Deno.test(
     const bindings: TermBinding[] = Array.from({ length: 4 }, () => ({
       x: namedNode("http://example.org/v1"),
     }));
-    const cost = baseline.estimateJoinCost(
+    const cost = estimateEntryCost(
       entry(patternVar, constant, otherVar, candidateQuads(100)),
       bindings,
     );
@@ -118,7 +136,7 @@ Deno.test(
         y: namedNode("http://example.org/y4"),
       },
     ];
-    const cost = baseline.estimateJoinCost(
+    const cost = estimateEntryCost(
       entry(patternVar, constant, otherVar, candidateQuads(100)),
       bindings,
     );
@@ -143,12 +161,12 @@ Deno.test(
       object: otherVar,
       candidates: candidateQuads(200),
     };
-    const withStats = baseline.estimateJoinCost(entry, bindings, {
+    const withStats = estimateEntryCost(entry, bindings, {
       candidates: 200,
       distinctByVar: { x: 4, y: 100 },
     });
     assertEquals(withStats, 100);
-    const withoutStats = baseline.estimateJoinCost(entry, bindings);
+    const withoutStats = estimateEntryCost(entry, bindings);
     assertEquals(withoutStats, 400);
   },
 );
@@ -165,7 +183,7 @@ Deno.test(
       object: otherVar,
       candidates: candidateQuads(200),
     };
-    const cost = baseline.estimateJoinCost(entry, bindings, {
+    const cost = estimateEntryCost(entry, bindings, {
       candidates: 200,
       distinctByVar: { x: 2, y: 100 },
     });
@@ -181,7 +199,7 @@ Deno.test(
     // Every pattern position is a constant: no bound pattern variable to
     // probe, so every binding iterates all candidates.
     const bindings: TermBinding[] = [{ a: namedNode("http://example.org/a") }];
-    const cost = baseline.estimateJoinCost(
+    const cost = estimateEntryCost(
       entry(constant, constant, constant, candidateQuads(7)),
       bindings,
     );
@@ -212,9 +230,15 @@ Deno.test(
 
     const calls: number[] = [];
     const estimator: JoinCostEstimator = {
-      estimateJoinCost(scan, bindings): number {
-        calls.push(bindings.length);
-        return scan.candidates.length;
+      estimateJoinCost(
+        _subjectVar,
+        _predicateVar,
+        _objectVar,
+        candidateCount,
+        bindingCount,
+      ): number {
+        calls.push(bindingCount);
+        return candidateCount;
       },
     };
     const engine = new WazooSparqlEngine({ store, estimator });
@@ -241,7 +265,13 @@ Deno.test(
     );
     let calls = 0;
     const estimator: JoinCostEstimator = {
-      estimateJoinCost(): number {
+      estimateJoinCost(
+        _subjectVar,
+        _predicateVar,
+        _objectVar,
+        _candidateCount,
+        _bindingCount,
+      ): number {
         calls += 1;
         return 0;
       },

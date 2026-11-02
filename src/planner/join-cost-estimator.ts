@@ -33,8 +33,11 @@ export interface JoinCostEstimator {
    * caller has none.
    */
   estimateJoinCost(
-    entry: ScanEntry,
-    bindings: TermBinding[],
+    subjectVar: string | undefined,
+    predicateVar: string | undefined,
+    objectVar: string | undefined,
+    candidateCount: number,
+    bindingCount: number,
     stats?: PatternStats,
   ): number;
 }
@@ -58,53 +61,107 @@ export interface JoinCostEstimator {
  */
 export class BaselineJoinCostEstimator implements JoinCostEstimator {
   /**
-   * estimateJoinCost estimates the number of quad iterations joining the
-   * given pattern against the current bindings will perform.
+   * estimateJoinCost estimates join cost from binding count only. Greedy BGP
+   * reordering calls estimateBaselineJoinCost with full bindings instead.
    */
   public estimateJoinCost(
-    entry: ScanEntry,
-    bindings: TermBinding[],
+    subjectVar: string | undefined,
+    predicateVar: string | undefined,
+    objectVar: string | undefined,
+    candidateCount: number,
+    bindingCount: number,
     stats?: PatternStats,
   ): number {
-    if (bindings.length === 0) {
+    if (bindingCount === 0) {
       return 0;
     }
-    const candidates = stats?.candidates ?? entry.candidates.length;
+    const candidates = stats?.candidates ?? candidateCount;
     let mostSelectiveDistinct = Number.POSITIVE_INFINITY;
-    for (const term of [entry.subject, entry.predicate, entry.object]) {
-      if (term.termType !== "Variable") {
+    for (const name of [subjectVar, predicateVar, objectVar]) {
+      if (name === undefined) {
         continue;
       }
-      const name = term.value;
-      // Only a variable bound in the current bindings can probe the index.
-      const boundDistinct = new Set<string>();
-      for (const binding of bindings) {
-        const value = binding[name];
-        if (value !== undefined) {
-          boundDistinct.add(termKey(value));
-        }
-      }
-      if (boundDistinct.size === 0) {
-        continue;
-      }
-      // Prefer the store's distinct-value count for the variable when the
-      // stats source supplies it: it reflects the true average bucket size
-      // across the whole store. Otherwise fall back to the distinct count of
-      // the values actually bound in the current bindings (the piece-1
-      // behavior, which adapts to the join's current state).
       const storeDistinct = stats?.distinctByVar[name];
-      const distinct = storeDistinct !== undefined && storeDistinct > 0
-        ? storeDistinct
-        : boundDistinct.size;
-      if (distinct < mostSelectiveDistinct) {
-        mostSelectiveDistinct = distinct;
+      if (storeDistinct !== undefined && storeDistinct > 0) {
+        if (storeDistinct < mostSelectiveDistinct) {
+          mostSelectiveDistinct = storeDistinct;
+        }
       }
     }
     if (mostSelectiveDistinct === Number.POSITIVE_INFINITY) {
-      // No bound pattern variable: every binding iterates all candidates.
-      return bindings.length * candidates;
+      return bindingCount * candidates;
     }
     const averageBucket = Math.max(1, candidates / mostSelectiveDistinct);
-    return bindings.length * averageBucket;
+    return bindingCount * averageBucket;
   }
+}
+
+/**
+ * estimateBaselineJoinCost is the full baseline formula over live bindings.
+ * BgpEvaluator's greedy reorder loop calls this directly so scriptc never
+ * passes TermBinding[] through the JoinCostEstimator interface.
+ */
+export function estimateBaselineJoinCost(
+  subjectVar: string | undefined,
+  predicateVar: string | undefined,
+  objectVar: string | undefined,
+  candidateCount: number,
+  bindings: TermBinding[],
+  stats?: PatternStats,
+): number {
+  if (bindings.length === 0) {
+    return 0;
+  }
+  const candidates = stats?.candidates ?? candidateCount;
+  let mostSelectiveDistinct = Number.POSITIVE_INFINITY;
+  for (const name of [subjectVar, predicateVar, objectVar]) {
+    if (name === undefined) {
+      continue;
+    }
+    const boundDistinct = new Set<string>();
+    for (const binding of bindings) {
+      const value = binding[name];
+      if (value !== undefined) {
+        boundDistinct.add(termKey(value));
+      }
+    }
+    if (boundDistinct.size === 0) {
+      continue;
+    }
+    const storeDistinct = stats?.distinctByVar[name];
+    const distinct = storeDistinct !== undefined && storeDistinct > 0
+      ? storeDistinct
+      : boundDistinct.size;
+    if (distinct < mostSelectiveDistinct) {
+      mostSelectiveDistinct = distinct;
+    }
+  }
+  if (mostSelectiveDistinct === Number.POSITIVE_INFINITY) {
+    return bindings.length * candidates;
+  }
+  const averageBucket = Math.max(1, candidates / mostSelectiveDistinct);
+  return bindings.length * averageBucket;
+}
+
+/** scanEntryJoinCost unpacks a ScanEntry for callers that already materialized one. */
+export function scanEntryJoinCost(
+  entry: ScanEntry,
+  bindings: TermBinding[],
+  stats?: PatternStats,
+): number {
+  return estimateBaselineJoinCost(
+    patternVariableName(entry.subject),
+    patternVariableName(entry.predicate),
+    patternVariableName(entry.object),
+    entry.candidates.length,
+    bindings,
+    stats,
+  );
+}
+
+/** patternVariableName returns a pattern variable's name when the term is a variable. */
+export function patternVariableName(
+  term: { termType: string; value: string },
+): string | undefined {
+  return term.termType === "Variable" ? term.value : undefined;
 }
