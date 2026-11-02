@@ -112,7 +112,7 @@ export class PatternStatistics {
     entry: ScanEntry,
   ): Promise<PatternStats> {
     const namedScope = storeView instanceof GraphScopedStore &&
-      storeView.graph.termType !== "DefaultGraph";
+      storeView.graphTermType !== "DefaultGraph";
     const key = `${namedScope ? "s" : "d"}::${patternSignature(entry)}`;
     const cached = this.cache.get(key);
     if (cached !== undefined) {

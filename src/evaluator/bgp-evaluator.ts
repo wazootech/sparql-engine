@@ -285,7 +285,7 @@ export class BgpEvaluator {
     }
     if (
       store instanceof GraphScopedStore &&
-      store.graph.termType !== "DefaultGraph"
+      store.graphTermType !== "DefaultGraph"
     ) {
       return null;
     }

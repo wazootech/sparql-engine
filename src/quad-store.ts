@@ -160,13 +160,31 @@ export function matchQuads(
   return matchQuadsViaStream(store, s, p, o, graphTerm);
 }
 
+/**
+ * graphTermFromDescriptor rebuilds a graph term from the (termType, value)
+ * pair a GraphScopedStore carries. The view keeps its scope as strings so a
+ * narrowed view never has to hand a class value to a dynamic slot, which the
+ * native (scriptc) build cannot represent.
+ */
+export function graphTermFromDescriptor(
+  termType: string,
+  value: string,
+): RdfQuadGraph {
+  if (termType === "DefaultGraph") {
+    return defaultGraphInstance;
+  }
+  if (termType === "BlankNode") {
+    return DataFactory.blankNode(value);
+  }
+  return DataFactory.namedNode(value);
+}
+
 /** resolveGraphScope returns the active graph term for store scans. */
 export function resolveGraphScope(
   store: rdfjs.Source<RdfQuad>,
 ): RdfQuadGraph {
   if (store instanceof GraphScopedStore) {
-    const scoped: GraphScopedStore = store;
-    return scoped.scopedGraph();
+    return graphTermFromDescriptor(store.graphTermType, store.graphValue);
   }
   return defaultGraphInstance;
 }
@@ -205,8 +223,22 @@ export function simplePredicate(predicate: TriplePredicate): SparqlTerm {
 export class GraphScopedStore implements rdfjs.Source<RdfQuad> {
   public constructor(
     private readonly store: rdfjs.Source<RdfQuad>,
-    public readonly graph: RdfQuadGraph,
-  ) {}
+    graph: RdfQuadGraph,
+  ) {
+    this.graphTermType = graph.termType;
+    this.graphValue = graph.value;
+  }
+
+  /** graphTermType is the scope's term type, kept as a plain string. */
+  public readonly graphTermType: string;
+
+  /** graphValue is the scope's term value, kept as a plain string. */
+  public readonly graphValue: string;
+
+  /** graph rebuilds the scope's graph term from its string fields. */
+  public graph(): RdfQuadGraph {
+    return graphTermFromDescriptor(this.graphTermType, this.graphValue);
+  }
 
   /** version delegates to the wrapped store so snapshot caches see through
    * the view (the view itself never mutates the data). */
@@ -230,11 +262,6 @@ export class GraphScopedStore implements rdfjs.Source<RdfQuad> {
     return hook.call(this.store, pattern);
   }
 
-  /** scopedGraph returns this view's graph term with a scriptc-stable type. */
-  public scopedGraph(): RdfQuadGraph {
-    return this.graph;
-  }
-
   /** sourceStore is the dataset store this graph view wraps. */
   public get sourceStore(): rdfjs.Source<RdfQuad> {
     return this.store;
@@ -249,7 +276,7 @@ export class GraphScopedStore implements rdfjs.Source<RdfQuad> {
     // An explicit graph wins; otherwise the view's fixed graph applies. The
     // pipeline always scans with a null graph, so the scope is applied, and
     // nested scopes (GRAPH inside GRAPH) compose correctly.
-    return this.store.match(subject, predicate, object, graph ?? this.graph);
+    return this.store.match(subject, predicate, object, graph ?? this.graph());
   }
 }
 
