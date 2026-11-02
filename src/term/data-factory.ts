@@ -124,15 +124,12 @@ function newQuad(
     predicate: predicateArm,
     object: objectArm,
     graph: graphArm,
-    equals(other) {
-      return quadComponentsEqual(
-        subjectArm,
-        predicateArm,
-        objectArm,
-        graphArm,
-        other,
-      );
-    },
+    // A capturing arrow, not an object-literal method: the native compiler
+    // rejects `this` inside object-literal methods (SC1090), and a free
+    // function's `this.subject` on the recursive term union infers as
+    // `unknown` (SC1100). Closing over the components avoids both.
+    equals: (other) =>
+      quadComponentsEqual(subjectArm, predicateArm, objectArm, graphArm, other),
   };
 }
 

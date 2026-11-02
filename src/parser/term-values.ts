@@ -181,20 +181,6 @@ export function quadComponentsEqual(
     termKey(graph) === termKey(otherQuad.graph);
 }
 
-/** quadEquals compares two quads component by component, graph included. */
-export function quadEquals(
-  this: RdfBaseQuad,
-  other: RdfTerm | null | undefined,
-): boolean {
-  return quadComponentsEqual(
-    this.subject,
-    this.predicate,
-    this.object,
-    this.graph,
-    other,
-  );
-}
-
 /** quadTerm builds a quad in the default graph. */
 export function quadTerm(
   subject: RdfTerm,
@@ -209,8 +195,11 @@ export function quadTerm(
     predicate,
     object,
     graph,
-    equals(other) {
-      return quadComponentsEqual(subject, predicate, object, graph, other);
-    },
+    // A capturing arrow, not an object-literal method: the native compiler
+    // rejects `this` inside object-literal methods (SC1090), and a free
+    // function's `this.subject` on the recursive term union infers as
+    // `unknown` (SC1100). Closing over the components avoids both.
+    equals: (other) =>
+      quadComponentsEqual(subject, predicate, object, graph, other),
   };
 }
