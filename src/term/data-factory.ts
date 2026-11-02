@@ -8,11 +8,10 @@ export const RDF_DIR_LANG_STRING =
   "http://www.w3.org/1999/02/22-rdf-syntax-ns#dirLangString";
 export const XSD_STRING = "http://www.w3.org/2001/XMLSchema#string";
 
-export class NamedNodeImpl<Iri extends string = string>
-  implements rdfjs.NamedNode<Iri> {
+export class NamedNodeImpl implements rdfjs.NamedNode {
   public readonly termType = "NamedNode" as const;
 
-  public constructor(public readonly value: Iri) {}
+  public constructor(public readonly value: string) {}
 
   public equals(other?: rdfjs.Term | null): boolean {
     return other != null && other.termType === "NamedNode" &&
@@ -200,7 +199,7 @@ export interface InternalDataFactory extends rdfjs.DataFactory {
 
 export const DataFactory: InternalDataFactory = {
   namedNode<Iri extends string = string>(value: Iri): rdfjs.NamedNode<Iri> {
-    return new NamedNodeImpl(value);
+    return new NamedNodeImpl(value) as rdfjs.NamedNode<Iri>;
   },
   blankNode(value?: string): rdfjs.BlankNode {
     return new BlankNodeImpl(value ?? `b${++blankNodeCounter}`);
