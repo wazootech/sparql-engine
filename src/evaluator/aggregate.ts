@@ -322,9 +322,13 @@ function numericLiteralFromExactDecimal(
 }
 
 /**
- * WILDCARD_MARKER stands in for COUNT(*) arguments; only count uses it.
+ * WILDCARD_MARKER stands in for `COUNT(*)`'s "one value per solution": only
+ * count uses it. It is a real term rather than a record asserted past the
+ * RdfTerm union, which the native (scriptc) build rejects when the module
+ * loads. Nothing inspects its contents — only whether a value is defined;
+ * fillers for DISTINCT come from the solution's key, not from the marker.
  */
-const WILDCARD_MARKER = { wildcard: true } as unknown as RdfTerm;
+const WILDCARD_MARKER: RdfTerm = namedNode("urn:wazoo:aggregate-wildcard");
 
 /**
  * isAggregateWildcard detects the COUNT(*) form, which the parser represents
