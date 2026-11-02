@@ -290,6 +290,19 @@ interface JisonGeneratorState {
   lexer: { rules: RegExp[] };
 }
 
+/**
+ * actionCellLiteral renders one shift/reduce cell as a named-field record.
+ * Positional `[kind, arg]` pairs are avoided: the native (scriptc) build
+ * cannot represent a bare `number[]` inside the table-value union.
+ */
+function actionCellLiteral(cell: number[]): string {
+  const kind = cell[0] ?? 0;
+  const arg = cell[1];
+  return arg === undefined
+    ? `{ kind: ${kind} }`
+    : `{ kind: ${kind}, arg: ${arg} }`;
+}
+
 /** ParsedGrammar is the slice of ebnf-parser's output read below. */
 interface ParsedGrammar {
   bnf: Record<string, Array<string | [string, string]> | string>;
@@ -627,7 +640,7 @@ export function generateTypedParserSource(
           `Unresolved conflict in the parse table (symbol ${key}).`,
         );
       } else {
-        actionEntries.push([key, `[${(cell as number[]).join(", ")}]`]);
+        actionEntries.push([key, actionCellLiteral(cell as number[])]);
       }
     }
     actionRows.push(objectLiteral(actionEntries));
@@ -637,7 +650,7 @@ export function generateTypedParserSource(
     Object.keys(generator.defaultActions).map(Number).sort((a, b) => a - b)
       .map((stateId): [number, string] => [
         stateId,
-        `[${generator.defaultActions[stateId]!.join(", ")}]`,
+        actionCellLiteral(generator.defaultActions[stateId]!),
       ]),
   );
   const terminalNames = objectLiteral(
@@ -650,6 +663,18 @@ export function generateTypedParserSource(
   );
   const productionLengths = generator.productions_.map((entry) =>
     typeof entry === "number" ? 0 : entry[1]
+  );
+  const productionSymbolCells = objectLiteral(
+    productionSymbols.map((
+      symbol,
+      id,
+    ): [number, string] => [id, String(symbol)]),
+  );
+  const productionLengthCells = objectLiteral(
+    productionLengths.map((
+      length,
+      id,
+    ): [number, string] => [id, String(length)]),
   );
 
   // Productions whose action bodies are identical share one `case`.
@@ -706,8 +731,8 @@ type ${valueTypeName} = ${config.valueUnion ?? emitter.valueUnion()};
 
 const TABLES: LrTables = {
   terminalNames: ${terminalNames},
-  productionSymbols: [${productionSymbols.join(", ")}],
-  productionLengths: [${productionLengths.join(", ")}],
+  productionSymbols: ${productionSymbolCells},
+  productionLengths: ${productionLengthCells},
   actions: [
 ${actionRows.map((row) => `    ${row},`).join("\n")}
   ],

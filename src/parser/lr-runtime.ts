@@ -49,23 +49,30 @@ export class LrParseError extends Error {
 }
 
 /**
- * LrTables is the data half of a generated parser. A table cell is a pair
- * `[kind, argument]`: `[1, state]` shifts, `[2, production]` reduces,
- * `[3]` accepts.
+ * LrActionRow is one shift/reduce cell: `kind` 1 shifts to `arg`, 2 reduces by
+ * `arg`, 3 accepts, 0 is an error. It is a named-field record rather than a
+ * positional pair because the native (scriptc) build cannot box a bare
+ * `number[]` into a table-value union.
  */
+export interface LrActionRow {
+  readonly kind: number;
+  readonly arg?: number;
+}
+
+/** LrTables is the data half of a generated parser. */
 export interface LrTables {
   /** Terminal names by token id (the `$end` token is unnamed). */
   terminalNames: Record<number, string>;
   /** The left-hand-side symbol id of each production. */
-  productionSymbols: number[];
+  productionSymbols: Record<number, number>;
   /** The right-hand-side length of each production. */
-  productionLengths: number[];
+  productionLengths: Record<number, number>;
   /** Per state: lookahead token id to action cell. */
-  actions: Array<Record<number, number[]>>;
+  actions: Array<Record<number, LrActionRow>>;
   /** Per state: nonterminal symbol id to next state. */
   gotos: Array<Record<number, number>>;
   /** States whose action does not need a lookahead. */
-  defaultActions: Record<number, number[]>;
+  defaultActions: Record<number, LrActionRow>;
 }
 
 const SHIFT = 1;
@@ -251,7 +258,7 @@ export class LrParser<Value> {
     let hasSymbol = false;
     for (;;) {
       const state = states[states.length - 1]!;
-      let action: number[] | undefined = tables.defaultActions[state];
+      let action: LrActionRow | undefined = tables.defaultActions[state];
       if (action === undefined) {
         if (!hasSymbol) {
           symbol = lexer.lex();
@@ -259,19 +266,19 @@ export class LrParser<Value> {
         }
         action = tables.actions[state]![symbol];
       }
-      if (action === undefined || action.length === 0 || action[0] === 0) {
+      if (action === undefined || action.kind === 0) {
         throw this.syntaxError(lexer, state, symbol, lineNumber, location);
       }
-      const kind = action[0];
+      const kind = action.kind;
       if (kind === SHIFT) {
-        states.push(action[1]!);
+        states.push(action.arg ?? 0);
         values.push(this.tokenValue(lexer.yytext));
         locations.push(lexer.yylloc);
         hasSymbol = false;
         lineNumber = lexer.yylineno;
         location = lexer.yylloc;
       } else if (kind === REDUCE) {
-        const production = action[1]!;
+        const production = action.arg ?? 0;
         const length = tables.productionLengths[production]!;
         const value = this.performAction(production, values);
         const first = locations[locations.length - (length || 1)]!;
