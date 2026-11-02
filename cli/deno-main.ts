@@ -1,6 +1,6 @@
-// main is the Deno host entrypoint for the `sparql` command; `deno task
+// deno-main is the Deno host entrypoint for the `sparql` command; `deno task
 // compile` builds it into a standalone binary at dist/sparql. All behavior
-// lives in run-cli.ts so other native builds can share it.
+// lives in run-cli.ts; see cli/node-main.ts for the scriptc entry.
 import { runCli } from "./run-cli.ts";
 
 const result = await runCli(Deno.args, {

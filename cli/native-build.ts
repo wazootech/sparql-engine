@@ -1,4 +1,4 @@
-// native-build runs `scriptc build` for the Node-API CLI entry (cli/main-node.ts,
+// native-build runs `scriptc build` for the Node-API CLI entry (cli/node-main.ts,
 // issue #221). On Windows and musl Linux, scriptc links through zig — see
 // https://scriptc.dev/docs/quickstart — so this task fails fast when zig is
 // missing from PATH.
@@ -46,7 +46,7 @@ const { code, stderr } = await new Deno.Command(
       "--yes",
       `scriptc@${SCRIPTC_VERSION}`,
       "build",
-      "cli/main-node.ts",
+      "cli/node-main.ts",
       "-o",
       OUTPUT,
     ],

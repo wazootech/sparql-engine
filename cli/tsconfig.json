@@ -9,5 +9,5 @@
     "types": ["node"],
     "paths": { "@/*": ["../src/*"] }
   },
-  "files": ["main-node.ts"]
+  "files": ["node-main.ts"]
 }

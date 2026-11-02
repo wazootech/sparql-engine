@@ -82,7 +82,7 @@ async function compileCli(): Promise<void> {
       "--allow-read",
       "--output",
       COMPILED_PATH,
-      "cli/main.ts",
+      "cli/deno-main.ts",
     ],
     cwd: REPO_ROOT,
     stdout: "null",
@@ -197,7 +197,7 @@ if (options.targets.length === 0) {
     },
     {
       name: "deno-run",
-      command: [Deno.execPath(), "run", "--allow-read", "cli/main.ts"],
+      command: [Deno.execPath(), "run", "--allow-read", "cli/deno-main.ts"],
     },
   );
 }
