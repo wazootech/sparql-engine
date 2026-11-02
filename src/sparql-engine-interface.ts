@@ -1,4 +1,4 @@
-import type * as rdfjs from "@rdfjs/types";
+import type { RdfQuad } from "@/parser/rdf-terms.ts";
 
 /**
  * SparqlEngineInterface executes raw SPARQL queries/updates against a data adapter.
@@ -70,7 +70,7 @@ export interface SparqlSelectResults {
  * SparqlConstructResults is the quad stream returned by CONSTRUCT/DESCRIBE queries.
  */
 export interface SparqlConstructResults {
-  quads: Array<rdfjs.Quad>;
+  quads: Array<RdfQuad>;
 }
 
 /**

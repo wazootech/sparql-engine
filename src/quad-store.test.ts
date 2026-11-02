@@ -1,6 +1,6 @@
 import { assertEquals, assertThrows } from "@std/assert";
 import type * as rdfjs from "@rdfjs/types";
-import { DataFactory } from "@/term/mod.ts";
+import { DataFactory } from "@/term/public.ts";
 import { MemoryStore as Store } from "@/store/memory-store.ts";
 import {
   buildQuadIndex,
@@ -94,7 +94,7 @@ Deno.test("matchQuads resolves the store stream into an array", async () => {
 Deno.test("simplePredicate accepts terms and rejects property paths", () => {
   assertEquals(simplePredicate(name), name);
   assertThrows(
-    () => simplePredicate({ pathType: "/", items: [name] }),
+    () => simplePredicate({ type: "path", pathType: "/", items: [name] }),
     Error,
     "property path",
   );

@@ -1,6 +1,6 @@
 import { assertEquals } from "@std/assert";
 import type * as rdfjs from "@rdfjs/types";
-import { DataFactory } from "@/term/mod.ts";
+import { DataFactory } from "@/term/public.ts";
 import type { ScanEntry } from "@/evaluator/join.ts";
 import { GraphScopedStore } from "@/quad-store.ts";
 import {

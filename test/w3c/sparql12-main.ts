@@ -1,7 +1,7 @@
 import type * as rdfjs from "@rdfjs/types";
 // deno-lint-ignore no-import-prefix
 import { Parser as N3Parser } from "npm:n3@2.2.0";
-import { DataFactory } from "@/term/mod.ts";
+import { DataFactory } from "@/term/public.ts";
 import { MemoryStore } from "@/store/memory-store.ts";
 import { WazooSparqlEngine } from "@/wazoo-sparql-engine.ts";
 import type { SparqlResponse } from "@/sparql-engine-interface.ts";

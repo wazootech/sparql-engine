@@ -1,4 +1,4 @@
-import type * as rdfjs from "@rdfjs/types";
+import type { RdfQuad } from "@/parser/rdf-terms.ts";
 
 import { resetTurtleContext, turtleContext } from "./turtle-context.ts";
 import { parseTurtleDocument } from "./turtle-generated.ts";
@@ -31,7 +31,7 @@ import { parseTurtleDocument } from "./turtle-generated.ts";
 export function parseTurtleQuads(
   text: string,
   baseIri: string = "",
-): rdfjs.Quad[] {
+): RdfQuad[] {
   resetTurtleContext(baseIri);
   parseTurtleDocument(text);
   return turtleContext.quads;

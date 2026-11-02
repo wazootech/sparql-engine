@@ -1,4 +1,4 @@
-import type * as rdfjs from "@rdfjs/types";
+import type { RdfLiteral } from "@/parser/rdf-terms.ts";
 
 /**
  * XSD is the XML Schema datatype namespace IRI.
@@ -47,7 +47,7 @@ export const NUMERIC_DATATYPES: ReadonlySet<string> = new Set([
  * BigInt for exact arbitrary-precision arithmetic; other numeric datatypes
  * use Number.
  */
-export function numericValue(term: rdfjs.Literal): number | bigint | null {
+export function numericValue(term: RdfLiteral): number | bigint | null {
   const datatype = term.datatype?.value;
   if (datatype === undefined || !NUMERIC_DATATYPES.has(datatype)) {
     return null;

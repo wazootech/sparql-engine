@@ -1,5 +1,5 @@
 import { assertEquals, assertMatch } from "@std/assert";
-import { DataFactory } from "@/term/mod.ts";
+import { DataFactory } from "@/term/public.ts";
 import { WazooSparqlEngine } from "@/wazoo-sparql-engine.ts";
 import { assertQueryParity } from "./parity-harness.ts";
 import type { ParityTestCase } from "./parity-harness.ts";

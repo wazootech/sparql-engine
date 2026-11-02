@@ -5,8 +5,8 @@
   "license": "MIT",
   "exports": {
     ".": "./src/mod.ts",
-    "./term": "./src/term/mod.ts",
-    "./data-model": "./src/term/mod.ts",
+    "./term": "./src/term/public.ts",
+    "./data-model": "./src/term/public.ts",
     "./store": "./src/store/memory-store.ts",
     "./parser": "./src/parser/mod.ts",
     "./serialize": "./src/serialize/mod.ts"
@@ -73,6 +73,8 @@
     "fmt:check": "deno fmt --check",
     "lint": "deno lint",
     "native:coverage": "deno run --allow-read --allow-run --allow-env cli/native-coverage.ts",
+    "native:build": "deno run --allow-read --allow-run --allow-env --allow-write cli/native-build.ts",
+    "native:gate": "deno run --allow-read --allow-run --allow-env --allow-write cli/native-gate.ts",
     "parser:generate": "deno run --allow-all src/parser/generate-parser.ts",
     "parser:check": "deno run --allow-all src/parser/generate-parser.ts --check",
     "publish:dry": "deno publish --dry-run --allow-dirty",
