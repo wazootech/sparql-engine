@@ -1,6 +1,10 @@
 import type * as rdfjs from "@rdfjs/types";
 import type { RdfQuad, RdfQuadGraph, RdfTerm } from "@/parser/rdf-terms.ts";
-import type { Term as SparqlTerm, Triple } from "@/parser/sparql-parser.ts";
+import type {
+  Term as SparqlTerm,
+  Triple,
+  TriplePredicate,
+} from "@/parser/sparql-parser.ts";
 import type {
   PatternStats,
   StoreStatisticsHook,
@@ -136,7 +140,7 @@ export function matchQuads(
  * isSimplePredicate narrows a predicate to a simple (term) predicate,
  * excluding property-path predicates.
  */
-function isSimplePredicate(predicate: unknown): predicate is SparqlTerm {
+function isSimplePredicate(predicate: TriplePredicate): predicate is SparqlTerm {
   return (
     typeof predicate === "object" && predicate !== null &&
     "termType" in predicate
@@ -147,7 +151,7 @@ function isSimplePredicate(predicate: unknown): predicate is SparqlTerm {
  * simplePredicate returns the predicate of a triple pattern or template,
  * rejecting property-path predicates that the engine does not support.
  */
-export function simplePredicate(predicate: unknown): SparqlTerm {
+export function simplePredicate(predicate: TriplePredicate): SparqlTerm {
   if (!isSimplePredicate(predicate)) {
     throw new Error(
       "Unsupported property path predicate: only simple predicates are supported",
