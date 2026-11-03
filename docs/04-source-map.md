@@ -178,6 +178,8 @@ sparql-engine/
 | `bench/latency-check.ts`                                         | CI gate: fresh `deno bench --json` inventory must match the committed snapshot (timings never compared)                                                                            |
 | `bench/latency-data.json`                                        | Committed latency snapshot (avg ms/iter per query class)                                                                                                                           |
 | `bench/cli-bench.ts`                                             | Process-level `sparql` CLI bench (`deno task bench:cli`): binary size, startup, load, join, peak RSS; any build honoring `cli/run-cli.ts` can be added as a `--target`             |
+| `bench/cli-targets-bench.ts`                                     | `Deno.bench` comparison of the CLI builds (`deno task bench:cli:targets`): `deno run` vs `deno-compile` vs `scriptc`, with `deno-compile` as the baseline                          |
+| `bench/cli-workloads.ts`                                         | Shared CLI bench fixture (`buildPeopleTurtle`) and invocation table (`startup`/`load`/`join`) used by both CLI benches                                                             |
 
 | `bench/treemap.ts` | Renders `bench/{size,memory,closures}-data.json` into the
 `docs/assets/*.svg` charts |

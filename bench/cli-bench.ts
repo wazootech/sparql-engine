@@ -12,6 +12,7 @@
 // Numbers are machine-specific: report them in PRs/issues with the machine,
 // never commit them (README.md owns committed numbers).
 import { dirname, fromFileUrl, join, resolve } from "@std/path";
+import { buildPeopleTurtle, WORKLOADS } from "./cli-workloads.ts";
 
 const REPO_ROOT = resolve(dirname(fromFileUrl(import.meta.url)), "..");
 const IS_WINDOWS = Deno.build.os === "windows";
@@ -25,11 +26,6 @@ interface Target {
   name: string;
   command: string[];
   binaryPath?: string;
-}
-
-interface Workload {
-  name: string;
-  args: (dataPath: string) => string[];
 }
 
 interface Measurement {
@@ -94,49 +90,6 @@ async function compileCli(): Promise<void> {
     );
   }
 }
-
-/**
- * buildPeopleTurtle builds a people graph shaped like bench/memory-probe.ts: each
- * person has a name, an age, a city, and knows the next person and someone a
- * stride away, so friend-of-friend joins fan out (5 triples per person).
- */
-function buildPeopleTurtle(count: number): string {
-  const lines = ["@prefix : <http://example.org/> ."];
-  for (let index = 0; index < count; index++) {
-    lines.push(
-      `:p${index} :name "Person ${index}" ; :age ${20 + (index % 50)} ; ` +
-        `:city :c${index % 5} ; :knows :p${(index + 1) % count}, ` +
-        `:p${(index + 7) % count} .`,
-    );
-  }
-  return lines.join("\n") + "\n";
-}
-
-const WORKLOADS: Workload[] = [
-  // Cold start: no data, the cheapest possible query.
-  { name: "startup", args: () => ["--query", "ASK {}"] },
-  // Parse and index the whole dataset, then a query that touches nothing,
-  // so this isolates load cost. (A scan-shaped ASK would also measure
-  // evaluation: ASK { ?s ?p ?o } currently does not stop at the first
-  // solution.)
-  {
-    name: "load",
-    args: (dataPath) => ["--data", dataPath, "--query", "ASK {}"],
-  },
-  // Join-heavy: friends of friends who share a city, aggregated.
-  {
-    name: "join",
-    args: (dataPath) => [
-      "--data",
-      dataPath,
-      "--query",
-      "PREFIX : <http://example.org/> " +
-      "SELECT ?city (COUNT(*) AS ?pairs) WHERE { " +
-      "?a :knows ?b . ?b :knows ?c . ?a :city ?city . ?c :city ?city " +
-      "} GROUP BY ?city ORDER BY ?city",
-    ],
-  },
-];
 
 async function hasGnuTime(): Promise<boolean> {
   if (IS_WINDOWS) return false;
