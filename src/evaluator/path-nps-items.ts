@@ -1,8 +1,4 @@
-import type { RdfNamedNode } from "@/parser/rdf-terms.ts";
-import type { PropertyPath } from "@/parser/sparql-parser.ts";
-
-/** PathElement is a predicate IRI or nested property path (negated-set items). */
-export type NpsPathElement = RdfNamedNode | PropertyPath;
+import type { PathElement, PropertyPath } from "@/parser/ast.ts";
 
 /** NpsExclusions lists IRIs excluded from a negated property set, by direction. */
 export type NpsExclusions = {
@@ -11,31 +7,38 @@ export type NpsExclusions = {
   hasInverse: boolean;
 };
 
+/**
+ * isNestedPath reports whether a negated-set item is a nested path rather than
+ * a plain predicate IRI. The `type` discriminant is read through a widened
+ * view: scriptc cannot narrow a union with `in`, and asserting an item into the
+ * arm it is not aborts the native build.
+ */
+function isNestedPath(item: PathElement): item is PropertyPath {
+  return (item as { type?: string }).type === "path";
+}
+
 function walkNpsItems(
-  pathItems: NpsPathElement[],
+  pathItems: PathElement[],
   direct: Set<string>,
   inverse: Set<string>,
   state: { hasInverse: boolean },
 ): void {
   for (const item of pathItems) {
-    const asPath = item as PropertyPath;
-    if (asPath.type === "path") {
-      if (asPath.pathType === "|") {
-        walkNpsItems(asPath.items, direct, inverse, state);
-      } else if (asPath.pathType === "^") {
-        const invItem = asPath.items[0];
-        if (invItem !== undefined) {
-          const asNamed = invItem as RdfNamedNode;
-          if (asNamed.termType === "NamedNode") {
-            inverse.add(asNamed.value);
-            state.hasInverse = true;
-          }
-        }
-      }
+    // The two arms are read by discriminant, never by assertion: an item that
+    // is a plain IRI must not be stored into the path arm (or the reverse).
+    if (!isNestedPath(item)) {
+      direct.add(item.value);
       continue;
     }
-    const asNamed = item as RdfNamedNode;
-    direct.add(asNamed.value);
+    if (item.pathType === "|") {
+      walkNpsItems(item.items, direct, inverse, state);
+    } else if (item.pathType === "^") {
+      const invItem = item.items[0];
+      if (invItem !== undefined && !isNestedPath(invItem)) {
+        inverse.add(invItem.value);
+        state.hasInverse = true;
+      }
+    }
   }
 }
 
@@ -43,7 +46,7 @@ function walkNpsItems(
  * collectNpsExclusions walks negated property-set path items and records
  * excluded predicate IRIs for forward and inverse directions.
  */
-export function collectNpsExclusions(items: NpsPathElement[]): NpsExclusions {
+export function collectNpsExclusions(items: PathElement[]): NpsExclusions {
   const direct = new Set<string>();
   const inverse = new Set<string>();
   const state = { hasInverse: false };
