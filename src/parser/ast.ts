@@ -61,9 +61,21 @@ export interface OperationExpression {
  * argument is the group graph pattern, not an expression.
  */
 export interface ExistsExpression {
-  type: "operation";
+  /**
+   * type is its own discriminant, not "operation": the evaluator and the
+   * expression walkers switch on it to reach `patterns`, so the native
+   * compiler (scriptc) never has to narrow a value out of the operation
+   * argument union by assertion.
+   */
+  type: "exists";
   operator: "exists" | "notexists";
-  args: Pattern[];
+  /**
+   * patterns is the EXISTS group's pattern list. It is a distinct field, not
+   * an `args` arm, so the evaluator narrows with `in` instead of casting a
+   * value out of the operation-argument union — a cast the native compiler
+   * (scriptc) cannot represent.
+   */
+  patterns: Pattern[];
 }
 
 /**
@@ -71,9 +83,13 @@ export interface ExistsExpression {
  * the tested expression and the list of candidate expressions.
  */
 export interface MembershipExpression {
-  type: "operation";
+  /** type is its own discriminant; see ExistsExpression. */
+  type: "membership";
   operator: "in" | "notin";
-  args: [Expression, Expression[]];
+  /** subject is the tested expression. */
+  subject: Expression;
+  /** candidates are the IN list's expressions. */
+  candidates: Expression[];
 }
 
 export interface FunctionCallExpression {

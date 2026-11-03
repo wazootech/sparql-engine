@@ -191,6 +191,22 @@ export interface ExpressionEvaluatorOptions {
 }
 
 /**
+ * operationArgs returns an operation's expression arguments. EXISTS and IN
+ * carry their own payload fields instead, so this helper keeps the caller's
+ * parameter unnarrowed: an `"args" in operation` guard at the call site would
+ * narrow it to OperationExpression and make the EXISTS and IN cases
+ * unreachable.
+ */
+function operationArgs(
+  operation: OperationExpression | ExistsExpression | MembershipExpression,
+): Expression[] {
+  if (operation.type === "operation") {
+    return operation.args;
+  }
+  return [];
+}
+
+/**
  * ExpressionEvaluator evaluates SPARQL 1.1 expression trees (operators,
  * functions, and constants) against a single solution binding, returning a
  * value term or a typed error term for runtime failures.
@@ -296,13 +312,6 @@ export class ExpressionEvaluator {
         context,
       );
     }
-    if (expression.type !== "operation") {
-      throw new Error(
-        `Unsupported SPARQL expression: ${
-          (expression as { type: string }).type
-        }`,
-      );
-    }
     return this.evaluateOperation(expression, binding, aggregates, context);
   }
 
@@ -333,9 +342,11 @@ export class ExpressionEvaluator {
     // args is a union of argument-list shapes (expressions, patterns, and the
     // IN tuple). Each operator below reads exactly one of them, so narrow once
     // here: scriptc cannot index the union, and indexing the narrowed list is
-    // the only statically typed form.
-    const args = operation.args as Expression[];
-    const patterns = operation.args as Pattern[];
+    // the only statically typed form. The pattern cast stays inside the EXISTS
+    // case: performing it up front hands every operator a value asserted past
+    // the union, which the native (scriptc) build cannot represent — that is
+    // what aborted every arithmetic, string and comparison expression.
+    const args: Expression[] = operationArgs(operation);
     const arg = (index: number): Expression => args[index];
     switch (operation.operator) {
       case "&&":
@@ -433,7 +444,12 @@ export class ExpressionEvaluator {
         // behave as no-match -> false. The pattern argument evaluates
         // through the injected hook (correlated, graph-scoped); a missing
         // hook is a wiring bug and fails loudly.
-        const existsPattern = patterns[0];
+        // The group pattern is a distinct field, so it narrows with `in`
+        // instead of being cast out of the operation-argument union.
+        if (operation.type !== "exists") {
+          return undefined;
+        }
+        const existsPattern = operation.patterns[0];
         const evaluateExists = context?.evaluateExists;
         if (evaluateExists === undefined) {
           throw new Error(
@@ -573,18 +589,25 @@ export class ExpressionEvaluator {
         );
       case "if":
         return this.ifElse(args, binding, aggregates);
-      case "in":
-        return this.inList(
-          operation.args as [Expression, Expression[]],
-          binding,
-          aggregates,
-        );
+      case "in": {
+        if (operation.type !== "membership") {
+          return undefined;
+        }
+        const list: [Expression, Expression[]] = [
+          operation.subject,
+          operation.candidates,
+        ];
+        return this.inList(list, binding, aggregates);
+      }
       case "notin": {
-        const member = this.inList(
-          operation.args as [Expression, Expression[]],
-          binding,
-          aggregates,
-        );
+        if (operation.type !== "membership") {
+          return undefined;
+        }
+        const list: [Expression, Expression[]] = [
+          operation.subject,
+          operation.candidates,
+        ];
+        const member = this.inList(list, binding, aggregates);
         if (member === undefined) {
           return undefined;
         }

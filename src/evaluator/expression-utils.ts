@@ -10,16 +10,17 @@ export function expressionContainsExists(expression: Expression): boolean {
   if ("termType" in expression || !("type" in expression)) {
     return false;
   }
+  if (expression.type === "exists") {
+    return true;
+  }
+  if (expression.type === "membership") {
+    return expressionContainsExists(expression.subject) ||
+      expression.candidates.some(expressionContainsExists);
+  }
   if (expression.type === "operation") {
-    if (
-      expression.operator === "exists" ||
-      expression.operator === "notexists"
-    ) {
-      return true;
-    }
     // Narrows the argument union to its expression arm once: scriptc has no
     // representation for `some` over a union of array types.
-    const args = expression.args as Expression[];
+    const args: Expression[] = expression.args;
     for (const arg of args) {
       if (expressionContainsExists(arg)) {
         return true;
@@ -58,10 +59,17 @@ export function expressionContainsAggregate(
   if (expression.type === "aggregate") {
     return true;
   }
+  if (expression.type === "exists") {
+    return false;
+  }
+  if (expression.type === "membership") {
+    return expressionContainsAggregate(expression.subject) ||
+      expression.candidates.some(expressionContainsAggregate);
+  }
   if (expression.type === "operation") {
     // Narrows the argument union to its expression arm once: scriptc has no
     // representation for `some` over a union of array types.
-    const args = expression.args as Expression[];
+    const args: Expression[] = expression.args;
     for (const arg of args) {
       if (expressionContainsAggregate(arg)) {
         return true;

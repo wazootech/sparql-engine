@@ -1119,7 +1119,9 @@ export class BgpEvaluator {
           );
           for (const binding of inner) {
             if (graphName.termType === "Variable") {
-              const existing = binding[graphName.value];
+              // Annotated because an unbound variable reads as undefined and
+              // the native compiler (scriptc) lays out the declared type.
+              const existing: RdfTerm | undefined = binding[graphName.value];
               if (existing !== undefined && !sameRdfTerm(existing, graphTerm)) {
                 continue;
               }

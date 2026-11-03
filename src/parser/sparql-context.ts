@@ -1238,9 +1238,10 @@ export function membershipOperation(
   list: Expression[],
 ): MembershipExpression {
   return {
-    type: "operation",
+    type: "membership",
     operator: negated ? "notin" : "in",
-    args: [left, list],
+    subject: left,
+    candidates: list,
   };
 }
 
@@ -1259,9 +1260,9 @@ export function existsOperation(
   group: GroupPattern,
 ): ExistsExpression {
   return {
-    type: "operation",
+    type: "exists",
     operator: negated ? "notexists" : "exists",
-    args: [degroupSingle(group)],
+    patterns: [degroupSingle(group)],
   };
 }
 
@@ -1520,23 +1521,6 @@ function isGroupedBy(groups: Grouping[], id: string | undefined): boolean {
 // list of expressions.
 type OperationArgument = Expression | Expression[] | Pattern;
 
-type AnyOperation =
-  | OperationExpression
-  | ExistsExpression
-  | MembershipExpression;
-
-function isExistsOperation(
-  operation: AnyOperation,
-): operation is ExistsExpression {
-  return operation.operator === "exists" || operation.operator === "notexists";
-}
-
-function isMembershipOperation(
-  operation: AnyOperation,
-): operation is MembershipExpression {
-  return operation.operator === "in" || operation.operator === "notin";
-}
-
 // Get all "aggregate"s from an expression
 function getAggregatesOfExpression(
   expression: OperationArgument | undefined,
@@ -1547,14 +1531,15 @@ function getAggregatesOfExpression(
   if ("type" in expression) {
     if (expression.type === "aggregate") {
       return [expression];
-    } else if (expression.type === "operation") {
-      // The pattern of EXISTS and the list of IN hold no aggregates.
-      if (isExistsOperation(expression)) {
-        return [];
-      }
-      if (isMembershipOperation(expression)) {
-        return getAggregatesOfExpression(expression.args[0]);
-      }
+    }
+    if (expression.type === "exists") {
+      // The EXISTS group's pattern list holds no aggregates.
+      return [];
+    }
+    if (expression.type === "membership") {
+      return getAggregatesOfExpression(expression.subject);
+    }
+    if (expression.type === "operation") {
       const aggregates: AggregateExpression[] = [];
       for (const arg of expression.args) {
         for (const nested of getAggregatesOfExpression(arg)) {
@@ -1579,14 +1564,12 @@ function collectVariables(
     if (expression.termType === "Variable") {
       variables.add(expression);
     }
+  } else if (expression.type === "exists") {
+    // The EXISTS group's pattern list is walked with the pattern, not here.
+    return;
+  } else if (expression.type === "membership") {
+    collectVariables(expression.subject, variables);
   } else if (expression.type === "operation") {
-    if (isExistsOperation(expression)) {
-      return;
-    }
-    if (isMembershipOperation(expression)) {
-      collectVariables(expression.args[0], variables);
-      return;
-    }
     for (const arg of expression.args) collectVariables(arg, variables);
   }
 }

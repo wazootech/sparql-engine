@@ -585,6 +585,13 @@ function expressionContainsAggregate(
   if (expression.type === "aggregate") {
     return true;
   }
+  if (expression.type === "exists") {
+    return false;
+  }
+  if (expression.type === "membership") {
+    return expressionContainsAggregate(expression.subject) ||
+      expression.candidates.some(expressionContainsAggregate);
+  }
   if (expression.type === "operation") {
     return expression.args.some(expressionContainsAggregate);
   }
