@@ -1250,30 +1250,38 @@ export function joinPathPattern(
   const nextBindings: TermBinding[] = [];
 
   for (const binding of currentBindings) {
-    const resolvedSubject = subjectIsVariable
-      ? binding[subject.value] ?? null
-      : sparqlTermToRdfTerm(subject);
-    const resolvedObject = objectIsVariable
-      ? binding[object.value] ?? null
-      : sparqlTermToRdfTerm(object);
-
     for (const pair of pairs) {
-      if (
-        resolvedSubject !== null &&
-        !sameRdfTerm(pair.subject, resolvedSubject)
-      ) {
+      // Each endpoint is either bound in this solution or constant in the
+      // pattern, and the two cases stay in separate branches. Folding them
+      // into one `RdfTerm | undefined` local (a ternary over an unbound read)
+      // hands the native compiler (scriptc) an undefined value in a union
+      // slot, which aborts the build at runtime.
+      if (subjectIsVariable) {
+        const boundSubject: RdfTerm | undefined = binding[subject.value];
+        if (
+          boundSubject !== undefined &&
+          !sameRdfTerm(pair.subject, boundSubject)
+        ) {
+          continue;
+        }
+      } else if (!sameRdfTerm(pair.subject, sparqlTermToRdfTerm(subject))) {
         continue;
       }
-      if (
-        resolvedObject !== null &&
-        !sameRdfTerm(pair.object, resolvedObject)
-      ) {
+      if (objectIsVariable) {
+        const boundObject: RdfTerm | undefined = binding[object.value];
+        if (
+          boundObject !== undefined &&
+          !sameRdfTerm(pair.object, boundObject)
+        ) {
+          continue;
+        }
+      } else if (!sameRdfTerm(pair.object, sparqlTermToRdfTerm(object))) {
         continue;
       }
       const newBinding = { ...binding };
       let valid = true;
       if (subjectIsVariable) {
-        const existing = newBinding[subject.value];
+        const existing: RdfTerm | undefined = newBinding[subject.value];
         if (existing !== undefined && !sameRdfTerm(existing, pair.subject)) {
           valid = false;
         } else {
@@ -1281,7 +1289,7 @@ export function joinPathPattern(
         }
       }
       if (valid && objectIsVariable) {
-        const existing = newBinding[object.value];
+        const existing: RdfTerm | undefined = newBinding[object.value];
         if (existing !== undefined && !sameRdfTerm(existing, pair.object)) {
           valid = false;
         } else {
@@ -1311,30 +1319,35 @@ export function* joinPathPatternLazy(
   const objectIsVariable = object.termType === "Variable";
 
   for (const binding of currentBindings) {
-    const resolvedSubject = subjectIsVariable
-      ? binding[subject.value] ?? null
-      : sparqlTermToRdfTerm(subject);
-    const resolvedObject = objectIsVariable
-      ? binding[object.value] ?? null
-      : sparqlTermToRdfTerm(object);
-
     for (const pair of pairs) {
-      if (
-        resolvedSubject !== null &&
-        !sameRdfTerm(pair.subject, resolvedSubject)
-      ) {
+      // Same branch split as joinPathPattern: an unbound variable read never
+      // reaches a union-typed local, which scriptc cannot represent.
+      if (subjectIsVariable) {
+        const boundSubject: RdfTerm | undefined = binding[subject.value];
+        if (
+          boundSubject !== undefined &&
+          !sameRdfTerm(pair.subject, boundSubject)
+        ) {
+          continue;
+        }
+      } else if (!sameRdfTerm(pair.subject, sparqlTermToRdfTerm(subject))) {
         continue;
       }
-      if (
-        resolvedObject !== null &&
-        !sameRdfTerm(pair.object, resolvedObject)
-      ) {
+      if (objectIsVariable) {
+        const boundObject: RdfTerm | undefined = binding[object.value];
+        if (
+          boundObject !== undefined &&
+          !sameRdfTerm(pair.object, boundObject)
+        ) {
+          continue;
+        }
+      } else if (!sameRdfTerm(pair.object, sparqlTermToRdfTerm(object))) {
         continue;
       }
       const newBinding = { ...binding };
       let valid = true;
       if (subjectIsVariable) {
-        const existing = newBinding[subject.value];
+        const existing: RdfTerm | undefined = newBinding[subject.value];
         if (existing !== undefined && !sameRdfTerm(existing, pair.subject)) {
           valid = false;
         } else {
@@ -1342,7 +1355,7 @@ export function* joinPathPatternLazy(
         }
       }
       if (valid && objectIsVariable) {
-        const existing = newBinding[object.value];
+        const existing: RdfTerm | undefined = newBinding[object.value];
         if (existing !== undefined && !sameRdfTerm(existing, pair.object)) {
           valid = false;
         } else {
