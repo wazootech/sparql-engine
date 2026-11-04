@@ -111,6 +111,90 @@ SELECT and ASK print SPARQL 1.1 Query Results JSON, and CONSTRUCT and DESCRIBE
 print N-Quads. `deno task bench:cli` measures the binary's size, startup, load,
 and join time; see `bench/cli-bench.ts`.
 
+### Native binary (optional)
+
+`deno task compile` still embeds Deno. `deno task native:build` goes further and
+compiles `cli/node-main.ts` with [scriptc](https://scriptc.dev) 0.4.5 into a
+single executable at `dist/sparql-node` (`dist\sparql-node.exe` on Windows) with
+no runtime underneath it: no Deno, no V8, no `node_modules`.
+
+```sh
+deno task native:build
+./dist/sparql-node --data people.ttl --query 'SELECT * WHERE { ?s ?p ?o } LIMIT 10'
+```
+
+`deno task native:gate` runs the whole check: `scriptc coverage` (what the
+compiler can and cannot lower), the build, then the cross-host contract in
+`cli/run-cli.test.ts`, which replays 12 invocations through the in-process
+engine and through every built host and requires identical exit code, stdout,
+and stderr. Each target test skips when its artifact is absent, so
+`deno task ci` stays green on a checkout with no compiler installed.
+
+The trade is startup and artifact size, not hot-path throughput. Measured on
+Windows against the 1,000-triple fixture in `bench/cli-workloads.ts`:
+
+```sh
+deno task bench:cli --people 200 --runs 3 \
+  --target deno-compile=dist/sparql.exe \
+  --target scriptc=dist/sparql-node.exe
+```
+
+| Workload              | `deno compile` | `scriptc` |
+| --------------------- | -------------- | --------- |
+| cold start, no data   | 78.0 ms        | 34.9 ms   |
+| load 1,000 triples    | 104.4 ms       | 116.9 ms  |
+| friend-of-friend join | 92.3 ms        | 96.9 ms   |
+| binary on disk        | 79.9 MiB       | 6.2 MiB   |
+
+Cold start is 2.1-2.25x faster and the artifact 12.9x smaller; load and join run
+5-43% slower. Those are ranges across five runs of the same binaries on one
+machine, not a single sample: the ratio is steadier than the milliseconds, which
+move by about 30% with background load, and `bench:cli` times each target in a
+block, so read one run as a direction rather than a decimal. The native build is
+also not free of caveats: scriptc is experimental and lowers four sites in
+`src/quad-store.ts` and `src/store/memory-store.ts` to dynamic dispatch. Parity
+with the W3C suites is measured through the Deno build; the native host is held
+to the CLI contract above plus the engine's own test suite.
+
+#### Cross-compilation
+
+`SCRIPTC_TARGET` cross-compiles from any host, given zig on `PATH` and the
+target's runtime pack. scriptc installs only its own platform's pack, so a
+cross-target build needs the target's first — either as a project dependency or
+anywhere on disk through `SCRIPTC_RUNTIME_PACK`:
+
+```sh
+npm install --prefix /tmp/scriptc-pack @scriptc/runtime-linux-x64-gnu@0.4.5
+
+SCRIPTC_TARGET=x86_64-linux-gnu.2.36 \
+SCRIPTC_RUNTIME_PACK=/tmp/scriptc-pack/node_modules/@scriptc/runtime-linux-x64-gnu \
+  npx scriptc@0.4.5 build cli/node-main.ts -o dist/sparql-node-linux
+```
+
+That builds an 8.5 MiB ELF. Run under WSL (Ubuntu, glibc 2.39), the binary
+reproduced the Windows host's output case for case — help, argument errors,
+SELECT, ASK, CONSTRUCT, `--query-file`, an unknown flag, and a syntax error —
+byte for byte, with identical exit codes. The single difference is the
+missing-file message: Windows reports the resolved absolute path, Linux reports
+the path as given, both with the same `ENOENT` text.
+
+`deno task native:build` always writes the name `cli/run-cli.test.ts` discovers
+(`dist/sparql-node`, plus `.exe` on Windows), so a native build on a Linux or
+macOS host joins the contract automatically. A cross-built artifact for a
+different platform does not: it cannot run on the build host, so verify it on
+the target, as above.
+
+Valid targets include `x86_64-linux-gnu.<glibc>`, `aarch64-linux-gnu.<glibc>`,
+`x86_64-windows-gnu`, the `-musl` variants (always linked statically), and
+`wasm32-wasi` for a WebAssembly module. Two build flags are worth knowing on
+x86-64: `--target-cpu=x86-64-v3` (or `--cpu-dispatch` to keep one binary
+portable and pick the v3 code paths at startup) and, on Linux, `--static`, which
+skips the dynamic loader and should widen the startup gap above.
+`--target-cpu
+native` is refused on Windows build hosts; the compiler's default
+is already `release` (`-O2`), and `--optimization speed` measured no gain on
+this workload.
+
 ## Tree-shakeable subpath imports
 
 The package also exposes five subpath entrypoints — `./term`, `./data-model`,
