@@ -11,12 +11,11 @@ import type {
 import {
   blankNodeTerm,
   defaultGraphTerm,
-  languageLiteralTerm,
-  literalTerm,
   namedNodeTerm,
-  quadComponentsEqual,
   variableTerm,
 } from "@/parser/term-values.ts";
+import { languageLiteralTerm, literalTerm } from "@/parser/literal-terms.ts";
+import { quadComponentsEqual } from "@/parser/quad-terms.ts";
 import {
   narrowQuadGraph,
   narrowQuadObject,

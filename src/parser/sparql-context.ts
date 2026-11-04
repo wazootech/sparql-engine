@@ -41,14 +41,9 @@ import type {
   Wildcard,
 } from "./ast.ts";
 import type { RdfLiteral, RdfNamedNode, RdfVariable } from "./rdf-terms.ts";
-import {
-  blankNodeTerm,
-  languageLiteralTerm,
-  literalTerm,
-  namedNodeTerm,
-  quadTerm,
-  variableTerm,
-} from "./term-values.ts";
+import { blankNodeTerm, namedNodeTerm, variableTerm } from "./term-values.ts";
+import { languageLiteralTerm, literalTerm } from "./literal-terms.ts";
+import { quadTerm } from "./quad-terms.ts";
 
 /**
  * Typed parse context and semantic actions for the generated SPARQL parser
