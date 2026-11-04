@@ -1,7 +1,11 @@
 // native-coverage summarizes `scriptc coverage` for the Node-API CLI entry
-// (cli/node-main.ts, issue #221): statement totals plus blocker groups by
-// file and code, split into "reached" (a build fails on these today) and
-// "unreached" (behind a reached blocker; they surface as those clear).
+// (cli/node-main.ts, issue #221): statement totals, then every diagnostic
+// group by file and code, split into "reached" (a build fails on these today)
+// and "unreached" (behind a reached blocker; they surface as those clear).
+// The command exits non-zero on any blocker or any SC6101 group (a likely-hot
+// function reading an untyped value), so the native gate cannot regress
+// silently. Report-only dynamic-tier statements are expected at runtime-typed
+// boundaries and do not fail it.
 //
 //   deno task native:coverage           # summary table
 //   deno task native:coverage --json    # raw scriptc diagnostics envelope
@@ -99,10 +103,14 @@ console.log(
     `(${stats.percentStatic}%), ${stats.statementsDynamic} in dynamic tier, ` +
     `${stats.functionsSkipped} functions signature-blocked`,
 );
+// Blockers and likely-hot untyped reads are gate failures. Dynamic-tier
+// statements are type-checked dispatch at runtime-typed boundaries (arbitrary
+// RDF/JS stores, caught errors, function-valued hooks) and stay report-only.
+const failures = envelope.groups.filter(
+  (group) => group.severity === "error" || group.code === "SC6101",
+);
 for (const scope of ["reached", "unreached"] as const) {
-  const groups = envelope.groups.filter(
-    (group) => group.scope === scope && group.severity === "error",
-  );
+  const groups = envelope.groups.filter((group) => group.scope === scope);
   const sites = groups.reduce((sum, group) => sum + group.count, 0);
   console.log(`\n${scope}: ${groups.length} groups, ${sites} sites`);
   if (groups.length === 0) continue;
@@ -114,4 +122,11 @@ for (const scope of ["reached", "unreached"] as const) {
   for (const [code, groupCount, siteCount] of tally(groups, (g) => g.code)) {
     console.log(`| ${code} | ${groupCount} | ${siteCount} |`);
   }
+}
+
+if (failures.length > 0) {
+  console.error(
+    `\nnative gate: ${failures.length} group(s) must be fixed before building`,
+  );
+  Deno.exit(1);
 }
