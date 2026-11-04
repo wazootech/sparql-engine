@@ -143,16 +143,12 @@ export function sharesVariable(a: TermBinding, b: TermBinding): boolean {
   return false;
 }
 
-
-
-
 export function passesOptionalFilter(
   merged: TermBinding,
   filter: BindingFilter | undefined,
 ): boolean {
   return filter === undefined || filter(merged);
 }
-
 
 /**
  * joinBindingsArrays joins two materialized binding arrays on shared

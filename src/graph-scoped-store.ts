@@ -6,10 +6,7 @@ import { matchQuadStream } from "@/store/quad-stream.ts";
 import { estimateStatsViaStore } from "@/store/store-statistics.ts";
 import { DataFactory, termKey } from "@/term/mod.ts";
 import { MemoryStore } from "@/store/memory-store.ts";
-import type {
-  PatternStats,
-  StoreStatisticsHook,
-} from "@/planner/pattern-statistics.ts";
+import type { PatternStats } from "@/planner/pattern-statistics.ts";
 import type { Triple } from "@/parser/sparql-parser.ts";
 import { matchQuads, storeVersion } from "@/quad-match.ts";
 

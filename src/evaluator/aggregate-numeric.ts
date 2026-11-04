@@ -1,9 +1,9 @@
 import type * as rdfjs from "@rdfjs/types";
 import {
   canonicalDouble,
-  numberFromNumeric,
   DataFactory,
   formatNumber,
+  numberFromNumeric,
   numericValue,
   XSD_DECIMAL,
   XSD_DOUBLE,

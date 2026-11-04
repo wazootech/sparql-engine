@@ -1,4 +1,3 @@
-import type * as rdfjs from "@rdfjs/types";
 import type { RdfQuad, RdfTerm } from "@/parser/rdf-terms.ts";
 import { isMultisetPath } from "@/evaluator/path-types.ts";
 import type { PathEntry, PathPair } from "@/evaluator/path-types.ts";

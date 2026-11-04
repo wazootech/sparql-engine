@@ -9,7 +9,6 @@ import {
   buildHashIndex,
   compatibleCandidates,
   JOIN_PRODUCT_THRESHOLD,
-  STREAM_NESTED_THRESHOLD,
 } from "@/evaluator/join-hash-index.ts";
 
 /**
@@ -75,28 +74,6 @@ function* minusHash(
       }
     }
     if (!eliminated) {
-      yield l;
-    }
-  }
-}
-
-function* minusStreamNested(
-  left: Iterable<TermBinding>,
-  right: TermBinding[],
-): Generator<TermBinding> {
-  for (const l of left) {
-    if (!right.some((r) => sharesVariable(l, r) && bindingsCompatible(l, r))) {
-      yield l;
-    }
-  }
-}
-
-function* _minusStreamNested(
-  left: Iterable<TermBinding>,
-  right: TermBinding[],
-): Generator<TermBinding> {
-  for (const l of left) {
-    if (!right.some((r) => sharesVariable(l, r) && bindingsCompatible(l, r))) {
       yield l;
     }
   }

@@ -1,4 +1,3 @@
-import type * as rdfjs from "@rdfjs/types";
 import type { RdfQuad, RdfTerm } from "@/parser/rdf-terms.ts";
 import { sameRdfTerm, termKey } from "@/term/mod.ts";
 export { storeVersion } from "@/quad-match.ts";
@@ -6,7 +5,10 @@ export { matchQuads } from "@/quad-match.ts";
 export { simplePredicate } from "@/quad-match.ts";
 export { GraphScopedStore } from "@/graph-scoped-store.ts";
 export { namedGraphs } from "@/graph-scoped-store.ts";
-export { resolveGraphScope, graphTermFromDescriptor } from "@/graph-scoped-store.ts";
+export {
+  graphTermFromDescriptor,
+  resolveGraphScope,
+} from "@/graph-scoped-store.ts";
 export { buildDatasetStore } from "@/graph-scoped-store.ts";
 
 /**

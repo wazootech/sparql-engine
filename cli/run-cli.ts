@@ -51,7 +51,6 @@ export interface CliResult {
   stderr: string;
 }
 
-
 /**
  * parseArguments turns one argument list into flags or a usage message.
  *

@@ -1,4 +1,3 @@
-import type * as rdfjs from "@rdfjs/types";
 import type { RdfTerm } from "@/parser/rdf-terms.ts";
 import { buildQuadIndex, probeQuadIndex } from "@/quad-store.ts";
 import type { QuadIndex } from "@/quad-store.ts";

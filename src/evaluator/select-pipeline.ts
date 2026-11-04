@@ -4,7 +4,6 @@ import type {
 } from "@/evaluator/expression-evaluator.ts";
 import type { SelectQuery } from "@/parser/sparql-parser.ts";
 import type { SelectSolution } from "@/evaluator/select-solution.ts";
-import { innerJoin } from "@/evaluator/join.ts";
 import type { TermBinding } from "@/evaluator/join.ts";
 import { joinBindingsArrays } from "@/evaluator/join-bindings.ts";
 import { expressionContainsAggregate } from "@/evaluator/expression-utils.ts";

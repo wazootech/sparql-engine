@@ -1,6 +1,5 @@
-import type * as rdfjs from "@rdfjs/types";
 import type { ScanEntry, TermBinding } from "@/evaluator/join-bindings.ts";
-import type { RdfQuad, RdfQuadGraph, RdfTerm, RdfBaseQuad } from "@/parser/rdf-terms.ts";
+import type { RdfBaseQuad } from "@/parser/rdf-terms.ts";
 import { matchPatternTerm } from "@/evaluator/scan-entry.ts";
 
 /**

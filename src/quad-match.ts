@@ -1,5 +1,5 @@
 import type * as rdfjs from "@rdfjs/types";
-import type { RdfQuad, RdfQuadGraph, RdfTerm } from "@/parser/rdf-terms.ts";
+import type { RdfQuad, RdfTerm } from "@/parser/rdf-terms.ts";
 import type { TriplePredicate } from "@/parser/sparql-parser.ts";
 import { GraphScopedStore } from "@/graph-scoped-store.ts";
 import { MemoryStore } from "@/store/memory-store.ts";

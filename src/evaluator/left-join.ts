@@ -5,12 +5,10 @@ import {
 } from "@/evaluator/join-bindings.ts";
 import type { BindingFilter, TermBinding } from "@/evaluator/join-bindings.ts";
 import { passesOptionalFilter } from "@/evaluator/join-bindings.ts";
-import { filterBindingsArray, mapBindingsArray } from "@/evaluator/binding-arrays.ts";
 import {
   buildHashIndex,
   compatibleCandidates,
   JOIN_PRODUCT_THRESHOLD,
-  STREAM_NESTED_THRESHOLD,
 } from "@/evaluator/join-hash-index.ts";
 
 /**
@@ -87,52 +85,6 @@ function* leftJoinHash(
   for (const l of left) {
     let matched = false;
     for (const r of compatibleCandidates(l, joinVars, index, right)) {
-      const merged = { ...l, ...r };
-      if (passesOptionalFilter(merged, filter)) {
-        yield merged;
-        matched = true;
-      }
-    }
-    if (!matched) {
-      yield l;
-    }
-  }
-}
-
-function* leftJoinStreamNested(
-  left: Iterable<TermBinding>,
-  right: TermBinding[],
-  filters: BindingFilter[] = [],
-): Generator<TermBinding> {
-  for (const l of left) {
-    let matched = false;
-    for (const r of right) {
-      if (!bindingsCompatible(l, r)) {
-        continue;
-      }
-      const merged = { ...l, ...r };
-      if (filters.every((filter) => filter(merged))) {
-        yield merged;
-        matched = true;
-      }
-    }
-    if (!matched) {
-      yield l;
-    }
-  }
-}
-
-function* _leftJoinStreamNested(
-  left: Iterable<TermBinding>,
-  right: TermBinding[],
-  filter?: BindingFilter,
-): Generator<TermBinding> {
-  for (const l of left) {
-    let matched = false;
-    for (const r of right) {
-      if (!bindingsCompatible(l, r)) {
-        continue;
-      }
       const merged = { ...l, ...r };
       if (passesOptionalFilter(merged, filter)) {
         yield merged;

@@ -8,7 +8,6 @@ import {
   buildHashIndex,
   compatibleCandidates,
   JOIN_PRODUCT_THRESHOLD,
-  STREAM_NESTED_THRESHOLD,
 } from "@/evaluator/join-hash-index.ts";
 
 /**
@@ -72,32 +71,6 @@ function* innerJoinHash(
   for (const l of left) {
     for (const r of compatibleCandidates(l, joinVars, index, right)) {
       yield { ...l, ...r };
-    }
-  }
-}
-
-function* innerJoinStreamNested(
-  left: Iterable<TermBinding>,
-  right: TermBinding[],
-): Generator<TermBinding> {
-  for (const l of left) {
-    for (const r of right) {
-      if (bindingsCompatible(l, r)) {
-        yield { ...l, ...r };
-      }
-    }
-  }
-}
-
-function* _innerJoinStreamNested(
-  left: Iterable<TermBinding>,
-  right: TermBinding[],
-): Generator<TermBinding> {
-  for (const l of left) {
-    for (const r of right) {
-      if (bindingsCompatible(l, r)) {
-        yield { ...l, ...r };
-      }
     }
   }
 }

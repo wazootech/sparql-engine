@@ -12,7 +12,6 @@ export interface CliArguments {
   help: boolean;
 }
 
-
 type ParseResult =
   | { ok: true; cliArguments: CliArguments }
   | { ok: false; message: string };

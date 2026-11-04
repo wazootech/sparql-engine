@@ -7,7 +7,6 @@ import type {
   RdfNamedNode,
   RdfQuad,
   RdfTerm,
-  RdfVariable,
 } from "@/parser/rdf-terms.ts";
 import {
   blankNodeTerm,

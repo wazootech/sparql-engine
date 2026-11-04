@@ -1,4 +1,3 @@
-import type * as rdfjs from "@rdfjs/types";
 import type { RdfQuad, RdfTerm } from "@/parser/rdf-terms.ts";
 import { sameRdfTerm, termKey } from "@/term/mod.ts";
 

@@ -4,7 +4,7 @@ import type { TermBinding } from "@/evaluator/join-bindings.ts";
 export function copyBindingsArray(bindings: TermBinding[]): TermBinding[] {
   return bindings;
 }
- /** filterBindingsArray materializes filterBindings for array inputs (scriptc-safe). */
+/** filterBindingsArray materializes filterBindings for array inputs (scriptc-safe). */
 export function filterBindingsArray(
   bindings: TermBinding[],
   predicate: (binding: TermBinding) => boolean,
@@ -18,7 +18,7 @@ export function filterBindingsArray(
   }
   return out;
 }
- /** mapBindingsArray materializes mapBindings for array inputs (scriptc-safe). */
+/** mapBindingsArray materializes mapBindings for array inputs (scriptc-safe). */
 export function mapBindingsArray(
   bindings: TermBinding[],
   transform: (binding: TermBinding) => TermBinding,
