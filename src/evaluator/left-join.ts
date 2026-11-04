@@ -5,6 +5,7 @@ import {
 } from "@/evaluator/join-bindings.ts";
 import type { BindingFilter, TermBinding } from "@/evaluator/join-bindings.ts";
 import { passesOptionalFilter } from "@/evaluator/join-bindings.ts";
+import { filterBindingsArray, mapBindingsArray } from "@/evaluator/binding-arrays.ts";
 import {
   buildHashIndex,
   compatibleCandidates,

@@ -42,25 +42,8 @@ export const XSD_STRING = "http://www.w3.org/2001/XMLSchema#string";
  * terms are RDF/JS terms: they carry `termType`, `value` and `equals`.
  */
 
-/** LocalDataFactory is the term factory over the engine's local term types. */
-export interface LocalDataFactory {
-  namedNode(value: string): RdfNamedNode;
-  blankNode(value?: string): RdfBlankNode;
-  literal(
-    value: string,
-    languageOrDatatype?: string | RdfNamedNode | RdfDirectionalLanguage,
-  ): RdfLiteral;
-  variable(value: string): RdfVariable;
-  defaultGraph(): RdfDefaultGraph;
-  quad(
-    subject: RdfTerm,
-    predicate: RdfTerm,
-    object: RdfTerm,
-    graph?: RdfTerm,
-  ): RdfQuad;
-  fromTerm(original: RdfTerm): RdfTerm;
-  fromQuad(original: RdfQuad): RdfQuad;
-}
+export type { LocalDataFactory } from "@/term/factory-interface.ts";
+import type { LocalDataFactory } from "@/term/factory-interface.ts";
 
 /** defaultGraphInstance is the shared default graph term. */
 export const defaultGraphInstance: RdfDefaultGraph = defaultGraphTerm();

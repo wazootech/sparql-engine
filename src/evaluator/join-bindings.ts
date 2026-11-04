@@ -143,41 +143,37 @@ export function sharesVariable(a: TermBinding, b: TermBinding): boolean {
   return false;
 }
 
-/** copyBindingsArray is an identity helper for array-only binding flows. */
-export function copyBindingsArray(bindings: TermBinding[]): TermBinding[] {
-  return bindings;
-}
 
-/** filterBindingsArray materializes filterBindings for array inputs (scriptc-safe). */
-export function filterBindingsArray(
-  bindings: TermBinding[],
-  predicate: (binding: TermBinding) => boolean,
-): TermBinding[] {
-  const out: TermBinding[] = [];
-  for (let index = 0; index < bindings.length; index++) {
-    const binding = bindings[index];
-    if (predicate(binding)) {
-      out.push(binding);
-    }
-  }
-  return out;
-}
 
-/** mapBindingsArray materializes mapBindings for array inputs (scriptc-safe). */
-export function mapBindingsArray(
-  bindings: TermBinding[],
-  transform: (binding: TermBinding) => TermBinding,
-): TermBinding[] {
-  const out: TermBinding[] = [];
-  for (let index = 0; index < bindings.length; index++) {
-    out.push(transform(bindings[index]));
-  }
-  return out;
-}
 
 export function passesOptionalFilter(
   merged: TermBinding,
   filter: BindingFilter | undefined,
 ): boolean {
   return filter === undefined || filter(merged);
+}
+
+
+/**
+ * joinBindingsArrays joins two materialized binding arrays on shared
+ * variables (the array-array inner join): every compatible pair merges into
+ * one binding. The select pipeline's grouping/ordering steps are inherently
+ * materializing, so its streaming left is collected here rather than streamed
+ * (issue #74).
+ */
+export function joinBindingsArrays(
+  left: TermBinding[],
+  right: TermBinding[],
+): TermBinding[] {
+  const joined: TermBinding[] = [];
+  for (let leftIndex = 0; leftIndex < left.length; leftIndex++) {
+    const l = left[leftIndex];
+    for (let rightIndex = 0; rightIndex < right.length; rightIndex++) {
+      const r = right[rightIndex];
+      if (bindingsCompatible(l, r)) {
+        joined.push({ ...l, ...r });
+      }
+    }
+  }
+  return joined;
 }

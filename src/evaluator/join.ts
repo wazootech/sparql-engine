@@ -2,7 +2,7 @@ export type { TermBinding } from "@/evaluator/join-bindings.ts";
 export type { ScanEntry } from "@/evaluator/join-bindings.ts";
 export type { BindingFilter } from "@/evaluator/join-bindings.ts";
 export { bindingsCompatible } from "@/evaluator/join-bindings.ts";
-export { copyBindingsArray, filterBindingsArray, mapBindingsArray } from "@/evaluator/join-bindings.ts";
+export { copyBindingsArray, filterBindingsArray, mapBindingsArray } from "@/evaluator/binding-arrays.ts";
 export { leftJoin } from "@/evaluator/left-join.ts";
 export { innerJoin } from "@/evaluator/inner-join.ts";
 export { minus } from "@/evaluator/minus.ts";

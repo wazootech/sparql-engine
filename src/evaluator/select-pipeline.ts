@@ -6,7 +6,7 @@ import type { SelectQuery } from "@/parser/sparql-parser.ts";
 import type { SelectSolution } from "@/evaluator/select-solution.ts";
 import { innerJoin } from "@/evaluator/join.ts";
 import type { TermBinding } from "@/evaluator/join.ts";
-import { bindingsCompatible } from "@/evaluator/join-bindings.ts";
+import { joinBindingsArrays } from "@/evaluator/join-bindings.ts";
 import { expressionContainsAggregate } from "@/evaluator/expression-utils.ts";
 import { groupSolutions } from "@/evaluator/aggregate.ts";
 import { havingPasses } from "@/evaluator/select-having.ts";
@@ -53,20 +53,7 @@ export function applySelectPipeline(
       }
       return binding;
     });
-    // The join now emits incrementally (issue #74); the select pipeline's
-    // grouping/ordering steps are inherently materializing, so the streaming
-    // left is collected here.
-    const joined: TermBinding[] = [];
-    for (let leftIndex = 0; leftIndex < bindings.length; leftIndex++) {
-      const left = bindings[leftIndex];
-      for (let rightIndex = 0; rightIndex < rows.length; rightIndex++) {
-        const right = rows[rightIndex];
-        if (bindingsCompatible(left, right)) {
-          joined.push({ ...left, ...right });
-        }
-      }
-    }
-    bindings = joined;
+    bindings = joinBindingsArrays(bindings, rows);
   }
 
   const vars: string[] = [];
