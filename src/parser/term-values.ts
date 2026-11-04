@@ -1,13 +1,10 @@
 import type {
-  RdfBaseQuad,
   RdfBlankNode,
   RdfDefaultGraph,
-  RdfLiteral,
   RdfNamedNode,
   RdfTerm,
   RdfVariable,
 } from "./rdf-terms.ts";
-import { termKey } from "@/term/identity.ts";
 
 /**
  * Plain-record RDF/JS terms for the SPARQL AST.
@@ -21,10 +18,11 @@ import { termKey } from "@/term/identity.ts";
  * `DataFactory`.
  */
 
-const RDF_LANG_STRING = "http://www.w3.org/1999/02/22-rdf-syntax-ns#langString";
-const RDF_DIR_LANG_STRING =
+export const RDF_LANG_STRING =
+  "http://www.w3.org/1999/02/22-rdf-syntax-ns#langString";
+export const RDF_DIR_LANG_STRING =
   "http://www.w3.org/1999/02/22-rdf-syntax-ns#dirLangString";
-const XSD_STRING = "http://www.w3.org/2001/XMLSchema#string";
+export const XSD_STRING = "http://www.w3.org/2001/XMLSchema#string";
 
 function namedNodeEquals(
   this: RdfNamedNode,
@@ -97,109 +95,4 @@ const DEFAULT_GRAPH: RdfDefaultGraph = {
 /** defaultGraphTerm returns the default graph term. */
 export function defaultGraphTerm(): RdfDefaultGraph {
   return DEFAULT_GRAPH;
-}
-
-function literalEquals(
-  this: RdfLiteral,
-  other: RdfTerm | null | undefined,
-): boolean {
-  if (other === null || other === undefined || other.termType !== "Literal") {
-    return false;
-  }
-  return this.value === other.value && this.language === other.language &&
-    (this.direction ?? "") === (other.direction ?? "") &&
-    this.datatype.value === other.datatype.value;
-}
-
-function literalOf(
-  value: string,
-  language: string,
-  direction: "ltr" | "rtl" | "",
-  datatype: RdfNamedNode,
-): RdfLiteral {
-  return {
-    termType: "Literal",
-    value,
-    language,
-    direction,
-    datatype,
-    equals: literalEquals,
-  };
-}
-
-/** literalTerm builds a literal with a datatype (xsd:string by default). */
-export function literalTerm(
-  value: string,
-  datatype?: RdfNamedNode,
-): RdfLiteral {
-  return literalOf(
-    value,
-    "",
-    "",
-    datatype === undefined ? namedNodeTerm(XSD_STRING) : datatype,
-  );
-}
-
-/**
- * languageLiteralTerm builds a language-tagged literal; a direction makes it
- * an rdf:dirLangString literal (RDF 1.2).
- */
-export function languageLiteralTerm(
-  value: string,
-  language: string,
-  direction: "ltr" | "rtl" | "",
-): RdfLiteral {
-  return literalOf(
-    value,
-    language.toLowerCase(),
-    direction,
-    namedNodeTerm(direction ? RDF_DIR_LANG_STRING : RDF_LANG_STRING),
-  );
-}
-
-/** QuadTermValue is a quad term that may carry the SPARQL 1.2 markers. */
-export interface QuadTermValue extends RdfBaseQuad {
-  tripleTerm?: boolean;
-  reifier?: RdfTerm;
-}
-
-/** quadComponentsEqual compares quad components to another term. */
-export function quadComponentsEqual(
-  subject: RdfTerm,
-  predicate: RdfTerm,
-  object: RdfTerm,
-  graph: RdfTerm,
-  other: RdfTerm | null | undefined,
-): boolean {
-  if (other === null || other === undefined || other.termType !== "Quad") {
-    return false;
-  }
-  const otherQuad = other as RdfBaseQuad;
-  return termKey(subject) === termKey(otherQuad.subject) &&
-    termKey(predicate) === termKey(otherQuad.predicate) &&
-    termKey(object) === termKey(otherQuad.object) &&
-    termKey(graph) === termKey(otherQuad.graph);
-}
-
-/** quadTerm builds a quad in the default graph. */
-export function quadTerm(
-  subject: RdfTerm,
-  predicate: RdfTerm,
-  object: RdfTerm,
-): QuadTermValue {
-  const graph = DEFAULT_GRAPH;
-  return {
-    termType: "Quad",
-    value: "",
-    subject,
-    predicate,
-    object,
-    graph,
-    // A capturing arrow, not an object-literal method: the native compiler
-    // rejects `this` inside object-literal methods (SC1090), and a free
-    // function's `this.subject` on the recursive term union infers as
-    // `unknown` (SC1100). Closing over the components avoids both.
-    equals: (other) =>
-      quadComponentsEqual(subject, predicate, object, graph, other),
-  };
 }
