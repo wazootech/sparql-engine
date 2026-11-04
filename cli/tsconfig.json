@@ -7,7 +7,17 @@
     "allowImportingTsExtensions": true,
     "noEmit": true,
     "types": ["node"],
-    "paths": { "@/*": ["../src/*"] }
+    "paths": {
+      "@/quad-store-stream.ts": ["../src/quad-store-stream.native.ts"],
+      "@/store/quad-stream.ts": ["../src/store/quad-stream.native.ts"],
+      "@/store/store-statistics.ts": [
+        "../src/store/store-statistics.native.ts"
+      ],
+      "@/planner/pattern-statistics-hook.ts": [
+        "../src/planner/pattern-statistics-hook.native.ts"
+      ],
+      "@/*": ["../src/*"]
+    }
   },
   "files": ["node-main.ts"]
 }

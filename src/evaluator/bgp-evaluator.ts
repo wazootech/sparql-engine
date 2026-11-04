@@ -6,7 +6,7 @@ import type {
   SelectQuery,
   Triple,
 } from "@/parser/sparql-parser.ts";
-import { DataFactory } from "@/term/data-factory.ts";
+import { defaultGraphInstance } from "@/term/data-factory.ts";
 import {
   type ExpressionEvaluationContext,
   ExpressionEvaluator,
@@ -19,33 +19,40 @@ import {
   matchQuads,
   namedGraphs,
   type QuadIndex,
+  resolveGraphScope,
   simplePredicate,
   storeVersion,
 } from "@/quad-store.ts";
 import { checkAborted } from "@/evaluator/abort.ts";
 
-const { defaultGraph } = DataFactory;
 import {
-  filterBindings,
+  bindingsCompatible,
+  copyBindingsArray,
+  filterBindingsArray,
   innerJoin,
   isPropertyPath,
   joinPathPattern,
-  joinPathPatternLazy,
   joinTriplePattern,
-  joinTriplePatternLazy,
   leftJoin,
-  mapBindings,
+  mapBindingsArray,
   minus,
   scanEntry,
   scanPathEntry,
   scanPathEntrySync,
 } from "@/evaluator/join.ts";
 import { applySelectPipeline } from "@/evaluator/select-pipeline.ts";
-import type { ScanEntry, TermBinding } from "@/evaluator/join.ts";
+import type {
+  BindingFilter,
+  ScanEntry,
+  TermBinding,
+} from "@/evaluator/join.ts";
+import { requireQuadGraph } from "@/term/quad-narrow.ts";
 import { sameRdfTerm, sparqlTermToRdfTerm, termKey } from "@/term/mod.ts";
 import {
   BaselineJoinCostEstimator,
+  estimateBaselineJoinCost,
   type JoinCostEstimator,
+  patternVariableName,
 } from "@/planner/join-cost-estimator.ts";
 import { PatternStatistics } from "@/planner/pattern-statistics.ts";
 import {
@@ -206,7 +213,7 @@ export class BgpEvaluator {
     // reorder loop and repeated BGP blocks never re-derive them.
     const defaultScope = this.store instanceof GraphScopedStore
       ? this.store
-      : new GraphScopedStore(this.store, defaultGraph());
+      : new GraphScopedStore(this.store, defaultGraphInstance);
     const stats = new PatternStatistics(this.store);
     return await this.evaluateGroup(
       patterns,
@@ -278,7 +285,7 @@ export class BgpEvaluator {
     }
     if (
       store instanceof GraphScopedStore &&
-      store.graph.termType !== "DefaultGraph"
+      store.graphTermType !== "DefaultGraph"
     ) {
       return null;
     }
@@ -311,7 +318,7 @@ export class BgpEvaluator {
         "EXISTS requires a prepared pattern index: call prepareExistsIndex() first",
       );
     }
-    const scopeGraph = graph ?? defaultGraph();
+    const scopeGraph = graph ?? defaultGraphInstance;
     // The snapshot is filtered to the graph scope exactly once per
     // evaluateExists call; the recursive probes reuse these candidates (see
     // evaluateExistsScoped) instead of re-filtering per nested EXISTS.
@@ -578,7 +585,17 @@ export class BgpEvaluator {
           }
           return binding;
         });
-        return [...innerJoin(bindings, rows)];
+        const joined: TermBinding[] = [];
+        for (let leftIndex = 0; leftIndex < bindings.length; leftIndex++) {
+          const left = bindings[leftIndex];
+          for (let rightIndex = 0; rightIndex < rows.length; rightIndex++) {
+            const right = rows[rightIndex];
+            if (bindingsCompatible(left, right)) {
+              joined.push({ ...left, ...right });
+            }
+          }
+        }
+        return joined;
       }
       case "optional": {
         // The OPTIONAL group's own FILTER expressions are hoisted out and
@@ -604,13 +621,11 @@ export class BgpEvaluator {
           quads,
           baseIri,
         );
-        return [...leftJoin(
+        return leftJoin(
           bindings,
           right,
-          filters.map((expression) => (binding: TermBinding) =>
-            this.expressionEvaluator.filterPasses(expression, binding, context)
-          ),
-        )];
+          this.optionalExpressionFilter(filters, context),
+        ) as unknown as TermBinding[];
       }
       case "minus": {
         const right = this.evaluateExistsGroup(
@@ -622,7 +637,7 @@ export class BgpEvaluator {
           quads,
           baseIri,
         );
-        return [...minus(bindings, right)];
+        return minus(bindings, right) as unknown as TermBinding[];
       }
       case "union": {
         // Each branch evaluates independently over the graph scope; the union
@@ -642,7 +657,10 @@ export class BgpEvaluator {
             ),
           );
         }
-        return [...innerJoin(bindings, branchResults.flat())];
+        return innerJoin(
+          bindings,
+          branchResults.flat(),
+        ) as unknown as TermBinding[];
       }
       case "group":
         // A nested { ... } block recurses over the same scope, mirroring the
@@ -697,13 +715,36 @@ export class BgpEvaluator {
           this.expressionEvaluator,
           subContext,
         );
-        return [...innerJoin(bindings, subResults)];
+        return innerJoin(bindings, subResults) as unknown as TermBinding[];
       }
       default:
         throw new Error(
           `Unsupported graph pattern inside EXISTS: ` + patternType,
         );
     }
+  }
+
+  /**
+   * optionalExpressionFilter composes OPTIONAL FILTER expressions into one
+   * predicate so scriptc never has to compile an array of filter callbacks.
+   */
+  private optionalExpressionFilter(
+    filters: Expression[],
+    context: ExpressionEvaluationContext,
+  ): BindingFilter | undefined {
+    if (filters.length === 0) {
+      return undefined;
+    }
+    return (binding: TermBinding) => {
+      for (const expression of filters) {
+        if (
+          !this.expressionEvaluator.filterPasses(expression, binding, context)
+        ) {
+          return false;
+        }
+      }
+      return true;
+    };
   }
 
   /**
@@ -715,11 +756,9 @@ export class BgpEvaluator {
     store: rdfjs.Source<RdfQuad>,
     baseIri?: string,
   ): ExpressionEvaluationContext {
-    const graph = store instanceof GraphScopedStore
-      ? store.graph
-      : defaultGraph();
+    const graph = resolveGraphScope(store);
     return {
-      evaluateExists: (pattern, solution) =>
+      evaluateExists: (pattern: Pattern, solution: TermBinding) =>
         this.evaluateExists(pattern, solution, graph, baseIri),
       baseIri,
     };
@@ -743,9 +782,7 @@ export class BgpEvaluator {
         "EXISTS requires a prepared pattern index: call prepareExistsIndex() first",
       );
     }
-    const graph = store instanceof GraphScopedStore
-      ? store.graph
-      : defaultGraph();
+    const graph = resolveGraphScope(store);
     // The scoped candidates and index are captured once per context, so a
     // concurrent call's rebuild never swaps them mid-evaluation (issue #72).
     const candidates = snapshot.quads.filter((item) =>
@@ -753,7 +790,7 @@ export class BgpEvaluator {
     );
     const { index, quads } = snapshot;
     return {
-      evaluateExists: (pattern, solution) =>
+      evaluateExists: (pattern: Pattern, solution: TermBinding) =>
         this.evaluateExistsScoped(
           pattern,
           solution,
@@ -778,7 +815,7 @@ export class BgpEvaluator {
   public pipelineExistsContext(
     snapshot: ExistsSnapshot,
   ): ExpressionEvaluationContext {
-    const graph = defaultGraph();
+    const graph = defaultGraphInstance;
     const candidates = snapshot.quads.filter((item) =>
       sameRdfTerm(item.graph, graph)
     );
@@ -852,7 +889,7 @@ export class BgpEvaluator {
         nonFilters.push(p);
       }
     }
-    let result: Iterable<TermBinding> = bindings;
+    let result: TermBinding[] = bindings;
     // Each pattern boundary is a cancellation checkpoint (issue #122): the
     // check is per pattern, so a long chain stops at the next pattern once
     // the request is aborted (the per-triple check inside joinBgp covers
@@ -883,23 +920,21 @@ export class BgpEvaluator {
     }
     // Materialize exactly once at the group boundary (an array result — the
     // single-pattern BGP fast path — passes through without a copy).
-    return Array.isArray(result) ? result : [...result];
+    return copyBindingsArray(result);
   }
 
   /**
    * evaluatePattern applies a single graph pattern to the current solutions.
-   * The bindings may stream as an iterable (the group's lazy solution flow);
-   * the result is an iterable the next pattern consumes.
    */
   private async evaluatePattern(
     pattern: Pattern,
-    bindings: TermBinding[] | Iterable<TermBinding>,
+    bindings: TermBinding[],
     store: rdfjs.Source<RdfQuad>,
     snapshot: ExistsSnapshot | null,
     stats: PatternStatistics,
     baseIri?: string,
     signal?: AbortSignal,
-  ): Promise<Iterable<TermBinding>> {
+  ): Promise<TermBinding[]> {
     switch (pattern.type) {
       case "bgp":
         return await this.joinBgp(
@@ -914,7 +949,7 @@ export class BgpEvaluator {
         const context = expressionContainsExists(pattern.expression)
           ? this.scopedExistsContext(store, snapshot, baseIri)
           : this.existsContext(store, baseIri);
-        return filterBindings(
+        return filterBindingsArray(
           bindings,
           (binding) =>
             this.expressionEvaluator.filterPasses(
@@ -952,10 +987,8 @@ export class BgpEvaluator {
         return leftJoin(
           bindings,
           right,
-          filters.map((expression) => (binding: TermBinding) =>
-            this.expressionEvaluator.filterPasses(expression, binding, context)
-          ),
-        );
+          this.optionalExpressionFilter(filters, context),
+        ) as unknown as TermBinding[];
       }
       case "minus": {
         const right = await this.evaluateGroup(
@@ -966,7 +999,7 @@ export class BgpEvaluator {
           baseIri,
           signal,
         );
-        return minus(bindings, right);
+        return minus(bindings, right) as unknown as TermBinding[];
       }
       case "union": {
         // Each branch evaluates independently over the graph; the union is
@@ -985,7 +1018,10 @@ export class BgpEvaluator {
             ),
           );
         }
-        return innerJoin(bindings, branchResults.flat());
+        return innerJoin(
+          bindings,
+          branchResults.flat(),
+        ) as unknown as TermBinding[];
       }
       case "values": {
         // VALUES data blocks are a multiset of rows naturally joined with
@@ -1002,7 +1038,17 @@ export class BgpEvaluator {
           }
           return binding;
         });
-        return innerJoin(bindings, rows);
+        const joined: TermBinding[] = [];
+        for (let leftIndex = 0; leftIndex < bindings.length; leftIndex++) {
+          const left = bindings[leftIndex];
+          for (let rightIndex = 0; rightIndex < rows.length; rightIndex++) {
+            const right = rows[rightIndex];
+            if (bindingsCompatible(left, right)) {
+              joined.push({ ...left, ...right });
+            }
+          }
+        }
+        return joined;
       }
       case "bind": {
         // BIND is Extend(P, var, expr) per SPARQL 1.1 §18.2.2.2: the
@@ -1012,7 +1058,7 @@ export class BgpEvaluator {
         const context = expressionContainsExists(pattern.expression)
           ? this.scopedExistsContext(store, snapshot, baseIri)
           : this.existsContext(store, baseIri);
-        return mapBindings(bindings, (binding) => {
+        return mapBindingsArray(bindings, (binding) => {
           const value = this.expressionEvaluator.evaluate(
             pattern.expression,
             binding,
@@ -1059,7 +1105,10 @@ export class BgpEvaluator {
           },
         ];
         for (const graphTerm of graphTerms) {
-          const scopedStore = new GraphScopedStore(store, graphTerm);
+          const scopedStore = new GraphScopedStore(
+            store,
+            requireQuadGraph(graphTerm),
+          );
           const inner = await this.evaluateGroup(
             innerPatterns,
             [{}],
@@ -1070,7 +1119,9 @@ export class BgpEvaluator {
           );
           for (const binding of inner) {
             if (graphName.termType === "Variable") {
-              const existing = binding[graphName.value];
+              // Annotated because an unbound variable reads as undefined and
+              // the native compiler (scriptc) lays out the declared type.
+              const existing: RdfTerm | undefined = binding[graphName.value];
               if (existing !== undefined && !sameRdfTerm(existing, graphTerm)) {
                 continue;
               }
@@ -1080,7 +1131,7 @@ export class BgpEvaluator {
             }
           }
         }
-        return innerJoin(bindings, results);
+        return innerJoin(bindings, results) as unknown as TermBinding[];
       }
       case "group": {
         const groupResult = await this.evaluateGroup(
@@ -1091,7 +1142,7 @@ export class BgpEvaluator {
           baseIri,
           signal,
         );
-        return innerJoin(bindings, groupResult);
+        return innerJoin(bindings, groupResult) as unknown as TermBinding[];
       }
       case "service": {
         const silent = Boolean(pattern.silent);
@@ -1104,7 +1155,7 @@ export class BgpEvaluator {
             baseIri,
             signal,
           );
-          return innerJoin(bindings, inner);
+          return innerJoin(bindings, inner) as unknown as TermBinding[];
         } catch (err) {
           if (silent) return bindings;
           throw err;
@@ -1124,7 +1175,7 @@ export class BgpEvaluator {
           baseIri,
           signal,
         );
-        return innerJoin(bindings, subResults);
+        return innerJoin(bindings, subResults) as unknown as TermBinding[];
       }
       default:
         throw new Error(
@@ -1144,12 +1195,12 @@ export class BgpEvaluator {
    */
   private async joinBgp(
     triples: Triple[],
-    bindings: TermBinding[] | Iterable<TermBinding>,
+    bindings: TermBinding[],
     store: rdfjs.Source<RdfQuad>,
     snapshot: ExistsSnapshot | null,
     stats: PatternStatistics,
     signal?: AbortSignal,
-  ): Promise<Iterable<TermBinding>> {
+  ): Promise<TermBinding[]> {
     // Reified-triple patterns (`<< s p o >>`, annotation `{| ... |}`) expand
     // into plain `rdf:reifies` triples before any scanning or reordering.
     const expanded = expandReifiedTriples(triples);
@@ -1176,7 +1227,7 @@ export class BgpEvaluator {
     // instead of materializing an array per pattern.
     if (expanded.length === 1) {
       const triple = expanded[0];
-      const input = Array.isArray(bindings) ? bindings : [...bindings];
+      const input = bindings;
       if (isPropertyPath(triple.predicate)) {
         const entry = await scanPathEntry(
           store,
@@ -1184,12 +1235,12 @@ export class BgpEvaluator {
           triple.subject,
           triple.object,
         );
-        return joinPathPattern(input, entry);
+        return joinPathPattern(input, entry) as unknown as TermBinding[];
       }
       const entry = await scanEntry(store, triple);
       return joinTriplePattern(input, entry, prebuiltIndex);
     }
-    let result: Iterable<TermBinding> = bindings;
+    let result: TermBinding[] = bindings;
     for (const triple of expanded) {
       // Per-join cancellation checkpoint (issue #122): each BGP join is a
       // boundary, so an aborted request stops the chain at the next triple.
@@ -1201,10 +1252,10 @@ export class BgpEvaluator {
           triple.subject,
           triple.object,
         );
-        result = joinPathPatternLazy(result, entry);
+        result = joinPathPattern(result, entry) as unknown as TermBinding[];
       } else {
         const entry = await scanEntry(store, triple);
-        result = joinTriplePatternLazy(result, entry, prebuiltIndex);
+        result = joinTriplePattern(result, entry, prebuiltIndex);
       }
     }
     return result;
@@ -1223,7 +1274,7 @@ export class BgpEvaluator {
    */
   private async evaluateWithReordering(
     triplePatterns: Triple[],
-    bindings: TermBinding[] | Iterable<TermBinding>,
+    bindings: TermBinding[],
     store: rdfjs.Source<RdfQuad>,
     prebuiltIndex: QuadIndex | null,
     stats: PatternStatistics,
@@ -1238,9 +1289,7 @@ export class BgpEvaluator {
       remaining.map((entry) => stats.statsFor(store, entry)),
     );
 
-    let result: TermBinding[] = Array.isArray(bindings)
-      ? bindings
-      : [...bindings];
+    let result: TermBinding[] = bindings;
     // The default estimator's costs are exactly the join-order search's
     // estimated model (planner piece 3, issue #130), so for small BGPs a
     // subset DP replaces the greedy stepwise choice with the globally
@@ -1273,11 +1322,24 @@ export class BgpEvaluator {
       let bestIndex = 0;
       let bestCost = Number.POSITIVE_INFINITY;
       for (let index = 0; index < remaining.length; index++) {
-        const cost = this.estimator.estimateJoinCost(
-          remaining[index],
-          result,
-          perEntryStats[index],
-        );
+        const pattern = remaining[index];
+        const cost = this.estimator instanceof BaselineJoinCostEstimator
+          ? estimateBaselineJoinCost(
+            patternVariableName(pattern.subject),
+            patternVariableName(pattern.predicate),
+            patternVariableName(pattern.object),
+            pattern.candidates.length,
+            result,
+            perEntryStats[index],
+          )
+          : this.estimator.estimateJoinCost(
+            patternVariableName(pattern.subject),
+            patternVariableName(pattern.predicate),
+            patternVariableName(pattern.object),
+            pattern.candidates.length,
+            result.length,
+            perEntryStats[index],
+          );
         if (cost < bestCost) {
           bestCost = cost;
           bestIndex = index;
@@ -1338,11 +1400,17 @@ function patternContainsExists(pattern: Pattern): boolean {
  * snapshot (the synchronous twin of namedGraphs, for the EXISTS evaluator).
  */
 function namedGraphTerms(quads: RdfQuad[]): RdfQuadGraph[] {
-  const graphs = new Map<string, RdfQuadGraph>();
-  for (const item of quads) {
+  const seen = new Map<string, RdfQuadGraph>();
+  const out: RdfQuadGraph[] = [];
+  for (let index = 0; index < quads.length; index++) {
+    const item = quads[index];
     if (item.graph.termType !== "DefaultGraph") {
-      graphs.set(termKey(item.graph), item.graph);
+      const key = termKey(item.graph);
+      if (!seen.has(key)) {
+        seen.set(key, item.graph);
+        out.push(item.graph);
+      }
     }
   }
-  return [...graphs.values()];
+  return out;
 }

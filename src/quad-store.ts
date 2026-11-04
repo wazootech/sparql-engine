@@ -5,13 +5,13 @@ import type {
   Triple,
   TriplePredicate,
 } from "@/parser/sparql-parser.ts";
-import type {
-  PatternStats,
-  StoreStatisticsHook,
-} from "@/planner/pattern-statistics.ts";
+import type { PatternStats } from "@/planner/pattern-statistics.ts";
 import { MemoryStore } from "@/store/memory-store.ts";
-import type { QuadEventSource } from "@/store/quad-event-source.ts";
-import { DataFactory } from "@/term/data-factory.ts";
+import { matchQuadStream } from "@/store/quad-stream.ts";
+import { estimateStatsViaStore } from "@/store/store-statistics.ts";
+import { matchQuadsViaStream } from "@/quad-store-stream.ts";
+import { DataFactory, defaultGraphInstance } from "@/term/data-factory.ts";
+import { quadDedupKey } from "@/term/quad-narrow.ts";
 import { sameRdfTerm, termKey } from "@/term/mod.ts";
 
 /**
@@ -117,6 +117,60 @@ export function storeVersion(
 }
 
 /**
+ * memoryQuadsOf answers a pattern from a MemoryStore. The receiver is a
+ * statically typed parameter, not a dynamically narrowed one: the native
+ * compiler (scriptc) cannot convert typed arguments to a receiver it only
+ * knows as a dynamic value (SC1101).
+ */
+function memoryQuadsOf(
+  memory: MemoryStore,
+  s: RdfTerm | null,
+  p: RdfTerm | null,
+  o: RdfTerm | null,
+  g: RdfTerm | null,
+): RdfQuad[] {
+  return memory.getQuads(s, p, o, g);
+}
+
+/**
+ * memoryQuads answers the pattern from an indexed MemoryStore underneath any
+ * number of graph scopes, or null when the store is not one (the caller then
+ * falls back to the RDF/JS stream). It returns quads, never the store: the
+ * native compiler (scriptc) cannot represent a program class instance in a
+ * checked-dynamic slot or union (`MemoryStore | null`), so narrowing happens
+ * in place and only the plain `RdfQuad[]` result crosses the boundary.
+ */
+function memoryQuads(
+  source: rdfjs.Source<RdfQuad>,
+  s: RdfTerm | null,
+  p: RdfTerm | null,
+  o: RdfTerm | null,
+  g: RdfTerm | null,
+): RdfQuad[] | null {
+  if (source instanceof MemoryStore) {
+    return memoryQuadsOf(source, s, p, o, g);
+  }
+  if (source instanceof GraphScopedStore) {
+    return memoryQuads(source.sourceStore, s, p, o, g);
+  }
+  return null;
+}
+
+/** resolveMatchGraph picks the graph argument for store.match / getQuads. */
+function resolveMatchGraph(
+  store: rdfjs.Source<RdfQuad>,
+  g: RdfTerm | null,
+): RdfTerm | null {
+  if (g !== null) {
+    return g;
+  }
+  if (store instanceof GraphScopedStore) {
+    return resolveGraphScope(store);
+  }
+  return null;
+}
+
+/**
  * matchQuads collects all quads matching the given pattern from an RDF/JS
  * store, resolving the store's match stream into an array.
  */
@@ -127,13 +181,41 @@ export function matchQuads(
   o: RdfTerm | null,
   g: RdfTerm | null = null,
 ): Promise<RdfQuad[]> {
-  return new Promise<RdfQuad[]>((resolve, reject) => {
-    const quads: RdfQuad[] = [];
-    const stream = store.match(s, p, o, g) as unknown as QuadEventSource;
-    stream.on("data", (q: RdfQuad) => quads.push(q));
-    stream.on("end", () => resolve(quads));
-    stream.on("error", reject);
-  });
+  const graphTerm = resolveMatchGraph(store, g);
+  const quads = memoryQuads(store, s, p, o, graphTerm);
+  if (quads !== null) {
+    return Promise.resolve(quads);
+  }
+  return matchQuadsViaStream(store, s, p, o, graphTerm);
+}
+
+/**
+ * graphTermFromDescriptor rebuilds a graph term from the (termType, value)
+ * pair a GraphScopedStore carries. The view keeps its scope as strings so a
+ * narrowed view never has to hand a class value to a dynamic slot, which the
+ * native (scriptc) build cannot represent.
+ */
+export function graphTermFromDescriptor(
+  termType: string,
+  value: string,
+): RdfQuadGraph {
+  if (termType === "DefaultGraph") {
+    return defaultGraphInstance;
+  }
+  if (termType === "BlankNode") {
+    return DataFactory.blankNode(value);
+  }
+  return DataFactory.namedNode(value);
+}
+
+/** resolveGraphScope returns the active graph term for store scans. */
+export function resolveGraphScope(
+  store: rdfjs.Source<RdfQuad>,
+): RdfQuadGraph {
+  if (store instanceof GraphScopedStore) {
+    return graphTermFromDescriptor(store.graphTermType, store.graphValue);
+  }
+  return defaultGraphInstance;
 }
 
 /**
@@ -170,8 +252,22 @@ export function simplePredicate(predicate: TriplePredicate): SparqlTerm {
 export class GraphScopedStore implements rdfjs.Source<RdfQuad> {
   public constructor(
     private readonly store: rdfjs.Source<RdfQuad>,
-    public readonly graph: RdfTerm,
-  ) {}
+    graph: RdfQuadGraph,
+  ) {
+    this.graphTermType = graph.termType;
+    this.graphValue = graph.value;
+  }
+
+  /** graphTermType is the scope's term type, kept as a plain string. */
+  public readonly graphTermType: string;
+
+  /** graphValue is the scope's term value, kept as a plain string. */
+  public readonly graphValue: string;
+
+  /** graph rebuilds the scope's graph term from its string fields. */
+  public graph(): RdfQuadGraph {
+    return graphTermFromDescriptor(this.graphTermType, this.graphValue);
+  }
 
   /** version delegates to the wrapped store so snapshot caches see through
    * the view (the view itself never mutates the data). */
@@ -188,11 +284,12 @@ export class GraphScopedStore implements rdfjs.Source<RdfQuad> {
   public estimateStats?(
     pattern: Triple,
   ): PatternStats | Promise<PatternStats | undefined> | undefined {
-    const hook = (this.store as StoreStatisticsHook).estimateStats;
-    if (typeof hook !== "function") {
-      return undefined;
-    }
-    return hook.call(this.store, pattern);
+    return estimateStatsViaStore(this.store, pattern);
+  }
+
+  /** sourceStore is the dataset store this graph view wraps. */
+  public get sourceStore(): rdfjs.Source<RdfQuad> {
+    return this.store;
   }
 
   public match(
@@ -204,7 +301,13 @@ export class GraphScopedStore implements rdfjs.Source<RdfQuad> {
     // An explicit graph wins; otherwise the view's fixed graph applies. The
     // pipeline always scans with a null graph, so the scope is applied, and
     // nested scopes (GRAPH inside GRAPH) compose correctly.
-    return this.store.match(subject, predicate, object, graph ?? this.graph);
+    return matchQuadStream(
+      this.store,
+      subject,
+      predicate,
+      object,
+      graph ?? this.graph(),
+    );
   }
 }
 
@@ -245,7 +348,7 @@ export async function buildDatasetStore(
   for (const graph of from) {
     const quads = await matchQuads(store, null, null, null, graph);
     for (const item of quads) {
-      const key = termKey(item);
+      const key = quadDedupKey(item);
       if (!seen.has(key)) {
         seen.add(key);
         dataset.addQuad(

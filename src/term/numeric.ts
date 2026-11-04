@@ -42,10 +42,29 @@ export const NUMERIC_DATATYPES: ReadonlySet<string> = new Set([
 ]);
 
 /**
+ * numberFromText parses a numeric lexical form as a JS number with the exact
+ * ToNumber semantics of `Number(text)`. Unary plus is the same operation and
+ * stays out of the native compiler's dynamic tier, where the `Number()`
+ * constructor lands (scriptc issue #221).
+ */
+export function numberFromText(text: string): number {
+  return +text;
+}
+
+/**
+ * numberFromNumeric converts a numeric value to a JS number. A bigint goes
+ * through its exact decimal form, so the result keeps `Number(bigint)`
+ * rounding without the dynamic `Number()` constructor.
+ */
+export function numberFromNumeric(value: number | bigint): number {
+  return typeof value === "bigint" ? parseFloat(value.toString()) : value;
+}
+
+/**
  * numericValue extracts the numeric value of a literal, or null when it is
  * not numeric or its lexical form is malformed. xsd:integer parses with
  * BigInt for exact arbitrary-precision arithmetic; other numeric datatypes
- * use Number.
+ * use JS number parsing.
  */
 export function numericValue(term: RdfLiteral): number | bigint | null {
   const datatype = term.datatype?.value;
@@ -59,7 +78,7 @@ export function numericValue(term: RdfLiteral): number | bigint | null {
       return null;
     }
   }
-  const numeric = Number(term.value);
+  const numeric = numberFromText(term.value);
   return Number.isNaN(numeric) ? null : numeric;
 }
 
@@ -74,8 +93,8 @@ export function compareNumericValues(
   if (typeof a === "bigint" && typeof b === "bigint") {
     return a < b ? -1 : a > b ? 1 : 0;
   }
-  const an = Number(a);
-  const bn = Number(b);
+  const an = numberFromNumeric(a);
+  const bn = numberFromNumeric(b);
   return an < bn ? -1 : an > bn ? 1 : 0;
 }
 

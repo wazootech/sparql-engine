@@ -5,6 +5,8 @@
  * timezone offsets.
  */
 
+import { numberFromText } from "@/term/numeric.ts";
+
 /**
  * DateTimeParts is the parsed component view of an xsd:dateTime literal.
  */
@@ -46,12 +48,12 @@ export function parseDateTime(lexical: string): DateTimeParts | null {
   if (match === null) {
     return null;
   }
-  const year = Number(match[1]);
-  const month = Number(match[2]);
-  const day = Number(match[3]);
-  const hours = Number(match[4]);
-  const minutes = Number(match[5]);
-  const seconds = Number(match[6]);
+  const year = numberFromText(match[1]);
+  const month = numberFromText(match[2]);
+  const day = numberFromText(match[3]);
+  const hours = numberFromText(match[4]);
+  const minutes = numberFromText(match[5]);
+  const seconds = numberFromText(match[6]);
   if (
     month < 1 || month > 12 || day < 1 || day > 31 ||
     hours > 23 || minutes > 59 || seconds > 60
@@ -65,8 +67,8 @@ export function parseDateTime(lexical: string): DateTimeParts | null {
     hasTimezone = true;
     if (timezone !== "Z") {
       const sign = timezone[0] === "-" ? -1 : 1;
-      const tzHours = Number(timezone.slice(1, 3));
-      const tzMinutes = Number(timezone.slice(4, 6));
+      const tzHours = numberFromText(timezone.slice(1, 3));
+      const tzMinutes = numberFromText(timezone.slice(4, 6));
       if (tzHours > 23 || tzMinutes > 59) {
         return null;
       }
@@ -79,7 +81,9 @@ export function parseDateTime(lexical: string): DateTimeParts | null {
     day,
     hours,
     minutes,
-    seconds: match[7] !== undefined ? Number(match[6] + match[7]) : seconds,
+    seconds: match[7] !== undefined
+      ? numberFromText(match[6] + match[7])
+      : seconds,
     hasTimezone,
     timezoneMinutes,
   };

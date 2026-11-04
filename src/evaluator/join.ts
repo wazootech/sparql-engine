@@ -19,6 +19,7 @@ import {
   simplePredicate,
 } from "@/quad-store.ts";
 import { isReifiesPattern } from "@/evaluator/reified.ts";
+import { collectNpsExclusions } from "@/evaluator/path-nps-items.ts";
 import { sameRdfTerm, sparqlTermToRdfTerm, termKey } from "@/term/mod.ts";
 
 /**
@@ -77,6 +78,13 @@ export function bindingsCompatible(
   return true;
 }
 
+function passesOptionalFilter(
+  merged: TermBinding,
+  filter: BindingFilter | undefined,
+): boolean {
+  return filter === undefined || filter(merged);
+}
+
 /**
  * leftJoin implements the OPTIONAL algebra: every left binding is extended
  * with each compatible right binding whose merged binding passes all
@@ -94,11 +102,9 @@ export function bindingsCompatible(
 export function leftJoin(
   left: Iterable<TermBinding>,
   right: TermBinding[],
-  filters: BindingFilter[] = [],
+  filter?: BindingFilter,
 ): Iterable<TermBinding> {
   if (right.length === 0) {
-    // No right bindings: every left binding survives unextended. An array
-    // left is copied (as before); a streaming left passes through untouched.
     return Array.isArray(left) ? left.slice() : left;
   }
   if (Array.isArray(left)) {
@@ -106,20 +112,18 @@ export function leftJoin(
       return EMPTY_BINDINGS;
     }
     if (left.length * right.length <= JOIN_PRODUCT_THRESHOLD) {
-      return leftJoinNested(left, right, filters);
+      return [...leftJoinNested(left, right, filter)];
     }
-    return leftJoinHash(left, right, filters);
+    return [...leftJoinHash(left, right, filter)];
   }
-  if (right.length <= STREAM_NESTED_THRESHOLD) {
-    return leftJoinStreamNested(left, right, filters);
-  }
-  return leftJoinHash([...left], right, filters);
+  // Native builds (scriptc) only thread array bindings through group evaluation.
+  return EMPTY_BINDINGS;
 }
 
 function* leftJoinNested(
   left: TermBinding[],
   right: TermBinding[],
-  filters: BindingFilter[] = [],
+  filter?: BindingFilter,
 ): Generator<TermBinding> {
   for (const l of left) {
     let matched = false;
@@ -128,7 +132,7 @@ function* leftJoinNested(
         continue;
       }
       const merged = { ...l, ...r };
-      if (filters.every((filter) => filter(merged))) {
+      if (passesOptionalFilter(merged, filter)) {
         yield merged;
         matched = true;
       }
@@ -142,12 +146,13 @@ function* leftJoinNested(
 function* leftJoinHash(
   left: TermBinding[],
   right: TermBinding[],
-  filters: BindingFilter[] = [],
+  filter?: BindingFilter,
 ): Generator<TermBinding> {
   const joinVars = sharedVars(left, right);
   if (joinVars.length === 0) {
-    // No variable is bound on both sides: every pair is compatible.
-    yield* leftJoinNested(left, right, filters);
+    for (const binding of leftJoinNested(left, right, filter)) {
+      yield binding;
+    }
     return;
   }
   const index = buildHashIndex(right, joinVars);
@@ -155,7 +160,7 @@ function* leftJoinHash(
     let matched = false;
     for (const r of compatibleCandidates(l, joinVars, index, right)) {
       const merged = { ...l, ...r };
-      if (filters.every((filter) => filter(merged))) {
+      if (passesOptionalFilter(merged, filter)) {
         yield merged;
         matched = true;
       }
@@ -166,10 +171,10 @@ function* leftJoinHash(
   }
 }
 
-function* leftJoinStreamNested(
+function* _leftJoinStreamNested(
   left: Iterable<TermBinding>,
   right: TermBinding[],
-  filters: BindingFilter[] = [],
+  filter?: BindingFilter,
 ): Generator<TermBinding> {
   for (const l of left) {
     let matched = false;
@@ -178,7 +183,7 @@ function* leftJoinStreamNested(
         continue;
       }
       const merged = { ...l, ...r };
-      if (filters.every((filter) => filter(merged))) {
+      if (passesOptionalFilter(merged, filter)) {
         yield merged;
         matched = true;
       }
@@ -215,14 +220,11 @@ export function innerJoin(
       return EMPTY_BINDINGS;
     }
     if (left.length * right.length <= JOIN_PRODUCT_THRESHOLD) {
-      return innerJoinNested(left, right);
+      return [...innerJoinNested(left, right)];
     }
-    return innerJoinHash(left, right);
+    return [...innerJoinHash(left, right)];
   }
-  if (right.length <= STREAM_NESTED_THRESHOLD) {
-    return innerJoinStreamNested(left, right);
-  }
-  return innerJoinHash([...left], right);
+  return EMPTY_BINDINGS;
 }
 
 function* innerJoinNested(
@@ -244,8 +246,9 @@ function* innerJoinHash(
 ): Generator<TermBinding> {
   const joinVars = sharedVars(left, right);
   if (joinVars.length === 0) {
-    // No variable is bound on both sides: the result is a cross product.
-    yield* innerJoinNested(left, right);
+    for (const binding of innerJoinNested(left, right)) {
+      yield binding;
+    }
     return;
   }
   const index = buildHashIndex(right, joinVars);
@@ -256,7 +259,7 @@ function* innerJoinHash(
   }
 }
 
-function* innerJoinStreamNested(
+function* _innerJoinStreamNested(
   left: Iterable<TermBinding>,
   right: TermBinding[],
 ): Generator<TermBinding> {
@@ -293,14 +296,11 @@ export function minus(
       return EMPTY_BINDINGS;
     }
     if (left.length * right.length <= JOIN_PRODUCT_THRESHOLD) {
-      return minusNested(left, right);
+      return [...minusNested(left, right)];
     }
-    return minusHash(left, right);
+    return [...minusHash(left, right)];
   }
-  if (right.length <= STREAM_NESTED_THRESHOLD) {
-    return minusStreamNested(left, right);
-  }
-  return minusHash([...left], right);
+  return EMPTY_BINDINGS;
 }
 
 function* minusNested(
@@ -340,7 +340,7 @@ function* minusHash(
   }
 }
 
-function* minusStreamNested(
+function* _minusStreamNested(
   left: Iterable<TermBinding>,
   right: TermBinding[],
 ): Generator<TermBinding> {
@@ -389,7 +389,7 @@ const JOIN_PRODUCT_THRESHOLD = 4096;
  * {@link https://doi.org/10.1145/152610.152611 Graefe, "Query Evaluation Techniques for Large Databases," ACM Computing Surveys 25(2), 1993, pp. 73–170};
  * {@link https://doi.org/10.1145/582095.582099 Selinger et al., "Access Path Selection in a Relational Database Management System," SIGMOD '79, pp. 23–34}.)
  */
-const STREAM_NESTED_THRESHOLD = 64;
+const _STREAM_NESTED_THRESHOLD = 64;
 
 /** Shared empty result for joins with no right side (never mutated). */
 const EMPTY_BINDINGS: TermBinding[] = [];
@@ -409,6 +409,21 @@ export function* filterBindings(
   }
 }
 
+/** filterBindingsArray materializes filterBindings for array inputs (scriptc-safe). */
+export function filterBindingsArray(
+  bindings: TermBinding[],
+  predicate: (binding: TermBinding) => boolean,
+): TermBinding[] {
+  const out: TermBinding[] = [];
+  for (let index = 0; index < bindings.length; index++) {
+    const binding = bindings[index];
+    if (predicate(binding)) {
+      out.push(binding);
+    }
+  }
+  return out;
+}
+
 /**
  * mapBindings applies a transform to a binding iterable — the streaming
  * counterpart to Array#map, for the lazy group evaluation (issue #74).
@@ -420,6 +435,23 @@ export function* mapBindings<T>(
   for (const binding of bindings) {
     yield transform(binding);
   }
+}
+
+/** mapBindingsArray materializes mapBindings for array inputs (scriptc-safe). */
+export function mapBindingsArray(
+  bindings: TermBinding[],
+  transform: (binding: TermBinding) => TermBinding,
+): TermBinding[] {
+  const out: TermBinding[] = [];
+  for (let index = 0; index < bindings.length; index++) {
+    out.push(transform(bindings[index]));
+  }
+  return out;
+}
+
+/** copyBindingsArray is an identity helper for array-only binding flows. */
+export function copyBindingsArray(bindings: TermBinding[]): TermBinding[] {
+  return bindings;
 }
 
 /**
@@ -695,10 +727,10 @@ export function joinTriplePattern(
   graphScope?: RdfTerm | null,
 ): TermBinding[] {
   if (entry.reifies) {
-    return [...joinReifiesPattern(currentBindings, entry)];
+    return joinReifiesPattern(currentBindings, entry);
   }
   if (entry.tripleTermObject) {
-    return [...joinTripleTermObject(currentBindings, entry)];
+    return joinTripleTermObject(currentBindings, entry);
   }
   const subject = entry.subject;
   const predicate = entry.predicate;
@@ -726,7 +758,12 @@ export function joinTriplePattern(
 
   const nextBindings: TermBinding[] = [];
 
-  for (const binding of currentBindings) {
+  for (
+    let bindingIndex = 0;
+    bindingIndex < currentBindings.length;
+    bindingIndex++
+  ) {
+    const binding = currentBindings[bindingIndex];
     const resolvedSubject = resolveTerm(subject, binding);
     const resolvedPredicate = resolveTerm(predicate, binding);
     const resolvedObject = resolveTerm(object, binding);
@@ -742,7 +779,8 @@ export function joinTriplePattern(
       ? matchingQuads
       : matchingQuads.filter((item) => sameRdfTerm(item.graph, graphScope));
 
-    for (const matchQuad of scopedQuads) {
+    for (let quadIndex2 = 0; quadIndex2 < scopedQuads.length; quadIndex2++) {
+      const matchQuad = scopedQuads[quadIndex2];
       const newBinding = { ...binding };
       let valid = true;
 
@@ -811,11 +849,23 @@ export function* joinTriplePatternLazy(
   graphScope?: RdfTerm | null,
 ): Generator<TermBinding> {
   if (entry.reifies) {
-    yield* joinReifiesPattern(currentBindings, entry);
+    const materialized = Array.isArray(currentBindings)
+      ? currentBindings
+      : EMPTY_BINDINGS;
+    const joined = joinReifiesPattern(materialized, entry);
+    for (let index = 0; index < joined.length; index++) {
+      yield joined[index];
+    }
     return;
   }
   if (entry.tripleTermObject) {
-    yield* joinTripleTermObject(currentBindings, entry);
+    const materialized = Array.isArray(currentBindings)
+      ? currentBindings
+      : EMPTY_BINDINGS;
+    const joined = joinTripleTermObject(materialized, entry);
+    for (let index = 0; index < joined.length; index++) {
+      yield joined[index];
+    }
     return;
   }
   const subject = entry.subject;
@@ -956,14 +1006,25 @@ function matchPatternTerm(
  * positions (binding variables, recursively through nested triple terms),
  * then binds the reifier position to X. Emits incrementally (issue #74).
  */
-function* joinReifiesPattern(
-  currentBindings: Iterable<TermBinding>,
+function joinReifiesPattern(
+  currentBindings: TermBinding[],
   entry: ScanEntry,
-): Generator<TermBinding> {
+): TermBinding[] {
   const reifier = entry.subject;
   const tripleTerm = entry.object as RdfBaseQuad;
-  for (const binding of currentBindings) {
-    for (const candidate of entry.candidates) {
+  const out: TermBinding[] = [];
+  for (
+    let bindingIndex = 0;
+    bindingIndex < currentBindings.length;
+    bindingIndex++
+  ) {
+    const binding = currentBindings[bindingIndex];
+    for (
+      let candidateIndex = 0;
+      candidateIndex < entry.candidates.length;
+      candidateIndex++
+    ) {
+      const candidate = entry.candidates[candidateIndex];
       if (candidate.object.termType !== "Quad") {
         continue;
       }
@@ -994,10 +1055,11 @@ function* joinReifiesPattern(
       }
       const bound = matchPatternTerm(reifier, candidate.subject, extended);
       if (bound !== null) {
-        yield bound;
+        out.push(bound);
       }
     }
   }
+  return out;
 }
 
 /**
@@ -1005,14 +1067,24 @@ function* joinReifiesPattern(
  * is a triple-term pattern `?s ?p <<( ?st ?pt ?ot )>>`. Each candidate quad
  * with a triple-term object matches the subject/predicate positionally and
  * the object recursively through the triple-term pattern's positions.
- * Emits incrementally (issue #74).
  */
-function* joinTripleTermObject(
-  currentBindings: Iterable<TermBinding>,
+function joinTripleTermObject(
+  currentBindings: TermBinding[],
   entry: ScanEntry,
-): Generator<TermBinding> {
-  for (const binding of currentBindings) {
-    for (const candidate of entry.candidates) {
+): TermBinding[] {
+  const out: TermBinding[] = [];
+  for (
+    let bindingIndex = 0;
+    bindingIndex < currentBindings.length;
+    bindingIndex++
+  ) {
+    const binding = currentBindings[bindingIndex];
+    for (
+      let candidateIndex = 0;
+      candidateIndex < entry.candidates.length;
+      candidateIndex++
+    ) {
+      const candidate = entry.candidates[candidateIndex];
       if (candidate.object.termType !== "Quad") {
         continue;
       }
@@ -1038,10 +1110,11 @@ function* joinTripleTermObject(
         extended,
       );
       if (bound !== null) {
-        yield bound;
+        out.push(bound);
       }
     }
   }
+  return out;
 }
 
 /**
@@ -1177,30 +1250,38 @@ export function joinPathPattern(
   const nextBindings: TermBinding[] = [];
 
   for (const binding of currentBindings) {
-    const resolvedSubject = subjectIsVariable
-      ? binding[subject.value] ?? null
-      : sparqlTermToRdfTerm(subject);
-    const resolvedObject = objectIsVariable
-      ? binding[object.value] ?? null
-      : sparqlTermToRdfTerm(object);
-
     for (const pair of pairs) {
-      if (
-        resolvedSubject !== null &&
-        !sameRdfTerm(pair.subject, resolvedSubject)
-      ) {
+      // Each endpoint is either bound in this solution or constant in the
+      // pattern, and the two cases stay in separate branches. Folding them
+      // into one `RdfTerm | undefined` local (a ternary over an unbound read)
+      // hands the native compiler (scriptc) an undefined value in a union
+      // slot, which aborts the build at runtime.
+      if (subjectIsVariable) {
+        const boundSubject: RdfTerm | undefined = binding[subject.value];
+        if (
+          boundSubject !== undefined &&
+          !sameRdfTerm(pair.subject, boundSubject)
+        ) {
+          continue;
+        }
+      } else if (!sameRdfTerm(pair.subject, sparqlTermToRdfTerm(subject))) {
         continue;
       }
-      if (
-        resolvedObject !== null &&
-        !sameRdfTerm(pair.object, resolvedObject)
-      ) {
+      if (objectIsVariable) {
+        const boundObject: RdfTerm | undefined = binding[object.value];
+        if (
+          boundObject !== undefined &&
+          !sameRdfTerm(pair.object, boundObject)
+        ) {
+          continue;
+        }
+      } else if (!sameRdfTerm(pair.object, sparqlTermToRdfTerm(object))) {
         continue;
       }
       const newBinding = { ...binding };
       let valid = true;
       if (subjectIsVariable) {
-        const existing = newBinding[subject.value];
+        const existing: RdfTerm | undefined = newBinding[subject.value];
         if (existing !== undefined && !sameRdfTerm(existing, pair.subject)) {
           valid = false;
         } else {
@@ -1208,7 +1289,7 @@ export function joinPathPattern(
         }
       }
       if (valid && objectIsVariable) {
-        const existing = newBinding[object.value];
+        const existing: RdfTerm | undefined = newBinding[object.value];
         if (existing !== undefined && !sameRdfTerm(existing, pair.object)) {
           valid = false;
         } else {
@@ -1238,30 +1319,35 @@ export function* joinPathPatternLazy(
   const objectIsVariable = object.termType === "Variable";
 
   for (const binding of currentBindings) {
-    const resolvedSubject = subjectIsVariable
-      ? binding[subject.value] ?? null
-      : sparqlTermToRdfTerm(subject);
-    const resolvedObject = objectIsVariable
-      ? binding[object.value] ?? null
-      : sparqlTermToRdfTerm(object);
-
     for (const pair of pairs) {
-      if (
-        resolvedSubject !== null &&
-        !sameRdfTerm(pair.subject, resolvedSubject)
-      ) {
+      // Same branch split as joinPathPattern: an unbound variable read never
+      // reaches a union-typed local, which scriptc cannot represent.
+      if (subjectIsVariable) {
+        const boundSubject: RdfTerm | undefined = binding[subject.value];
+        if (
+          boundSubject !== undefined &&
+          !sameRdfTerm(pair.subject, boundSubject)
+        ) {
+          continue;
+        }
+      } else if (!sameRdfTerm(pair.subject, sparqlTermToRdfTerm(subject))) {
         continue;
       }
-      if (
-        resolvedObject !== null &&
-        !sameRdfTerm(pair.object, resolvedObject)
-      ) {
+      if (objectIsVariable) {
+        const boundObject: RdfTerm | undefined = binding[object.value];
+        if (
+          boundObject !== undefined &&
+          !sameRdfTerm(pair.object, boundObject)
+        ) {
+          continue;
+        }
+      } else if (!sameRdfTerm(pair.object, sparqlTermToRdfTerm(object))) {
         continue;
       }
       const newBinding = { ...binding };
       let valid = true;
       if (subjectIsVariable) {
-        const existing = newBinding[subject.value];
+        const existing: RdfTerm | undefined = newBinding[subject.value];
         if (existing !== undefined && !sameRdfTerm(existing, pair.subject)) {
           valid = false;
         } else {
@@ -1269,7 +1355,7 @@ export function* joinPathPatternLazy(
         }
       }
       if (valid && objectIsVariable) {
-        const existing = newBinding[object.value];
+        const existing: RdfTerm | undefined = newBinding[object.value];
         if (existing !== undefined && !sameRdfTerm(existing, pair.object)) {
           valid = false;
         } else {
@@ -1470,35 +1556,11 @@ async function pathSteps(
     case "!": {
       // Negated property set: direct excluded predicates apply to matching edges in the primary direction,
       // and inverse excluded predicates apply to matching edges in the opposite direction.
-      const directExcluded = new Set<string>();
-      const inverseExcluded = new Set<string>();
-      let hasInverse = false;
-
-      const collectNpsItems = (items: PathElement[]) => {
-        for (const item of items) {
-          if ("termType" in item) {
-            directExcluded.add(item.value);
-          } else if (
-            typeof item === "object" && item !== null && "type" in item
-          ) {
-            const pObj = item as {
-              type: string;
-              pathType?: string;
-              items?: PathElement[];
-            };
-            if (pObj.pathType === "|") {
-              collectNpsItems(pObj.items ?? []);
-            } else if (pObj.pathType === "^") {
-              const invItem = pObj.items?.[0] as SparqlTerm | undefined;
-              if (invItem?.value) {
-                inverseExcluded.add(invItem.value);
-                hasInverse = true;
-              }
-            }
-          }
-        }
-      };
-      collectNpsItems(path.items);
+      const {
+        direct: directExcluded,
+        inverse: inverseExcluded,
+        hasInverse,
+      } = collectNpsExclusions(path.items);
 
       const results: RdfTerm[] = [];
       const seen = new Set<string>();
@@ -1806,35 +1868,11 @@ export function pathStepsSync(
       // Negated property set: direct excluded predicates apply to matching
       // edges in the primary direction, and inverse excluded predicates apply
       // to matching edges in the opposite direction.
-      const directExcluded = new Set<string>();
-      const inverseExcluded = new Set<string>();
-      let hasInverse = false;
-
-      const collectNpsItems = (items: PathElement[]) => {
-        for (const item of items) {
-          if ("termType" in item) {
-            directExcluded.add(item.value);
-          } else if (
-            typeof item === "object" && item !== null && "type" in item
-          ) {
-            const pObj = item as {
-              type: string;
-              pathType?: string;
-              items?: PathElement[];
-            };
-            if (pObj.pathType === "|") {
-              collectNpsItems(pObj.items ?? []);
-            } else if (pObj.pathType === "^") {
-              const invItem = pObj.items?.[0] as SparqlTerm | undefined;
-              if (invItem?.value) {
-                inverseExcluded.add(invItem.value);
-                hasInverse = true;
-              }
-            }
-          }
-        }
-      };
-      collectNpsItems(path.items);
+      const {
+        direct: directExcluded,
+        inverse: inverseExcluded,
+        hasInverse,
+      } = collectNpsExclusions(path.items);
 
       const results: RdfTerm[] = [];
       const seen = new Set<string>();

@@ -9,4 +9,6 @@ yarn-error.log*
 .env.*.local
 dist/
 coverage/
+native-diagnostics.json
+scriptc-build.log
 .deno/

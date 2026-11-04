@@ -108,8 +108,142 @@ deno task compile
 ```
 
 SELECT and ASK print SPARQL 1.1 Query Results JSON, and CONSTRUCT and DESCRIBE
-print N-Quads. `deno task bench:cli` measures the binary's size, startup, load,
-and join time; see `bench/cli-bench.ts`.
+print N-Quads. `deno task bench:cli` measures the binary's size, cold start,
+isolated load stages, and query evaluation; see `bench/cli-bench.ts`.
+
+### Native binary (optional)
+
+`deno task compile` still embeds Deno. `deno task native:build` goes further and
+compiles `cli/node-main.ts` with [scriptc](https://scriptc.dev) 0.4.5 into a
+single executable at `dist/sparql-node` (`dist\sparql-node.exe` on Windows) with
+no runtime underneath it: no Deno, no V8, no `node_modules`.
+
+```sh
+deno task native:build
+./dist/sparql-node --data people.ttl --query 'SELECT * WHERE { ?s ?p ?o } LIMIT 10'
+```
+
+`deno task native:gate` runs the whole check: `scriptc coverage` (what the
+compiler can and cannot lower), the build, then the cross-host contract in
+`cli/run-cli.test.ts`, which replays 12 invocations through the in-process
+engine and through every built host and requires identical exit code, stdout,
+and stderr. Each target test skips when its artifact is absent, so
+`deno task ci` stays green on a checkout with no compiler installed.
+
+The trade is startup and artifact size. Reading and indexing pay a constant
+per-triple factor; evaluation has near-zero fixed cost and a slightly steeper
+per-triple slope:
+
+```sh
+deno task bench:cli --people 200,800,3200 --runs 9 \
+  --target deno-compile=dist/sparql.exe \
+  --target scriptc=dist/sparql-node.exe
+```
+
+`bench:cli` runs every target once per round in a rotated order and separates
+the stages by subtracting inside the round, so machine drift cannot land on one
+target. At 16,000 triples, over 9 rounds (median, interquartile range):
+
+| Isolated operation     | `deno compile`     | `scriptc`          | Ratio         |
+| ---------------------- | ------------------ | ------------------ | ------------- |
+| cold start, no data    | 61.0 ms (59-62)    | 27.6 ms (27-30)    | 2.2x faster   |
+| read + parse + index   | 132.9 ms (128-141) | 441.1 ms (411-454) | 3.2x slower   |
+| friend-of-friend query | 49.3 ms (46-53)    | 59.6 ms (57-71)    | 1.2x slower   |
+| binary on disk         | 79.9 MiB           | 6.2 MiB            | 12.9x smaller |
+
+The evaluation row is a difference of two process times, so it is the noisiest:
+across three runs of that command the native median at 16,000 triples landed
+between 60 and 75 ms against 46-50 ms for `deno compile`. The size-scaling fit
+below is the stable comparison.
+
+Across sizes the fixed and per-triple costs separate cleanly:
+
+| Operation              | `deno compile`          | `scriptc`                |
+| ---------------------- | ----------------------- | ------------------------ |
+| read + parse + index   | 13.1 ms + 7.5 µs/triple | 16.9 ms + 26.5 µs/triple |
+| friend-of-friend query | 10.6 ms + 2.5 µs/triple | -2.2 ms + 3.8 µs/triple  |
+
+The native evaluation fit puts the fixed term below the measurement floor, which
+is why it lands slightly negative; the per-triple slope is the meaningful part.
+
+The per-triple gap is the store's string-keyed indexes, which build eight keys
+per quad (`src/term/identity.ts`, `src/store/memory-store.ts`); that is
+application-level rather than codegen.
+
+An earlier revision of this section quoted load and join as 5-43% slower. That
+was measured at 1,000 triples, where the fixed costs dominate, and it hid a
+quadratic tokenizer: the lexer copied the remaining input once per token, which
+V8's sliced strings make free and a copy-per-slice runtime does not. At 16,000
+triples that cost 11.5 s natively. Matching at an offset with sticky regexes
+(`src/parser/lr-runtime.ts`) brought it to 0.48 s and made the cost linear.
+
+The native graph is fully static. `scriptc coverage` reports 5,756/5,756
+statements static (100%), 0 functions signature-blocked, 0 blocker groups, and 0
+likely-hot untyped reads, and `deno task native:coverage` exits non-zero if a
+blocker or an SC6101 group reappears, so the gate cannot regress quietly.
+
+60 statements across 82 functions stay in scriptc's report-only dynamic tier:
+code that operates on values typed only at runtime, which scriptc still lowers
+to native code with checked values. The compiler's labels name the shapes —
+`dyn.class` for `instanceof` and casts on interface-typed values (arbitrary
+RDF/JS stores, `LrParseError`/`SparqlSyntaxError`, the injectable cost
+estimator), `dyn.this` for methods reached through those values,
+`dyn.toStringCoerce`/`dyn.hasOwn`/`dyn.hasKey` for dynamic record keys in term
+bindings and property reads, `dyn.objCreate` for object-shaped casts and the
+`{}` accumulator when a binding is copied, and one `dynObjLit` in the CLI's
+error reporter. They sit at the boundaries the package's contract defines:
+arbitrary stores and terms, caught `unknown` errors, `AbortSignal` reasons, and
+function-valued hooks such as join callbacks, `fetch`, and `readTextFile`.
+
+Two Deno-only surfaces — RDF/JS streams and optional store statistics — never
+enter the native graph. `cli/tsconfig.json` maps `src/store/quad-stream.ts` and
+`src/quad-store-stream.ts` to stubs, so no RDF/JS stream is constructed or
+drained natively (scans answer through `MemoryStore.getQuads`), and maps
+`src/store/store-statistics.ts` and `src/planner/pattern-statistics-hook.ts` to
+a stub that selects the deterministic planner fallback instead of probing a
+store for an optional statistics hook. Every stub throws or returns the
+documented fallback rather than emulate Deno behavior.
+
+Parity with the W3C suites is measured through the Deno build; the native host
+is held to the CLI contract above plus the engine's own test suite.
+
+#### Cross-compilation
+
+`SCRIPTC_TARGET` cross-compiles from any host, given zig on `PATH` and the
+target's runtime pack. scriptc installs only its own platform's pack, so a
+cross-target build needs the target's first — either as a project dependency or
+anywhere on disk through `SCRIPTC_RUNTIME_PACK`:
+
+```sh
+npm install --prefix /tmp/scriptc-pack @scriptc/runtime-linux-x64-gnu@0.4.5
+
+SCRIPTC_TARGET=x86_64-linux-gnu.2.36 \
+SCRIPTC_RUNTIME_PACK=/tmp/scriptc-pack/node_modules/@scriptc/runtime-linux-x64-gnu \
+  npx scriptc@0.4.5 build cli/node-main.ts -o dist/sparql-node-linux
+```
+
+That builds an 8.4 MiB ELF. Run under WSL (Ubuntu, glibc 2.39), it matched the
+Windows host byte for byte on nine of ten cases — help, argument errors, SELECT,
+ASK, CONSTRUCT, `--query-file`, an unknown flag, a syntax error, and `--query`
+without a value — with identical exit codes. The tenth differs only in the
+missing-file message: Windows reports the resolved absolute path, Linux reports
+the path as given, both with the same `ENOENT` text.
+
+`deno task native:build` always writes the name `cli/run-cli.test.ts` discovers
+(`dist/sparql-node`, plus `.exe` on Windows), so a native build on a Linux or
+macOS host joins the contract automatically. A cross-built artifact for a
+different platform does not: it cannot run on the build host, so verify it on
+the target, as above.
+
+Valid targets include `x86_64-linux-gnu.<glibc>`, `aarch64-linux-gnu.<glibc>`,
+`x86_64-windows-gnu`, the `-musl` variants (always linked statically), and
+`wasm32-wasi` for a WebAssembly module. Two build flags are worth knowing on
+x86-64: `--target-cpu=x86-64-v3`, or `--cpu-dispatch` to keep one binary
+portable and select the v3 code paths at startup; and, on Linux, `--static`,
+which skips the dynamic loader and should widen the startup gap above. Windows
+build hosts refuse `--target-cpu native`, so name a level instead. The default
+is already `release` (`-O2`), and `--optimization speed` measured no gain on
+this workload.
 
 ## Tree-shakeable subpath imports
 

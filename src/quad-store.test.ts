@@ -78,6 +78,15 @@ Deno.test("probeQuadIndex compares RDF-star quads structurally", () => {
   assertEquals(matches[0], nested);
 });
 
+Deno.test("matchQuads with omitted graph returns every graph in the store", async () => {
+  const store = new Store();
+  const g = ex("g");
+  store.addQuad(quad(ethan, name, literal("Ethan")));
+  store.addQuad(quad(ethan, name, literal("Ethan in G"), g));
+  const all = await matchQuads(store, null, null, null);
+  assertEquals(all.length, 2);
+});
+
 Deno.test("matchQuads resolves the store stream into an array", async () => {
   const store = new Store();
   for (const item of quads) {

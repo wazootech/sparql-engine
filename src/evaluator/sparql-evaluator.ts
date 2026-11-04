@@ -49,6 +49,7 @@ import {
   sparqlTermToRdfTerm,
   termKey,
 } from "@/term/mod.ts";
+import { quadDedupKey } from "@/term/quad-narrow.ts";
 import { DataFactory } from "@/term/data-factory.ts";
 
 /**
@@ -250,14 +251,12 @@ export class SparqlEvaluator {
     const vars: string[] = [];
     let wildcard = false;
     for (const v of query.variables) {
-      if (typeof v === "string") {
-        vars.push(v);
-      } else if ("termType" in v && v.termType === "Variable") {
+      if (v.termType === "Variable") {
         vars.push(v.value);
-      } else if ("variable" in v && v.variable) {
-        vars.push(v.variable.value);
-      } else {
+      } else if (v.termType === "Wildcard") {
         wildcard = true;
+      } else if (v.termType === "VariableExpression") {
+        vars.push(v.variable.value);
       }
     }
 
@@ -438,16 +437,17 @@ export class SparqlEvaluator {
       }
     };
     for (const variable of query.variables) {
-      const termType = (variable as { termType?: string }).termType;
-      if (termType === "NamedNode") {
+      const targetType: string = (variable as { termType: string }).termType;
+      if (targetType === "NamedNode") {
         // DESCRIBE <iri> — the WHERE clause does not add resources.
-        resources.add(variable as unknown as RdfTerm);
-      } else if (termType === "Variable") {
-        const name = (variable as { value: string }).value;
+        const iri = (variable as { value: string }).value;
+        resources.add(DataFactory.namedNode(iri));
+      } else if (variable.termType === "Variable") {
+        const name = variable.value;
         for (const binding of bindings) {
           collect(binding[name]);
         }
-      } else if (termType === "Wildcard") {
+      } else if (variable.termType === "Wildcard") {
         for (const binding of bindings) {
           for (const name of Object.keys(binding)) {
             collect(binding[name]);
@@ -464,7 +464,7 @@ export class SparqlEvaluator {
     const seen = new Set<string>();
     const graph: RdfQuad[] = [];
     for (const quad of quads) {
-      const key = termKey(quad);
+      const key = quadDedupKey(quad);
       if (!seen.has(key)) {
         seen.add(key);
         graph.push(quad);
@@ -584,6 +584,13 @@ function expressionContainsAggregate(
   }
   if (expression.type === "aggregate") {
     return true;
+  }
+  if (expression.type === "exists") {
+    return false;
+  }
+  if (expression.type === "membership") {
+    return expressionContainsAggregate(expression.subject) ||
+      expression.candidates.some(expressionContainsAggregate);
   }
   if (expression.type === "operation") {
     return expression.args.some(expressionContainsAggregate);

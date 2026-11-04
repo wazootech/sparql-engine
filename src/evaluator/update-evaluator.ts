@@ -28,11 +28,13 @@ import {
   probeQuadIndex,
   simplePredicate,
 } from "@/quad-store.ts";
-import { sameRdfTerm, sparqlTermToRdfTerm, termKey } from "@/term/mod.ts";
+import { quadDedupKey, requireQuadGraph } from "@/term/quad-narrow.ts";
+import { sameRdfTerm, sparqlTermToRdfTerm } from "@/term/mod.ts";
 import { expandReifiedTriples } from "@/evaluator/reified.ts";
 import { DataFactory } from "@/term/data-factory.ts";
 import { parseTurtleQuads } from "@/parser/turtle-parser.ts";
 import type { JoinCostEstimator } from "@/planner/join-cost-estimator.ts";
+import { MemoryStore } from "@/store/memory-store.ts";
 
 const { blankNode, quad, defaultGraph } = DataFactory;
 
@@ -43,8 +45,8 @@ const { blankNode, quad, defaultGraph } = DataFactory;
  * in @worlds/sqlite) all satisfy it.
  */
 export type QuadWriteStore = rdfjs.Store & {
-  addQuad(item: RdfQuad): unknown;
-  removeQuad(item: RdfQuad): unknown;
+  addQuad(item: RdfQuad): void;
+  removeQuad(item: RdfQuad): void;
 };
 
 /**
@@ -110,7 +112,7 @@ function defaultReadTextFile(path: string): Promise<string> {
  */
 interface LoadInput {
   silent?: boolean;
-  source?: unknown;
+  source?: string;
   destination?: SparqlTerm;
 }
 
@@ -207,7 +209,13 @@ export class UpdateEvaluator {
   ): Promise<void> {
     const transaction = this.options.createTransaction?.();
     if (!transaction) {
-      const writeStore = this.options.store as QuadWriteStore;
+      if (!(this.options.store instanceof MemoryStore)) {
+        throw new Error(
+          "This store does not support SPARQL updates: pass a MemoryStore, " +
+            "or provide createTransaction",
+        );
+      }
+      const writeStore = this.options.store;
       if (
         typeof writeStore.addQuad !== "function" ||
         typeof writeStore.removeQuad !== "function"
@@ -222,8 +230,12 @@ export class UpdateEvaluator {
         checkAborted(signal);
         await this.applyOperation(
           operation,
-          (item) => writeStore.addQuad(item),
-          (item) => writeStore.removeQuad(item),
+          (item: RdfQuad) => {
+            writeStore.addQuad(item);
+          },
+          (item: RdfQuad) => {
+            writeStore.removeQuad(item);
+          },
           baseIri,
           signal,
         );
@@ -254,8 +266,8 @@ export class UpdateEvaluator {
    */
   private async applyOperation(
     operation: UpdateOperation,
-    add: (item: RdfQuad) => unknown,
-    remove: (item: RdfQuad) => unknown,
+    add: (item: RdfQuad) => void,
+    remove: (item: RdfQuad) => void,
     baseIri?: string,
     signal?: AbortSignal,
   ): Promise<void> {
@@ -342,13 +354,16 @@ export class UpdateEvaluator {
         return;
       }
       case "load": {
-        // applyLoad reads its fields defensively (the source may arrive as a
-        // bare IRI string), so it keeps the record-shaped view; this literal
-        // is typed rather than cast through unknown.
+        if (operation.type !== "load") {
+          throw new Error("Unsupported SPARQL update operation: load");
+        }
+        const sourceIri = operation.source.termType === "NamedNode"
+          ? operation.source.value
+          : undefined;
         await this.applyLoad(
           {
             silent: operation.silent,
-            source: operation.source,
+            source: sourceIri,
             destination: operation.destination,
           },
           add,
@@ -450,9 +465,7 @@ export class UpdateEvaluator {
     baseIri?: string,
   ): Promise<void> {
     const silent = Boolean(op.silent);
-    let sourceIri = typeof op.source === "string"
-      ? op.source
-      : (op.source as { value?: string })?.value;
+    let sourceIri = op.source;
     if (!sourceIri) return;
 
     // A relative LOAD source resolves against the request-level base (Fork
@@ -595,8 +608,8 @@ export class UpdateEvaluator {
    */
   private async applyDeleteInsert(
     operation: InsertDeleteOperation,
-    add: (item: RdfQuad) => unknown,
-    remove: (item: RdfQuad) => unknown,
+    add: (item: RdfQuad) => void,
+    remove: (item: RdfQuad) => void,
     baseIri?: string,
     signal?: AbortSignal,
   ): Promise<void> {
@@ -619,7 +632,10 @@ export class UpdateEvaluator {
       );
       evaluator = this.bgpEvaluator.forStore(dataset);
     } else if (withGraph !== null) {
-      const scopedStore = new GraphScopedStore(this.options.store, withGraph);
+      const scopedStore = new GraphScopedStore(
+        this.options.store,
+        requireQuadGraph(withGraph),
+      );
       evaluator = this.bgpEvaluator.forStore(scopedStore);
     }
 
@@ -757,7 +773,7 @@ export class UpdateEvaluator {
           if (variableGraph && !sameRdfTerm(item.graph, graph!)) {
             continue;
           }
-          const key = termKey(item);
+          const key = quadDedupKey(item);
           if (removed.has(key)) {
             continue;
           }

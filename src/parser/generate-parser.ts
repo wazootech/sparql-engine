@@ -1,4 +1,3 @@
-// deno-lint-ignore-file no-import-prefix
 /**
  * Regenerates the parser artifacts — typed ESM TypeScript parsers — from the
  * in-repo jison grammars (`sparql.jison`, `turtle.jison`).
@@ -20,8 +19,8 @@
  * writing: it exits non-zero when a checked-in artifact has drifted from its
  * grammar (used by `deno task parser:check` in CI).
  */
-import jison from "npm:jison@0.4.18";
-import { parse as parseGrammar } from "npm:ebnf-parser@0.1.10";
+import jison from "jison";
+import { parse as parseGrammar } from "ebnf-parser";
 
 // jison@0.4.18 and ebnf-parser@0.1.10 ship no TypeScript types, so their
 // surfaces are typed `any` here (guarded by the generation diff in CI).
@@ -290,6 +289,19 @@ interface JisonGeneratorState {
   lexer: { rules: RegExp[] };
 }
 
+/**
+ * actionCellLiteral renders one shift/reduce cell as a named-field record.
+ * Positional `[kind, arg]` pairs are avoided: the native (scriptc) build
+ * cannot represent a bare `number[]` inside the table-value union.
+ */
+function actionCellLiteral(cell: number[]): string {
+  const kind = cell[0] ?? 0;
+  const arg = cell[1];
+  return arg === undefined
+    ? `{ kind: ${kind} }`
+    : `{ kind: ${kind}, arg: ${arg} }`;
+}
+
 /** ParsedGrammar is the slice of ebnf-parser's output read below. */
 interface ParsedGrammar {
   bnf: Record<string, Array<string | [string, string]> | string>;
@@ -449,7 +461,7 @@ class ActionEmitter {
     }
     const assignment = /^\$\$ = ([\s\S]*);$/.exec(text);
     if (assignment !== null && !assignment[1]!.includes("$$")) {
-      return `return ${this.rewriteReferences(production, assignment[1]!)};`;
+      return `return ${this.expressionOf(production, assignment[1]!)};`;
     }
     if (text.includes("$$")) {
       throw new Error(
@@ -491,6 +503,47 @@ class ActionEmitter {
       );
     }
     return rewritten;
+  }
+
+  /**
+   * expressionOf renders one action expression. A bare `[]` becomes a typed
+   * `new Array<T>()` built from the production's declared value type: the
+   * native compiler (scriptc) types an untyped `[]` as `number[]`, which it
+   * cannot box into the parser's value union at runtime.
+   */
+  private expressionOf(production: JisonProduction, code: string): string {
+    if (code.trim() === "[]") {
+      const element = this.arrayElementTypeOf(
+        this.valueTypeOf(production.symbol),
+      );
+      if (element !== undefined) {
+        return `new Array<${element}>()`;
+      }
+    }
+    return this.rewriteReferences(production, code);
+  }
+
+  /**
+   * arrayElementTypeOf returns the element type when `type` is or contains an
+   * `Array<...>` type, or undefined when it does not. The scan balances angle
+   * brackets so a nested `Array<Array<Expression>>` keeps its inner brackets.
+   */
+  private arrayElementTypeOf(type: string): string | undefined {
+    const start = type.indexOf("Array<");
+    if (start < 0) return undefined;
+    let depth = 0;
+    for (let index = start + "Array".length; index < type.length; index++) {
+      const character = type[index];
+      if (character === "<") {
+        depth++;
+      } else if (character === ">") {
+        depth--;
+        if (depth === 0) {
+          return type.slice(start + "Array<".length, index);
+        }
+      }
+    }
+    return undefined;
   }
 }
 
@@ -627,7 +680,7 @@ export function generateTypedParserSource(
           `Unresolved conflict in the parse table (symbol ${key}).`,
         );
       } else {
-        actionEntries.push([key, `[${(cell as number[]).join(", ")}]`]);
+        actionEntries.push([key, actionCellLiteral(cell as number[])]);
       }
     }
     actionRows.push(objectLiteral(actionEntries));
@@ -637,7 +690,7 @@ export function generateTypedParserSource(
     Object.keys(generator.defaultActions).map(Number).sort((a, b) => a - b)
       .map((stateId): [number, string] => [
         stateId,
-        `[${generator.defaultActions[stateId]!.join(", ")}]`,
+        actionCellLiteral(generator.defaultActions[stateId]!),
       ]),
   );
   const terminalNames = objectLiteral(
@@ -650,6 +703,18 @@ export function generateTypedParserSource(
   );
   const productionLengths = generator.productions_.map((entry) =>
     typeof entry === "number" ? 0 : entry[1]
+  );
+  const productionSymbolCells = objectLiteral(
+    productionSymbols.map((
+      symbol,
+      id,
+    ): [number, string] => [id, String(symbol)]),
+  );
+  const productionLengthCells = objectLiteral(
+    productionLengths.map((
+      length,
+      id,
+    ): [number, string] => [id, String(length)]),
   );
 
   // Productions whose action bodies are identical share one `case`.
@@ -706,8 +771,8 @@ type ${valueTypeName} = ${config.valueUnion ?? emitter.valueUnion()};
 
 const TABLES: LrTables = {
   terminalNames: ${terminalNames},
-  productionSymbols: [${productionSymbols.join(", ")}],
-  productionLengths: [${productionLengths.join(", ")}],
+  productionSymbols: ${productionSymbolCells},
+  productionLengths: ${productionLengthCells},
   actions: [
 ${actionRows.map((row) => `    ${row},`).join("\n")}
   ],

@@ -3,10 +3,6 @@ import type {
   RdfBlankNode,
   RdfLiteral,
   RdfNamedNode,
-  RdfQuad,
-  RdfQuadObject,
-  RdfQuadPredicate,
-  RdfQuadSubject,
   RdfTerm,
 } from "@/parser/rdf-terms.ts";
 import type {
@@ -40,6 +36,8 @@ import {
   canonicalDouble,
   compareNumericValues,
   formatNumber,
+  numberFromNumeric,
+  numberFromText,
   NUMERIC_DATATYPES,
   numericValue,
   sameRdfTerm,
@@ -51,6 +49,11 @@ import {
   XSD_INTEGER,
   XSD_STRING,
 } from "@/term/mod.ts";
+import {
+  narrowQuadObject,
+  narrowQuadPredicate,
+  narrowQuadSubject,
+} from "@/term/quad-narrow.ts";
 
 const { blankNode, literal, namedNode, quad } = DataFactory;
 
@@ -82,11 +85,16 @@ function substituteTripleTerm(
   if (object === undefined) {
     return undefined;
   }
-  return quad(
-    subject as RdfQuadSubject,
-    predicate as RdfQuadPredicate,
-    object as RdfQuadObject,
-  );
+  const subjectArm = narrowQuadSubject(subject);
+  const predicateArm = narrowQuadPredicate(predicate);
+  const objectArm = narrowQuadObject(object);
+  if (
+    subjectArm === undefined || predicateArm === undefined ||
+    objectArm === undefined
+  ) {
+    return undefined;
+  }
+  return quad(subjectArm, predicateArm, objectArm);
 }
 
 function substituteTripleTermPosition(
@@ -182,6 +190,22 @@ export interface ExpressionEvaluatorOptions {
    * are consulted before the builtin XSD constructors.
    */
   functions?: IriFunctionMap;
+}
+
+/**
+ * operationArgs returns an operation's expression arguments. EXISTS and IN
+ * carry their own payload fields instead, so this helper keeps the caller's
+ * parameter unnarrowed: an `"args" in operation` guard at the call site would
+ * narrow it to OperationExpression and make the EXISTS and IN cases
+ * unreachable.
+ */
+function operationArgs(
+  operation: OperationExpression | ExistsExpression | MembershipExpression,
+): Expression[] {
+  if (operation.type === "operation") {
+    return operation.args;
+  }
+  return [];
 }
 
 /**
@@ -290,13 +314,6 @@ export class ExpressionEvaluator {
         context,
       );
     }
-    if (expression.type !== "operation") {
-      throw new Error(
-        `Unsupported SPARQL expression: ${
-          (expression as { type: string }).type
-        }`,
-      );
-    }
     return this.evaluateOperation(expression, binding, aggregates, context);
   }
 
@@ -327,9 +344,11 @@ export class ExpressionEvaluator {
     // args is a union of argument-list shapes (expressions, patterns, and the
     // IN tuple). Each operator below reads exactly one of them, so narrow once
     // here: scriptc cannot index the union, and indexing the narrowed list is
-    // the only statically typed form.
-    const args = operation.args as Expression[];
-    const patterns = operation.args as Pattern[];
+    // the only statically typed form. The pattern cast stays inside the EXISTS
+    // case: performing it up front hands every operator a value asserted past
+    // the union, which the native (scriptc) build cannot represent — that is
+    // what aborted every arithmetic, string and comparison expression.
+    const args: Expression[] = operationArgs(operation);
     const arg = (index: number): Expression => args[index];
     switch (operation.operator) {
       case "&&":
@@ -379,7 +398,7 @@ export class ExpressionEvaluator {
           return booleanLiteral(operation.operator === "=" ? equal : !equal);
         }
         const comparison = this.orderValues(a, b);
-        if (comparison === "error") {
+        if (comparison === undefined) {
           return undefined;
         }
         switch (operation.operator) {
@@ -427,7 +446,12 @@ export class ExpressionEvaluator {
         // behave as no-match -> false. The pattern argument evaluates
         // through the injected hook (correlated, graph-scoped); a missing
         // hook is a wiring bug and fails loudly.
-        const existsPattern = patterns[0];
+        // The group pattern is a distinct field, so it narrows with `in`
+        // instead of being cast out of the operation-argument union.
+        if (operation.type !== "exists") {
+          return undefined;
+        }
+        const existsPattern = operation.patterns[0];
         const evaluateExists = context?.evaluateExists;
         if (evaluateExists === undefined) {
           throw new Error(
@@ -567,18 +591,25 @@ export class ExpressionEvaluator {
         );
       case "if":
         return this.ifElse(args, binding, aggregates);
-      case "in":
-        return this.inList(
-          operation.args as [Expression, Expression[]],
-          binding,
-          aggregates,
-        );
+      case "in": {
+        if (operation.type !== "membership") {
+          return undefined;
+        }
+        const list: [Expression, Expression[]] = [
+          operation.subject,
+          operation.candidates,
+        ];
+        return this.inList(list, binding, aggregates);
+      }
       case "notin": {
-        const member = this.inList(
-          operation.args as [Expression, Expression[]],
-          binding,
-          aggregates,
-        );
+        if (operation.type !== "membership") {
+          return undefined;
+        }
+        const list: [Expression, Expression[]] = [
+          operation.subject,
+          operation.candidates,
+        ];
+        const member = this.inList(list, binding, aggregates);
         if (member === undefined) {
           return undefined;
         }
@@ -854,7 +885,7 @@ export class ExpressionEvaluator {
       if (typeof an === "bigint" && typeof bn === "bigint") {
         return an === bn;
       }
-      return Number(an) === Number(bn);
+      return numberFromNumeric(an) === numberFromNumeric(bn);
     }
     // xsd:boolean literals compare with RDFterm-equal (same value and
     // datatype), like sameTerm.
@@ -883,12 +914,12 @@ export class ExpressionEvaluator {
    * plain and xsd:string literals lexically, and lang-tagged literals or any
    * other combination as a type error (matching SPARQL 1.1 and Comunica).
    */
-  private orderValues(a: RdfTerm, b: RdfTerm): number | "error" {
+  private orderValues(a: RdfTerm, b: RdfTerm): number | undefined {
     if (a.termType !== "Literal" || b.termType !== "Literal") {
-      return "error";
+      return undefined;
     }
     if (this.isLangTagged(a) || this.isLangTagged(b)) {
-      return "error";
+      return undefined;
     }
     const an = numericValue(a);
     const bn = numericValue(b);
@@ -898,7 +929,7 @@ export class ExpressionEvaluator {
     if (this.isStringTyped(a) && this.isStringTyped(b)) {
       return a.value < b.value ? -1 : a.value > b.value ? 1 : 0;
     }
-    return "error";
+    return undefined;
   }
 
   /**
@@ -934,8 +965,8 @@ export class ExpressionEvaluator {
       }
       return literal(result.toString(), namedNode(XSD_INTEGER));
     }
-    const av = Number(an);
-    const bv = Number(bn);
+    const av = numberFromNumeric(an);
+    const bv = numberFromNumeric(bn);
     let result: number;
     if (operator === "+") {
       result = av + bv;
@@ -1004,7 +1035,9 @@ export class ExpressionEvaluator {
         if (numeric === null) {
           return undefined;
         }
-        return literal(formatNumber(Number(numeric), datatype ?? XSD_DECIMAL));
+        return literal(
+          formatNumber(numberFromNumeric(numeric), datatype ?? XSD_DECIMAL),
+        );
       }
       return undefined;
     }
@@ -1414,13 +1447,13 @@ export class ExpressionEvaluator {
     const numeric = numericValue(term);
     if (numeric !== null) {
       return literal(
-        formatNumber(Number(numeric), XSD_DECIMAL),
+        formatNumber(numberFromNumeric(numeric), XSD_DECIMAL),
         namedNode(XSD_DECIMAL),
       );
     }
     if (this.isStringTyped(term) && /^[+-]?\d+(\.\d+)?$/.test(term.value)) {
       return literal(
-        formatNumber(Number(term.value), XSD_DECIMAL),
+        formatNumber(numberFromText(term.value), XSD_DECIMAL),
         namedNode(XSD_DECIMAL),
       );
     }
@@ -1446,9 +1479,9 @@ export class ExpressionEvaluator {
     const numeric = numericValue(term);
     let n: number;
     if (numeric !== null) {
-      n = Number(numeric);
+      n = numberFromNumeric(numeric);
     } else if (this.isStringTyped(term)) {
-      n = Number(term.value);
+      n = numberFromText(term.value);
       if (Number.isNaN(n)) {
         return undefined;
       }
@@ -1477,9 +1510,9 @@ export class ExpressionEvaluator {
     const numeric = numericValue(term);
     let n: number;
     if (numeric !== null) {
-      n = Number(numeric);
+      n = numberFromNumeric(numeric);
     } else if (this.isStringTyped(term)) {
-      n = Number(term.value);
+      n = numberFromText(term.value);
       if (Number.isNaN(n)) {
         return undefined;
       }
@@ -1518,7 +1551,7 @@ export class ExpressionEvaluator {
         return undefined;
       }
       return literal(
-        formatNumber(Number(numeric), datatype),
+        formatNumber(numberFromNumeric(numeric), datatype),
         namedNode(XSD_STRING),
       );
     }
@@ -1544,7 +1577,7 @@ export class ExpressionEvaluator {
     }
     const numeric = numericValue(term);
     if (numeric !== null) {
-      const value = Number(numeric);
+      const value = numberFromNumeric(numeric);
       return literal(value === 0 ? "false" : "true", namedNode(XSD_BOOLEAN));
     }
     if (this.isStringTyped(term) && !this.isLangTagged(term)) {
@@ -1594,7 +1627,7 @@ export class ExpressionEvaluator {
       return null;
     }
     if (typeof numeric === "bigint") {
-      return Number(numeric);
+      return numberFromNumeric(numeric);
     }
     return Number.isInteger(numeric) ? numeric : null;
   }
@@ -1639,7 +1672,7 @@ export class ExpressionEvaluator {
       return term.value !== "";
     }
     if (NUMERIC_DATATYPES.has(datatype)) {
-      const numeric = Number(term.value);
+      const numeric = numberFromText(term.value);
       return !Number.isNaN(numeric) && numeric !== 0;
     }
     return "error";
@@ -2043,7 +2076,7 @@ export class ExpressionEvaluator {
       }
       return literal(result.toString(), namedNode(XSD_INTEGER));
     }
-    const numberValue = Number(numeric);
+    const numberValue = numberFromNumeric(numeric);
     let result: number;
     if (operation === "abs") {
       result = Math.abs(numberValue);
@@ -2208,7 +2241,7 @@ export class ExpressionEvaluator {
     binding: TermBinding,
     aggregates?: (aggregate: AggregateExpression) => RdfTerm | undefined,
     context?: ExpressionEvaluationContext,
-  ): RdfQuad | undefined {
+  ): RdfBaseQuad | undefined {
     const subject = this.evaluateWith(args[0], binding, aggregates, context);
     const predicate = this.evaluateWith(args[1], binding, aggregates, context);
     const object = this.evaluateWith(args[2], binding, aggregates, context);
@@ -2217,11 +2250,16 @@ export class ExpressionEvaluator {
     ) {
       return undefined;
     }
-    return quad(
-      subject as RdfQuadSubject,
-      predicate as RdfQuadPredicate,
-      object as RdfQuadObject,
-    );
+    const subjectArm = narrowQuadSubject(subject);
+    const predicateArm = narrowQuadPredicate(predicate);
+    const objectArm = narrowQuadObject(object);
+    if (
+      subjectArm === undefined || predicateArm === undefined ||
+      objectArm === undefined
+    ) {
+      return undefined;
+    }
+    return quad(subjectArm, predicateArm, objectArm);
   }
 
   /**

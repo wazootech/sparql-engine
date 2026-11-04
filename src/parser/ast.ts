@@ -61,9 +61,21 @@ export interface OperationExpression {
  * argument is the group graph pattern, not an expression.
  */
 export interface ExistsExpression {
-  type: "operation";
+  /**
+   * type is its own discriminant, not "operation": the evaluator and the
+   * expression walkers switch on it to reach `patterns`, so the native
+   * compiler (scriptc) never has to narrow a value out of the operation
+   * argument union by assertion.
+   */
+  type: "exists";
   operator: "exists" | "notexists";
-  args: Pattern[];
+  /**
+   * patterns is the EXISTS group's pattern list. It is a distinct field, not
+   * an `args` arm, so the evaluator narrows with `in` instead of casting a
+   * value out of the operation-argument union — a cast the native compiler
+   * (scriptc) cannot represent.
+   */
+  patterns: Pattern[];
 }
 
 /**
@@ -71,9 +83,13 @@ export interface ExistsExpression {
  * the tested expression and the list of candidate expressions.
  */
 export interface MembershipExpression {
-  type: "operation";
+  /** type is its own discriminant; see ExistsExpression. */
+  type: "membership";
   operator: "in" | "notin";
-  args: [Expression, Expression[]];
+  /** subject is the tested expression. */
+  subject: Expression;
+  /** candidates are the IN list's expressions. */
+  candidates: Expression[];
 }
 
 export interface FunctionCallExpression {
@@ -89,6 +105,13 @@ export interface AggregateExpression {
   aggregation: string;
   /** expression is the aggregated expression, or the wildcard for `COUNT(*)`. */
   expression: Expression | Wildcard;
+  /**
+   * wildcard marks `COUNT(*)`. It is a flag rather than a re-inspection of
+   * `expression` because the native compiler (scriptc) cannot re-box the
+   * Wildcard record into the `Expression | Wildcard` union at evaluation
+   * time: the record was built inside the parser's dynamic value union.
+   */
+  wildcard?: boolean;
   distinct: boolean;
   separator?: string;
 }
@@ -191,6 +214,7 @@ export interface Grouping {
 }
 
 export interface VariableExpression {
+  termType: "VariableExpression";
   variable: VariableTerm;
   expression: Expression;
 }

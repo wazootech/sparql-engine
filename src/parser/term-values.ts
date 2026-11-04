@@ -7,6 +7,7 @@ import type {
   RdfTerm,
   RdfVariable,
 } from "./rdf-terms.ts";
+import { termKey } from "@/term/identity.ts";
 
 /**
  * Plain-record RDF/JS terms for the SPARQL AST.
@@ -162,17 +163,22 @@ export interface QuadTermValue extends RdfBaseQuad {
   reifier?: RdfTerm;
 }
 
-/** quadEquals compares two quads component by component, graph included. */
-export function quadEquals(
-  this: RdfBaseQuad,
+/** quadComponentsEqual compares quad components to another term. */
+export function quadComponentsEqual(
+  subject: RdfTerm,
+  predicate: RdfTerm,
+  object: RdfTerm,
+  graph: RdfTerm,
   other: RdfTerm | null | undefined,
 ): boolean {
   if (other === null || other === undefined || other.termType !== "Quad") {
     return false;
   }
-  return this.subject.equals(other.subject) &&
-    this.predicate.equals(other.predicate) &&
-    this.object.equals(other.object) && this.graph.equals(other.graph);
+  const otherQuad = other as RdfBaseQuad;
+  return termKey(subject) === termKey(otherQuad.subject) &&
+    termKey(predicate) === termKey(otherQuad.predicate) &&
+    termKey(object) === termKey(otherQuad.object) &&
+    termKey(graph) === termKey(otherQuad.graph);
 }
 
 /** quadTerm builds a quad in the default graph. */
@@ -189,6 +195,11 @@ export function quadTerm(
     predicate,
     object,
     graph,
-    equals: quadEquals,
+    // A capturing arrow, not an object-literal method: the native compiler
+    // rejects `this` inside object-literal methods (SC1090), and a free
+    // function's `this.subject` on the recursive term union infers as
+    // `unknown` (SC1100). Closing over the components avoids both.
+    equals: (other) =>
+      quadComponentsEqual(subject, predicate, object, graph, other),
   };
 }

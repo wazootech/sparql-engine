@@ -25,23 +25,32 @@ import type { SparqlResponse } from "@/sparql-engine-interface.ts";
 export function serializeJsonResults(response: SparqlResponse): string {
   switch (response.kind) {
     case "select": {
-      const head: Record<string, unknown> = {
-        vars: response.data.head.vars,
-      };
-      if (response.data.head.link?.length) {
-        head.link = response.data.head.link;
-      }
+      // A fixed-order literal per case (rather than a mutable
+      // Record<string, unknown>) keeps the document builder out of the native
+      // compiler's dynamic tier while preserving member order.
+      const head = response.data.head;
       return JSON.stringify({
-        head,
+        head: head.link?.length
+          ? { vars: head.vars, link: head.link }
+          : { vars: head.vars },
         results: { bindings: response.data.results.bindings },
       });
     }
     case "ask": {
-      const head: Record<string, unknown> = {};
-      if (response.data.head.link?.length) {
-        head.link = response.data.head.link;
+      const head = response.data.head;
+      // The empty-head form is a separate return: a conditional whose branches
+      // are `{ link }` and `{}` gives the object literal two shapes, which the
+      // native compiler treats as an object literal built from dynamic values.
+      if (head.link?.length) {
+        return JSON.stringify({
+          head: { link: head.link },
+          boolean: response.data.boolean,
+        });
       }
-      return JSON.stringify({ head, boolean: response.data.boolean });
+      return JSON.stringify({
+        head: {},
+        boolean: response.data.boolean,
+      });
     }
     case "construct":
     case "void":

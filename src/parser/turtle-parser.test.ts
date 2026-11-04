@@ -11,6 +11,10 @@ const s = ex("s");
 const p = ex("p");
 const o = ex("o");
 
+function assertSameQuad(actual: rdfjs.Quad, expected: rdfjs.Quad): void {
+  assertEquals(actual.equals(expected), true);
+}
+
 /**
  * Regression guard for the tokenizer: a stray empty alternative in the token
  * regex made exec() match the empty string without advancing lastIndex, so
@@ -27,12 +31,12 @@ Deno.test("turtle-parser: parses multi-statement Turtle without hanging", () => 
     _:b1 :name "Bob" .
   `);
   assertEquals(quads.length, 5);
-  assertEquals(quads[0], quad(s, p, o, defaultGraph()));
-  assertEquals(
+  assertSameQuad(quads[0], quad(s, p, o, defaultGraph()));
+  assertSameQuad(
     quads[1],
     quad(s, ex("q"), literal("hello", "en"), defaultGraph()),
   );
-  assertEquals(
+  assertSameQuad(
     quads[2],
     quad(
       s,
@@ -41,8 +45,8 @@ Deno.test("turtle-parser: parses multi-statement Turtle without hanging", () => 
       defaultGraph(),
     ),
   );
-  assertEquals(quads[3], quad(s, ex("r"), blankNode("b1"), defaultGraph()));
-  assertEquals(
+  assertSameQuad(quads[3], quad(s, ex("r"), blankNode("b1"), defaultGraph()));
+  assertSameQuad(
     quads[4],
     quad(blankNode("b1"), ex("name"), literal("Bob"), defaultGraph()),
   );
@@ -59,14 +63,16 @@ Deno.test("turtle-parser: N-Triples input", () => {
   const quads = parseTurtleQuads(
     "<http://a> <http://b> <http://c> .",
   );
-  assertEquals(quads, [
+  assertEquals(quads.length, 1);
+  assertSameQuad(
+    quads[0],
     quad(
       namedNode("http://a"),
       namedNode("http://b"),
       namedNode("http://c"),
       defaultGraph(),
     ),
-  ]);
+  );
 });
 
 Deno.test("turtle-parser: keyword a and typed literals", () => {

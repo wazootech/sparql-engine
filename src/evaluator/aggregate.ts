@@ -3,14 +3,15 @@ import type {
   AggregateExpression,
   Expression,
   Grouping,
-  Wildcard,
 } from "@/parser/sparql-parser.ts";
 import { DataFactory } from "@/term/data-factory.ts";
 import type { TermBinding } from "@/evaluator/join.ts";
+import { groupingKeyVariableName } from "@/evaluator/grouping-key.ts";
 import {
   canonicalDouble,
   compareRdfTerms,
   formatNumber,
+  numberFromNumeric,
   numericValue,
   termKey,
   XSD_DECIMAL,
@@ -58,15 +59,9 @@ export function groupSolutions(
     const key: TermBinding = {};
     const parts: string[] = [];
     for (const entry of grouping) {
-      const expr = ("expression" in entry && entry.expression)
-        ? entry.expression
-        : (entry as unknown as Expression);
+      const expr = entry.expression;
       const value = evaluate(expr, solution);
-      const varName = ("variable" in entry && entry.variable)
-        ? entry.variable.value
-        : ("termType" in expr && expr.termType === "Variable"
-          ? expr.value
-          : undefined);
+      const varName = groupingKeyVariableName(entry);
       if (varName !== undefined && value !== undefined) {
         key[varName] = value;
       }
@@ -103,7 +98,7 @@ export function aggregateValue(
     binding: TermBinding,
   ) => RdfTerm | undefined,
 ): RdfTerm | undefined {
-  const wildcard = isAggregateWildcard(aggregate.expression);
+  const wildcard = isAggregateWildcard(aggregate);
   if (wildcard && aggregate.aggregation !== "count") {
     throw new Error(
       `Unsupported aggregate over *: ${aggregate.aggregation}`,
@@ -188,7 +183,7 @@ function sumAggregate(defined: RdfTerm[]): RdfTerm | undefined {
   }
   let total = 0;
   for (const n of nums) {
-    total += Number(n);
+    total += numberFromNumeric(n);
   }
   return numericLiteral(total, datatype);
 }
@@ -207,7 +202,7 @@ function avgAggregate(defined: RdfTerm[]): RdfTerm | undefined {
     if (numeric === null) {
       return undefined;
     }
-    total += Number(numeric);
+    total += numberFromNumeric(numeric);
     const dt = value.datatype?.value ?? "";
     if (dt === XSD_DOUBLE || dt === XSD_FLOAT) {
       datatype = XSD_DOUBLE;
@@ -327,23 +322,23 @@ function numericLiteralFromExactDecimal(
 }
 
 /**
- * WILDCARD_MARKER stands in for COUNT(*) arguments; only count uses it.
+ * WILDCARD_MARKER stands in for `COUNT(*)`'s "one value per solution": only
+ * count uses it. It is a real term rather than a record asserted past the
+ * RdfTerm union, which the native (scriptc) build rejects when the module
+ * loads. Nothing inspects its contents — only whether a value is defined;
+ * fillers for DISTINCT come from the solution's key, not from the marker.
  */
-const WILDCARD_MARKER = { wildcard: true } as unknown as RdfTerm;
+const WILDCARD_MARKER: RdfTerm = namedNode("urn:wazoo:aggregate-wildcard");
 
 /**
- * isAggregateWildcard detects the COUNT(*) form, which the parser represents
- * as the Wildcard term (`termType: "Wildcard"`) rather than an expression.
+ * isAggregateWildcard detects the COUNT(*) form. The parser records it as the
+ * aggregate's `wildcard` flag: reading the Wildcard record back out of the
+ * `Expression | Wildcard` field and re-boxing it is representation the native
+ * compiler (scriptc) cannot lay out, because the record originated inside the
+ * parser's dynamic value union.
  */
-function isAggregateWildcard(
-  expression: Expression | Wildcard,
-): boolean {
-  return (
-    typeof expression === "object" &&
-    expression !== null &&
-    "termType" in expression &&
-    (expression.termType as string) === "Wildcard"
-  );
+function isAggregateWildcard(aggregate: AggregateExpression): boolean {
+  return aggregate.wildcard === true;
 }
 
 /**
