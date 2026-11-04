@@ -16,6 +16,41 @@
 /** LR_EOF is the token id the lexer returns at the end of input. */
 export const LR_EOF = 1;
 
+/**
+ * stickyRuleCache converts each rule set once per process. The generated
+ * grammars pass module-level arrays, so identity is stable and the conversion
+ * (which recompiles every pattern) happens at most once per lexer class. A Map
+ * rather than a WeakMap keeps the lookup statically lowerable in the native
+ * build (scriptc assigns WeakMap access to the dynamic tier); the keys are the
+ * generated grammars' module-level arrays, so nothing collectable is retained.
+ */
+const stickyRuleCache = new Map<readonly RegExp[], readonly RegExp[]>();
+
+/**
+ * toSticky rewrites a `^`-anchored rule as a sticky one, so the lexer can match
+ * at an offset instead of copying the remaining input. A copy per token made
+ * tokenizing quadratic in document size on runtimes where slicing copies
+ * (scriptc); V8's sliced strings hid it, so the same binary looked linear in
+ * Deno and collapsed on large files natively. The leading `^` must go: a
+ * sticky match at lastIndex > 0 fails when the pattern also asserts the start
+ * of the string.
+ */
+function toSticky(rules: readonly RegExp[]): readonly RegExp[] {
+  const cached = stickyRuleCache.get(rules);
+  if (cached !== undefined) {
+    return cached;
+  }
+  const converted = rules.map((rule) => {
+    const source = rule.source.startsWith("^")
+      ? rule.source.slice(1)
+      : rule.source;
+    const flags = rule.flags.replaceAll("g", "").replaceAll("y", "");
+    return new RegExp(source, `${flags}y`);
+  });
+  stickyRuleCache.set(rules, converted);
+  return converted;
+}
+
 /** LrLocation is a source span (1-based lines, 0-based columns). */
 export interface LrLocation {
   firstLine: number;
@@ -103,11 +138,12 @@ export class LrLexer {
     lastColumn: 0,
   };
   private done = false;
+  /** The rules, rewritten as sticky patterns anchored at `offset`. */
   private readonly rules: readonly RegExp[];
 
   public constructor(input: string, rules: readonly RegExp[]) {
     this.input = input;
-    this.rules = rules;
+    this.rules = toSticky(rules);
   }
 
   /** performAction returns the token id for a matched rule (0 skips it). */
@@ -137,11 +173,12 @@ export class LrLexer {
     }
     this.yytext = "";
     this.match = "";
-    const rest = this.input.slice(this.offset);
     let best: RegExpMatchArray | null = null;
     let bestRule = -1;
     for (let rule = 0; rule < this.rules.length; rule++) {
-      const candidate = rest.match(this.rules[rule]!);
+      const pattern = this.rules[rule]!;
+      pattern.lastIndex = this.offset;
+      const candidate = pattern.exec(this.input);
       if (
         candidate !== null &&
         (best === null || candidate[0].length > best[0].length)
@@ -153,7 +190,7 @@ export class LrLexer {
     if (best !== null) {
       return this.accept(best[0], bestRule);
     }
-    if (rest === "") {
+    if (this.offset >= this.input.length) {
       return LR_EOF;
     }
     throw new LrParseError(
@@ -318,7 +355,7 @@ export class LrParser<Value> {
     const row = this.tables.actions[state]!;
     const keys = Object.keys(row);
     for (let index = 0; index < keys.length; index++) {
-      const token = Number(keys[index]);
+      const token = parseInt(keys[index], 10);
       const name = names[token];
       if (name !== undefined && token > 2) {
         expected.push("'" + name + "'");
