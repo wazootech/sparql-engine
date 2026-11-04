@@ -171,10 +171,10 @@ SCRIPTC_RUNTIME_PACK=/tmp/scriptc-pack/node_modules/@scriptc/runtime-linux-x64-g
   npx scriptc@0.4.5 build cli/node-main.ts -o dist/sparql-node-linux
 ```
 
-That builds an 8.5 MiB ELF. Run under WSL (Ubuntu, glibc 2.39), the binary
-reproduced the Windows host's output case for case — help, argument errors,
-SELECT, ASK, CONSTRUCT, `--query-file`, an unknown flag, and a syntax error —
-byte for byte, with identical exit codes. The single difference is the
+That builds an 8.5 MiB ELF. Run under WSL (Ubuntu, glibc 2.39), it matched the
+Windows host byte for byte on nine of ten cases — help, argument errors, SELECT,
+ASK, CONSTRUCT, `--query-file`, an unknown flag, a syntax error, and `--query`
+without a value — with identical exit codes. The tenth differs only in the
 missing-file message: Windows reports the resolved absolute path, Linux reports
 the path as given, both with the same `ENOENT` text.
 
@@ -187,11 +187,10 @@ the target, as above.
 Valid targets include `x86_64-linux-gnu.<glibc>`, `aarch64-linux-gnu.<glibc>`,
 `x86_64-windows-gnu`, the `-musl` variants (always linked statically), and
 `wasm32-wasi` for a WebAssembly module. Two build flags are worth knowing on
-x86-64: `--target-cpu=x86-64-v3` (or `--cpu-dispatch` to keep one binary
-portable and pick the v3 code paths at startup) and, on Linux, `--static`, which
-skips the dynamic loader and should widen the startup gap above.
-`--target-cpu
-native` is refused on Windows build hosts; the compiler's default
+x86-64: `--target-cpu=x86-64-v3`, or `--cpu-dispatch` to keep one binary
+portable and select the v3 code paths at startup; and, on Linux, `--static`,
+which skips the dynamic loader and should widen the startup gap above. Windows
+build hosts refuse `--target-cpu native`, so name a level instead. The default
 is already `release` (`-O2`), and `--optimization speed` measured no gain on
 this workload.
 
