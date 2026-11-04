@@ -5,11 +5,10 @@ import type {
   Triple,
   TriplePredicate,
 } from "@/parser/sparql-parser.ts";
-import type {
-  PatternStats,
-  StoreStatisticsHook,
-} from "@/planner/pattern-statistics.ts";
+import type { PatternStats } from "@/planner/pattern-statistics.ts";
 import { MemoryStore } from "@/store/memory-store.ts";
+import { matchQuadStream } from "@/store/quad-stream.ts";
+import { estimateStatsViaStore } from "@/store/store-statistics.ts";
 import { matchQuadsViaStream } from "@/quad-store-stream.ts";
 import { DataFactory, defaultGraphInstance } from "@/term/data-factory.ts";
 import { quadDedupKey } from "@/term/quad-narrow.ts";
@@ -285,11 +284,7 @@ export class GraphScopedStore implements rdfjs.Source<RdfQuad> {
   public estimateStats?(
     pattern: Triple,
   ): PatternStats | Promise<PatternStats | undefined> | undefined {
-    const hook = (this.store as StoreStatisticsHook).estimateStats;
-    if (typeof hook !== "function") {
-      return undefined;
-    }
-    return hook.call(this.store, pattern);
+    return estimateStatsViaStore(this.store, pattern);
   }
 
   /** sourceStore is the dataset store this graph view wraps. */
@@ -306,7 +301,13 @@ export class GraphScopedStore implements rdfjs.Source<RdfQuad> {
     // An explicit graph wins; otherwise the view's fixed graph applies. The
     // pipeline always scans with a null graph, so the scope is applied, and
     // nested scopes (GRAPH inside GRAPH) compose correctly.
-    return this.store.match(subject, predicate, object, graph ?? this.graph());
+    return matchQuadStream(
+      this.store,
+      subject,
+      predicate,
+      object,
+      graph ?? this.graph(),
+    );
   }
 }
 

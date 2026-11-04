@@ -3,21 +3,23 @@
  * syntax failures, surfaced through both `Parser.parse` and
  * `WazooSparqlEngine.execute`.
  *
- * The generated jison parser (parser.ts) throws a plain `Error` whose message
- * embeds a caret line and whose `.hash` carries `{ text, token, line, loc,
- * expected }`. `toSparqlSyntaxError` maps that into this structured error:
- * 1-based line and column, the offending source line, the matched text, the
- * token symbol, the expected-token set, and the raw jison message. Lexer
- * failures ("Unrecognized text") become `kind: "lexical"` errors with no
- * token or expected set.
+ * The generated LR parser throws `LrParseError`, whose message embeds a caret
+ * line and whose typed `hash` carries `{ text, token, line, loc, expected }`.
+ * `toSparqlSyntaxError` maps that into this structured error: 1-based line and
+ * column, the offending source line, the matched text, the token symbol, the
+ * expected-token set, and the raw parser message. Lexer failures
+ * ("Unrecognized text") become `kind: "lexical"` errors with no token or
+ * expected set.
  *
- * Column precision: jison's own `loc` fields are unreliable in this
+ * Column precision: the parser's own `loc` fields are unreliable in this
  * generated parser and its caret line truncates past 20 characters, so the
  * column is computed by locating the matched token text on the error line —
  * exact for the common cases (a token that appears once on its line, or the
  * error at end of input), with the last occurrence preferred when a
  * delimiter repeats (e.g. a stray closing brace at the end of a query).
  */
+
+import { LrParseError } from "@/parser/lr-runtime.ts";
 
 /** SparqlSyntaxErrorKind distinguishes lexer from parser failures. */
 export type SparqlSyntaxErrorKind = "parse" | "lexical";
@@ -83,25 +85,16 @@ function formatMessage(details: SparqlSyntaxErrorDetails): string {
   return `${where}: ${detail}\n\n${details.excerpt}\n${caret}`;
 }
 
-/** JisonErrorHash is the non-standard `.hash` the generated parser attaches. */
-interface JisonErrorHash {
-  text?: unknown;
-  token?: unknown;
-  line?: unknown;
-  expected?: unknown;
-}
-
 /**
- * toSparqlSyntaxError maps a generated jison parse/lex error into a
- * SparqlSyntaxError, or returns null when the error is not a syntax failure
- * (e.g. sparqljs validation errors like unresolvable relative IRIs pass
- * through unchanged).
+ * toSparqlSyntaxError maps an LR parse/lex error into a SparqlSyntaxError, or
+ * returns null when the error is not a syntax failure (e.g. sparqljs
+ * validation errors like unresolvable relative IRIs pass through unchanged).
  */
 export function toSparqlSyntaxError(
   input: string,
   error: unknown,
 ): SparqlSyntaxError | null {
-  if (!(error instanceof Error)) {
+  if (!(error instanceof LrParseError)) {
     return null;
   }
   const message = error.message;
@@ -110,16 +103,11 @@ export function toSparqlSyntaxError(
   if (!parseMatch && !lexMatch) {
     return null;
   }
-  const hash = (error as Error & { hash?: JisonErrorHash }).hash ?? {};
-  const hashLine = typeof hash.line === "number" ? hash.line : undefined;
-  const line = hashLine !== undefined
-    ? hashLine + 1
-    : Number.parseInt(parseMatch?.[1] ?? lexMatch?.[1] ?? "1", 10);
-  const text = typeof hash.text === "string" ? hash.text : "";
-  const token = typeof hash.token === "string" ? hash.token : null;
-  const expected = Array.isArray(hash.expected)
-    ? hash.expected.map(String)
-    : [];
+  const hash = error.hash;
+  const line = hash.line + 1;
+  const text = hash.text;
+  const token = hash.token;
+  const expected = hash.expected;
   const excerpt = input.split(/\r?\n/)[line - 1] ?? "";
   let column: number;
   if (text === "") {

@@ -1,6 +1,7 @@
 import { assertEquals, assertThrows } from "@std/assert";
 
 import { Parser, SparqlSyntaxError } from "./mod.ts";
+import { LrParseError } from "./lr-runtime.ts";
 import { toSparqlSyntaxError } from "./syntax-error.ts";
 
 function parseExpression(query: string): {
@@ -111,11 +112,9 @@ Deno.test("parser: malformed update requests report positions", () => {
 Deno.test("parser: lexical failures map to kind 'lexical'", () => {
   const error = toSparqlSyntaxError(
     "SELECT ?s\n  BAD\n",
-    Object.assign(
-      new Error(
-        "Lexical error on line 3. Unrecognized text.\n  BAD\n  ^",
-      ),
-      { hash: { text: "", token: null, line: 2 } },
+    new LrParseError(
+      "Lexical error on line 3. Unrecognized text.\n  BAD\n  ^",
+      { text: "", token: null, line: 2, loc: null, expected: [] },
     ),
   );
   assertEquals(error?.kind, "lexical");

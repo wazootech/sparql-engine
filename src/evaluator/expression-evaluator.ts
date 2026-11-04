@@ -36,6 +36,8 @@ import {
   canonicalDouble,
   compareNumericValues,
   formatNumber,
+  numberFromNumeric,
+  numberFromText,
   NUMERIC_DATATYPES,
   numericValue,
   sameRdfTerm,
@@ -396,7 +398,7 @@ export class ExpressionEvaluator {
           return booleanLiteral(operation.operator === "=" ? equal : !equal);
         }
         const comparison = this.orderValues(a, b);
-        if (comparison === "error") {
+        if (comparison === undefined) {
           return undefined;
         }
         switch (operation.operator) {
@@ -883,7 +885,7 @@ export class ExpressionEvaluator {
       if (typeof an === "bigint" && typeof bn === "bigint") {
         return an === bn;
       }
-      return Number(an) === Number(bn);
+      return numberFromNumeric(an) === numberFromNumeric(bn);
     }
     // xsd:boolean literals compare with RDFterm-equal (same value and
     // datatype), like sameTerm.
@@ -912,12 +914,12 @@ export class ExpressionEvaluator {
    * plain and xsd:string literals lexically, and lang-tagged literals or any
    * other combination as a type error (matching SPARQL 1.1 and Comunica).
    */
-  private orderValues(a: RdfTerm, b: RdfTerm): number | "error" {
+  private orderValues(a: RdfTerm, b: RdfTerm): number | undefined {
     if (a.termType !== "Literal" || b.termType !== "Literal") {
-      return "error";
+      return undefined;
     }
     if (this.isLangTagged(a) || this.isLangTagged(b)) {
-      return "error";
+      return undefined;
     }
     const an = numericValue(a);
     const bn = numericValue(b);
@@ -927,7 +929,7 @@ export class ExpressionEvaluator {
     if (this.isStringTyped(a) && this.isStringTyped(b)) {
       return a.value < b.value ? -1 : a.value > b.value ? 1 : 0;
     }
-    return "error";
+    return undefined;
   }
 
   /**
@@ -963,8 +965,8 @@ export class ExpressionEvaluator {
       }
       return literal(result.toString(), namedNode(XSD_INTEGER));
     }
-    const av = Number(an);
-    const bv = Number(bn);
+    const av = numberFromNumeric(an);
+    const bv = numberFromNumeric(bn);
     let result: number;
     if (operator === "+") {
       result = av + bv;
@@ -1033,7 +1035,9 @@ export class ExpressionEvaluator {
         if (numeric === null) {
           return undefined;
         }
-        return literal(formatNumber(Number(numeric), datatype ?? XSD_DECIMAL));
+        return literal(
+          formatNumber(numberFromNumeric(numeric), datatype ?? XSD_DECIMAL),
+        );
       }
       return undefined;
     }
@@ -1443,13 +1447,13 @@ export class ExpressionEvaluator {
     const numeric = numericValue(term);
     if (numeric !== null) {
       return literal(
-        formatNumber(Number(numeric), XSD_DECIMAL),
+        formatNumber(numberFromNumeric(numeric), XSD_DECIMAL),
         namedNode(XSD_DECIMAL),
       );
     }
     if (this.isStringTyped(term) && /^[+-]?\d+(\.\d+)?$/.test(term.value)) {
       return literal(
-        formatNumber(Number(term.value), XSD_DECIMAL),
+        formatNumber(numberFromText(term.value), XSD_DECIMAL),
         namedNode(XSD_DECIMAL),
       );
     }
@@ -1475,9 +1479,9 @@ export class ExpressionEvaluator {
     const numeric = numericValue(term);
     let n: number;
     if (numeric !== null) {
-      n = Number(numeric);
+      n = numberFromNumeric(numeric);
     } else if (this.isStringTyped(term)) {
-      n = Number(term.value);
+      n = numberFromText(term.value);
       if (Number.isNaN(n)) {
         return undefined;
       }
@@ -1506,9 +1510,9 @@ export class ExpressionEvaluator {
     const numeric = numericValue(term);
     let n: number;
     if (numeric !== null) {
-      n = Number(numeric);
+      n = numberFromNumeric(numeric);
     } else if (this.isStringTyped(term)) {
-      n = Number(term.value);
+      n = numberFromText(term.value);
       if (Number.isNaN(n)) {
         return undefined;
       }
@@ -1547,7 +1551,7 @@ export class ExpressionEvaluator {
         return undefined;
       }
       return literal(
-        formatNumber(Number(numeric), datatype),
+        formatNumber(numberFromNumeric(numeric), datatype),
         namedNode(XSD_STRING),
       );
     }
@@ -1573,7 +1577,7 @@ export class ExpressionEvaluator {
     }
     const numeric = numericValue(term);
     if (numeric !== null) {
-      const value = Number(numeric);
+      const value = numberFromNumeric(numeric);
       return literal(value === 0 ? "false" : "true", namedNode(XSD_BOOLEAN));
     }
     if (this.isStringTyped(term) && !this.isLangTagged(term)) {
@@ -1623,7 +1627,7 @@ export class ExpressionEvaluator {
       return null;
     }
     if (typeof numeric === "bigint") {
-      return Number(numeric);
+      return numberFromNumeric(numeric);
     }
     return Number.isInteger(numeric) ? numeric : null;
   }
@@ -1668,7 +1672,7 @@ export class ExpressionEvaluator {
       return term.value !== "";
     }
     if (NUMERIC_DATATYPES.has(datatype)) {
-      const numeric = Number(term.value);
+      const numeric = numberFromText(term.value);
       return !Number.isNaN(numeric) && numeric !== 0;
     }
     return "error";
@@ -2072,7 +2076,7 @@ export class ExpressionEvaluator {
       }
       return literal(result.toString(), namedNode(XSD_INTEGER));
     }
-    const numberValue = Number(numeric);
+    const numberValue = numberFromNumeric(numeric);
     let result: number;
     if (operation === "abs") {
       result = Math.abs(numberValue);

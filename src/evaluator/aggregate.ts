@@ -11,6 +11,7 @@ import {
   canonicalDouble,
   compareRdfTerms,
   formatNumber,
+  numberFromNumeric,
   numericValue,
   termKey,
   XSD_DECIMAL,
@@ -182,7 +183,7 @@ function sumAggregate(defined: RdfTerm[]): RdfTerm | undefined {
   }
   let total = 0;
   for (const n of nums) {
-    total += Number(n);
+    total += numberFromNumeric(n);
   }
   return numericLiteral(total, datatype);
 }
@@ -201,7 +202,7 @@ function avgAggregate(defined: RdfTerm[]): RdfTerm | undefined {
     if (numeric === null) {
       return undefined;
     }
-    total += Number(numeric);
+    total += numberFromNumeric(numeric);
     const dt = value.datatype?.value ?? "";
     if (dt === XSD_DOUBLE || dt === XSD_FLOAT) {
       datatype = XSD_DOUBLE;

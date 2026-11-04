@@ -14,6 +14,8 @@ export {
   canonicalDouble,
   compareNumericValues,
   formatNumber,
+  numberFromNumeric,
+  numberFromText,
   NUMERIC_DATATYPES,
   numericValue,
   XSD,

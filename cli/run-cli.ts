@@ -58,7 +58,18 @@ interface CliArguments {
   help: boolean;
 }
 
-function parseArguments(args: string[]): CliArguments {
+type ParseResult =
+  | { ok: true; cliArguments: CliArguments }
+  | { ok: false; message: string };
+
+/**
+ * parseArguments turns one argument list into flags or a usage message.
+ *
+ * It reports failures as a result instead of throwing: the native CLI treats a
+ * caught value as dynamic, so keeping argument errors out of the exception
+ * path keeps the whole command statically typed.
+ */
+function parseArguments(args: string[]): ParseResult {
   const parsed: CliArguments = { dataPaths: [], help: false };
   for (let index = 0; index < args.length; index++) {
     const flag = args[index];
@@ -68,7 +79,7 @@ function parseArguments(args: string[]): CliArguments {
     }
     const value = args[index + 1];
     if (value === undefined) {
-      throw new Error(`missing value for ${flag}`);
+      return { ok: false, message: `missing value for ${flag}` };
     }
     index++;
     switch (flag) {
@@ -85,10 +96,10 @@ function parseArguments(args: string[]): CliArguments {
         parsed.baseIri = value;
         break;
       default:
-        throw new Error(`unknown argument: ${flag}`);
+        return { ok: false, message: `unknown argument: ${flag}` };
     }
   }
-  return parsed;
+  return { ok: true, cliArguments: parsed };
 }
 
 /**
@@ -98,12 +109,11 @@ export async function runCli(
   args: string[],
   host: CliHost,
 ): Promise<CliResult> {
-  let parsed: CliArguments;
-  try {
-    parsed = parseArguments(args);
-  } catch (error) {
-    return usageError((error as Error).message);
+  const parseResult = parseArguments(args);
+  if (!parseResult.ok) {
+    return usageError(parseResult.message);
   }
+  const parsed = parseResult.cliArguments;
   if (parsed.help) {
     return { exitCode: 0, stdout: CLI_USAGE + "\n", stderr: "" };
   }
@@ -149,9 +159,20 @@ export async function runCli(
     return {
       exitCode: 1,
       stdout: "",
-      stderr: `sparql: ${(error as Error).message}\n`,
+      stderr: `sparql: ${errorMessage(error)}\n`,
     };
   }
+}
+
+/**
+ * errorMessage renders a caught value as text. The Error check is the one
+ * statically supported way to read a message off a caught value.
+ */
+function errorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return "unknown error";
 }
 
 function usageError(message: string): CliResult {
