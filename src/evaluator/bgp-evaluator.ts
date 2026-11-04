@@ -27,20 +27,22 @@ import { checkAborted } from "@/evaluator/abort.ts";
 
 import {
   bindingsCompatible,
-  copyBindingsArray,
-  filterBindingsArray,
   innerJoin,
   isPropertyPath,
   joinPathPattern,
   joinTriplePattern,
   leftJoin,
-  mapBindingsArray,
   minus,
   scanEntry,
   scanPathEntry,
   scanPathEntrySync,
 } from "@/evaluator/join.ts";
 import { applySelectPipeline } from "@/evaluator/select-pipeline.ts";
+import {
+  copyBindingsArray,
+  filterBindingsArray,
+  mapBindingsArray,
+} from "@/evaluator/binding-arrays.ts";
 import type {
   BindingFilter,
   ScanEntry,

@@ -1,4 +1,4 @@
-import type * as rdfjs from "@rdfjs/types";
+import type { RdfQuad, RdfTerm } from "@/parser/rdf-terms.ts";
 import { sameRdfTerm, termKey } from "@/term/mod.ts";
 
 /* ------------------------------------------------------------------ */
@@ -13,11 +13,11 @@ import { sameRdfTerm, termKey } from "@/term/mod.ts";
  * instead of issuing stream matches.
  */
 export function matchQuadsSync(
-  candidates: rdfjs.Quad[],
-  s: rdfjs.Term | null,
-  p: rdfjs.Term | null,
-  o: rdfjs.Term | null,
-): rdfjs.Quad[] {
+  candidates: RdfQuad[],
+  s: RdfTerm | null,
+  p: RdfTerm | null,
+  o: RdfTerm | null,
+): RdfQuad[] {
   return candidates.filter((quad) =>
     (s === null || sameRdfTerm(quad.subject, s)) &&
     (p === null || sameRdfTerm(quad.predicate, p)) &&
@@ -30,8 +30,8 @@ export function matchQuadsSync(
  * candidate quad — the node set the reflexive path forms (? and *) are
  * defined over, restricted to the EXISTS snapshot's graph scope.
  */
-export function graphNodesSync(candidates: rdfjs.Quad[]): rdfjs.Term[] {
-  const nodes = new Map<string, rdfjs.Term>();
+export function graphNodesSync(candidates: RdfQuad[]): RdfTerm[] {
+  const nodes = new Map<string, RdfTerm>();
   for (const quad of candidates) {
     nodes.set(termKey(quad.subject), quad.subject);
     nodes.set(termKey(quad.object), quad.object);

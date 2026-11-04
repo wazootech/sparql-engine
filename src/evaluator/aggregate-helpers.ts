@@ -5,7 +5,7 @@ import {
   termKey,
   XSD_STRING,
 } from "@/term/mod.ts";
-import type { Expression, Wildcard } from "@/parser/sparql-parser.ts";
+import type { AggregateExpression } from "@/parser/sparql-parser.ts";
 import type { TermBinding } from "@/evaluator/join.ts";
 
 const { literal, namedNode } = DataFactory;
@@ -44,22 +44,18 @@ export function groupConcat(
 /**
  * WILDCARD_MARKER stands in for COUNT(*) arguments; only count uses it.
  */
-export const WILDCARD_MARKER = { wildcard: true } as unknown as rdfjs.Term;
+export const WILDCARD_MARKER: rdfjs.Term = DataFactory.namedNode(
+  "urn:wazoo:aggregate-wildcard",
+);
 
 /**
  * isAggregateWildcard detects the COUNT(*) form, which sparqljs represents
  * as an empty object (a Wildcard) rather than an expression.
  */
 export function isAggregateWildcard(
-  expression: Expression | Wildcard,
+  aggregate: AggregateExpression,
 ): boolean {
-  // sparqljs's Wildcard is an object with no own properties (its termType
-  // lives on the prototype), so own-key emptiness is the reliable test.
-  return (
-    typeof expression === "object" &&
-    expression !== null &&
-    Object.keys(expression).length === 0
-  );
+  return aggregate.wildcard === true;
 }
 
 /**

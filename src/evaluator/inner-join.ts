@@ -8,7 +8,6 @@ import {
   buildHashIndex,
   compatibleCandidates,
   JOIN_PRODUCT_THRESHOLD,
-  STREAM_NESTED_THRESHOLD,
 } from "@/evaluator/join-hash-index.ts";
 
 /**
@@ -26,7 +25,7 @@ import {
  * is inherently eager — is required.
  */
 export function innerJoin(
-  left: TermBinding[] | Iterable<TermBinding>,
+  left: Iterable<TermBinding>,
   right: TermBinding[],
 ): Iterable<TermBinding> {
   if (right.length === 0) {
@@ -37,14 +36,11 @@ export function innerJoin(
       return EMPTY_BINDINGS;
     }
     if (left.length * right.length <= JOIN_PRODUCT_THRESHOLD) {
-      return innerJoinNested(left, right);
+      return [...innerJoinNested(left, right)];
     }
-    return innerJoinHash(left, right);
+    return [...innerJoinHash(left, right)];
   }
-  if (right.length <= STREAM_NESTED_THRESHOLD) {
-    return innerJoinStreamNested(left, right);
-  }
-  return innerJoinHash([...left], right);
+  return EMPTY_BINDINGS;
 }
 
 function* innerJoinNested(
@@ -66,27 +62,15 @@ function* innerJoinHash(
 ): Generator<TermBinding> {
   const joinVars = sharedVars(left, right);
   if (joinVars.length === 0) {
-    // No variable is bound on both sides: the result is a cross product.
-    yield* innerJoinNested(left, right);
+    for (const binding of innerJoinNested(left, right)) {
+      yield binding;
+    }
     return;
   }
   const index = buildHashIndex(right, joinVars);
   for (const l of left) {
     for (const r of compatibleCandidates(l, joinVars, index, right)) {
       yield { ...l, ...r };
-    }
-  }
-}
-
-function* innerJoinStreamNested(
-  left: Iterable<TermBinding>,
-  right: TermBinding[],
-): Generator<TermBinding> {
-  for (const l of left) {
-    for (const r of right) {
-      if (bindingsCompatible(l, r)) {
-        yield { ...l, ...r };
-      }
     }
   }
 }

@@ -142,3 +142,34 @@ export function sharesVariable(a: TermBinding, b: TermBinding): boolean {
   }
   return false;
 }
+
+export function passesOptionalFilter(
+  merged: TermBinding,
+  filter: BindingFilter | undefined,
+): boolean {
+  return filter === undefined || filter(merged);
+}
+
+/**
+ * joinBindingsArrays joins two materialized binding arrays on shared
+ * variables (the array-array inner join): every compatible pair merges into
+ * one binding. The select pipeline's grouping/ordering steps are inherently
+ * materializing, so its streaming left is collected here rather than streamed
+ * (issue #74).
+ */
+export function joinBindingsArrays(
+  left: TermBinding[],
+  right: TermBinding[],
+): TermBinding[] {
+  const joined: TermBinding[] = [];
+  for (let leftIndex = 0; leftIndex < left.length; leftIndex++) {
+    const l = left[leftIndex];
+    for (let rightIndex = 0; rightIndex < right.length; rightIndex++) {
+      const r = right[rightIndex];
+      if (bindingsCompatible(l, r)) {
+        joined.push({ ...l, ...r });
+      }
+    }
+  }
+  return joined;
+}

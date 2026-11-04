@@ -1,10 +1,12 @@
 import type * as rdfjs from "@rdfjs/types";
+import type { RdfQuad, RdfQuadGraph, RdfTerm } from "@/parser/rdf-terms.ts";
+import { defaultGraphInstance } from "@/term/data-factory.ts";
+import { quadDedupKey } from "@/term/quad-narrow.ts";
+import { matchQuadStream } from "@/store/quad-stream.ts";
+import { estimateStatsViaStore } from "@/store/store-statistics.ts";
 import { DataFactory, termKey } from "@/term/mod.ts";
 import { MemoryStore } from "@/store/memory-store.ts";
-import type {
-  PatternStats,
-  StoreStatisticsHook,
-} from "@/planner/pattern-statistics.ts";
+import type { PatternStats } from "@/planner/pattern-statistics.ts";
 import type { Triple } from "@/parser/sparql-parser.ts";
 import { matchQuads, storeVersion } from "@/quad-match.ts";
 
@@ -14,11 +16,25 @@ import { matchQuads, storeVersion } from "@/quad-match.ts";
  * paths, graph node enumeration) runs against one named graph through it
  * without any call site knowing the scope exists.
  */
-export class GraphScopedStore implements rdfjs.Source<rdfjs.Quad> {
+export class GraphScopedStore implements rdfjs.Source<RdfQuad> {
   public constructor(
-    private readonly store: rdfjs.Source<rdfjs.Quad>,
-    public readonly graph: rdfjs.Term,
-  ) {}
+    private readonly store: rdfjs.Source<RdfQuad>,
+    graph: RdfQuadGraph,
+  ) {
+    this.graphTermType = graph.termType;
+    this.graphValue = graph.value;
+  }
+
+  /** graphTermType is the scope's term type, kept as a plain string. */
+  public readonly graphTermType: string;
+
+  /** graphValue is the scope's term value, kept as a plain string. */
+  public readonly graphValue: string;
+
+  /** graph rebuilds the scope's graph term from its string fields. */
+  public graph(): RdfQuadGraph {
+    return graphTermFromDescriptor(this.graphTermType, this.graphValue);
+  }
 
   /** version delegates to the wrapped store so snapshot caches see through
    * the view (the view itself never mutates the data). */
@@ -35,23 +51,30 @@ export class GraphScopedStore implements rdfjs.Source<rdfjs.Quad> {
   public estimateStats?(
     pattern: Triple,
   ): PatternStats | Promise<PatternStats | undefined> | undefined {
-    const hook = (this.store as StoreStatisticsHook).estimateStats;
-    if (typeof hook !== "function") {
-      return undefined;
-    }
-    return hook.call(this.store, pattern);
+    return estimateStatsViaStore(this.store, pattern);
+  }
+
+  /** sourceStore is the dataset store this graph view wraps. */
+  public get sourceStore(): rdfjs.Source<RdfQuad> {
+    return this.store;
   }
 
   public match(
-    subject?: rdfjs.Term | null,
-    predicate?: rdfjs.Term | null,
-    object?: rdfjs.Term | null,
-    graph?: rdfjs.Term | null,
-  ): rdfjs.Stream<rdfjs.Quad> {
+    subject?: RdfTerm | null,
+    predicate?: RdfTerm | null,
+    object?: RdfTerm | null,
+    graph?: RdfTerm | null,
+  ): rdfjs.Stream<RdfQuad> {
     // An explicit graph wins; otherwise the view's fixed graph applies. The
     // pipeline always scans with a null graph, so the scope is applied, and
     // nested scopes (GRAPH inside GRAPH) compose correctly.
-    return this.store.match(subject, predicate, object, graph ?? this.graph);
+    return matchQuadStream(
+      this.store,
+      subject,
+      predicate,
+      object,
+      graph ?? this.graph(),
+    );
   }
 }
 
@@ -60,10 +83,10 @@ export class GraphScopedStore implements rdfjs.Source<rdfjs.Quad> {
  * graph term is not the default graph), for GRAPH ?g evaluation.
  */
 export async function namedGraphs(
-  store: rdfjs.Source<rdfjs.Quad>,
-): Promise<rdfjs.Quad_Graph[]> {
+  store: rdfjs.Source<RdfQuad>,
+): Promise<RdfQuadGraph[]> {
   const quads = await matchQuads(store, null, null, null);
-  const graphs = new Map<string, rdfjs.Quad_Graph>();
+  const graphs = new Map<string, RdfQuadGraph>();
   for (const item of quads) {
     if (item.graph.termType !== "DefaultGraph") {
       graphs.set(termKey(item.graph), item.graph);
@@ -83,16 +106,16 @@ export async function namedGraphs(
  * dataset simply do not exist in the view.
  */
 export async function buildDatasetStore(
-  store: rdfjs.Source<rdfjs.Quad>,
-  from: readonly rdfjs.Term[],
-  fromNamed: readonly rdfjs.Term[],
+  store: rdfjs.Source<RdfQuad>,
+  from: readonly RdfTerm[],
+  fromNamed: readonly RdfTerm[],
 ): Promise<rdfjs.Store> {
   const dataset = new MemoryStore();
   const seen = new Set<string>();
   for (const graph of from) {
     const quads = await matchQuads(store, null, null, null, graph);
     for (const item of quads) {
-      const key = termKey(item);
+      const key = quadDedupKey(item);
       if (!seen.has(key)) {
         seen.add(key);
         dataset.addQuad(
@@ -113,4 +136,33 @@ export async function buildDatasetStore(
     }
   }
   return dataset;
+}
+
+/**
+ * graphTermFromDescriptor rebuilds a graph term from the (termType, value)
+ * pair a GraphScopedStore carries. The view keeps its scope as strings so a
+ * narrowed view never has to hand a class value to a dynamic slot, which the
+ * native (scriptc) build cannot represent.
+ */
+export function graphTermFromDescriptor(
+  termType: string,
+  value: string,
+): RdfQuadGraph {
+  if (termType === "DefaultGraph") {
+    return defaultGraphInstance;
+  }
+  if (termType === "BlankNode") {
+    return DataFactory.blankNode(value);
+  }
+  return DataFactory.namedNode(value);
+}
+
+/** resolveGraphScope returns the active graph term for store scans. */
+export function resolveGraphScope(
+  store: rdfjs.Source<RdfQuad>,
+): RdfQuadGraph {
+  if (store instanceof GraphScopedStore) {
+    return graphTermFromDescriptor(store.graphTermType, store.graphValue);
+  }
+  return defaultGraphInstance;
 }
