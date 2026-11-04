@@ -1,6 +1,5 @@
 import { parse as oxiParse } from "oxigraph";
-// deno-lint-ignore no-import-prefix
-import { Parser as N3Parser } from "npm:n3@1.26.0";
+import { Parser as N3Parser } from "n3-rdfstar";
 import { parseTurtleQuads } from "@/parser/turtle-parser.ts";
 import { loadRdfManifest } from "./rdf-harness.ts";
 import { supersetDivergences as rdf11Allowlist } from "./rdf-differential.ts";
