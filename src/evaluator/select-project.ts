@@ -6,6 +6,11 @@ import type {
 } from "@/evaluator/expression-evaluator.ts";
 import type { SelectSolution } from "@/evaluator/select-solution.ts";
 import type { TermBinding } from "@/evaluator/join.ts";
+import {
+  copyBoundTerm,
+  readBoundTerm,
+  writeBoundTerm,
+} from "@/evaluator/join-bindings.ts";
 import { aggregateResolver } from "@/evaluator/select-resolver.ts";
 
 /**
@@ -44,7 +49,7 @@ export function projectSolutionToTermBinding(
   const result: TermBinding = {};
   if (wildcard) {
     for (const varName of Object.keys(binding)) {
-      result[varName] = binding[varName];
+      copyBoundTerm(binding, result, varName);
     }
     return result;
   }
@@ -58,9 +63,9 @@ export function projectSolutionToTermBinding(
     ? undefined
     : aggregateResolver(solution, expressionEvaluator, solutionContext);
   for (const varName of vars) {
-    const bound = binding[varName];
+    const bound = readBoundTerm(binding, varName);
     if (bound) {
-      result[varName] = bound;
+      writeBoundTerm(result, varName, bound);
     }
     const projection = projections.get(varName);
     if (projection !== undefined && !(varName in result)) {
@@ -78,7 +83,7 @@ export function projectSolutionToTermBinding(
           solutionContext,
         );
       if (value !== undefined) {
-        result[varName] = value;
+        writeBoundTerm(result, varName, value);
       }
     }
   }

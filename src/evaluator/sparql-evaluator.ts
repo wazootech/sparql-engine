@@ -24,9 +24,11 @@ import type {
   SparqlConstructResults,
   SparqlResponse,
   SparqlSelectResults,
+  SparqlValue,
 } from "@/sparql-engine-interface.ts";
 import { aggregateValue } from "@/evaluator/aggregate.ts";
 import { expandReifiedTriples } from "@/evaluator/reified.ts";
+import { readBoundTerm } from "@/evaluator/join-bindings.ts";
 import { BgpEvaluator } from "@/evaluator/bgp-evaluator.ts";
 import type { TermBinding } from "@/evaluator/bgp-evaluator.ts";
 import {
@@ -240,13 +242,7 @@ export class SparqlEvaluator {
       query.base,
       signal,
     );
-    const projected: SparqlBinding[] = termBindings.map((b) => {
-      const sb: SparqlBinding = {};
-      for (const k of Object.keys(b)) {
-        sb[k] = rdfTermToSparqlValue(b[k]);
-      }
-      return sb;
-    });
+    const projected: SparqlBinding[] = termBindings.map(termBindingToWire);
 
     const vars: string[] = [];
     let wildcard = false;
@@ -567,6 +563,30 @@ export class SparqlEvaluator {
     }
     return sparqlTermToRdfTerm(term);
   }
+}
+
+/**
+ * termBindingToWire converts a term-space binding to the SparqlValue wire
+ * format. Every variable name is a declared string, so no key is coerced in
+ * the native build (issue #247).
+ */
+function termBindingToWire(binding: TermBinding): SparqlBinding {
+  const wire: SparqlBinding = {};
+  for (const variableName of Object.keys(binding)) {
+    const boundTerm = readBoundTerm(binding, variableName);
+    if (boundTerm !== undefined) {
+      writeWireValue(wire, variableName, rdfTermToSparqlValue(boundTerm));
+    }
+  }
+  return wire;
+}
+
+function writeWireValue(
+  wire: SparqlBinding,
+  variableName: string,
+  value: SparqlValue,
+): void {
+  wire[variableName] = value;
 }
 
 /**

@@ -1,4 +1,8 @@
-import { bindingsCompatible, joinKey } from "@/evaluator/join-bindings.ts";
+import {
+  bindingsCompatible,
+  joinKey,
+  readBoundTerm,
+} from "@/evaluator/join-bindings.ts";
 import type { TermBinding } from "@/evaluator/join-bindings.ts";
 import { termKey } from "@/term/mod.ts";
 
@@ -67,7 +71,8 @@ export function buildHashIndex(
   for (const binding of right) {
     let total = true;
     for (const v of joinVars) {
-      if (binding[v] === undefined) {
+      const boundTerm = readBoundTerm(binding, v);
+      if (boundTerm === undefined) {
         total = false;
         break;
       }
@@ -84,7 +89,7 @@ export function buildHashIndex(
       partials.push(binding);
     }
     for (const v of joinVars) {
-      const t = binding[v];
+      const t = readBoundTerm(binding, v);
       if (t === undefined) {
         continue;
       }
@@ -125,7 +130,8 @@ export function compatibleCandidates(
 ): TermBinding[] {
   let total = true;
   for (const v of joinVars) {
-    if (l[v] === undefined) {
+    const boundTerm = readBoundTerm(l, v);
+    if (boundTerm === undefined) {
       total = false;
       break;
     }
@@ -149,7 +155,7 @@ export function compatibleCandidates(
   let bestKey = "";
   let bestSize = Infinity;
   for (const v of joinVars) {
-    const t = l[v];
+    const t = readBoundTerm(l, v);
     if (t === undefined) {
       continue;
     }
