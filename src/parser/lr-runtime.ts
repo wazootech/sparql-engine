@@ -75,6 +75,8 @@ export interface LrParseErrorHash {
 
 /** LrParseError is thrown for lexical and parse failures, with a `hash`. */
 export class LrParseError extends Error {
+  /** errorKind tags the error so callers can dispatch without instanceof. */
+  readonly errorKind = "lr-parse" as const;
   readonly hash: LrParseErrorHash;
 
   public constructor(message: string, hash: LrParseErrorHash) {

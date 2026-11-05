@@ -1,7 +1,8 @@
 import type { RdfQuad, RdfSource, RdfTerm } from "@/parser/rdf-terms.ts";
 import type { TriplePredicate } from "@/parser/sparql-parser.ts";
-import { GraphScopedStore } from "@/graph-scoped-store.ts";
-import { MemoryStore } from "@/store/memory-store.ts";
+import type { GraphScopedStore } from "@/graph-scoped-store.ts";
+import type { MemoryStore } from "@/store/memory-store.ts";
+import { storeKindOf } from "@/store-kind.ts";
 import { matchQuadsViaStream } from "@/quad-store-stream.ts";
 import { resolveGraphScope } from "@/graph-scoped-store.ts";
 import type { Term as SparqlTerm } from "@/parser/sparql-parser.ts";
@@ -95,11 +96,12 @@ function memoryQuads(
   o: RdfTerm | null,
   g: RdfTerm | null,
 ): RdfQuad[] | null {
-  if (source instanceof MemoryStore) {
-    return memoryQuadsOf(source, s, p, o, g);
+  const kind = storeKindOf(source);
+  if (kind === "memory") {
+    return memoryQuadsOf(source as MemoryStore, s, p, o, g);
   }
-  if (source instanceof GraphScopedStore) {
-    return memoryQuads(source.sourceStore, s, p, o, g);
+  if (kind === "graph-scoped") {
+    return memoryQuads((source as GraphScopedStore).sourceStore, s, p, o, g);
   }
   return null;
 }
@@ -112,7 +114,7 @@ function resolveMatchGraph(
   if (g !== null) {
     return g;
   }
-  if (store instanceof GraphScopedStore) {
+  if (storeKindOf(store) === "graph-scoped") {
     return resolveGraphScope(store);
   }
   return null;
