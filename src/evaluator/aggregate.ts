@@ -1,4 +1,5 @@
-import type * as rdfjs from "@rdfjs/types";
+import { groupingKeyVariableName } from "@/evaluator/grouping-key.ts";
+import type { RdfTerm } from "@/parser/rdf-terms.ts";
 import type {
   AggregateExpression,
   Expression,
@@ -48,22 +49,16 @@ export function groupSolutions(
   evaluate: (
     expression: Expression,
     binding: TermBinding,
-  ) => rdfjs.Term | undefined,
+  ) => RdfTerm | undefined,
 ): SolutionGroup[] {
   const groups = new Map<string, SolutionGroup>();
   for (const solution of solutions) {
     const key: TermBinding = {};
     const parts: string[] = [];
     for (const entry of grouping) {
-      const expr = ("expression" in entry && entry.expression)
-        ? entry.expression
-        : (entry as unknown as Expression);
+      const expr = entry.expression ?? (entry as unknown as Expression);
       const value = evaluate(expr, solution);
-      const varName = ("variable" in entry && entry.variable)
-        ? entry.variable.value
-        : ("termType" in expr && expr.termType === "Variable"
-          ? expr.value
-          : undefined);
+      const varName = groupingKeyVariableName(entry);
       if (varName !== undefined && value !== undefined) {
         key[varName] = value;
       }
@@ -98,18 +93,18 @@ export function aggregateValue(
   evaluate: (
     expression: Expression,
     binding: TermBinding,
-  ) => rdfjs.Term | undefined,
-): rdfjs.Term | undefined {
+  ) => RdfTerm | undefined,
+): RdfTerm | undefined {
   const wildcard = isAggregateWildcard(aggregate);
   if (wildcard && aggregate.aggregation !== "count") {
     throw new Error(
       `Unsupported aggregate over *: ${aggregate.aggregation}`,
     );
   }
-  const values: (rdfjs.Term | undefined)[] = [];
+  const values: (RdfTerm | undefined)[] = [];
   const distinctSeen = new Set<string>();
   for (const solution of solutions) {
-    let value: rdfjs.Term | undefined;
+    let value: RdfTerm | undefined;
     let key: string;
     if (wildcard) {
       value = WILDCARD_MARKER;
@@ -128,7 +123,7 @@ export function aggregateValue(
     }
     values.push(value);
   }
-  const defined = values.filter((v) => v !== undefined) as rdfjs.Term[];
+  const defined = values.filter((v) => v !== undefined) as RdfTerm[];
 
   switch (aggregate.aggregation) {
     case "count":

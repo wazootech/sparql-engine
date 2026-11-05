@@ -1,4 +1,4 @@
-import type * as rdfjs from "@rdfjs/types";
+import type { RdfTerm } from "@/parser/rdf-terms.ts";
 import type { AggregateExpression } from "@/parser/sparql-parser.ts";
 import type {
   ExpressionEvaluationContext,
@@ -15,7 +15,7 @@ export function aggregateResolver(
   solution: SelectSolution,
   expressionEvaluator: ExpressionEvaluator,
   context?: ExpressionEvaluationContext,
-): (aggregate: AggregateExpression) => rdfjs.Term | undefined {
+): (aggregate: AggregateExpression) => RdfTerm | undefined {
   const group = solution.group;
   if (group === null) {
     return () => undefined;

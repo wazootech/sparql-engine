@@ -12,3 +12,4 @@ coverage/
 native-diagnostics.json
 scriptc-build.log
 .deno/
+.scriptc/

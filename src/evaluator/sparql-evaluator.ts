@@ -1,10 +1,10 @@
-import type * as rdfjs from "@rdfjs/types";
 import type {
   RdfBlankNode,
   RdfQuad,
   RdfQuadObject,
   RdfQuadPredicate,
   RdfQuadSubject,
+  RdfSource,
   RdfTerm,
 } from "@/parser/rdf-terms.ts";
 import type {
@@ -103,10 +103,10 @@ export class SparqlEvaluator {
    */
   private nextConstructBnodeId = 0;
 
-  private readonly store: rdfjs.Source<RdfQuad>;
+  private readonly store: RdfSource<RdfQuad>;
 
   public constructor(
-    store: rdfjs.Source<RdfQuad>,
+    store: RdfSource<RdfQuad>,
     options: SparqlEvaluatorOptions = {},
   ) {
     this.store = store;
@@ -391,7 +391,7 @@ export class SparqlEvaluator {
    */
   private async describeStoreFor(
     from: { default: SparqlTerm[]; named: SparqlTerm[] } | undefined,
-  ): Promise<rdfjs.Source<RdfQuad>> {
+  ): Promise<RdfSource<RdfQuad>> {
     if (
       from === undefined ||
       (from.default.length === 0 && from.named.length === 0)

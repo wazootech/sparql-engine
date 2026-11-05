@@ -1,4 +1,3 @@
-import type * as rdfjs from "@rdfjs/types";
 import type {
   RdfBlankNode,
   RdfQuad,
@@ -6,6 +5,7 @@ import type {
   RdfQuadObject,
   RdfQuadPredicate,
   RdfQuadSubject,
+  RdfStore,
   RdfTerm,
 } from "@/parser/rdf-terms.ts";
 import type {
@@ -17,6 +17,13 @@ import type {
   UpdateQuery,
 } from "@/parser/sparql-parser.ts";
 import type { WazooSparqlTransaction } from "@/wazoo-sparql-engine.ts";
+
+/** HttpResponse is the fetch reply surface the LOAD path reads. */
+interface HttpResponse {
+  readonly ok: boolean;
+  readonly status: number;
+  text(): Promise<string>;
+}
 import { BgpEvaluator } from "@/evaluator/bgp-evaluator.ts";
 import type { TermBinding } from "@/evaluator/bgp-evaluator.ts";
 import { checkAborted } from "@/evaluator/abort.ts";
@@ -40,11 +47,11 @@ const { blankNode, quad, defaultGraph } = DataFactory;
 
 /**
  * QuadWriteStore is the minimal write surface an update-capable store must
- * expose beyond rdfjs.Store's read-only interface. MemoryStore and the
+ * expose beyond RdfStore's read-only interface. MemoryStore and the
  * durable Worlds backends (LibsqlRdfjsStore in @worlds/libsql, SqliteStore
  * in @worlds/sqlite) all satisfy it.
  */
-export type QuadWriteStore = rdfjs.Store & {
+export type QuadWriteStore = RdfStore & {
   addQuad(item: RdfQuad): void;
   removeQuad(item: RdfQuad): void;
 };
@@ -54,7 +61,7 @@ export type QuadWriteStore = rdfjs.Store & {
  */
 export interface UpdateEvaluatorOptions {
   /** store is the RDFJS store to apply updates to. */
-  store: rdfjs.Store;
+  store: RdfStore;
 
   /**
    * createTransaction is an optional factory for durable backends that need
@@ -479,7 +486,11 @@ export class UpdateEvaluator {
     try {
       let text = "";
       if (sourceIri.startsWith("http://") || sourceIri.startsWith("https://")) {
-        const res = await fetch(sourceIri);
+        // HttpResponse narrows fetch's reply to the three members the LOAD
+        // path reads. The DOM `Response` type is not part of scriptc's type
+        // environment (issue #221), so the assignment goes through an
+        // explicit interface rather than the ambient global.
+        const res = (await fetch(sourceIri)) as HttpResponse;
         if (!res.ok) {
           if (silent) return;
           throw new Error(

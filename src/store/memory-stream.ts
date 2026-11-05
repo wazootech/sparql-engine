@@ -1,4 +1,4 @@
-import type * as rdfjs from "@rdfjs/types";
+import type { RdfQuad, RdfStream } from "@/parser/rdf-terms.ts";
 
 type Listener = (...args: unknown[]) => void;
 
@@ -13,20 +13,20 @@ type Listener = (...args: unknown[]) => void;
  *   nothing else is consuming it,
  * - `end` is only emitted after every quad has been consumed.
  *
- * It implements the full EventEmitter surface required by the `rdfjs.Stream`
+ * It implements the full EventEmitter surface required by the `RdfStream`
  * interface without depending on Node's `events` module, keeping the engine
  * runtime dependency-free and browser-friendly.
  */
-export class MemoryStream implements rdfjs.Stream<rdfjs.Quad> {
+export class MemoryStream implements RdfStream<RdfQuad> {
   private _listeners = new Map<string | symbol, Listener[]>();
   private _maxListeners = 10;
   private _ended = false;
   private _flowing = false;
   private _readStarted = false;
 
-  public constructor(private readonly quads: rdfjs.Quad[]) {}
+  public constructor(private readonly quads: RdfQuad[]) {}
 
-  public read(): rdfjs.Quad | null {
+  public read(): RdfQuad | null {
     this._readStarted = true;
     const quad = this.quads.shift();
     if (quad === undefined) {
@@ -36,7 +36,7 @@ export class MemoryStream implements rdfjs.Stream<rdfjs.Quad> {
     return quad;
   }
 
-  public [Symbol.iterator](): Iterator<rdfjs.Quad> {
+  public [Symbol.iterator](): Iterator<RdfQuad> {
     return this.quads[Symbol.iterator]();
   }
 

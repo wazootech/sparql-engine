@@ -1,5 +1,4 @@
-import type * as rdfjs from "@rdfjs/types";
-import type { RdfQuad, RdfTerm } from "@/parser/rdf-terms.ts";
+import type { RdfQuad, RdfSource, RdfTerm } from "@/parser/rdf-terms.ts";
 import type { QuadEventSource } from "@/store/quad-event-source.ts";
 
 /**
@@ -8,7 +7,7 @@ import type { QuadEventSource } from "@/store/quad-event-source.ts";
  * with quad-store-stream.native.ts (see cli/tsconfig.json).
  */
 export function matchQuadsViaStream(
-  store: rdfjs.Source<RdfQuad>,
+  store: RdfSource<RdfQuad>,
   subject: RdfTerm | null,
   predicate: RdfTerm | null,
   object: RdfTerm | null,

@@ -1,3 +1,4 @@
+import type { WazooSparqlEngineOptions } from "@/wazoo-sparql-engine.ts";
 import type * as rdfjs from "@rdfjs/types";
 import { DataFactory } from "@/term/mod.ts";
 import { MemoryStore as Store } from "@/store/memory-store.ts";
@@ -159,10 +160,12 @@ export function reifiedStore(): Store {
  * Only the event surface matchQuads touches (on/read) exists at runtime;
  * the cast papers over the full EventEmitter/Store interfaces.
  */
-export function hangingStore(): rdfjs.Store<rdfjs.Quad> {
+export function hangingStore(): WazooSparqlEngineOptions["store"] {
   const stream = new EventTarget() as unknown as rdfjs.Stream<rdfjs.Quad>;
   (stream as unknown as { on(): void }).on = () => {};
   (stream as unknown as { read(): Promise<never> }).read = () =>
     new Promise<never>(() => {});
-  return { match: () => stream } as unknown as rdfjs.Store<rdfjs.Quad>;
+  return {
+    match: () => stream,
+  } as unknown as WazooSparqlEngineOptions["store"];
 }

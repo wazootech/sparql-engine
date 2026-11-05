@@ -1,4 +1,4 @@
-import type * as rdfjs from "@rdfjs/types";
+import type { RdfQuad, RdfTerm } from "@/parser/rdf-terms.ts";
 import { DISTINCT_SAMPLE_CAP } from "@/planner/pattern-stats-types.ts";
 import type { PatternStats } from "@/planner/pattern-stats-types.ts";
 import type { ScanEntry } from "@/evaluator/join.ts";
@@ -38,7 +38,7 @@ export function fallbackStats(entry: ScanEntry): PatternStats {
   if (n === 0) {
     return { candidates: 0, distinctByVar };
   }
-  const quadTerm = (quad: rdfjs.Quad, index: 0 | 1 | 2): rdfjs.Term =>
+  const quadTerm = (quad: RdfQuad, index: 0 | 1 | 2): RdfTerm =>
     index === 0 ? quad.subject : index === 1 ? quad.predicate : quad.object;
   if (n <= DISTINCT_SAMPLE_CAP) {
     const sets = positions.map(() => new Set<string>());

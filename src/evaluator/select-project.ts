@@ -1,4 +1,4 @@
-import type * as rdfjs from "@rdfjs/types";
+import type { RdfBlankNode } from "@/parser/rdf-terms.ts";
 import type { Expression, SelectQuery } from "@/parser/sparql-parser.ts";
 import type {
   ExpressionEvaluationContext,
@@ -52,7 +52,7 @@ export function projectSolutionToTermBinding(
   // solution's projection carries a fresh bnode cache (SPARQL 1.1 §17.4.1.5).
   const solutionContext: ExpressionEvaluationContext = {
     ...(context ?? {}),
-    bnodeMap: new Map<string, rdfjs.BlankNode>(),
+    bnodeMap: new Map<string, RdfBlankNode>(),
   };
   const resolver = solution.group === null
     ? undefined

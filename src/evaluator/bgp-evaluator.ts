@@ -1,5 +1,9 @@
-import type * as rdfjs from "@rdfjs/types";
-import type { RdfQuad, RdfQuadGraph, RdfTerm } from "@/parser/rdf-terms.ts";
+import type {
+  RdfQuad,
+  RdfQuadGraph,
+  RdfSource,
+  RdfTerm,
+} from "@/parser/rdf-terms.ts";
 import type {
   Expression,
   Pattern,
@@ -171,7 +175,7 @@ export class BgpEvaluator {
   private readonly expressionEvaluator: ExpressionEvaluator;
 
   public constructor(
-    private readonly store: rdfjs.Source<RdfQuad>,
+    private readonly store: RdfSource<RdfQuad>,
     options: BgpEvaluatorOptions = {},
   ) {
     this.reorderPatterns = options.reorderPatterns ?? true;
@@ -279,7 +283,7 @@ export class BgpEvaluator {
    * stays.
    */
   private existsIndexForScope(
-    store: rdfjs.Source<RdfQuad>,
+    store: RdfSource<RdfQuad>,
     snapshot: ExistsSnapshot | null,
   ): QuadIndex | null {
     if (snapshot === null) {
@@ -755,7 +759,7 @@ export class BgpEvaluator {
    * conditions evaluated inside it.
    */
   private existsContext(
-    store: rdfjs.Source<RdfQuad>,
+    store: RdfSource<RdfQuad>,
     baseIri?: string,
   ): ExpressionEvaluationContext {
     const graph = resolveGraphScope(store);
@@ -775,7 +779,7 @@ export class BgpEvaluator {
    * call's candidates for the main-path FILTER / BIND / OPTIONAL conditions.
    */
   private scopedExistsContext(
-    store: rdfjs.Source<RdfQuad>,
+    store: RdfSource<RdfQuad>,
     snapshot: ExistsSnapshot | null,
     baseIri?: string,
   ): ExpressionEvaluationContext {
@@ -840,7 +844,7 @@ export class BgpEvaluator {
    * same options, used by SparqlEvaluator to evaluate a query against its
    * FROM / FROM NAMED dataset.
    */
-  public forStore(store: rdfjs.Source<RdfQuad>): BgpEvaluator {
+  public forStore(store: RdfSource<RdfQuad>): BgpEvaluator {
     return new BgpEvaluator(store, {
       reorderPatterns: this.reorderPatterns,
       functions: this.functions,
@@ -870,7 +874,7 @@ export class BgpEvaluator {
   private async evaluateGroup(
     patterns: Pattern[],
     bindings: TermBinding[],
-    store: rdfjs.Source<RdfQuad>,
+    store: RdfSource<RdfQuad>,
     stats: PatternStatistics,
     baseIri?: string,
     signal?: AbortSignal,
@@ -931,7 +935,7 @@ export class BgpEvaluator {
   private async evaluatePattern(
     pattern: Pattern,
     bindings: TermBinding[],
-    store: rdfjs.Source<RdfQuad>,
+    store: RdfSource<RdfQuad>,
     snapshot: ExistsSnapshot | null,
     stats: PatternStatistics,
     baseIri?: string,
@@ -1198,7 +1202,7 @@ export class BgpEvaluator {
   private async joinBgp(
     triples: Triple[],
     bindings: TermBinding[],
-    store: rdfjs.Source<RdfQuad>,
+    store: RdfSource<RdfQuad>,
     snapshot: ExistsSnapshot | null,
     stats: PatternStatistics,
     signal?: AbortSignal,
@@ -1277,7 +1281,7 @@ export class BgpEvaluator {
   private async evaluateWithReordering(
     triplePatterns: Triple[],
     bindings: TermBinding[],
-    store: rdfjs.Source<RdfQuad>,
+    store: RdfSource<RdfQuad>,
     prebuiltIndex: QuadIndex | null,
     stats: PatternStatistics,
     signal?: AbortSignal,

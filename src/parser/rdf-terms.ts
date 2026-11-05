@@ -94,3 +94,50 @@ export interface RdfDirectionalLanguage {
   language: string;
   direction?: "ltr" | "rtl" | "" | null;
 }
+
+/** RdfStream is the structural copy of RDF/JS `Stream` (event callback shape). */
+export interface RdfStream<T = RdfQuad> {
+  on(event: string | symbol, listener: (...args: unknown[]) => void): unknown;
+  read(): T | null;
+}
+
+/** RdfSource is the structural copy of RDF/JS `Source`: pattern matching. */
+export interface RdfSource<T = RdfQuad> {
+  match(
+    subject?: RdfTerm | null,
+    predicate?: RdfTerm | null,
+    object?: RdfTerm | null,
+    graph?: RdfTerm | null,
+  ): RdfStream<T>;
+}
+
+/** RdfStore is the structural copy of RDF/JS `Store`: a source plus mutation. */
+export interface RdfStore<T extends RdfQuad = RdfQuad> extends RdfSource<T> {
+  addQuad(quad: T): unknown;
+  removeQuad(quad: T): unknown;
+  import(stream: RdfStream<T>): unknown;
+  removeMatches(
+    subject?: RdfTerm | null,
+    predicate?: RdfTerm | null,
+    object?: RdfTerm | null,
+    graph?: RdfTerm | null,
+  ): unknown;
+}
+
+/** RdfDataFactory is the structural copy of RDF/JS `DataFactory`. */
+export interface RdfDataFactory {
+  namedNode(value: string): RdfNamedNode;
+  blankNode(value?: string): RdfBlankNode;
+  literal(
+    value: string,
+    languageOrDatatype?: string | RdfNamedNode,
+  ): RdfLiteral;
+  variable(value: string): RdfVariable;
+  defaultGraph(): RdfDefaultGraph;
+  quad(
+    subject: RdfTerm,
+    predicate: RdfTerm,
+    object: RdfTerm,
+    graph?: RdfTerm,
+  ): RdfQuad;
+}

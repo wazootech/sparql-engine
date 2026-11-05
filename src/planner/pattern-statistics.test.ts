@@ -155,7 +155,9 @@ Deno.test(
     const scoped = new GraphScopedStore(hooked, graph);
     const stats = await source.statsFor(
       scoped,
-      entry(collectMatch(scoped)),
+      entry(
+        collectMatch(scoped as unknown as Parameters<typeof collectMatch>[0]),
+      ),
     );
     // The scoped candidates are empty (all data is in the default graph),
     // so the exact fallback reports zero candidates — never the hook.
@@ -178,7 +180,9 @@ Deno.test(
     const scoped = new GraphScopedStore(hooked, defaultGraph());
     const stats = await source.statsFor(
       scoped,
-      entry(collectMatch(scoped)),
+      entry(
+        collectMatch(scoped as unknown as Parameters<typeof collectMatch>[0]),
+      ),
     );
     assertEquals(stats, { candidates: 5, distinctByVar: { x: 5, o: 5 } });
     assertEquals(calls, 1);

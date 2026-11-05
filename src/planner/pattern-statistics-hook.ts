@@ -1,11 +1,10 @@
-import type * as rdfjs from "@rdfjs/types";
-import type { RdfQuad } from "@/parser/rdf-terms.ts";
+import type { RdfQuad, RdfSource } from "@/parser/rdf-terms.ts";
 import type { Triple } from "@/parser/sparql-parser.ts";
 import type { StoreStatisticsHook } from "@/planner/pattern-statistics.ts";
 
 /** createPatternStatisticsHook binds estimateStats when the store exposes it. */
 export function createPatternStatisticsHook(
-  store: rdfjs.Source<RdfQuad>,
+  store: RdfSource<RdfQuad>,
 ): StoreStatisticsHook["estimateStats"] {
   const candidate = (store as StoreStatisticsHook).estimateStats;
   if (typeof candidate !== "function") {

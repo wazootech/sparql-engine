@@ -1,4 +1,4 @@
-import type * as rdfjs from "@rdfjs/types";
+import type { RdfTerm } from "@/parser/rdf-terms.ts";
 import type { Expression, SelectQuery } from "@/parser/sparql-parser.ts";
 import type {
   ExpressionEvaluationContext,
@@ -34,7 +34,7 @@ export function orderBindings(
   const aliasValue = (
     solution: SelectSolution,
     alias: Expression,
-  ): rdfjs.Term | undefined => {
+  ): RdfTerm | undefined => {
     const resolver = solution.group === null
       ? undefined
       : aggregateResolver(solution, expressionEvaluator, context);
@@ -49,7 +49,7 @@ export function orderBindings(
   };
   const comparators = order.map((clause) => ({
     descending: clause.descending === true,
-    resolve: (solution: SelectSolution): rdfjs.Term | undefined => {
+    resolve: (solution: SelectSolution): RdfTerm | undefined => {
       if (
         "termType" in clause.expression &&
         clause.expression.termType === "Variable"

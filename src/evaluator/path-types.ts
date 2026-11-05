@@ -1,15 +1,16 @@
-import type * as rdfjs from "@rdfjs/types";
+import type { RdfTerm } from "@/parser/rdf-terms.ts";
 import type {
   PropertyPath,
   Term as SparqlTerm,
-} from "@/parser/sparql-parser.ts";
+  TriplePredicate,
+} from "@/parser/ast.ts";
 
 /**
  * PathPair is one (subject, object) connection produced by a property path.
  */
 export interface PathPair {
-  subject: rdfjs.Term;
-  object: rdfjs.Term;
+  subject: RdfTerm;
+  object: RdfTerm;
 }
 
 /**
@@ -25,14 +26,17 @@ export interface PathEntry {
 /**
  * PathElement is either a plain predicate IRI or a nested property path.
  */
-export type PathElement = rdfjs.NamedNode | PropertyPath;
+export type PathElement = TriplePredicate;
 
 /**
  * isPropertyPath reports whether a triple predicate is a property path
- * rather than a simple predicate term.
+ * rather than a simple predicate term. The parameter is the predicate's
+ * declared type (not `unknown`): scriptc rejects converting a typed value
+ * into an `unknown` slot (SC1101, issue #221), and every call site passes a
+ * real predicate, so the type-level narrowing here is on PathElement.
  */
 export function isPropertyPath(
-  predicate: unknown,
+  predicate: TriplePredicate,
 ): predicate is PropertyPath {
   return (
     typeof predicate === "object" &&

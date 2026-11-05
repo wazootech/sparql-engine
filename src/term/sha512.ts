@@ -32,18 +32,38 @@ function sha512Words(
       w[index] = view.getBigUint64(offset + index * 8, false);
     }
     for (let index = 16; index < 80; index++) {
-      const s0 = rotateRight64(w[index - 15], 1n) ^
-        rotateRight64(w[index - 15], 8n) ^ (w[index - 15] >> 7n);
-      const s1 = rotateRight64(w[index - 2], 19n) ^
-        rotateRight64(w[index - 2], 61n) ^ (w[index - 2] >> 6n);
-      w[index] = (w[index - 16] + s0 + w[index - 7] + s1) & MASK64;
+      // Each schedule word is read through a local: indexed reads on a plain
+      // array widen to `bigint | undefined`, and scriptc rejects arithmetic
+      // over an optional operand (SC1043, issue #221). The indices are in
+      // range by construction, so the fallbacks never fire.
+      const w15 = w[index - 15] ?? 0n;
+      const w2 = w[index - 2] ?? 0n;
+      const w16 = w[index - 16] ?? 0n;
+      const w7 = w[index - 7] ?? 0n;
+      const s0 = rotateRight64(w15, 1n) ^
+        rotateRight64(w15, 8n) ^ (w15 >> 7n);
+      const s1 = rotateRight64(w2, 19n) ^
+        rotateRight64(w2, 61n) ^ (w2 >> 6n);
+      w[index] = (w16 + s0 + w7 + s1) & MASK64;
     }
-    let [a, b, c, d, e, f, g, h] = state;
+    // The state words come out of indexed locals rather than a destructuring
+    // pattern: array destructuring widens each binding to `bigint | undefined`
+    // and scriptc rejects arithmetic over an optional operand (SC1043).
+    let a = state[0] ?? 0n;
+    let b = state[1] ?? 0n;
+    let c = state[2] ?? 0n;
+    let d = state[3] ?? 0n;
+    let e = state[4] ?? 0n;
+    let f = state[5] ?? 0n;
+    let g = state[6] ?? 0n;
+    let h = state[7] ?? 0n;
     for (let index = 0; index < 80; index++) {
       const s1 = rotateRight64(e, 14n) ^ rotateRight64(e, 18n) ^
         rotateRight64(e, 41n);
       const ch = (e & f) ^ (~e & g);
-      const temp1 = (h + s1 + ch + SHA512_K[index] + w[index]) & MASK64;
+      const k = SHA512_K[index] ?? 0n;
+      const wi = w[index] ?? 0n;
+      const temp1 = (h + s1 + ch + k + wi) & MASK64;
       const s0 = rotateRight64(a, 28n) ^ rotateRight64(a, 34n) ^
         rotateRight64(a, 39n);
       const maj = (a & b) ^ (a & c) ^ (b & c);
@@ -58,14 +78,14 @@ function sha512Words(
       a = (temp1 + temp2) & MASK64;
     }
     state = [
-      (a + state[0]) & MASK64,
-      (b + state[1]) & MASK64,
-      (c + state[2]) & MASK64,
-      (d + state[3]) & MASK64,
-      (e + state[4]) & MASK64,
-      (f + state[5]) & MASK64,
-      (g + state[6]) & MASK64,
-      (h + state[7]) & MASK64,
+      (a + (state[0] ?? 0n)) & MASK64,
+      (b + (state[1] ?? 0n)) & MASK64,
+      (c + (state[2] ?? 0n)) & MASK64,
+      (d + (state[3] ?? 0n)) & MASK64,
+      (e + (state[4] ?? 0n)) & MASK64,
+      (f + (state[5] ?? 0n)) & MASK64,
+      (g + (state[6] ?? 0n)) & MASK64,
+      (h + (state[7] ?? 0n)) & MASK64,
     ];
   }
   return state;

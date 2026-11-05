@@ -1,5 +1,10 @@
-import type * as rdfjs from "@rdfjs/types";
-import type { RdfQuad, RdfQuadGraph, RdfTerm } from "@/parser/rdf-terms.ts";
+import type {
+  RdfQuad,
+  RdfQuadGraph,
+  RdfStore,
+  RdfStream,
+  RdfTerm,
+} from "@/parser/rdf-terms.ts";
 import { MemoryStream, subscribeQuadData } from "@/store/quad-stream.ts";
 import { sameRdfTerm, termKey } from "@/term/mod.ts";
 import { DataFactory } from "@/term/data-factory.ts";
@@ -78,7 +83,7 @@ function unindexPosition(
  * @see {@link https://doi.org/10.14778/1453856.1453965 Weiss, Karras & Bernstein, "Hexastore: Sextuple Indexing for Semantic Web Data Management," PVLDB 1(1), 2008, pp. 1008–1019}
  * @see {@link https://doi.org/10.1145/582095.582099 Selinger et al., "Access Path Selection in a Relational Database Management System," SIGMOD '79, pp. 23–34}
  */
-export class MemoryStore implements rdfjs.Store<RdfQuad> {
+export class MemoryStore implements RdfStore<RdfQuad> {
   private quads: Map<string, RdfQuad> = new Map();
   private bySubject: Map<string, RdfQuad[]> = new Map();
   private byPredicate: Map<string, RdfQuad[]> = new Map();
@@ -150,12 +155,12 @@ export class MemoryStore implements rdfjs.Store<RdfQuad> {
     return this;
   }
 
-  public remove(stream: rdfjs.Stream<RdfQuad>): rdfjs.Stream<RdfQuad> {
+  public remove(stream: RdfStream<RdfQuad>): RdfStream<RdfQuad> {
     subscribeQuadData(stream, (quad) => this.removeQuad(quad));
     return stream;
   }
 
-  public import(stream: rdfjs.Stream<RdfQuad>): rdfjs.Stream<RdfQuad> {
+  public import(stream: RdfStream<RdfQuad>): RdfStream<RdfQuad> {
     subscribeQuadData(stream, (quad) => this.addQuad(quad));
     return stream;
   }

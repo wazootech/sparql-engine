@@ -1,4 +1,4 @@
-import type * as rdfjs from "@rdfjs/types";
+import type { RdfTerm } from "@/parser/rdf-terms.ts";
 import {
   compareRdfTerms,
   DataFactory,
@@ -12,8 +12,8 @@ const { literal, namedNode } = DataFactory;
 
 export function minMaxAggregate(
   aggregation: "min" | "max",
-  defined: rdfjs.Term[],
-): rdfjs.Term | undefined {
+  defined: RdfTerm[],
+): RdfTerm | undefined {
   if (defined.length === 0) {
     return undefined;
   }
@@ -29,8 +29,8 @@ export function minMaxAggregate(
 
 export function groupConcat(
   separator: string | undefined,
-  defined: rdfjs.Term[],
-): rdfjs.Term {
+  defined: RdfTerm[],
+): RdfTerm {
   const parts: string[] = [];
   for (const value of defined) {
     if (value.termType === "Literal" || value.termType === "NamedNode") {
@@ -44,7 +44,7 @@ export function groupConcat(
 /**
  * WILDCARD_MARKER stands in for COUNT(*) arguments; only count uses it.
  */
-export const WILDCARD_MARKER: rdfjs.Term = DataFactory.namedNode(
+export const WILDCARD_MARKER: RdfTerm = DataFactory.namedNode(
   "urn:wazoo:aggregate-wildcard",
 );
 
