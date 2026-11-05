@@ -41,14 +41,39 @@ export const NUMERIC_DATATYPES: ReadonlySet<string> = new Set([
   XSD_DOUBLE,
 ]);
 
+const DECIMAL_NUMBER_FORM =
+  /^[+-]?(?:[0-9]+\.?[0-9]*|\.[0-9]+)(?:[eE][+-]?[0-9]+)?$/;
+const INFINITY_FORM = /^[+-]?Infinity$/;
+const RADIX_FORMS: [RegExp, number][] = [
+  [/^0[xX][0-9a-fA-F]+$/, 16],
+  [/^0[oO][0-7]+$/, 8],
+  [/^0[bB][01]+$/, 2],
+];
+
 /**
- * numberFromText parses a numeric lexical form as a JS number with the exact
- * ToNumber semantics of `Number(text)`. Unary plus is the same operation and
- * stays out of the native compiler's dynamic tier, where the `Number()`
- * constructor lands (scriptc issue #221).
+ * numberFromText parses a numeric lexical form as a JS number with the
+ * ToNumber semantics of `Number(text)`: surrounding whitespace is ignored,
+ * blank text is 0, and anything that is not a decimal, infinity, or
+ * radix-prefixed form is NaN. Every branch is statically typed, so the native
+ * compiler keeps it out of the dynamic tier (scriptc issues #221 and #247).
  */
 export function numberFromText(text: string): number {
-  return +text;
+  const trimmed = text.trim();
+  if (trimmed === "") {
+    return 0;
+  }
+  if (DECIMAL_NUMBER_FORM.test(trimmed)) {
+    return parseFloat(trimmed);
+  }
+  if (INFINITY_FORM.test(trimmed)) {
+    return trimmed.startsWith("-") ? -Infinity : Infinity;
+  }
+  for (const [form, radix] of RADIX_FORMS) {
+    if (form.test(trimmed)) {
+      return parseInt(trimmed.slice(2), radix);
+    }
+  }
+  return NaN;
 }
 
 /**

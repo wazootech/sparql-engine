@@ -5,7 +5,10 @@ import type {
 import type { SelectQuery } from "@/parser/sparql-parser.ts";
 import type { SelectSolution } from "@/evaluator/select-solution.ts";
 import type { TermBinding } from "@/evaluator/join.ts";
-import { joinBindingsArrays } from "@/evaluator/join-bindings.ts";
+import {
+  copyBoundTerm,
+  joinBindingsArrays,
+} from "@/evaluator/join-bindings.ts";
 import { expressionContainsAggregate } from "@/evaluator/expression-utils.ts";
 import { groupSolutions } from "@/evaluator/aggregate.ts";
 import { havingPasses } from "@/evaluator/select-having.ts";
@@ -150,7 +153,7 @@ export function applySelectPipeline(
     const clean: TermBinding = {};
     for (const k of Object.keys(b)) {
       if (!k.startsWith("_:")) {
-        clean[k] = b[k];
+        copyBoundTerm(b, clean, k);
       }
     }
     return clean;

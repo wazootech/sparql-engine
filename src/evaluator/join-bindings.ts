@@ -131,12 +131,53 @@ export function joinKey(
 }
 
 /**
+ * readBoundTerm returns the term a binding holds for a variable, or
+ * undefined when the variable is unbound. The variable name is a declared
+ * string, so the record read needs no implicit key coercion in the native
+ * build (issue #247).
+ */
+export function readBoundTerm(
+  binding: TermBinding,
+  variableName: string,
+): RdfTerm | undefined {
+  const boundTerm: RdfTerm | undefined = binding[variableName];
+  return boundTerm;
+}
+
+/**
+ * writeBoundTerm binds a variable to a term in a binding, with a declared
+ * string key (issue #247).
+ */
+export function writeBoundTerm(
+  binding: TermBinding,
+  variableName: string,
+  term: RdfTerm,
+): void {
+  binding[variableName] = term;
+}
+
+/**
+ * copyBoundTerm copies one variable's term from a source binding into a
+ * target binding. The variable name is a declared string, so the record
+ * write needs no implicit key coercion in the native build (issue #247).
+ */
+export function copyBoundTerm(
+  source: TermBinding,
+  target: TermBinding,
+  variableName: string,
+): void {
+  const boundTerm: RdfTerm = source[variableName];
+  target[variableName] = boundTerm;
+}
+
+/**
  * sharesVariable reports whether two bindings both bind at least one
  * variable in common.
  */
 export function sharesVariable(a: TermBinding, b: TermBinding): boolean {
   for (const key of Object.keys(a)) {
-    if (b[key] !== undefined) {
+    const bValue = readBoundTerm(b, key);
+    if (bValue !== undefined) {
       return true;
     }
   }

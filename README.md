@@ -177,23 +177,23 @@ V8's sliced strings make free and a copy-per-slice runtime does not. At 16,000
 triples that cost 11.5 s natively. Matching at an offset with sticky regexes
 (`src/parser/lr-runtime.ts`) brought it to 0.48 s and made the cost linear.
 
-The native graph is fully static. `scriptc coverage` reports 5,756/5,756
+The native graph is fully static. `scriptc coverage` reports 5,784/5,784
 statements static (100%), 0 functions signature-blocked, 0 blocker groups, and 0
 likely-hot untyped reads, and `deno task native:coverage` exits non-zero if a
 blocker or an SC6101 group reappears, so the gate cannot regress quietly.
 
-60 statements across 82 functions stay in scriptc's report-only dynamic tier:
+47 statements across 70 functions stay in scriptc's report-only dynamic tier:
 code that operates on values typed only at runtime, which scriptc still lowers
 to native code with checked values. The compiler's labels name the shapes —
 `dyn.class` for `instanceof` and casts on interface-typed values (arbitrary
 RDF/JS stores, `LrParseError`/`SparqlSyntaxError`, the injectable cost
 estimator), `dyn.this` for methods reached through those values,
-`dyn.toStringCoerce`/`dyn.hasOwn`/`dyn.hasKey` for dynamic record keys in term
-bindings and property reads, `dyn.objCreate` for object-shaped casts and the
-`{}` accumulator when a binding is copied, and one `dynObjLit` in the CLI's
-error reporter. They sit at the boundaries the package's contract defines:
-arbitrary stores and terms, caught `unknown` errors, `AbortSignal` reasons, and
-function-valued hooks such as join callbacks, `fetch`, and `readTextFile`.
+`dyn.hasOwn`/`dyn.hasKey` for dynamic record keys in bindings and property
+reads, `dyn.objCreate` for object-shaped casts and the `{}` accumulator when a
+binding is copied, and one `dynObjLit` in the CLI's error reporter. They sit at
+the boundaries the package's contract defines: arbitrary stores and terms,
+caught `unknown` errors, `AbortSignal` reasons, and function-valued hooks such
+as join callbacks, `fetch`, and `readTextFile`.
 
 Two Deno-only surfaces — RDF/JS streams and optional store statistics — never
 enter the native graph. `cli/tsconfig.json` maps `src/store/quad-stream.ts` and
