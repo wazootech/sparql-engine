@@ -19,7 +19,7 @@
  * delimiter repeats (e.g. a stray closing brace at the end of a query).
  */
 
-import { LrParseError } from "@/parser/lr-runtime.ts";
+import type { LrParseError } from "@/parser/lr-runtime.ts";
 
 /** SparqlSyntaxErrorKind distinguishes lexer from parser failures. */
 export type SparqlSyntaxErrorKind = "parse" | "lexical";
@@ -46,6 +46,9 @@ export interface SparqlSyntaxErrorDetails {
 /** SparqlSyntaxError is a line/column-positioned SPARQL syntax error. */
 export class SparqlSyntaxError extends Error {
   override readonly name = "SparqlSyntaxError";
+
+  /** errorKind tags the error so callers can dispatch without instanceof. */
+  readonly errorKind = "sparql-syntax" as const;
 
   readonly kind: SparqlSyntaxErrorKind;
   readonly line: number;
@@ -94,16 +97,17 @@ export function toSparqlSyntaxError(
   input: string,
   error: unknown,
 ): SparqlSyntaxError | null {
-  if (!(error instanceof LrParseError)) {
+  if ((error as { errorKind?: unknown } | null)?.errorKind !== "lr-parse") {
     return null;
   }
-  const message = error.message;
+  const parseError = error as LrParseError;
+  const message = parseError.message;
   const parseMatch = /^Parse error on line (\d+)/.exec(message);
   const lexMatch = /^Lexical error on line (\d+)/.exec(message);
   if (!parseMatch && !lexMatch) {
     return null;
   }
-  const hash = error.hash;
+  const hash = parseError.hash;
   const line = hash.line + 1;
   const text = hash.text;
   const token = hash.token;

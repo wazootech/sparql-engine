@@ -41,7 +41,8 @@ import { expandReifiedTriples } from "@/evaluator/reified.ts";
 import { DataFactory } from "@/term/data-factory.ts";
 import { parseTurtleQuads } from "@/parser/turtle-parser.ts";
 import type { JoinCostEstimator } from "@/planner/join-cost-estimator.ts";
-import { MemoryStore } from "@/store/memory-store.ts";
+import type { MemoryStore } from "@/store/memory-store.ts";
+import { storeKindOf } from "@/store-kind.ts";
 
 const { blankNode, quad, defaultGraph } = DataFactory;
 
@@ -216,13 +217,13 @@ export class UpdateEvaluator {
   ): Promise<void> {
     const transaction = this.options.createTransaction?.();
     if (!transaction) {
-      if (!(this.options.store instanceof MemoryStore)) {
+      if (storeKindOf(this.options.store) !== "memory") {
         throw new Error(
           "This store does not support SPARQL updates: pass a MemoryStore, " +
             "or provide createTransaction",
         );
       }
-      const writeStore = this.options.store;
+      const writeStore = this.options.store as MemoryStore;
       if (
         typeof writeStore.addQuad !== "function" ||
         typeof writeStore.removeQuad !== "function"

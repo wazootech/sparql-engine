@@ -1,5 +1,6 @@
 import type { RdfQuad, RdfSource } from "@/parser/rdf-terms.ts";
-import { GraphScopedStore } from "@/quad-store.ts";
+import type { GraphScopedStore } from "@/quad-store.ts";
+import { storeKindOf } from "@/store-kind.ts";
 import { createPatternStatisticsHook } from "@/planner/pattern-statistics-hook.ts";
 import type {
   PatternStats,
@@ -76,8 +77,8 @@ export class PatternStatistics {
     storeView: RdfSource<RdfQuad>,
     entry: ScanEntry,
   ): Promise<PatternStats> {
-    const namedScope = storeView instanceof GraphScopedStore &&
-      storeView.graphTermType !== "DefaultGraph";
+    const namedScope = storeKindOf(storeView) === "graph-scoped" &&
+      (storeView as GraphScopedStore).graphTermType !== "DefaultGraph";
     const key = `${namedScope ? "s" : "d"}::${patternSignature(entry)}`;
     const cached = this.cache.get(key);
     if (cached !== undefined) {

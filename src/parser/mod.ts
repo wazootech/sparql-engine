@@ -28,7 +28,7 @@
 import type { SparqlQuery } from "./ast.ts";
 export type * from "./ast.ts";
 export { SparqlSyntaxError } from "./syntax-error.ts";
-import { SparqlSyntaxError, toSparqlSyntaxError } from "./syntax-error.ts";
+import { toSparqlSyntaxError } from "./syntax-error.ts";
 
 import { parseSparql } from "./parser.ts";
 import {
@@ -102,7 +102,9 @@ export class Parser {
       parseSparql(query);
       return parsedQuery();
     } catch (error) {
-      if (error instanceof SparqlSyntaxError) {
+      if (
+        (error as { errorKind?: unknown } | null)?.errorKind === "sparql-syntax"
+      ) {
         throw error;
       }
       // Map the generated parse/lex error into a typed, position-aware

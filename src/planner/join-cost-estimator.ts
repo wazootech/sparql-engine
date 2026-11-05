@@ -25,6 +25,13 @@ import { termKey } from "@/term/mod.ts";
  */
 export interface JoinCostEstimator {
   /**
+   * estimatorKind optionally tags built-in estimators ("baseline" for
+   * BaselineJoinCostEstimator) so the evaluator dispatches without
+   * instanceof. Custom estimators omit it.
+   */
+  readonly estimatorKind?: string;
+
+  /**
    * estimateJoinCost returns the estimated number of quad iterations
    * joining the given pattern against the current bindings will perform.
    * Lower is cheaper. A cost of 0 (for example, no bindings left to join)
@@ -60,6 +67,9 @@ export interface JoinCostEstimator {
  * bindings remain. Either way the cost is a conservative per-binding bound.
  */
 export class BaselineJoinCostEstimator implements JoinCostEstimator {
+  /** estimatorKind marks this as the default baseline estimator. */
+  public readonly estimatorKind = "baseline";
+
   /**
    * estimateJoinCost estimates join cost from binding count only. Greedy BGP
    * reordering calls estimateBaselineJoinCost with full bindings instead.
