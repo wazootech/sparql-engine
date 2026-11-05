@@ -1,6 +1,5 @@
-import type * as rdfjs from "@rdfjs/types";
+import type { RdfQuad, RdfTerm } from "@/parser/rdf-terms.ts";
 import type { PathElement } from "@/evaluator/path-types.ts";
-import type { Term as SparqlTerm } from "@/parser/sparql-parser.ts";
 import { matchQuadsSync } from "@/evaluator/path-sync.ts";
 import { sameRdfTerm, termKey } from "@/term/mod.ts";
 
@@ -15,11 +14,11 @@ import { sameRdfTerm, termKey } from "@/term/mod.ts";
  * and negated property sets).
  */
 export function pathStepsSync(
-  candidates: rdfjs.Quad[],
+  candidates: RdfQuad[],
   path: PathElement,
   direction: "forward" | "backward",
-  term: rdfjs.Term,
-): rdfjs.Term[] {
+  term: RdfTerm,
+): RdfTerm[] {
   // A plain IRI is a link path: forward matches outgoing edges, backward
   // matches incoming edges.
   if ("termType" in path) {
@@ -41,7 +40,7 @@ export function pathStepsSync(
       if (direction === "forward") {
         let current = [term];
         for (const item of path.items) {
-          const next: rdfjs.Term[] = [];
+          const next: RdfTerm[] = [];
           for (const node of current) {
             for (
               const target of pathStepsSync(candidates, item, "forward", node)
@@ -59,7 +58,7 @@ export function pathStepsSync(
       let current = [term];
       for (let i = path.items.length - 1; i >= 0; i--) {
         const item = path.items[i];
-        const next: rdfjs.Term[] = [];
+        const next: RdfTerm[] = [];
         for (const node of current) {
           for (
             const source of pathStepsSync(
@@ -80,7 +79,7 @@ export function pathStepsSync(
       return current;
     }
     case "|": {
-      const results: rdfjs.Term[] = [];
+      const results: RdfTerm[] = [];
       const seen = new Set<string>();
       for (const item of path.items) {
         for (
@@ -96,7 +95,7 @@ export function pathStepsSync(
     }
     case "?": {
       // Zero-or-one: the anchor itself plus the inner path's targets.
-      const results: rdfjs.Term[] = [term];
+      const results: RdfTerm[] = [term];
       for (
         const target of pathStepsSync(
           candidates,
@@ -113,9 +112,9 @@ export function pathStepsSync(
     }
     case "*": {
       // Zero-or-more: reflexive-transitive closure of the inner path.
-      const results: rdfjs.Term[] = [term];
+      const results: RdfTerm[] = [term];
       const visited = new Set<string>([termKey(term)]);
-      const queue: rdfjs.Term[] = [term];
+      const queue: RdfTerm[] = [term];
       while (queue.length > 0) {
         const current = queue.shift()!;
         for (
@@ -141,9 +140,9 @@ export function pathStepsSync(
       // not reflexive for +, but in a cycle it IS reachable from itself via
       // one or more steps, so when the walk returns to it it is emitted once
       // (and never re-queued, keeping the traversal finite).
-      const results: rdfjs.Term[] = [];
+      const results: RdfTerm[] = [];
       const visited = new Set<string>();
-      const queue: rdfjs.Term[] = [term];
+      const queue: RdfTerm[] = [term];
       const startKey = termKey(term);
       let startEmitted = false;
       while (queue.length > 0) {
@@ -183,20 +182,24 @@ export function pathStepsSync(
 
       const collectNpsItems = (items: PathElement[]) => {
         for (const item of items) {
-          if ("termType" in item) {
-            directExcluded.add(item.value);
-          } else if (
-            typeof item === "object" && item !== null && "type" in item
-          ) {
-            const pObj = item as {
-              type: string;
-              pathType?: string;
-              items?: PathElement[];
-            };
+          // The members are read off one structural view instead of `in`
+          // narrowing: scriptc rejects `in` on the parser's union (SC1090,
+          // issue #221). A path element has `type: "path"`; a term has
+          // `termType`, and both arms read members that exist on their arm.
+          const pObj = item as {
+            termType?: string;
+            value?: string;
+            type?: string;
+            pathType?: string;
+            items?: PathElement[];
+          };
+          if (pObj.termType !== undefined) {
+            directExcluded.add(pObj.value ?? "");
+          } else if (pObj.type === "path") {
             if (pObj.pathType === "|") {
               collectNpsItems(pObj.items ?? []);
             } else if (pObj.pathType === "^") {
-              const invItem = pObj.items?.[0] as SparqlTerm | undefined;
+              const invItem = pObj.items?.[0] as { value?: string } | undefined;
               if (invItem?.value) {
                 inverseExcluded.add(invItem.value);
                 hasInverse = true;
@@ -207,7 +210,7 @@ export function pathStepsSync(
       };
       collectNpsItems(path.items);
 
-      const results: rdfjs.Term[] = [];
+      const results: RdfTerm[] = [];
       const seen = new Set<string>();
 
       if (direction === "forward") {

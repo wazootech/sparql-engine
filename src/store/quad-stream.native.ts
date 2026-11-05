@@ -3,8 +3,12 @@
 // MemoryStore.getQuads, so no RDF/JS quad stream is ever constructed or
 // drained; the surface stays available to the type checker and throws when a
 // caller reaches it.
-import type * as rdfjs from "@rdfjs/types";
-import type { RdfQuad, RdfTerm } from "@/parser/rdf-terms.ts";
+import type {
+  RdfQuad,
+  RdfSource,
+  RdfStream,
+  RdfTerm,
+} from "@/parser/rdf-terms.ts";
 
 type Listener = (...args: unknown[]) => void;
 
@@ -18,7 +22,7 @@ function unsupported(): never {
  * MemoryStream is unavailable in native builds: every member throws because
  * the native CLI never materializes a quad stream.
  */
-export class MemoryStream implements rdfjs.Stream<RdfQuad> {
+export class MemoryStream implements RdfStream<RdfQuad> {
   public constructor(_quads: RdfQuad[]) {
     unsupported();
   }
@@ -109,7 +113,7 @@ export class MemoryStream implements rdfjs.Stream<RdfQuad> {
  * exposes an RDF/JS stream.
  */
 export function subscribeQuadData(
-  _stream: rdfjs.Stream<RdfQuad>,
+  _stream: RdfStream<RdfQuad>,
   _listener: (quad: RdfQuad) => void,
 ): void {
   unsupported();
@@ -120,11 +124,11 @@ export function subscribeQuadData(
  * MemoryStore scans directly through getQuads.
  */
 export function matchQuadStream(
-  _store: rdfjs.Source<RdfQuad>,
+  _store: RdfSource<RdfQuad>,
   _subject?: RdfTerm | null,
   _predicate?: RdfTerm | null,
   _object?: RdfTerm | null,
   _graph?: RdfTerm | null,
-): rdfjs.Stream<RdfQuad> {
+): RdfStream<RdfQuad> {
   return unsupported();
 }

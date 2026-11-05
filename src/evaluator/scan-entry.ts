@@ -1,9 +1,13 @@
-import type * as rdfjs from "@rdfjs/types";
+import type {
+  RdfBaseQuad,
+  RdfQuad,
+  RdfSource,
+  RdfTerm,
+} from "@/parser/rdf-terms.ts";
 import type { ScanEntry, TermBinding } from "@/evaluator/join-bindings.ts";
 import type { Term as SparqlTerm, Triple } from "@/parser/sparql-parser.ts";
 import { isReifiesPattern } from "@/evaluator/reified.ts";
 import { matchQuads, simplePredicate } from "@/quad-store.ts";
-import type { RdfBaseQuad, RdfQuad, RdfTerm } from "@/parser/rdf-terms.ts";
 import { sameRdfTerm, sparqlTermToRdfTerm } from "@/term/mod.ts";
 
 /**
@@ -11,7 +15,7 @@ import { sameRdfTerm, sparqlTermToRdfTerm } from "@/term/mod.ts";
  * matching its constant positions.
  */
 export function scanEntry(
-  store: rdfjs.Source<RdfQuad>,
+  store: RdfSource<RdfQuad>,
   pattern: Triple,
 ): Promise<ScanEntry> {
   const subject = pattern.subject;

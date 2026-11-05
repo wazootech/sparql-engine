@@ -1,5 +1,4 @@
-import type * as rdfjs from "@rdfjs/types";
-import type { RdfQuad } from "@/parser/rdf-terms.ts";
+import type { RdfQuad, RdfSource } from "@/parser/rdf-terms.ts";
 import { GraphScopedStore } from "@/quad-store.ts";
 import { createPatternStatisticsHook } from "@/planner/pattern-statistics-hook.ts";
 import type {
@@ -58,7 +57,7 @@ export class PatternStatistics {
 
   private readonly hook: StoreStatisticsHook["estimateStats"];
 
-  public constructor(store: rdfjs.Source<RdfQuad>) {
+  public constructor(store: RdfSource<RdfQuad>) {
     this.hook = createPatternStatisticsHook(store);
   }
 
@@ -74,7 +73,7 @@ export class PatternStatistics {
    * pattern signature per scope kind.
    */
   public async statsFor(
-    storeView: rdfjs.Source<RdfQuad>,
+    storeView: RdfSource<RdfQuad>,
     entry: ScanEntry,
   ): Promise<PatternStats> {
     const namedScope = storeView instanceof GraphScopedStore &&

@@ -2,8 +2,7 @@
 // discovery is inherently dynamic (any RDF/JS source may expose it), so
 // scriptc replaces this module with store-statistics.native.ts
 // (cli/tsconfig.json), whose builds use the deterministic fallback.
-import type * as rdfjs from "@rdfjs/types";
-import type { RdfQuad } from "@/parser/rdf-terms.ts";
+import type { RdfQuad, RdfSource } from "@/parser/rdf-terms.ts";
 import type { Triple } from "@/parser/sparql-parser.ts";
 import type {
   PatternStats,
@@ -15,7 +14,7 @@ import type {
  * with the store as receiver, or returns undefined when it has none.
  */
 export function estimateStatsViaStore(
-  store: rdfjs.Source<RdfQuad>,
+  store: RdfSource<RdfQuad>,
   pattern: Triple,
 ): PatternStats | Promise<PatternStats | undefined> | undefined {
   const candidate = (store as StoreStatisticsHook).estimateStats;

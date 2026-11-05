@@ -1,4 +1,4 @@
-import type * as rdfjs from "@rdfjs/types";
+import type { RdfQuad } from "@/parser/rdf-terms.ts";
 import { escapeIri } from "@/serialize/turtle-escape.ts";
 import { term } from "@/serialize/turtle-term.ts";
 
@@ -37,7 +37,7 @@ export interface TurtleWriterOptions {
  * @returns the serialized document (trailing newline, empty string for no quads)
  */
 export function serializeTurtle(
-  quads: rdfjs.Quad[],
+  quads: RdfQuad[],
   options: TurtleWriterOptions = {},
 ): string {
   const format = options.format ?? "turtle";
@@ -74,8 +74,8 @@ export function serializeTurtle(
     ([prefix, iri]) => `@prefix ${prefix}: <${escapeIri(iri)}> .`,
   );
 
-  const defaultGraph: rdfjs.Quad[] = [];
-  const byGraph = new Map<string, rdfjs.Quad[]>();
+  const defaultGraph: RdfQuad[] = [];
+  const byGraph = new Map<string, RdfQuad[]>();
   for (const q of quadArray) {
     if (q.graph.termType === "DefaultGraph") {
       defaultGraph.push(q);
@@ -107,10 +107,10 @@ export function serializeTurtle(
  * groups and `,` between objects of the same predicate.
  */
 function statementLines(
-  quads: rdfjs.Quad[],
+  quads: RdfQuad[],
   prefixes: Record<string, string>,
 ): string[] {
-  const bySubject = new Map<string, rdfjs.Quad[]>();
+  const bySubject = new Map<string, RdfQuad[]>();
   for (const q of quads) {
     const key = term(q.subject, prefixes);
     const bucket = bySubject.get(key);
@@ -123,7 +123,7 @@ function statementLines(
 
   const lines: string[] = [];
   for (const [subjectKey, subjectQuads] of bySubject) {
-    const byPredicate = new Map<string, rdfjs.Quad[]>();
+    const byPredicate = new Map<string, RdfQuad[]>();
     for (const q of subjectQuads) {
       const key = term(q.predicate, prefixes);
       const bucket = byPredicate.get(key);

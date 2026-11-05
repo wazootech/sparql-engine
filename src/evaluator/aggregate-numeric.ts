@@ -1,4 +1,4 @@
-import type * as rdfjs from "@rdfjs/types";
+import type { RdfLiteral, RdfTerm } from "@/parser/rdf-terms.ts";
 import {
   canonicalDouble,
   DataFactory,
@@ -13,7 +13,7 @@ import {
 
 const { literal, namedNode } = DataFactory;
 
-export function sumAggregate(defined: rdfjs.Term[]): rdfjs.Term | undefined {
+export function sumAggregate(defined: RdfTerm[]): RdfTerm | undefined {
   if (defined.length === 0) {
     return integerLiteral(0);
   }
@@ -54,7 +54,7 @@ export function sumAggregate(defined: rdfjs.Term[]): rdfjs.Term | undefined {
   return numericLiteral(total, datatype);
 }
 
-export function avgAggregate(defined: rdfjs.Term[]): rdfjs.Term | undefined {
+export function avgAggregate(defined: RdfTerm[]): RdfTerm | undefined {
   if (defined.length === 0) {
     return integerLiteral(0);
   }
@@ -77,14 +77,14 @@ export function avgAggregate(defined: rdfjs.Term[]): rdfjs.Term | undefined {
   return numericLiteral(total / defined.length, datatype);
 }
 
-export function integerLiteral(value: number | bigint): rdfjs.Literal {
+export function integerLiteral(value: number | bigint): RdfLiteral {
   return literal(String(value), namedNode(XSD_INTEGER));
 }
 
 function numericLiteral(
   value: number,
   datatype: string,
-): rdfjs.Literal {
+): RdfLiteral {
   const text = datatype === XSD_DOUBLE || datatype === XSD_FLOAT
     ? canonicalDouble(value)
     : formatNumber(value, datatype);
@@ -105,11 +105,11 @@ function numericLiteral(
  * accumulation.
  * @see {@link https://doi.org/10.1145/103162.103163 Goldberg, "What Every Computer Scientist Should Know About Floating-Point Arithmetic," ACM Computing Surveys 23(1), 1991, pp. 5–48}
  */
-function exactDecimalSum(defined: rdfjs.Term[]): rdfjs.Literal {
+function exactDecimalSum(defined: RdfTerm[]): RdfLiteral {
   let maxScale = 0;
   const parts: { significand: bigint; scale: number }[] = [];
   for (const value of defined) {
-    const literalValue = value as rdfjs.Literal;
+    const literalValue = value as RdfLiteral;
     const text = literalValue.value;
     const dot = text.indexOf(".");
     const scale = dot === -1 ? 0 : text.length - dot - 1;
@@ -133,7 +133,7 @@ function exactDecimalSum(defined: rdfjs.Term[]): rdfjs.Literal {
 function numericLiteralFromExactDecimal(
   total: bigint,
   scale: number,
-): rdfjs.Literal {
+): RdfLiteral {
   const negative = total < 0n;
   const absolute = (negative ? -total : total).toString().padStart(
     scale + 1,

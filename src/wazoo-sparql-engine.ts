@@ -1,5 +1,4 @@
-import type * as rdfjs from "@rdfjs/types";
-import type { RdfQuad } from "@/parser/rdf-terms.ts";
+import type { RdfQuad, RdfStore } from "@/parser/rdf-terms.ts";
 import type {
   SparqlEngineInterface,
   SparqlRequest,
@@ -41,7 +40,7 @@ export interface WazooSparqlTransaction {
  */
 export interface WazooSparqlEngineOptions {
   /** store is the RDFJS store to execute queries on. */
-  store: rdfjs.Store;
+  store: RdfStore;
 
   /**
    * createTransaction is an optional factory to create a transaction for SPARQL

@@ -1,4 +1,4 @@
-import type * as rdfjs from "@rdfjs/types";
+import type { RdfLiteral, RdfTerm } from "@/parser/rdf-terms.ts";
 import {
   escapeBlankNodeLabel,
   escapeIri,
@@ -10,7 +10,7 @@ const RDF_LANG_STRING = "http://www.w3.org/1999/02/22-rdf-syntax-ns#langString";
 
 /** term serializes a single RDF/JS term (Turtle term grammar). */
 export function term(
-  t: rdfjs.Term,
+  t: RdfTerm,
   prefixes: Record<string, string> = {},
 ): string {
   switch (t.termType) {
@@ -53,7 +53,7 @@ function iriTerm(
 
 /** literalTerm renders a literal with language/direction or datatype suffix. */
 function literalTerm(
-  term: rdfjs.Literal,
+  term: RdfLiteral,
   prefixes: Record<string, string>,
 ): string {
   const value = `"${escapeLiteral(term.value)}"`;

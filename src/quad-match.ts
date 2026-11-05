@@ -1,5 +1,4 @@
-import type * as rdfjs from "@rdfjs/types";
-import type { RdfQuad, RdfTerm } from "@/parser/rdf-terms.ts";
+import type { RdfQuad, RdfSource, RdfTerm } from "@/parser/rdf-terms.ts";
 import type { TriplePredicate } from "@/parser/sparql-parser.ts";
 import { GraphScopedStore } from "@/graph-scoped-store.ts";
 import { MemoryStore } from "@/store/memory-store.ts";
@@ -14,7 +13,7 @@ import type { Term as SparqlTerm } from "@/parser/sparql-parser.ts";
  * the snapshot per query.
  */
 export function storeVersion(
-  store: rdfjs.Source<RdfQuad>,
+  store: RdfSource<RdfQuad>,
 ): number | null {
   const version = (store as { version?: unknown }).version;
   return typeof version === "number" ? version : null;
@@ -25,7 +24,7 @@ export function storeVersion(
  * store, resolving the store's match stream into an array.
  */
 export function matchQuads(
-  store: rdfjs.Source<RdfQuad>,
+  store: RdfSource<RdfQuad>,
   s: RdfTerm | null,
   p: RdfTerm | null,
   o: RdfTerm | null,
@@ -90,7 +89,7 @@ function memoryQuadsOf(
  * in place and only the plain `RdfQuad[]` result crosses the boundary.
  */
 function memoryQuads(
-  source: rdfjs.Source<RdfQuad>,
+  source: RdfSource<RdfQuad>,
   s: RdfTerm | null,
   p: RdfTerm | null,
   o: RdfTerm | null,
@@ -107,7 +106,7 @@ function memoryQuads(
 
 /** resolveMatchGraph picks the graph argument for store.match / getQuads. */
 function resolveMatchGraph(
-  store: rdfjs.Source<RdfQuad>,
+  store: RdfSource<RdfQuad>,
   g: RdfTerm | null,
 ): RdfTerm | null {
   if (g !== null) {

@@ -1,4 +1,4 @@
-import type * as rdfjs from "@rdfjs/types";
+import type { RdfQuad, RdfTerm } from "@/parser/rdf-terms.ts";
 import type { Term as SparqlTerm } from "@/parser/sparql-parser.ts";
 import { sameRdfTerm, termKey } from "@/term/mod.ts";
 
@@ -7,7 +7,7 @@ import { sameRdfTerm, termKey } from "@/term/mod.ts";
  * evaluation. Bindings stay in term space internally; they are converted to
  * the SparqlValue wire format exactly once, at the response boundary.
  */
-export type TermBinding = Record<string, rdfjs.Term>;
+export type TermBinding = Record<string, RdfTerm>;
 
 /**
  * ScanEntry is a triple pattern with its resolved terms and pre-fetched
@@ -18,7 +18,7 @@ export interface ScanEntry {
   subject: SparqlTerm;
   predicate: SparqlTerm;
   object: SparqlTerm;
-  candidates: rdfjs.Quad[];
+  candidates: RdfQuad[];
   /**
    * reifies marks a `?r rdf:reifies <<( s p o )>>` pattern, which joins by
    * decomposing each candidate's quoted-triple-term object instead of

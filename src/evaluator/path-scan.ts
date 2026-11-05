@@ -1,5 +1,4 @@
-import type * as rdfjs from "@rdfjs/types";
-import type { RdfQuad, RdfTerm } from "@/parser/rdf-terms.ts";
+import type { RdfQuad, RdfSource, RdfTerm } from "@/parser/rdf-terms.ts";
 import { isMultisetPath } from "@/evaluator/path-types.ts";
 import type { PathEntry, PathPair } from "@/evaluator/path-types.ts";
 import type {
@@ -25,7 +24,7 @@ import { sparqlTermToRdfTerm, termKey } from "@/term/mod.ts";
  * queries. {@link https://doi.org/10.1007/978-3-319-25007-6_1 Kostylev et al., "SPARQL with Property Paths," ISWC 2015, LNCS 9366, pp. 3–18} (see also pathSteps)
  */
 export async function scanPathEntry(
-  store: rdfjs.Source<RdfQuad>,
+  store: RdfSource<RdfQuad>,
   path: PropertyPath,
   subject: SparqlTerm,
   object: SparqlTerm,
@@ -77,7 +76,7 @@ export async function scanPathEntry(
  * over (per SPARQL 1.1 §9.1, matching Comunica, literals count as nodes).
  */
 async function graphNodes(
-  store: rdfjs.Source<RdfQuad>,
+  store: RdfSource<RdfQuad>,
 ): Promise<RdfTerm[]> {
   const quads = await matchQuads(store, null, null, null);
   const nodes = new Map<string, RdfTerm>();

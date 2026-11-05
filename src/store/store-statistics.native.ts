@@ -1,8 +1,7 @@
 // store-statistics.native.ts is the scriptc mapping for store-statistics.ts
 // (cli/tsconfig.json). Native builds have no dynamic store capabilities, so
 // pattern planning uses the deterministic fallback statistics path.
-import type * as rdfjs from "@rdfjs/types";
-import type { RdfQuad } from "@/parser/rdf-terms.ts";
+import type { RdfQuad, RdfSource } from "@/parser/rdf-terms.ts";
 import type { Triple } from "@/parser/sparql-parser.ts";
 
 /**
@@ -10,7 +9,7 @@ import type { Triple } from "@/parser/sparql-parser.ts";
  * the deterministic fallback statistics path.
  */
 export function estimateStatsViaStore(
-  _store: rdfjs.Source<RdfQuad>,
+  _store: RdfSource<RdfQuad>,
   _pattern: Triple,
 ): undefined {
   return undefined;

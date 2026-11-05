@@ -2,8 +2,12 @@
 // data-listener binding the shared store uses, and the generic match stream.
 // scriptc replaces this module with quad-stream.native.ts (cli/tsconfig.json);
 // the native CLI answers every scan through MemoryStore.getQuads instead.
-import type * as rdfjs from "@rdfjs/types";
-import type { RdfQuad, RdfTerm } from "@/parser/rdf-terms.ts";
+import type {
+  RdfQuad,
+  RdfSource,
+  RdfStream,
+  RdfTerm,
+} from "@/parser/rdf-terms.ts";
 import type { QuadEventSource } from "@/store/quad-event-source.ts";
 
 import { MiniEventEmitter } from "@/store/event-emitter-base.ts";
@@ -25,7 +29,7 @@ type Listener = (...args: unknown[]) => void;
  * runtime dependency-free and browser-friendly.
  */
 export class MemoryStream extends MiniEventEmitter
-  implements rdfjs.Stream<RdfQuad> {
+  implements RdfStream<RdfQuad> {
   private _ended = false;
   private _flowing = false;
   private _readStarted = false;
@@ -121,7 +125,7 @@ export class MemoryStream extends MiniEventEmitter
  * event-source surface.
  */
 export function subscribeQuadData(
-  stream: rdfjs.Stream<RdfQuad>,
+  stream: RdfStream<RdfQuad>,
   listener: (quad: RdfQuad) => void,
 ): void {
   (stream as unknown as QuadEventSource).on("data", listener);
@@ -131,11 +135,11 @@ export function subscribeQuadData(
  * matchQuadStream starts a store scan and returns its RDF/JS quad stream.
  */
 export function matchQuadStream(
-  store: rdfjs.Source<RdfQuad>,
+  store: RdfSource<RdfQuad>,
   subject?: RdfTerm | null,
   predicate?: RdfTerm | null,
   object?: RdfTerm | null,
   graph?: RdfTerm | null,
-): rdfjs.Stream<RdfQuad> {
+): RdfStream<RdfQuad> {
   return store.match(subject, predicate, object, graph);
 }
