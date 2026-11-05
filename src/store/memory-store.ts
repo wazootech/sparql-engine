@@ -84,6 +84,9 @@ function unindexPosition(
  * @see {@link https://doi.org/10.1145/582095.582099 Selinger et al., "Access Path Selection in a Relational Database Management System," SIGMOD '79, pp. 23–34}
  */
 export class MemoryStore implements RdfStore<RdfQuad> {
+  /** kind marks this store as the built-in in-memory store (see StoreKind). */
+  public readonly kind = "memory" as const;
+
   private quads: Map<string, RdfQuad> = new Map();
   private bySubject: Map<string, RdfQuad[]> = new Map();
   private byPredicate: Map<string, RdfQuad[]> = new Map();

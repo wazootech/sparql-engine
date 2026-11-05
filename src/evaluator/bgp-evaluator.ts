@@ -61,6 +61,7 @@ import {
   patternVariableName,
 } from "@/planner/join-cost-estimator.ts";
 import { PatternStatistics } from "@/planner/pattern-statistics.ts";
+import { storeKindOf } from "@/store-kind.ts";
 import {
   boundVariables,
   DP_MAX_PATTERNS,
@@ -217,8 +218,8 @@ export class BgpEvaluator {
     // query evaluation and threaded through every group, so pattern
     // statistics are computed once per query (issue #129) — the greedy
     // reorder loop and repeated BGP blocks never re-derive them.
-    const defaultScope = this.store instanceof GraphScopedStore
-      ? this.store
+    const defaultScope = storeKindOf(this.store) === "graph-scoped"
+      ? this.store as GraphScopedStore
       : new GraphScopedStore(this.store, defaultGraphInstance);
     const stats = new PatternStatistics(this.store);
     return await this.evaluateGroup(
@@ -290,8 +291,8 @@ export class BgpEvaluator {
       return null;
     }
     if (
-      store instanceof GraphScopedStore &&
-      store.graphTermType !== "DefaultGraph"
+      storeKindOf(store) === "graph-scoped" &&
+      (store as GraphScopedStore).graphTermType !== "DefaultGraph"
     ) {
       return null;
     }
@@ -1302,7 +1303,7 @@ export class BgpEvaluator {
     // optimal order under that model. An injected custom estimator keeps
     // the greedy loop, which consults it per step with the real bindings.
     if (
-      this.estimator instanceof BaselineJoinCostEstimator &&
+      this.estimator.estimatorKind === "baseline" &&
       remaining.length <= DP_MAX_PATTERNS
     ) {
       const order = searchBestJoinOrder(
@@ -1329,7 +1330,7 @@ export class BgpEvaluator {
       let bestCost = Number.POSITIVE_INFINITY;
       for (let index = 0; index < remaining.length; index++) {
         const pattern = remaining[index];
-        const cost = this.estimator instanceof BaselineJoinCostEstimator
+        const cost = this.estimator.estimatorKind === "baseline"
           ? estimateBaselineJoinCost(
             patternVariableName(pattern.subject),
             patternVariableName(pattern.predicate),
