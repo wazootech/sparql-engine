@@ -22,7 +22,25 @@ export function summarize(values: number[]): Summary {
     median: quantile(sorted, 0.5),
     lowerQuartile: quantile(sorted, 0.25),
     upperQuartile: quantile(sorted, 0.75),
+    minimum: sorted[0],
   };
+}
+
+/**
+ * NOISY_SPREAD_FRACTION is the interquartile range, as a fraction of the
+ * median, above which a cell is flagged as too noisy to trust.
+ */
+export const NOISY_SPREAD_FRACTION = 0.1;
+
+/**
+ * isNoisy reports whether a summary's interquartile range exceeds
+ * NOISY_SPREAD_FRACTION of its median. A non-positive or non-finite median
+ * (a stage smaller than the drift removed by subtraction) is always noisy.
+ */
+export function isNoisy(summary: Summary): boolean {
+  if (!Number.isFinite(summary.median) || summary.median <= 0) return true;
+  return (summary.upperQuartile - summary.lowerQuartile) / summary.median >
+    NOISY_SPREAD_FRACTION;
 }
 
 /** linearFit returns the least-squares slope and intercept of points. */
@@ -43,10 +61,15 @@ export function linearFit(points: { x: number; y: number }[]): {
   return { slope, intercept: meanY - slope * meanX };
 }
 
+/**
+ * formatSummary renders "median (lower–upper) min N", with a trailing "⚠" when
+ * the spread is wide enough that the median should not be trusted.
+ */
 export function formatSummary(summary: Summary): string {
-  return `${summary.median.toFixed(1)} (${summary.lowerQuartile.toFixed(0)}–${
-    summary.upperQuartile.toFixed(0)
-  })`;
+  const text = `${summary.median.toFixed(1)} (${
+    summary.lowerQuartile.toFixed(0)
+  }–${summary.upperQuartile.toFixed(0)}) min ${summary.minimum.toFixed(1)}`;
+  return isNoisy(summary) ? `${text} ⚠` : text;
 }
 
 export function formatRatio(summary: Summary): string {

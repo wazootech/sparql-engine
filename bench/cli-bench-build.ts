@@ -9,7 +9,7 @@ export function parseOptions(args: string[]): Options {
   const options: Options = {
     targets: [],
     people: [10_000],
-    runs: 7,
+    runs: 11,
     json: false,
   };
   for (let index = 0; index < args.length; index++) {
@@ -24,7 +24,11 @@ export function parseOptions(args: string[]): Options {
       }
       options.people = sizes;
     } else if (flag === "--runs") {
-      options.runs = Number(args[++index]);
+      const spec = args[++index];
+      options.runs = Number(spec);
+      if (!Number.isInteger(options.runs) || options.runs < 1) {
+        throw new Error(`--runs needs a positive integer: ${spec}`);
+      }
     } else if (flag === "--target") {
       const spec = args[++index];
       const separator = spec.indexOf("=");
