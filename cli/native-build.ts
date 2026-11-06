@@ -19,10 +19,11 @@ const OUTPUT = resolve(
 
 async function zigOnPath(): Promise<boolean> {
   const isWindows = Deno.build.os === "windows";
+  // `command` is a shell builtin, not a program, so POSIX hosts go through sh.
   const { code } = await new Deno.Command(
-    isWindows ? "where.exe" : "command",
+    isWindows ? "where.exe" : "sh",
     {
-      args: isWindows ? ["zig"] : ["-v", "zig"],
+      args: isWindows ? ["zig"] : ["-c", "command -v zig"],
       stdout: "null",
       stderr: "null",
     },
