@@ -15,7 +15,7 @@ import { MemoryStore } from "@/store/memory-store.ts";
 import type { PatternStats } from "@/planner/pattern-statistics.ts";
 import type { Triple } from "@/parser/sparql-parser.ts";
 import { matchQuads, storeVersion } from "@/quad-match.ts";
-import { storeKindOf } from "@/store-kind.ts";
+import { asGraphScopedStore, storeKindOf } from "@/store-kind.ts";
 
 /**
  * GraphScopedStore is a read-only RDF/JS store view that fixes the graph
@@ -172,7 +172,7 @@ export function resolveGraphScope(
   store: RdfSource<RdfQuad>,
 ): RdfQuadGraph {
   if (storeKindOf(store) === "graph-scoped") {
-    const scoped = store as GraphScopedStore;
+    const scoped = asGraphScopedStore(store);
     return graphTermFromDescriptor(scoped.graphTermType, scoped.graphValue);
   }
   return defaultGraphInstance;

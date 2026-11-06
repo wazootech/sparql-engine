@@ -1302,10 +1302,14 @@ export class BgpEvaluator {
     // subset DP replaces the greedy stepwise choice with the globally
     // optimal order under that model. An injected custom estimator keeps
     // the greedy loop, which consults it per step with the real bindings.
-    if (
-      this.estimator.estimatorKind === "baseline" &&
-      remaining.length <= DP_MAX_PATTERNS
-    ) {
+    // A kind-tagged estimator narrows to its concrete class via the tag (the
+    // estimatorKind field is the source of truth), so the DP path and the
+    // greedy baseline path both call through a declared type instead of a
+    // dynamic class cast/protocol fallback (issue #247).
+    const baselineEstimator = this.estimator.estimatorKind === "baseline"
+      ? (this.estimator as BaselineJoinCostEstimator)
+      : null;
+    if (baselineEstimator !== null && remaining.length <= DP_MAX_PATTERNS) {
       const order = searchBestJoinOrder(
         remaining,
         perEntryStats,
@@ -1330,7 +1334,7 @@ export class BgpEvaluator {
       let bestCost = Number.POSITIVE_INFINITY;
       for (let index = 0; index < remaining.length; index++) {
         const pattern = remaining[index];
-        const cost = this.estimator.estimatorKind === "baseline"
+        const cost = baselineEstimator !== null
           ? estimateBaselineJoinCost(
             patternVariableName(pattern.subject),
             patternVariableName(pattern.predicate),
@@ -1340,6 +1344,8 @@ export class BgpEvaluator {
             perEntryStats[index],
           )
           : this.estimator.estimateJoinCost(
+            // Custom estimator: the interface call is statically dispatched
+            // once the baseline arm is excluded by the kind tag.
             patternVariableName(pattern.subject),
             patternVariableName(pattern.predicate),
             patternVariableName(pattern.object),
