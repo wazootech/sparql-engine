@@ -9,7 +9,18 @@
  * out" / "SPARQL query aborted"), identical to what the race rejects with.
  */
 export function checkAborted(signal: AbortSignal | undefined): void {
-  if (signal !== undefined) {
-    signal.throwIfAborted();
+  if (signal === undefined) {
+    return;
   }
+  // Read the aborted flag and throw the reason directly instead of calling
+  // throwIfAborted: the dynamic-tier dispatch on that method (dynInvoke,
+  // issue #247) is the only dynamic statement in the per-boundary
+  // cancellation check, and the flag read covers the same contract — when
+  // aborted, `reason` is the Error both the end-of-request race and this
+  // check throw.
+  if (!signal.aborted) {
+    return;
+  }
+  const reason = (signal as { reason?: unknown }).reason;
+  throw reason instanceof Error ? reason : new Error("SPARQL request aborted");
 }
