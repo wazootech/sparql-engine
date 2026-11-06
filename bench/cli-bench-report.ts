@@ -6,7 +6,11 @@
 import type { Options, SizeMeasurement } from "./cli-bench-types.ts";
 import { OPERATIONS } from "./cli-bench-ops.ts";
 import { WORKLOADS } from "./cli-workloads.ts";
-import { formatRatio, formatSummary } from "./cli-bench-stats.ts";
+import {
+  formatRatio,
+  formatSummary,
+  NOISY_SPREAD_FRACTION,
+} from "./cli-bench-stats.ts";
 
 type Slopes = Record<
   string,
@@ -29,7 +33,10 @@ export function printReport(
       }\n` +
       `sizes: ${measurements.map((m) => `${m.people} people`).join(", ")}\n` +
       `rounds: ${environment.runs}, target order rotated each round\n` +
-      `stage times subtract inside the round; ratios are paired per round`,
+      `stage times subtract inside the round; ratios are paired per round\n` +
+      `cells read "median (IQR) min N"; ⚠ marks an IQR above ${
+        NOISY_SPREAD_FRACTION * 100
+      }% of the median, so rerun on a quieter machine or with more --runs`,
   );
   console.log("\n| Target | Binary size |\n| --- | --- |");
   for (const target of options.targets) {

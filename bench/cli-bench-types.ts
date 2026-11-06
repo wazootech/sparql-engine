@@ -34,11 +34,16 @@ export interface Sample {
   ms: number;
 }
 
-/** Summary is a distribution reduced to the median and the middle half. */
+/**
+ * Summary is a distribution reduced to the median, the middle half and the
+ * minimum. The minimum is the steadiest estimator for CPU-bound work, where
+ * noise only ever adds time.
+ */
 export interface Summary {
   median: number;
   lowerQuartile: number;
   upperQuartile: number;
+  minimum: number;
 }
 
 export interface SizeMeasurement {

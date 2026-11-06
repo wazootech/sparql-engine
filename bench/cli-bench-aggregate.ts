@@ -92,6 +92,7 @@ export function aggregateSamples(
           median: Number.NaN,
           lowerQuartile: Number.NaN,
           upperQuartile: Number.NaN,
+          minimum: Number.NaN,
         };
     }
   }
