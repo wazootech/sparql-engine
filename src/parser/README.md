@@ -22,21 +22,22 @@ the new names with no grammar surgery.
 
 ## What lives here
 
-| File                  | Origin                              | Notes                                                                                                                           |
-| --------------------- | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| `parser.ts`           | generated from `sparql.jison`       | Typed tables, lexer rules and action switch on top of `lr-runtime.ts`; no `@ts-nocheck`, no jison runtime. Never hand-edited.   |
-| `sparql.jison`        | `sparqljs@3.7.4` `lib/sparql.jison` | Upstream jison grammar, patched (see below). The source of truth. Every action is a call into `sparql-context.ts`.              |
-| `generate-parser.ts`  | ours                                | Codegen script: jison is an LR table generator only. `--check` mode verifies `parser.ts` and `turtle-generated.ts` are in sync. |
-| `sparql-context.ts`   | ours                                | Typed SPARQL parse context and the grammar's semantic actions (AST construction, IRI/prefix resolution, escapes, validation).   |
-| `term-values.ts`      | ours                                | Plain-record RDF/JS terms (`namedNodeTerm`, `literalTerm`, ...) the SPARQL AST is built from.                                   |
-| `rdf-terms.ts`        | ours                                | Structural copies of the `@rdfjs/types` term interfaces; the AST's `Term` is `RdfTerm`.                                         |
-| `ast.ts`              | ours                                | The AST types exported through `./parser`.                                                                                      |
-| `turtle.jison`        | ours                                | RDF 1.2 TriG/Turtle grammar for `LOAD`. jison is used only as an LR table generator for it (see below).                         |
-| `turtle-generated.ts` | generated from `turtle.jison`       | Typed tables, lexer rules and action switch on top of `lr-runtime.ts`; no `@ts-nocheck`, no jison runtime.                      |
-| `lr-runtime.ts`       | ours                                | Typed LR driver (`LrParser`) and lexer loop (`LrLexer`) both generated parsers extend.                                          |
-| `turtle-context.ts`   | ours                                | Typed parse context and the grammar's semantic actions (RFC 3986 resolution, escapes, BCP47, reifier state machine).            |
-| `mod.ts`              | ours                                | The maintained wrapper: resets the parse context and runs the generated parser; exports the `Parser` class used by the engine.  |
-| `LICENSE`             | `sparqljs@3.7.4` (MIT)              | Upstream license, required for redistribution.                                                                                  |
+| File                  | Origin                              | Notes                                                                                                                                  |
+| --------------------- | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `parser.ts`           | generated from `sparql.jison`       | Typed tables, lexer rules and action switch on top of `lr-runtime.ts`; no `@ts-nocheck`, no jison runtime. Never hand-edited.          |
+| `sparql.jison`        | `sparqljs@3.7.4` `lib/sparql.jison` | Upstream jison grammar, patched (see below). The source of truth. Every action is a call into `sparql-context.ts`.                     |
+| `generate-parser.ts`  | ours                                | Codegen script: jison is an LR table generator only. `--check` mode verifies `parser.ts` and `turtle-generated.ts` are in sync.        |
+| `sparql-context.ts`   | ours                                | Typed SPARQL parse context and the grammar's semantic actions (AST construction, IRI/prefix resolution, escapes, validation).          |
+| `term-values.ts`      | ours                                | Plain-record RDF/JS terms (`namedNodeTerm`, `literalTerm`, ...) the SPARQL AST is built from.                                          |
+| `rdf-terms.ts`        | ours                                | Structural copies of the `@rdfjs/types` term interfaces; the AST's `Term` is `RdfTerm`.                                                |
+| `ast.ts`              | ours                                | The AST types exported through `./parser`.                                                                                             |
+| `turtle.jison`        | ours                                | RDF 1.2 TriG/Turtle grammar for `LOAD`. jison is used only as an LR table generator for it (see below).                                |
+| `turtle-generated.ts` | generated from `turtle.jison`       | Typed tables, lexer rules and action switch on top of `lr-runtime.ts`; no `@ts-nocheck`, no jison runtime.                             |
+| `lr-runtime.ts`       | ours                                | Typed LR driver (`LrParser`) and lexer loop (`LrLexer`) both generated parsers extend.                                                 |
+| `lexer-dispatch.ts`   | ours                                | First-character dispatch table for `LrLexer`: per ASCII char, the rules that can begin with it; undeterminable rules are tried always. |
+| `turtle-context.ts`   | ours                                | Typed parse context and the grammar's semantic actions (RFC 3986 resolution, escapes, BCP47, reifier state machine).                   |
+| `mod.ts`              | ours                                | The maintained wrapper: resets the parse context and runs the generated parser; exports the `Parser` class used by the engine.         |
+| `LICENSE`             | `sparqljs@3.7.4` (MIT)              | Upstream license, required for redistribution.                                                                                         |
 
 The AST's terms are plain records (`term-values.ts`) rather than `DataFactory`
 class instances: the AST is a union of record shapes, and the native compiler
