@@ -13,6 +13,11 @@
  * `toSparqlSyntaxError` can read them unchanged.
  */
 
+import {
+  buildLexerDispatch,
+  type LexerDispatch,
+} from "@/parser/lexer-dispatch.ts";
+
 /** LR_EOF is the token id the lexer returns at the end of input. */
 export const LR_EOF = 1;
 
@@ -50,6 +55,12 @@ function toSticky(rules: readonly RegExp[]): readonly RegExp[] {
   stickyRuleCache.set(rules, converted);
   return converted;
 }
+
+/**
+ * dispatchCache builds each rule set's first-character dispatch table once per
+ * process, keyed like `stickyRuleCache` by the converted rule array.
+ */
+const dispatchCache = new Map<readonly RegExp[], LexerDispatch>();
 
 /** LrLocation is a source span (1-based lines, 0-based columns). */
 export interface LrLocation {
@@ -142,10 +153,31 @@ export class LrLexer {
   private done = false;
   /** The rules, rewritten as sticky patterns anchored at `offset`. */
   private readonly rules: readonly RegExp[];
+  /** The candidate rules for each kind of next character. */
+  private readonly dispatch: LexerDispatch;
 
-  public constructor(input: string, rules: readonly RegExp[]) {
+  /**
+   * The constructor builds (or reuses) the first-character dispatch table.
+   * `exhaustive` tries every rule at every offset instead: the reference
+   * strategy the differential test compares the dispatching one against.
+   */
+  public constructor(
+    input: string,
+    rules: readonly RegExp[],
+    exhaustive = false,
+  ) {
     this.input = input;
     this.rules = toSticky(rules);
+    if (exhaustive) {
+      this.dispatch = buildLexerDispatch(this.rules, true);
+    } else {
+      let table = dispatchCache.get(this.rules);
+      if (table === undefined) {
+        table = buildLexerDispatch(this.rules, false);
+        dispatchCache.set(this.rules, table);
+      }
+      this.dispatch = table;
+    }
   }
 
   /** performAction returns the token id for a matched rule (0 skips it). */
@@ -177,7 +209,14 @@ export class LrLexer {
     this.match = "";
     let best: RegExpMatchArray | null = null;
     let bestRule = -1;
-    for (let rule = 0; rule < this.rules.length; rule++) {
+    const dispatch = this.dispatch;
+    const candidates = this.offset >= this.input.length
+      ? dispatch.end
+      : this.input.charCodeAt(this.offset) < 128
+      ? dispatch.ascii[this.input.charCodeAt(this.offset)]!
+      : dispatch.high;
+    for (let index = 0; index < candidates.length; index++) {
+      const rule = candidates[index]!;
       const pattern = this.rules[rule]!;
       pattern.lastIndex = this.offset;
       const candidate = pattern.exec(this.input);
