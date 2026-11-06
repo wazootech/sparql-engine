@@ -52,6 +52,7 @@
     "bench:memory": "deno run --allow-all bench/collect-memory.ts && deno run --allow-read --allow-write bench/treemap.ts && deno fmt docs/assets/chart-*.svg docs/assets/treemap-*.svg",
     "bench:latency": "deno bench --allow-all --json bench/engine_bench.ts > bench/latency-data.json && deno run --allow-read --allow-write bench/latency-chart.ts && deno fmt docs/assets/chart-latency.svg",
     "bench:latency:check": "BENCH_INVENTORY=1 deno bench --allow-all --json bench/engine_bench.ts | deno run --allow-read bench/latency-check.ts",
+    "bench:profile": "deno run --allow-all bench/parse-profile.ts",
     "bench:cli": "deno run --allow-all bench/cli-bench.ts",
     "bench:cli:targets": "deno bench --allow-all bench/cli-targets-bench.ts",
     "check": "deno check",
