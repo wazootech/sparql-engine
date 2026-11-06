@@ -12,18 +12,32 @@ import { DataFactory } from "@/term/data-factory.ts";
 export { MemoryStream };
 
 /**
- * quadKey renders a deterministic key for a stored quad over all four
- * positions. Unlike `termKey`, which treats a quad as an RDF 1.2 triple term
- * (identity without a graph), quad identity in a dataset includes the graph,
- * so two quads that differ only by graph must not collide.
+ * joinQuadKey renders the deterministic dedup key for a stored quad from its
+ * four already-computed position keys. Unlike `termKey`, which treats a quad
+ * as an RDF 1.2 triple term (identity without a graph), quad identity in a
+ * dataset includes the graph, so two quads that differ only by graph must not
+ * collide. Callers compute each position key once and reuse it for the dedup
+ * key and the positional index.
+ */
+function joinQuadKey(
+  subjectKey: string,
+  predicateKey: string,
+  objectKey: string,
+  graphKey: string,
+): string {
+  return subjectKey + "|" + predicateKey + "|" + objectKey + "|" + graphKey;
+}
+
+/**
+ * quadKey renders the dedup key for a quad over all four positions.
  */
 function quadKey(quad: RdfQuad): string {
-  return [
+  return joinQuadKey(
     termKey(quad.subject),
     termKey(quad.predicate),
     termKey(quad.object),
     termKey(quad.graph),
-  ].join("|");
+  );
 }
 
 /**
@@ -45,19 +59,19 @@ function indexPosition(
 /**
  * unindexPosition removes a quad from the bucket for the given term key,
  * dropping the key once its bucket empties. Buckets never hold a quad more
- * than once, and the removal matches structurally (quadKey) because callers
- * pass a freshly constructed quad rather than the stored instance.
+ * than once, and the removal matches structurally (by the quad's dedup key,
+ * `targetKey`) because callers pass a freshly constructed quad rather than the
+ * stored instance.
  */
 function unindexPosition(
   index: Map<string, RdfQuad[]>,
   key: string,
-  quad: RdfQuad,
+  targetKey: string,
 ): void {
   const bucket = index.get(key);
   if (bucket === undefined) {
     return;
   }
-  const targetKey = quadKey(quad);
   const position = bucket.findIndex((item) => quadKey(item) === targetKey);
   if (position >= 0) {
     bucket.splice(position, 1);
@@ -132,27 +146,35 @@ export class MemoryStore implements RdfStore<RdfQuad> {
         graph,
       )
       : quadOrSubject as RdfQuad;
-    const key = quadKey(quad);
+    const subjectKey = termKey(quad.subject);
+    const predicateKey = termKey(quad.predicate);
+    const objectKey = termKey(quad.object);
+    const graphKey = termKey(quad.graph);
+    const key = joinQuadKey(subjectKey, predicateKey, objectKey, graphKey);
     // Re-adding an existing quad keeps the canonical map (and the indexes)
     // unchanged; only genuinely new quads are indexed.
     if (!this.quads.has(key)) {
       this.quads.set(key, quad);
-      indexPosition(this.bySubject, termKey(quad.subject), quad);
-      indexPosition(this.byPredicate, termKey(quad.predicate), quad);
-      indexPosition(this.byObject, termKey(quad.object), quad);
-      indexPosition(this.byGraph, termKey(quad.graph), quad);
+      indexPosition(this.bySubject, subjectKey, quad);
+      indexPosition(this.byPredicate, predicateKey, quad);
+      indexPosition(this.byObject, objectKey, quad);
+      indexPosition(this.byGraph, graphKey, quad);
     }
     this._version++;
     return this;
   }
 
   public removeQuad(quad: RdfQuad): this {
-    const key = quadKey(quad);
+    const subjectKey = termKey(quad.subject);
+    const predicateKey = termKey(quad.predicate);
+    const objectKey = termKey(quad.object);
+    const graphKey = termKey(quad.graph);
+    const key = joinQuadKey(subjectKey, predicateKey, objectKey, graphKey);
     if (this.quads.delete(key)) {
-      unindexPosition(this.bySubject, termKey(quad.subject), quad);
-      unindexPosition(this.byPredicate, termKey(quad.predicate), quad);
-      unindexPosition(this.byObject, termKey(quad.object), quad);
-      unindexPosition(this.byGraph, termKey(quad.graph), quad);
+      unindexPosition(this.bySubject, subjectKey, key);
+      unindexPosition(this.byPredicate, predicateKey, key);
+      unindexPosition(this.byObject, objectKey, key);
+      unindexPosition(this.byGraph, graphKey, key);
     }
     this._version++;
     return this;
