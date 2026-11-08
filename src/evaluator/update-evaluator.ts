@@ -18,12 +18,8 @@ import type {
 } from "@/parser/sparql-parser.ts";
 import type { WazooSparqlTransaction } from "@/wazoo-sparql-engine.ts";
 
-/** HttpResponse is the fetch reply surface the LOAD path reads. */
-interface HttpResponse {
-  readonly ok: boolean;
-  readonly status: number;
-  text(): Promise<string>;
-}
+import { fetchRemoteDocument } from "@/evaluator/load-remote.ts";
+import type { LoadPolicy } from "@/evaluator/load-policy.ts";
 import { BgpEvaluator } from "@/evaluator/bgp-evaluator.ts";
 import type { TermBinding } from "@/evaluator/bgp-evaluator.ts";
 import { checkAborted } from "@/evaluator/abort.ts";
@@ -93,6 +89,12 @@ export interface UpdateEvaluatorOptions {
    * imports and browser bundles never reference a filesystem module.
    */
   readTextFile?: (path: string) => Promise<string>;
+
+  /**
+   * loadPolicy governs `LOAD <http(s)://...>`. Absent, remote LOAD is
+   * denied; see LoadPolicy.
+   */
+  loadPolicy?: LoadPolicy;
 }
 
 /**
@@ -486,18 +488,17 @@ export class UpdateEvaluator {
     try {
       let text = "";
       if (sourceIri.startsWith("http://") || sourceIri.startsWith("https://")) {
-        // HttpResponse narrows fetch's reply to the three members the LOAD
-        // path reads. The DOM `Response` type is not part of scriptc's type
-        // environment (issue #221), so the assignment goes through an
-        // explicit interface rather than the ambient global.
-        const res = (await fetch(sourceIri)) as HttpResponse;
-        if (!res.ok) {
+        const fetched = await fetchRemoteDocument(
+          sourceIri,
+          this.options.loadPolicy,
+        );
+        if (fetched.text === null) {
           if (silent) return;
           throw new Error(
-            `LOAD failed with status ${res.status}: ${sourceIri}`,
+            `LOAD failed with status ${fetched.status}: ${sourceIri}`,
           );
         }
-        text = await res.text();
+        text = fetched.text;
       } else {
         let cleanPath = sourceIri.startsWith("file://")
           ? sourceIri.slice(7)
@@ -510,7 +511,19 @@ export class UpdateEvaluator {
         text = await readTextFile(cleanPath);
       }
 
-      const parsedQuads = parseTurtleQuads(text, sourceIri);
+      const isRemote = /^https?:/.test(sourceIri);
+      let parsedQuads: RdfQuad[];
+      try {
+        parsedQuads = parseTurtleQuads(text, sourceIri);
+      } catch (parseError) {
+        // A remote body's text must not reach the caller via a parse error.
+        if (!isRemote) throw parseError;
+        throw new Error(`LOAD failed: not a valid RDF document: ${sourceIri}`);
+      }
+      const maxQuads = this.options.loadPolicy?.maxQuads ?? 10_000;
+      if (isRemote && parsedQuads.length > maxQuads) {
+        throw new Error("LOAD document exceeds the quad limit");
+      }
 
       // LOAD's optional INTO clause is a plain IRI term (ast
       // LoadOperation.destination), not a GraphRef like the other update

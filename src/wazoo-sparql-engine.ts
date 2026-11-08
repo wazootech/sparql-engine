@@ -4,6 +4,7 @@ import type {
   SparqlRequest,
   SparqlResponse,
 } from "@/sparql-engine-interface.ts";
+import type { LoadPolicy } from "@/evaluator/load-policy.ts";
 import { SparqlParser } from "@/parser/sparql-parser.ts";
 import type { SparqlQuery } from "@/parser/ast.ts";
 import { SparqlEvaluator } from "@/evaluator/sparql-evaluator.ts";
@@ -82,6 +83,12 @@ export interface WazooSparqlEngineOptions {
    * one, e.g. `(path) => readFile(path, "utf8")` from `node:fs/promises`.
    */
   readTextFile?: (path: string) => Promise<string>;
+
+  /**
+   * loadPolicy governs `LOAD <http(s)://...>`. Absent, remote LOAD is
+   * denied; pass allowedHosts to opt in (see LoadPolicy).
+   */
+  loadPolicy?: LoadPolicy;
 }
 
 /** Default SPARQL query timeout in milliseconds (matches Comunica). */
@@ -133,6 +140,7 @@ export class WazooSparqlEngine implements SparqlEngineInterface {
       reorderPatterns: options.reorderPatterns,
       estimator: options.estimator,
       readTextFile: options.readTextFile,
+      loadPolicy: options.loadPolicy,
     });
   }
 

@@ -8,6 +8,7 @@ export type {
   SparqlSelectResults,
   SparqlValue,
 } from "@/sparql-engine-interface.ts";
+export type { LoadPolicy } from "@/evaluator/load-policy.ts";
 export { WazooSparqlEngine } from "@/wazoo-sparql-engine.ts";
 export { SparqlSyntaxError } from "@/parser/syntax-error.ts";
 export type {
