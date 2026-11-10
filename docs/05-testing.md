@@ -21,6 +21,7 @@ Typecheck + lint + fmt + parser     deno task check / lint / fmt:check / parser:
 Every layer runs in CI (`.github/workflows/ci.yml`): the `ci` job runs
 `deno task ci` (plus explicit `test:exists-ref` and `publish:dry` steps),
 `w3c-parity` runs `deno task test:w3c` + `deno task test:exists-ref`,
+`heldout-fuzz` runs the seeded differential fuzz with a fresh seed per run,
 `latency-snapshot` re-checks the committed bench inventory, `docs-drift`
 enforces the wiki's `detail_level` guardrail (`L<line>` citations fail),
 `docs-links` fails on wiki link rot, and `publish.yml` gates `deno publish`.
@@ -43,6 +44,7 @@ enforces the wiki's `detail_level` guardrail (`L<line>` citations fail),
 | `deno task publish:check`       | `test/publish-graph-check.ts`  | Default export graph has no `node:`/`npm:` runtime imports                                                            | ci                         |
 | `deno task ci`                  | —                              | All of the above in dependency order                                                                                  | ci job                     |
 | `deno task test:w3c`            | `test/w3c/w3c-main.ts`         | [SPARQL 1.1](https://www.w3.org/TR/sparql11-query/) evaluation-core differential vs [Comunica](https://comunica.dev/) | w3c-parity job             |
+| `deno task test:heldout-fuzz`   | `bench/heldout-fuzz.ts`        | Seeded differential fuzz vs Comunica + Oxigraph on generated data and queries                                         | heldout-fuzz job           |
 | `deno task docs:link-check`     | `docs/link-check.ts`           | Wiki link rot: every external markdown link (JSR/GitHub/W3C/…) must resolve (404/410 fails)                           | docs-links job             |
 | `deno task bench:latency:check` | `bench/latency-check.ts`       | Committed `bench/latency-data.json` bench inventory matches a fresh run                                               | latency-snapshot job       |
 | `deno task test:ref`            | `test/w3c/ref-crosscheck.ts`   | Allowlisted divergence audit vs Oxigraph + N3.js                                                                      | manual (on grammar change) |
@@ -144,6 +146,25 @@ backing `LOAD`:
 
 All fixtures are vendored under `test/w3c/fixtures/` (no network needed);
 refresh instructions live in `test/w3c/README.md`.
+
+## Held-out differential fuzz
+
+The W3C suite, the parity suite, and the bench queries are all in the repo, so
+they were all visible while the engine was built. `bench/heldout-fuzz.ts` is the
+blind check: it generates a random dataset and random queries at runtime from a
+seed and runs every query through wazoo, Comunica, and Oxigraph over identical
+data. No generated case existed in the repo before the run, and the engine is
+never modified to pass it.
+
+The gate fails only when wazoo is the lone outlier: both reference engines agree
+with each other and disagree with wazoo, all three disagree, or an engine
+errors. A mismatch where wazoo agrees with one reference engine is a
+reference-engine divergence (for example Comunica's ORDER BY output not being
+sorted, or Oxigraph deduplicating alternation branches), reported in the log and
+the JSON report but not a wazoo regression. Known reference divergences are
+documented in the script header. CI runs a different seed on every run for
+coverage; the default seed reproduces a run locally, and the report is uploaded
+as a CI artifact with the seed recorded in it.
 
 ## Benchmarking
 

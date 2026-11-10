@@ -48,17 +48,22 @@ export function isPropertyPath(
 /**
  * isMultisetPath reports whether a property-path element can connect the same
  * (subject, object) pair through more than one route. Terms are always
- * multiset; the composition operators ^, /, and | inherit multiset semantics
- * from their parts, while the remaining operators yield a set of pairs.
+ * multiset. A sequence path is a join on the middle node: two distinct
+ * middles can connect the same pair even when both legs are set-valued, so
+ * / is always multiset. An alternation is a union of multisets: both
+ * branches can yield the same pair, so | is always multiset. Only inverse
+ * inherits multiset semantics from its single child; the remaining
+ * operators yield a set of pairs.
  */
 export function isMultisetPath(path: PathElement): boolean {
   if ("termType" in path) {
     return true;
   }
-  if (
-    path.pathType === "^" || path.pathType === "/" || path.pathType === "|"
-  ) {
-    return path.items.every((item) => isMultisetPath(item as PathElement));
+  if (path.pathType === "/" || path.pathType === "|") {
+    return true;
+  }
+  if (path.pathType === "^") {
+    return isMultisetPath(path.items[0] as PathElement);
   }
   return false;
 }

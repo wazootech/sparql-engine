@@ -87,6 +87,7 @@
     "publish:check": "deno run --allow-read --allow-run test/publish-graph-check.ts",
     "test": "deno test --allow-all",
     "test:exists-ref": "deno run --allow-all test/w3c/exists-ref.ts",
+    "test:heldout-fuzz": "deno run --allow-all bench/heldout-fuzz.ts",
     "test:rdf11": "deno run --allow-all test/w3c/rdf-differential.ts",
     "test:rdf12": "deno run --allow-all test/w3c/rdf-classify.ts",
     "test:ref": "deno run --allow-all test/w3c/ref-crosscheck.ts",
