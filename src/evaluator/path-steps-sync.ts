@@ -9,7 +9,10 @@ import { sameRdfTerm, termKey } from "@/term/mod.ts";
  * pathSteps for the EXISTS hooks. In forward direction term is the path
  * subject and the result is the set of reachable objects; in backward
  * direction term is the path object and the result is the set of reachable
- * subjects. Results are deduplicated. The semantics mirror the async
+ * subjects. The closure operators (+, *, ?) and negated sets return a set
+ * of terms, but / and | preserve multiplicity: a sequence is a join on the
+ * middle node and an alternation is a union of multisets, so the same term
+ * can appear once per distinct route. The semantics mirror the async
  * version exactly (inverse, sequence, alternative, zero-or-one, closures,
  * and negated property sets).
  */
@@ -79,16 +82,15 @@ export function pathStepsSync(
       return current;
     }
     case "|": {
+      // Alternation is a union of multisets: both branches can yield the
+      // same term, and each yield is a separate route, so branch results
+      // are concatenated, not deduplicated.
       const results: RdfTerm[] = [];
-      const seen = new Set<string>();
       for (const item of path.items) {
         for (
           const target of pathStepsSync(candidates, item, direction, term)
         ) {
-          if (!seen.has(termKey(target))) {
-            seen.add(termKey(target));
-            results.push(target);
-          }
+          results.push(target);
         }
       }
       return results;

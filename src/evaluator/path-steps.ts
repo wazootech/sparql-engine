@@ -7,7 +7,10 @@ import { sameRdfTerm, termKey } from "@/term/mod.ts";
  * pathSteps evaluates one step of a property path from a single anchor term.
  * In forward direction term is the path subject and the result is the set of
  * reachable objects; in backward direction term is the path object and the
- * result is the set of reachable subjects. Results are deduplicated.
+ * result is the set of reachable subjects. The closure operators (+, *, ?)
+ * and negated sets return a set of terms, but / and | preserve multiplicity:
+ * a sequence is a join on the middle node and an alternation is a union of
+ * multisets, so the same term can appear once per distinct route.
  *
  * Prior art: the semantics are the W3C property-path semantics (SPARQL
  * 1.1 §9.1), formalized by Kostylev et al.; the closures for the * and +
@@ -79,14 +82,13 @@ export async function pathSteps(
       }
     }
     case "|": {
+      // Alternation is a union of multisets: both branches can yield the
+      // same term, and each yield is a separate route, so branch results
+      // are concatenated, not deduplicated.
       const results: RdfTerm[] = [];
-      const seen = new Set<string>();
       for (const item of path.items) {
         for (const target of await pathSteps(store, item, direction, term)) {
-          if (!seen.has(termKey(target))) {
-            seen.add(termKey(target));
-            results.push(target);
-          }
+          results.push(target);
         }
       }
       return results;
