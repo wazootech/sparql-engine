@@ -194,8 +194,8 @@ The grammar is the source of truth, and `parser.ts` is generated from it:
 `bun run parser:check` (part of `bun run ci`) fails when `parser.ts` drifts
 from `sparql.jison`, so a grammar edit without a regeneration cannot be
 committed silently. Generation is deterministic: `parser:generate` runs
-`deno fmt` on the emitted module, so regenerating from an unmodified grammar
-reproduces the checked-in file byte-for-byte (no fmt/lint excludes are needed
+`bun fmt` on the emitted module, so regenerating from an unmodified grammar
+reproduces the checked-in file byte-for-byte (no format or lint excludes are needed
 for the generated files - they are ordinary typed modules with no
 `@ts-nocheck`).
 
