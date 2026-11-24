@@ -24,6 +24,31 @@ jobs:
       - run: |
           echo '<http://example.org/s> <http://example.org/p> <http://example.org/o> .' > "$RUNNER_TEMP/smoke.nt"
           ./dist/sparql --data "$RUNNER_TEMP/smoke.nt" --query 'ASK { ?s ?p ?o }' | grep -q '"boolean":true'
+  # Cross-runtime gate (Deno -> Bun migration, phase 1, wazootech/workspace#50):
+  # the code and tests must run on Bun as well as Deno. Deno stays the
+  # authoritative toolchain (every job above), so this job only runs what is
+  # runtime-neutral: the node:test suite, the entrypoint-graph check, the perf
+  # budget and the W3C/RDF gates. Bun floats on 1.x on purpose so a Bun
+  # regression surfaces early. parser:check is not run here: the generated
+  # parsers are formatted by deno fmt, and bun fmt formats differently (the
+  # generator itself is identical), so the check is Deno-only until the cutover.
+  bun:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: "1.x"
+      - run: bun install --frozen-lockfile
+      - run: bun test
+      - run: bun test/publish-graph-check.ts
+      - run: bun bench/budget.ts
+      - run: bun test/w3c/exists-ref.ts
+      - run: bun test/w3c/sparql12-gap.ts
+      - run: bun test/w3c/sparql12-main.ts
+      - run: bun test/w3c/rdf-differential.ts
+      - run: bun test/w3c/rdf-classify.ts
+      - run: bun test/w3c/w3c-main.ts
   # The committed bench/latency-data.json snapshot must match the current
   # bench suite — otherwise the published latency chart shows a stale query
   # inventory. Timings are machine-specific and never compared; the bench
@@ -41,6 +66,7 @@ jobs:
           filters: |
             bench:
               - 'bench/engine_bench.ts'
+              - 'bench/bench.ts'
               - 'bench/latency-data.json'
       - if: steps.bench-changed.outputs.bench == 'true'
         uses: denoland/setup-deno@v2
