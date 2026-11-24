@@ -140,9 +140,11 @@ const patch = await engine.execute({
 
 ```bash
 deno task check        # typecheck the whole package (deno check)
-deno task fmt:check    # formatting gate (deno fmt --check)
+bun run fmt:check      # formatting gate (bun fmt --check)
 deno task lint         # deno lint
-deno task parser:check # generated parser.ts in sync with sparql.jison?
+bun run lint           # Oxlint
+bun run check          # typecheck on Bun (bun check)
+bun run parser:check   # generated parser.ts in sync with sparql.jison?
 deno task publish:check # default graph has no node:/npm: runtime imports
 deno task publish:dry  # JSR publish dry-run (zero runtime deps must hold)
 ```
@@ -181,7 +183,7 @@ deno task bench:latency # committed latency snapshot → docs/assets/chart-laten
 ## Development loop
 
 ```bash
-deno task fmt          # format source AND markdown (line width 80)
+bun run fmt            # format source AND markdown (bun fmt, line width 80)
 deno test src/         # fast unit loop for engine internals
 ```
 

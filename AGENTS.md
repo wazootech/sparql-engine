@@ -62,8 +62,11 @@ scripts must run on Deno **and** Bun, so:
 bun run test:bun`
   runs the suite on Bun (the `bun` CI job runs it on Bun 1.x with
   `--timeout 120000` for the cold comunica parity suites).
-- `parser:check` is authoritative under Deno only: the generated parsers are
-  formatted by `deno fmt`, and `bun fmt` formats them differently.
+- Formatting, linting and the generated-parser check run on Bun (`bun fmt`,
+  Oxlint, `bun check`, `bun run parser:check`), because `bun fmt` and `deno fmt`
+  disagree and the repo is formatted by `bun fmt`. `deno lint` and `deno check`
+  still run on the Deno job. Regenerate parsers with `bun run parser:generate`
+  so they carry `bun fmt` formatting.
 
 ## Code health
 
@@ -71,8 +74,9 @@ Family-wide rules live in the
 [wazootech workspace constitution](https://github.com/wazootech/workspace/blob/main/AGENTS.md#code-health-standards);
 this repo's specifics:
 
-- Before pushing, run `deno task ci`; CI runs it on every pull request and push
-  to `main`.
+- Before pushing, run `deno task ci` (lint, check, tests on Deno) and `bun run
+ci` (format, lint, check, parser check, tests on Bun); CI runs both on every
+  pull request and push to `main`.
 - `deno lint` enforces `no-explicit-any` and `ban-ts-comment` (no `@ts-ignore`),
   and `deno.json` sets `strict: true`.
 - Exempt: the generated `src/parser/parser.ts` and

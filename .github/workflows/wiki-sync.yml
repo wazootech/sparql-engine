@@ -3,7 +3,7 @@
 # Instantiated for wazootech/sparql-engine from
 # skills/wiki/references/workflow-template-wiki-sync.yml in wazootech/wiki
 # (copy-to-install; local customizations:
-# Deno toolchain, docs validation step, Pi wiring enabled).
+# Bun toolchain, docs validation step, Pi wiring enabled).
 #
 # The default wiki-sync posture is local generation: an agent runs the skill
 # directly in a checkout that already holds its model credentials. This
@@ -19,7 +19,7 @@
 #   workflow creates, so merging the PR anchors the wiki; interrupted runs
 #   leave the anchor untouched and the next run redoes the delta.
 # - Verification rides the PR via this repo's CI (ci.yml: docs-drift,
-#   docs-links, deno task ci); humans merge.
+#   docs-links, ci, bun); humans merge.
 
 name: Wiki sync
 
@@ -101,9 +101,10 @@ jobs:
             echo "Fetched skill at pinned commit $SKILL_PIN"
           fi
 
-      - uses: denoland/setup-deno@v2
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
-          deno-version: v2.x
+          bun-version: "1.x"
+      - run: bun install --frozen-lockfile
 
       # =====================================================================
       # AGENT WIRING — harness/provider is the maintainer's choice; this
@@ -144,7 +145,7 @@ jobs:
       - name: Validate docs
         if: steps.state.outputs.relevant == 'true'
         run: |
-          deno fmt --check docs/
+          bun fmt --no-script --check docs/
 
       - name: Commit and push
         id: commit

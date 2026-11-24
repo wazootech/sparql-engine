@@ -15,7 +15,7 @@ pipeline.
       W3C differential gates        test/w3c/ (vs Comunica + spec results)
     Differential parity             test/parity/ (vs Comunica, 1:1)
   Unit / integration tests          src/**/*.test.ts
-Typecheck + lint + fmt + parser     deno task check / lint / fmt:check / parser:check
+Typecheck + lint + fmt + parser     deno task check / lint; bun run fmt:check / lint / check / parser:check
 ```
 
 Every layer runs in CI (`.github/workflows/ci.yml`): the `ci` job runs
@@ -32,9 +32,9 @@ enforces the wiki's `detail_level` guardrail (`L<line>` citations fail),
 | ------------------------------- | ---------------------------------- | --------------------------------------------------------------------------------------------------------------------- | -------------------------- |
 | `deno task test`                | `deno test --allow-all`            | All unit + integration + parity `*.test.ts` files                                                                     | ci                         |
 | `deno task check`               | `deno check`                       | Typecheck the package                                                                                                 | ci                         |
-| `deno task fmt:check`           | `deno fmt --check`                 | Source **and markdown** formatting (width 80)                                                                         | ci                         |
+| `bun run fmt:check`             | `bun fmt --check`                  | Source **and markdown** formatting (width 80)                                                                         | ci                         |
 | `deno task lint`                | `deno lint`                        | Lint                                                                                                                  | ci                         |
-| `deno task parser:check`        | `generate-parser.ts --check`       | Generated `parser.ts` in sync with `sparql.jison`                                                                     | ci                         |
+| `bun run parser:check`          | `generate-parser.ts --check`       | Generated `parser.ts` in sync with `sparql.jison`                                                                     | ci                         |
 | `deno task bench:check`         | `bench/budget.ts`                  | Perf regression budget (vs `bench/baseline.json`)                                                                     | ci                         |
 | `deno task test:exists-ref`     | `test/w3c/exists-ref.ts`           | EXISTS/NOT EXISTS subquery surface vs Oxigraph                                                                        | ci + w3c-parity            |
 | `deno task test:sparql12:gap`   | `test/w3c/sparql12-gap.ts`         | RDF 1.2 eval-triple-terms gap suite                                                                                   | ci                         |
@@ -348,8 +348,8 @@ defects.
 
 ### 5. Watch out
 
-- `deno fmt` formats **markdown** too — keep docs at line width 80 or run
-  `deno task fmt` before committing.
+- `bun fmt` formats **markdown** too — keep docs at line width 80 or run
+  `bun run fmt` before committing.
 - The generated `src/parser/parser.ts` carries `// @ts-nocheck` and
   `// deno-lint-ignore-file`; edit `sparql.jison`, not the generated file, and
   run `deno task parser:generate`.

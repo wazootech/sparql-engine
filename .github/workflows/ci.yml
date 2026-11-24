@@ -24,14 +24,12 @@ jobs:
       - run: |
           echo '<http://example.org/s> <http://example.org/p> <http://example.org/o> .' > "$RUNNER_TEMP/smoke.nt"
           ./dist/sparql --data "$RUNNER_TEMP/smoke.nt" --query 'ASK { ?s ?p ?o }' | grep -q '"boolean":true'
-  # Cross-runtime gate (Deno -> Bun migration, phase 1, wazootech/workspace#50):
-  # the code and tests must run on Bun as well as Deno. Deno stays the
-  # authoritative toolchain (every job above), so this job only runs what is
-  # runtime-neutral: the node:test suite, the entrypoint-graph check, the perf
-  # budget and the W3C/RDF gates. Bun floats on 1.x on purpose so a Bun
-  # regression surfaces early. parser:check is not run here: the generated
-  # parsers are formatted by deno fmt, and bun fmt formats differently (the
-  # generator itself is identical), so the check is Deno-only until the cutover.
+  # Bun gate (Deno -> Bun migration, wazootech/workspace#50): formatting,
+  # linting, type checking and the generated-parser check run on Bun here (bun
+  # fmt, Oxlint, bun check), because bun fmt and deno fmt disagree and the repo
+  # is formatted by bun fmt. The Deno job above still lints, type checks and
+  # runs the tests, which proves the code keeps running on Deno until the
+  # cutover. Bun floats on 1.x on purpose so a Bun regression surfaces early.
   bun:
     runs-on: ubuntu-latest
     steps:
@@ -40,6 +38,10 @@ jobs:
         with:
           bun-version: "1.x"
       - run: bun install --frozen-lockfile
+      - run: bun run fmt:check
+      - run: bun run lint
+      - run: bun run check
+      - run: bun run parser:check
       # The comunica parity suites build a full engine on first use, which
       # takes longer than bun test's 5 s default timeout on a cold runner.
       - run: bun test --timeout 120000
