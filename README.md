@@ -62,7 +62,10 @@ for the W3C suite notes.
   `@rdfjs/types`), and no Comunica framework overhead — browser-friendly and
   JSR-ready without transitive npm baggage.
 - **JSR & Deno Wazoo**: Published on JSR as `@wazoo/sparql-engine` for Deno,
-  Node.js, and browser environments.
+  Bun, Node.js, and browser environments. The source, tests, benches and scripts
+  use only `node:` APIs, so the repository's own suite runs on Deno (the
+  authoritative toolchain until the Bun cutover, wazootech/workspace#50) and on
+  Bun (`bun install && bun test`).
 - **The engine behind `@worlds/sdk`**: Implements
   [`SparqlEngineInterface`](https://jsr.io/@wazoo/sparql-engine/doc/~/SparqlEngineInterface),
   which `@worlds/sdk`'s durable backend factory (`createLibsqlSdk` from
@@ -435,8 +438,9 @@ benchmark stores. The reorder-chain group demonstrates the dynamic join
 ordering: a three-pattern chain written in worst-case order runs ~80x faster
 with reordering enabled, because the planner scans each pattern once and joins
 in order of estimated cost, preferring patterns whose variables are already
-bound. Timings use Deno's built-in bench runner with the wazoo engine as the
-per-group baseline:
+bound. Timings use [mitata](https://github.com/evanwashere/mitata) through the
+shared harness in `bench/bench.ts` (it runs on Deno and Bun) with the wazoo
+engine as the per-group baseline:
 
 ```bash
 deno task bench
@@ -550,9 +554,9 @@ server-optional. The chart and the `bench:size` JSON both mirror that file set
 exactly.
 
 **Peak heap during execution** on the 10k-person graph (55k quads), measured in
-an isolated Deno subprocess per engine (peak `Deno.memoryUsage().heapUsed` over
-5 runs; all three share the same ~62 MiB runtime baseline, so the comparison is
-symmetric):
+an isolated Deno subprocess per engine (peak `process.memoryUsage().heapUsed`
+over 5 runs; all three share the same ~62 MiB runtime baseline, so the
+comparison is symmetric):
 
 <figure>
   <img src="docs/assets/treemap-memory.svg" alt="Treemap of peak heap per engine and workload">

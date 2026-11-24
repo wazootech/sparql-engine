@@ -17,7 +17,7 @@ architecture, parsing, and execution live in
 | Package               | `@wazoo/sparql-engine` (JSR), version `0.4.1`, MIT                                                                  |
 | Runtime               | Deno 2.x (Node.js and browser via JSR; durable `node:sqlite` store lives in `@worlds/sqlite`, server-only)          |
 | Runtime dependencies  | **zero** — only type-only `@rdfjs/types`                                                                            |
-| Dev/test dependencies | `@comunica/query-sparql-rdfjs-lite`, `oxigraph` (WASM), `n3`, `@std/assert`, `@types/node`                          |
+| Dev/test dependencies | `@comunica/query-sparql-rdfjs-lite`, `oxigraph` (WASM), `n3`, `mitata`, `@types/node`                               |
 | Manifest              | `deno.json` (`exports["."] → ./src/mod.ts`, `@/` → `./src/`)                                                        |
 | CI                    | `.github/workflows/ci.yml` (`ci`, `w3c-parity`, `latency-snapshot`, `docs-drift`, `docs-links` jobs), `publish.yml` |
 
