@@ -1,6 +1,6 @@
 // Verifies the playground dataset fixtures through the engine, per ticket #168:
 //
-//   deno run --allow-read playground/datasets/verify.ts
+//   bun playground/datasets/verify.ts
 //
 // For each fixture: read → parseTurtleQuads → MemoryStore → round-trip
 // serializeTurtle → re-parse, asserting the quad counts match the generator's

@@ -7,8 +7,8 @@
 // silently. Report-only dynamic-tier statements are expected at runtime-typed
 // boundaries and do not fail it.
 //
-//   deno task native:coverage           # summary table
-//   deno task native:coverage --json    # raw scriptc diagnostics envelope
+//   bun run native:coverage           # summary table
+//   bun run native:coverage --json    # raw scriptc diagnostics envelope
 //
 // scriptc reads cli/tsconfig.json, whose `paths` maps the `@/` imports, so
 // the source needs no rewriting. The version is pinned: coverage output is

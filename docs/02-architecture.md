@@ -96,7 +96,7 @@ is a union of
 Example — parsing a query in one line:
 
 ```bash
-deno eval '
+bun -e '
 import { SparqlParser } from "./src/parser/sparql-parser.ts";
 const ast = new SparqlParser().parse(
   "SELECT ?name WHERE { ?s <https://xmlns.com/foaf/0.1/name> ?name FILTER(?name != \"\") }"

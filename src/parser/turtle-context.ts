@@ -449,7 +449,6 @@ export function unescapeIri(iri: string): string {
   const result = decodeUnicodeEscapes(iri);
   // IRIREF excludes U+0000-U+0020 and <>"{}|^`\\; an escape must not
   // smuggle any of them into the decoded IRI.
-  // deno-lint-ignore no-control-regex
   if (/[\u0000-\u0020<>"{}|^`\\]/.test(result)) {
     throw new Error("Invalid IRI escape: disallowed character");
   }

@@ -50,7 +50,7 @@ sub-steps marked _opt-in_ below.
 | Change landed in        | Wiki surface to touch                                                                             |
 | ----------------------- | ------------------------------------------------------------------------------------------------- |
 | `src/**/*.ts`           | `04-source-map.md` symbol inventory (name + role + entrypoint link) + every page citing that file |
-| `deno.json` tasks       | `01-quickstart.md` task lists                                                                     |
+| `package.json` scripts  | `01-quickstart.md` task lists                                                                     |
 | `test/**` (new/renamed) | `04-source-map.md` test tables, `05-testing.md` covered areas (counts only when opted in)         |
 | `bench/**`              | `04-source-map.md` bench table, `07-benchmarking.md` methodology (numbers only when opted in)     |
 | new/removed files       | `04-source-map.md` file inventory                                                                 |
@@ -60,21 +60,14 @@ sub-steps marked _opt-in_ below.
 ## Step 3 — Verify the symbol graph
 
 Symbol citations are by name, never `L<line>`: root exports link to their JSR
-doc page, deep imports to their GitHub blob. `deno doc --json` is a
-_verification_ tool — confirm every cited symbol still exists and is publicly
-exported:
+doc page, deep imports to their GitHub blob. A name search is a
+_verification_ tool — confirm every cited symbol still exists and is exported:
 
 ```bash
-deno doc --json src/evaluator/join.ts | python -c "
-import json, sys
-d = json.load(sys.stdin)
-mod = list(d['nodes'].values())[0]
-for s in mod['symbols']:
-    print(s['name'])
-"
+git grep -nE "export (async )?(function|class|interface|type|const|enum) join" -- src/evaluator/join.ts
 ```
 
-Drop or relink any symbol not in that list; run the full-tree pass
+Drop or relink any symbol that does not match; run the full-tree pass
 (`git ls-tree -r --name-only origin/main -- src`) when in doubt.
 
 _Opt-in (`line-numbers` or `full`):_ the v2 schema nests declaration locations;
@@ -120,7 +113,7 @@ for removed files, and confirm every path the wiki references resolves.
 
 - Validate: `bun fmt --check docs/`, nav/front-matter/link checks (all
   `_data/navigation.yml` targets resolve, every page has front matter),
-  `deno task docs:link-check` (external link rot — 404/410 fails), and a
+  `bun run docs:link-check` (external link rot — 404/410 fails), and a
   `pandoc -f gfm -t html` render of each touched page.
 - Bump `docs/.sync-base` to the new `origin/main` HEAD.
 - Land from a fresh worktree off `origin/main`

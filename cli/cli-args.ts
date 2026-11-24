@@ -1,6 +1,6 @@
 /**
  * cli-args holds the `sparql` CLI's argument grammar: flag parsing shared by
- * the Deno and native hosts, kept host-agnostic so both hold the built CLI to
+ * the Bun and native hosts, kept host-agnostic so both hold the built CLI to
  * the same contract.
  */
 

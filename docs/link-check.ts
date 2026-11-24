@@ -16,7 +16,7 @@
 // README.md and docs/ share a virtual root at publish time, which makes
 // on-disk resolution ambiguous.
 //
-// Run locally: `deno task docs:link-check`.
+// Run locally: `bun run docs:link-check`.
 
 import process from "node:process";
 import { readdirSync, readFileSync } from "node:fs";

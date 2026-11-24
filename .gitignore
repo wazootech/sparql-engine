@@ -11,5 +11,6 @@ dist/
 coverage/
 native-diagnostics.json
 scriptc-build.log
-.deno/
+# jsr publish regenerates a Deno lockfile on every run; it is never committed.
+deno.lock
 .scriptc/

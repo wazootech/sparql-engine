@@ -3,8 +3,8 @@
 // https://scriptc.dev/docs/quickstart — so this task fails fast when zig is
 // missing from PATH.
 //
-//   deno task native:build              # compile to dist/sparql-node.exe|.out
-//   deno task native:gate               # coverage summary, then build attempt
+//   bun run native:build              # compile to dist/sparql-node.exe|.out
+//   bun run native:gate               # coverage summary, then build attempt
 //
 // The scriptc version matches cli/native-coverage.ts.
 

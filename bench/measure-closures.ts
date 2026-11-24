@@ -12,7 +12,7 @@
 // counted. Specifier parsing is regex-based — fine for this codebase's
 // straightforward import forms (barrels included).
 //
-// Run: deno run --allow-read --allow-write bench/measure-closures.ts
+// Run: bun bench/measure-closures.ts
 
 import process from "node:process";
 import { readFileSync, statSync, writeFileSync } from "node:fs";

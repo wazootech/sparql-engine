@@ -13,10 +13,10 @@
 //
 // The graph is read statically from the sources (import and export-from
 // statements, dynamic `import("...")`), following relative paths and the `@/`
-// alias for `./src/`, so the check runs on Deno and Bun alike instead of
-// asking `deno info` for the graph.
+// alias for `./src/`, so the check needs no Deno CLI (`deno info`) to
+// read the graph.
 //
-// Run: deno task publish:check (wired into `deno task ci` alongside
+// Run: bun run publish:check (wired into `bun run ci` alongside
 // `publish:dry`, which asserts every export resolves).
 import { readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";

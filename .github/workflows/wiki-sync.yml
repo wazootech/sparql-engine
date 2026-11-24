@@ -19,7 +19,7 @@
 #   workflow creates, so merging the PR anchors the wiki; interrupted runs
 #   leave the anchor untouched and the next run redoes the delta.
 # - Verification rides the PR via this repo's CI (ci.yml: docs-drift,
-#   docs-links, ci, bun); humans merge.
+#   docs-links, ci); humans merge.
 
 name: Wiki sync
 

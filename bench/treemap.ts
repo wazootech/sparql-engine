@@ -9,7 +9,7 @@
 //   docs/assets/chart-closures.svg
 //   docs/assets/treemap-submodules.svg
 //
-// Run: deno run --allow-read --allow-write bench/treemap.ts
+// Run: bun bench/treemap.ts
 
 import process from "node:process";
 import { readFileSync, statSync, writeFileSync } from "node:fs";

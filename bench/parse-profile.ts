@@ -1,6 +1,6 @@
 /**
  * parse-profile attributes the cost of the CLI load path (read, parse, index)
- * to its stages, in-process under the running runtime (Deno/V8 or Bun/JavaScriptCore), on the text `buildPeopleTurtle`
+ * to its stages, in-process under the running runtime (Bun/JavaScriptCore), on the text `buildPeopleTurtle`
  * generates. It is the profiling step of issue #251: it changes no engine or
  * parser source. Stages are timed in interleaved rounds after warm-up, and
  * adjacent stages are subtracted to attribute cost:
@@ -16,7 +16,7 @@
  * script; the generated lexer class is not exported, so this reuses the real
  * lexer instance the generated entry point builds.
  *
- * Usage: deno task bench:profile [--people 2000,10000] [--rounds 11]
+ * Usage: bun run bench:profile [--people 2000,10000] [--rounds 11]
  */
 import { LR_EOF, LrLexer, LrParser } from "@/parser/lr-runtime.ts";
 import { parseTurtleQuads } from "@/parser/turtle-parser.ts";
@@ -125,10 +125,7 @@ function countLexing(text: string): {
 const peopleList = argValue("--people", "2000,10000").split(",").map(Number);
 const rounds = Number(argValue("--rounds", "11"));
 const warmups = 3;
-const runtimeLabel =
-  process.versions.bun !== undefined
-    ? `Bun ${process.versions.bun}`
-    : `Deno ${process.versions.deno} / V8 ${process.versions.v8}`;
+const runtimeLabel = `Bun ${process.versions.bun}`;
 const tempDirectory = await mkdtemp(join(tmpdir(), "parse-profile-"));
 const tempPath = join(tempDirectory, "people.ttl");
 

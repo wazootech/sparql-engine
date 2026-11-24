@@ -38,35 +38,43 @@ methodology prose. To opt into the detailed style, change this directive to
 Run local checks before staging:
 
 ```sh
-deno task ci
+bun run ci
 ```
 
-## Runtimes (Deno and Bun)
+## Toolchain (Bun)
 
-Deno is the authoritative toolchain (format, lint, check, publish, CI) until the
-Bun cutover tracked in wazootech/workspace#50, but the code, tests, benches and
-scripts must run on Deno **and** Bun, so:
+The toolchain is Bun (cutover tracked in wazootech/workspace#50), and the code
+stays Node-compatible:
 
 - Use `node:` APIs, never `Deno.*` (`node:fs`, `node:path`, `node:process`,
   `node:child_process`). A file path from `import.meta.url` goes through
-  `fileURLToPath`.
+  `fileURLToPath`. The one deliberate host probe is `LOAD`'s default reader in
+  `src/evaluator/update-evaluator.ts`, which reaches for `Deno` or `Bun` on
+  `globalThis` so the published package works for Deno and Bun consumers.
 - Tests use `node:test` (`test`) and `node:assert/strict`; `test/thrown.ts` has
   `thrown`/`rejected` for the value-returning `assertThrows`/`assertRejects`. No
   `@std/assert`, no `bun:test`.
 - Benches register with `bench()` from `bench/bench.ts` (mitata) and end with
-  `await runBenches()`; never call `Deno.bench`.
-- Spawn the running runtime with `test/run-process.ts` (`scriptCommand`,
-  `testCommand`, `compileCommand`), not a hard-coded `deno`.
-- `package.json` and `bun.lock` are Bun's manifest; keep their dependency ranges
-  in step with the `deno.json` import map. `bun install &&
-bun run test:bun`
-  runs the suite on Bun (the `bun` CI job runs it on Bun 1.x with
-  `--timeout 120000` for the cold comunica parity suites).
-- Formatting, linting and the generated-parser check run on Bun (`bun fmt`,
-  Oxlint, `bun check`, `bun run parser:check`), because `bun fmt` and `deno fmt`
-  disagree and the repo is formatted by `bun fmt`. `deno lint` and `deno check`
-  still run on the Deno job. Regenerate parsers with `bun run parser:generate`
-  so they carry `bun fmt` formatting.
+  `await runBenches()`.
+- Spawn the running Bun with `test/run-process.ts` (`scriptCommand`,
+  `testCommand`, `compileCommand`), not a hard-coded binary name.
+- `jsr.json` is the published package's manifest (name, version, exports,
+  imports, `publish` rules); `package.json` and `bun.lock` are what Bun
+  installs. `bun run check:manifests` (`scripts/check-manifests.ts`) fails when
+  their export maps or dependency ranges drift, so change both together. A
+  `jsr:` dependency is an `npm:@jsr/<scope>__<name>` alias in `package.json`,
+  resolved through the `@jsr` scope in `bunfig.toml`.
+- `bun run ci` is the whole local gate: `bun fmt --check`, Oxlint, `bun check`,
+  the manifest check, `parser:check`, `bun test --timeout 120000` (cold comunica
+  parity suites need it), the publish-graph check, the bench budget and the
+  W3C/RDF/EXISTS gates. Regenerate parsers with `bun run parser:generate`.
+- The comunica/traqula `overrides` in `package.json` pin the engine's reference
+  output (comunica 5.4 canonicalizes `xsd:decimal` differently); do not bump
+  them without a separate parity review.
+- Publishing goes through the `jsr` CLI (`bun run publish:dry`, `bunx jsr publish`),
+  which bundles its own Deno-based publisher: no Deno install is needed. Its
+  slow-type check is stricter than Deno 2.9's, so exported constants need
+  explicit types.
 
 ## Code health
 
@@ -74,21 +82,18 @@ Family-wide rules live in the
 [wazootech workspace constitution](https://github.com/wazootech/workspace/blob/main/AGENTS.md#code-health-standards);
 this repo's specifics:
 
-- Before pushing, run `deno task ci` (lint, check, tests on Deno) and `bun run
-ci` (format, lint, check, parser check, tests on Bun); CI runs both on every
-  pull request and push to `main`.
-- `deno lint` enforces `no-explicit-any` and `ban-ts-comment` (no `@ts-ignore`),
-  and `deno.json` sets `strict: true`.
+- Before pushing, run `bun run ci`; CI runs it on every pull request and push to
+  `main`.
+- Oxlint (`.oxlintrc.json`) enforces `no-explicit-any` and `ban-ts-comment` (no
+  `@ts-ignore`), and `tsconfig.json` sets `strict: true`.
 - Exempt: the generated `src/parser/parser.ts` and
-  `src/parser/turtle-generated.ts` keep their `@ts-nocheck` and
-  `deno-lint-ignore-file` headers; regenerate them, never hand-edit. The
+  `src/parser/turtle-generated.ts`; regenerate them, never hand-edit. The
   generator tools (`jison`, `ebnf-parser`, `n3`, `n3-rdfstar`) are entries in
-  the `deno.json` import map.
+  the `jsr.json` import map.
 - `secret-scan.yml` runs gitleaks on every pull request and push to `main`;
   never commit credentials.
-- Workflow actions are pinned to full commit SHAs with a version comment, Deno
-  is pinned to `v2.9.8`, and CI installs with `deno install --frozen`, so commit
-  any `deno.lock` change.
+- Bun runs on `1.x` in every workflow and CI installs with
+  `bun install --frozen-lockfile`, so commit any `bun.lock` change.
 - `code-health.yml` only warns: files over 120 lines of code (300 for tests) and
   `TODO`/`FIXME` without an issue link. It skips the two generated parsers and
   `playground/app.js`.

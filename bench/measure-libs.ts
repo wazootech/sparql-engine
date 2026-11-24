@@ -11,11 +11,10 @@
 //
 // Prints one JSON document to stdout; bench/treemap.ts consumes it.
 //
-// Run: deno run --allow-read bench/measure-libs.ts > bench/size-data.json
-// (or `bun bench/measure-libs.ts > bench/size-data.json`)
+// Run: bun bench/measure-libs.ts > bench/size-data.json
 
 import process from "node:process";
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { readdirSync, readFileSync, statSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 interface Sized {
@@ -37,11 +36,10 @@ function dirBytes(dir: string): number {
 }
 
 /* ------------------------------------------------------------------ */
-/* npm resolution through node_modules (.deno under Deno, flat on Bun) */
+/* npm resolution through node_modules (Bun's hoisted layout) */
 /* ------------------------------------------------------------------ */
 
 const NODE_MODULES = join(process.cwd(), "node_modules");
-const DENO_DIR = join(NODE_MODULES, ".deno");
 
 /** name -> highest installed version dir, from a scan of node_modules. */
 const installed = new Map<string, string>();
@@ -70,40 +68,11 @@ function scanHoisted(): void {
   }
 }
 
-/** scanInstalled indexes Deno's node_modules/.deno when present, else the hoisted layout. */
-function scanInstalled(): void {
-  if (!existsSync(DENO_DIR)) {
-    scanHoisted();
-    return;
-  }
-  for (const entry of readdirSync(DENO_DIR, { withFileTypes: true })) {
-    // Key shape: `name@version` with scoped names flattened as `@scope+name`.
-    const at = entry.name.lastIndexOf("@");
-    if (at <= 0) {
-      continue;
-    }
-    const key = entry.name.slice(0, at);
-    const version = entry.name.slice(at + 1);
-    const name =
-      key.includes("+") && key.startsWith("@") ? key.replace("+", "/") : key;
-    const dir = join(DENO_DIR, entry.name, "node_modules", name);
-    if (!dir.startsWith(DENO_DIR)) {
-      continue;
-    }
-    const existing = installed.get(name);
-    if (existing === undefined || version > existing.split("@").at(-1)!) {
-      installed.set(name, dir);
-    }
-  }
-}
-
 function comunicaArtifact(): Sized {
   const rootName = "@comunica/query-sparql-rdfjs-lite";
   const rootDir = installed.get(rootName);
   if (rootDir === undefined) {
-    throw new Error(
-      `comunica not installed; run deno install (or bun install) first`,
-    );
+    throw new Error(`comunica not installed; run bun install first`);
   }
   const rootPkg = JSON.parse(
     readFileSync(join(rootDir, "package.json"), "utf8"),
@@ -198,7 +167,7 @@ function comunicaArtifact(): Sized {
 /* ------------------------------------------------------------------ */
 
 /** Files excluded from the JSR artifact via publish.exclude (mirrors
- * deno.json) — build-time grammar sources and unreachable Node-only code.
+ * jsr.json) — build-time grammar sources and unreachable Node-only code.
  * Paths are relative to src/ (the walk below starts at src/). */
 const ARTIFACT_EXCLUDED_SUFFIXES = [".test.ts", ".jison"];
 const ARTIFACT_EXCLUDED_FILES = ["parser/generate-parser.ts"];
@@ -277,9 +246,7 @@ function wazooArtifact(): Sized {
 function oxigraphArtifact(): Sized {
   const dir = installed.get("oxigraph");
   if (dir === undefined) {
-    throw new Error(
-      `oxigraph not installed; run deno install (or bun install) first`,
-    );
+    throw new Error(`oxigraph not installed; run bun install first`);
   }
   let wasm = 0;
   let glue = 0;
@@ -309,7 +276,7 @@ function oxigraphArtifact(): Sized {
   };
 }
 
-scanInstalled();
+scanHoisted();
 const wazoo = wazooArtifact();
 const artifact = artifactFiles();
 const result = {

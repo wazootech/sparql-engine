@@ -49,7 +49,7 @@
  * - Blank nodes in the data or in CONSTRUCT templates (labels are
  *   engine-local; the parity suite already covers blank-node isomorphism).
  *
- * Run with:  deno run --allow-all --allow-write bench/heldout-fuzz.ts
+ * Run with:  bun bench/heldout-fuzz.ts
  *   Optional: --seed <n> --count <n-per-family>
  * Writes bench/heldout-fuzz-report.json next to this file.
  */

@@ -1,17 +1,17 @@
 /**
  * bench is the one shared benchmark harness for the bench scripts. It stands
- * in for `Deno.bench`, which only exists under Deno: a file registers benches
+ * in for `Deno.bench` (the repository's former harness): a file registers benches
  * with `bench(definition, fn)` and ends with `await runBenches()`. mitata
  * measures each registered bench in turn, grouped as registered, with the
  * `baseline: true` row of a group as the reference for the ratio column. It
- * runs unchanged on Deno and Bun.
+ * runs on Bun (and Node).
  *
- *   deno run -A bench/engine_bench.ts                    # table on stdout
- *   deno run -A bench/engine_bench.ts --json             # latency-data.json on stdout
- *   deno run -A bench/engine_bench.ts --filter "oxigraph"  # only matching bench names
- *   bun bench/engine_bench.ts --json                     # the same on Bun
+ *   bun bench/engine_bench.ts                    # table on stdout
+ *   bun bench/engine_bench.ts --json             # latency-data.json on stdout
+ *   bun bench/engine_bench.ts --filter "oxigraph"  # only matching bench names
  *
- * The `--json` document keeps the shape `deno bench --json` printed, with times
+ * The `--json` document keeps the shape `deno bench --json` printed before the
+ * Bun cutover, with times
  * in nanoseconds, so bench/latency-chart.ts and bench/latency-check.ts read it
  * unchanged.
  */
@@ -143,12 +143,12 @@ function printTable(results: BenchResult[]): void {
 
 /** runtimeLabel names the running runtime, version and platform. */
 function runtimeLabel(): string {
-  const { bun, deno } = process.versions;
-  const runtime = bun !== undefined ? `Bun/${bun}` : `Deno/${deno}`;
+  const { bun, node } = process.versions;
+  const runtime = bun !== undefined ? `Bun/${bun}` : `Node/${node}`;
   return `${runtime} ${process.arch}-${process.platform}`;
 }
 
-/** toLatencyData renders results in the `deno bench --json` document shape. */
+/** toLatencyData renders results in the document shape `deno bench --json` printed. */
 function toLatencyData(results: BenchResult[]): string {
   return JSON.stringify(
     {
@@ -177,7 +177,7 @@ function optionValue(argv: string[], name: string): string | undefined {
  * runBenches measures every registered bench in order and prints the table,
  * or the JSON document under `--json`. Progress goes to stderr so stdout
  * stays a clean report. A bench that throws fails the whole run, as a failing
- * Deno.bench did.
+ * Deno.bench once did.
  */
 export async function runBenches(
   argv: string[] = process.argv.slice(2),

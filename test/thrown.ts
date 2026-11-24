@@ -3,7 +3,7 @@
  * rejects with), after checking it is an instance of `errorClass` and, when
  * given, that its message includes `messageIncludes`. They stand in for the
  * value-returning `assertThrows`/`assertRejects` of `@std/assert`, built on
- * `node:assert` so the same tests run on Deno and Bun.
+ * `node:assert` so the same tests run on Bun and Node.
  */
 import assert from "node:assert/strict";
 

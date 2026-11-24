@@ -1,9 +1,8 @@
 /**
  * run-process runs child processes for the repository's scripts, tests and
- * benches on whichever runtime (Deno or Bun) is running them. `process.execPath`
- * is that runtime's binary, so the same script re-invokes itself, and the
- * helpers below translate "run this script / test file / compile this entry"
- * into the matching command line for each runtime.
+ * benches on Bun. `process.execPath` is the running Bun binary, so a script
+ * re-invokes itself, and the helpers below build the command lines for "run
+ * this script / test file / compile this entry".
  */
 import { spawn } from "node:child_process";
 import process from "node:process";
@@ -23,11 +22,8 @@ export interface ProcessOptions {
   inherit?: boolean;
 }
 
-/** isBun reports whether the current runtime is Bun. */
-export const isBun: boolean = process.versions.bun !== undefined;
-
 /** runtimeName names the running runtime for report headers. */
-export const runtimeName: "bun" | "deno" = isBun ? "bun" : "deno";
+export const runtimeName = "bun";
 
 /**
  * runProcess spawns `program` and resolves once it exits. A non-zero exit is a
@@ -66,21 +62,15 @@ export function runProcess(
 
 /** scriptCommand returns the argv that runs a TypeScript file on this runtime. */
 export function scriptCommand(script: string, args: string[] = []): string[] {
-  return isBun
-    ? [process.execPath, script, ...args]
-    : [process.execPath, "run", "--allow-all", script, ...args];
+  return [process.execPath, script, ...args];
 }
 
 /** testCommand returns the argv that runs a test file on this runtime. */
 export function testCommand(file: string): string[] {
-  return isBun
-    ? [process.execPath, "test", file]
-    : [process.execPath, "test", "--allow-all", file];
+  return [process.execPath, "test", file];
 }
 
 /** compileCommand returns the argv that compiles `entry` to a binary at `output`. */
 export function compileCommand(entry: string, output: string): string[] {
-  return isBun
-    ? [process.execPath, "build", "--compile", entry, "--outfile", output]
-    : [process.execPath, "compile", "--allow-read", "--output", output, entry];
+  return [process.execPath, "build", "--compile", entry, "--outfile", output];
 }

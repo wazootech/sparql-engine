@@ -6,7 +6,7 @@
 //
 //   docs/assets/chart-latency.svg
 //
-// Run: deno run --allow-read --allow-write bench/latency-chart.ts
+// Run: bun bench/latency-chart.ts
 
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -339,7 +339,7 @@ function chartSvg(data: LatencyData): string {
   out.push(
     `<text x="12" y="${totalH - 18}" font-size="9" fill="#adb5bd">Snapshot: ${esc(
       data.runtime,
-    )} — regenerate with \`deno task bench:latency\`.</text>`,
+    )} — regenerate with \`bun run bench:latency\`.</text>`,
   );
   out.push(`</svg>`);
   return out.join("\n");

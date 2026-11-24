@@ -1,7 +1,7 @@
 // run-cli is the runtime-agnostic core of the `sparql` command: it parses
 // arguments, loads RDF documents into a MemoryStore, runs one query, and
 // returns the serialized output. Host entrypoints (cli/main.ts for
-// `deno compile`, cli/node-main.ts for scriptc) only supply
+// `bun build --compile`, cli/node-main.ts for scriptc) only supply
 // file reading and process I/O, so every build answers the same contract and
 // bench/cli-bench.ts can compare them like for like.
 import { parseArguments } from "./cli-args.ts";

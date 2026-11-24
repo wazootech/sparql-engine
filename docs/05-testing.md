@@ -15,58 +15,57 @@ pipeline.
       W3C differential gates        test/w3c/ (vs Comunica + spec results)
     Differential parity             test/parity/ (vs Comunica, 1:1)
   Unit / integration tests          src/**/*.test.ts
-Typecheck + lint + fmt + parser     deno task check / lint; bun run fmt:check / lint / check / parser:check
+Typecheck + lint + fmt + parser     bun run check / lint; bun run fmt:check / lint / check / parser:check
 ```
 
 Every layer runs in CI (`.github/workflows/ci.yml`): the `ci` job runs
-`deno task ci` (plus explicit `test:exists-ref` and `publish:dry` steps),
-`w3c-parity` runs `deno task test:w3c` + `deno task test:exists-ref`,
+`bun run ci` (plus `publish:dry` and a compiled-binary smoke step),
+`w3c-parity` runs `bun run test:w3c` + `bun run test:exists-ref`,
 `heldout-fuzz` runs the seeded differential fuzz with a fresh seed per run,
 `latency-snapshot` re-checks the committed bench inventory, `docs-drift`
 enforces the wiki's `detail_level` guardrail (`L<line>` citations fail),
-`docs-links` fails on wiki link rot, and `publish.yml` gates `deno publish`.
+`docs-links` fails on wiki link rot, and `publish.yml` gates `bunx jsr publish`.
 
 ## Task reference
 
-| Task                            | Command                            | What it runs                                                                                                          | Gating                     |
-| ------------------------------- | ---------------------------------- | --------------------------------------------------------------------------------------------------------------------- | -------------------------- |
-| `deno task test`                | `deno test --allow-all`            | All unit + integration + parity `*.test.ts` files                                                                     | ci                         |
-| `deno task check`               | `deno check`                       | Typecheck the package                                                                                                 | ci                         |
-| `bun run fmt:check`             | `bun fmt --check`                  | Source **and markdown** formatting (width 80)                                                                         | ci                         |
-| `deno task lint`                | `deno lint`                        | Lint                                                                                                                  | ci                         |
-| `bun run parser:check`          | `generate-parser.ts --check`       | Generated `parser.ts` in sync with `sparql.jison`                                                                     | ci                         |
-| `deno task bench:check`         | `bench/budget.ts`                  | Perf regression budget (vs `bench/baseline.json`)                                                                     | ci                         |
-| `deno task test:exists-ref`     | `test/w3c/exists-ref.ts`           | EXISTS/NOT EXISTS subquery surface vs Oxigraph                                                                        | ci + w3c-parity            |
-| `deno task test:sparql12:gap`   | `test/w3c/sparql12-gap.ts`         | RDF 1.2 eval-triple-terms gap suite                                                                                   | ci                         |
-| `deno task test:sparql12`       | `test/w3c/sparql12-main.ts`        | W3C [SPARQL 1.2](https://www.w3.org/TR/sparql12-query/) evaluation suite                                              | ci                         |
-| `deno task test:rdf11`          | `test/w3c/rdf-differential.ts`     | RDF 1.1 Turtle/TriG/N-Triples/N-Quads vs n3                                                                           | ci                         |
-| `deno task test:rdf12`          | `test/w3c/rdf-classify.ts`         | RDF 1.2 syntax classifier                                                                                             | ci                         |
-| `deno task publish:check`       | `test/publish-graph-check.ts`      | Default export graph has no `node:`/`npm:` runtime imports                                                            | ci                         |
-| `deno task ci`                  | —                                  | All of the above in dependency order                                                                                  | ci job                     |
-| `deno task test:w3c`            | `test/w3c/w3c-main.ts`             | [SPARQL 1.1](https://www.w3.org/TR/sparql11-query/) evaluation-core differential vs [Comunica](https://comunica.dev/) | w3c-parity job             |
-| `deno task test:heldout-fuzz`   | `bench/heldout-fuzz.ts`            | Seeded differential fuzz vs Comunica + Oxigraph on generated data and queries                                         | heldout-fuzz job           |
-| `deno task docs:link-check`     | `docs/link-check.ts`               | Wiki link rot: every external markdown link (JSR/GitHub/W3C/…) must resolve (404/410 fails)                           | docs-links job             |
-| `deno task bench:latency:check` | `bench/latency-check.ts`           | Committed `bench/latency-data.json` bench inventory matches a fresh run                                               | latency-snapshot job       |
-| `deno task test:ref`            | `test/w3c/ref-crosscheck.ts`       | Allowlisted divergence audit vs Oxigraph + N3.js                                                                      | manual (on grammar change) |
-| `deno task bench`               | `deno run --allow-all` bench files | Three-engine benchmarks                                                                                               | manual                     |
+| Task                          | Command                        | What it runs                                                                                                          | Gating                     |
+| ----------------------------- | ------------------------------ | --------------------------------------------------------------------------------------------------------------------- | -------------------------- |
+| `bun run test`                | `bun test --timeout 120000`    | All unit + integration + parity `*.test.ts` files                                                                     | ci                         |
+| `bun run check`               | `bun check`                    | Typecheck the package                                                                                                 | ci                         |
+| `bun run fmt:check`           | `bun fmt --check`              | Source **and markdown** formatting (width 80)                                                                         | ci                         |
+| `bun run lint`                | `oxlint`                       | Lint                                                                                                                  | ci                         |
+| `bun run parser:check`        | `generate-parser.ts --check`   | Generated `parser.ts` in sync with `sparql.jison`                                                                     | ci                         |
+| `bun run bench:check`         | `bench/budget.ts`              | Perf regression budget (vs `bench/baseline.json`)                                                                     | ci                         |
+| `bun run test:exists-ref`     | `test/w3c/exists-ref.ts`       | EXISTS/NOT EXISTS subquery surface vs Oxigraph                                                                        | ci + w3c-parity            |
+| `bun run test:sparql12:gap`   | `test/w3c/sparql12-gap.ts`     | RDF 1.2 eval-triple-terms gap suite                                                                                   | ci                         |
+| `bun run test:sparql12`       | `test/w3c/sparql12-main.ts`    | W3C [SPARQL 1.2](https://www.w3.org/TR/sparql12-query/) evaluation suite                                              | ci                         |
+| `bun run test:rdf11`          | `test/w3c/rdf-differential.ts` | RDF 1.1 Turtle/TriG/N-Triples/N-Quads vs n3                                                                           | ci                         |
+| `bun run test:rdf12`          | `test/w3c/rdf-classify.ts`     | RDF 1.2 syntax classifier                                                                                             | ci                         |
+| `bun run publish:check`       | `test/publish-graph-check.ts`  | Default export graph has no `node:`/`npm:` runtime imports                                                            | ci                         |
+| `bun run ci`                  | —                              | All of the above in dependency order                                                                                  | ci job                     |
+| `bun run test:w3c`            | `test/w3c/w3c-main.ts`         | [SPARQL 1.1](https://www.w3.org/TR/sparql11-query/) evaluation-core differential vs [Comunica](https://comunica.dev/) | w3c-parity job             |
+| `bun run test:heldout-fuzz`   | `bench/heldout-fuzz.ts`        | Seeded differential fuzz vs Comunica + Oxigraph on generated data and queries                                         | heldout-fuzz job           |
+| `bun run docs:link-check`     | `docs/link-check.ts`           | Wiki link rot: every external markdown link (JSR/GitHub/W3C/…) must resolve (404/410 fails)                           | docs-links job             |
+| `bun run bench:latency:check` | `bench/latency-check.ts`       | Committed `bench/latency-data.json` bench inventory matches a fresh run                                               | latency-snapshot job       |
+| `bun run test:ref`            | `test/w3c/ref-crosscheck.ts`   | Allowlisted divergence audit vs Oxigraph + N3.js                                                                      | manual (on grammar change) |
+| `bun run bench`               | `bench/*_bench.ts` files       | Three-engine benchmarks                                                                                               | manual                     |
 
-| `deno task bench:latency` | `bench/latency-chart.ts` | Render
-`bench/latency-data.json` → `docs/assets/chart-latency.svg` | manual | |
-`deno task publish:dry` | `deno publish --dry-run` | JSR publish validation | ci
-job + publish job |
+| `bun run bench:latency` | `bench/latency-chart.ts` | Render `bench/latency-data.json` → `docs/assets/chart-latency.svg` | manual |
+| `bun run publish:dry` | `jsr publish --dry-run` | JSR publish validation | ci job + publish job |
+| `bun run check:manifests` | `scripts/check-manifests.ts` | `jsr.json` and `package.json` agree on exports and dependency ranges | ci |
 
 ## Unit & integration tests
 
-Tests use `node:test` and `node:assert/strict`, so the same files run on Deno
-(`deno test`, the CI gate) and on Bun (`bun test --timeout 120000`, the `bun` CI
-job; the default 5 s timeout is too short for the cold comunica parity suites).
-`deno test` discovers `*.test.ts` alongside sources and under `test/`:
+Tests use `node:test` and `node:assert/strict` and run on Bun (`bun test
+--timeout 120000`, the `ci` job; the default 5 s timeout is too short for the cold
+comunica parity suites). `bun test` discovers `*.test.ts` alongside sources and
+under `test/`:
 
 ```bash
-deno test src/              # engine internals only (fast loop)
-deno test src/wazoo-sparql-engine.test.ts   # single file
-deno test -n "exists"       # filter by test name substring
-bun test --timeout 120000   # the same suite on Bun (after `bun install`)
+bun test src/               # engine internals only (fast loop)
+bun test src/wazoo-sparql-engine.test.ts   # single file
+bun test -t "exists"        # filter by test name substring
+bun run test                # the whole suite, as CI runs it
 ```
 
 Covered areas: parser (`src/parser/mod.test.ts`, `turtle-parser.test.ts`), store
@@ -119,7 +118,7 @@ The parity contract is **behavioral equivalence with
 
 ## W3C suites
 
-`deno task test:w3c` runs the vendored W3C SPARQL 1.1 **evaluation-core**
+`bun run test:w3c` runs the vendored W3C SPARQL 1.1 **evaluation-core**
 (aggregates, bind, bindings, cast, construct, exists, functions, grouping,
 negation, project-expression, property-path, subquery, and the update
 categories) **differentially**: every query runs through both Comunica and the
@@ -177,7 +176,7 @@ Each tool's methodology is on the dedicated
 live in the root `README.md`); this section covers how to run each tool and what
 it gates.
 
-### `deno task bench` — three-engine comparison
+### `bun run bench` — three-engine comparison
 
 `bench/engine_bench.ts` compares the wazoo engine against
 `@comunica/query-sparql-rdfjs-lite` and **Oxigraph (WASM)** over an identical
@@ -205,7 +204,7 @@ subquery, exists, cast, string-fn, having, reduced, update-ops. The
 [07 — Benchmarking & Performance](07-benchmarking.md)): reordering makes the
 worst-case-ordered chain fast, at parity with Oxigraph.
 
-### `deno task bench:check` — regression budget
+### `bun run bench:check` — regression budget
 
 `bench/budget.ts` runs two queries (a 2-pattern BGP join and a reorder chain)
 50× against a 100-subject store and fails if average latency exceeds
@@ -228,13 +227,13 @@ flat, `NOT EXISTS`, nested, `ORDER BY`, and `GROUP BY` + `OPTIONAL` — over a
 Any error or divergence exits 1:
 
 ```bash
-deno run --allow-all bench/concurrency-probe.ts
+bun bench/concurrency-probe.ts
 ```
 
 The same guarantees are locked in as unit tests in
 `src/wazoo-sparql-engine.test.ts`.
 
-### `deno task bench:size` / `bench:size:closures` / `bench:memory` — footprint measurement
+### `bun run bench:size` / `bench:size:closures` / `bench:memory` — footprint measurement
 
 Latency is only half the story: the engine is also benchmarked on what it costs
 to ship and run (root `README.md` → _Size & memory footprint_):
@@ -251,7 +250,7 @@ to ship and run (root `README.md` → _Size & memory footprint_):
   each one loads (from the serializers to the full engine) →
   `bench/closures-data.json`.
 - `bench:memory` — `bench/collect-memory.ts` spawns `bench/memory-probe.ts` per
-  engine in an **isolated Deno subprocess** (so only the target engine is
+  engine in an **isolated Bun subprocess** (so only the target engine is
   loaded), reporting peak `process.memoryUsage().heapUsed` over 5 runs on a
   10k-person graph (~55k quads), across a full-scan and a nested-EXISTS workload
   → `bench/memory-data.json`. Wazoo is lowest on both workloads.
@@ -285,7 +284,7 @@ The engine has no separate algebra IR — the sparqljs AST is the closest thing 
 a query plan. Dump it:
 
 ```bash
-deno eval '
+bun -e '
 import { SparqlParser } from "./src/parser/sparql-parser.ts";
 const ast = new SparqlParser().parse(
   "SELECT ?city (COUNT(*) AS ?cnt) WHERE { ?s <http://example.org/city> ?city } GROUP BY ?city HAVING (COUNT(*) > 1) ORDER BY ?city",
@@ -305,7 +304,7 @@ The engine evaluates over any `rdfjs.Store`. Dump the store the evaluator uses
 to check scoping:
 
 ```bash
-deno eval '
+bun -e '
 import { DataFactory, MemoryStore } from "./src/mod.ts";
 const { namedNode, literal, quad } = DataFactory;
 const store = new MemoryStore();
@@ -337,9 +336,9 @@ scoping, check which graph term the store view carries.
 ### 4. Run one case in isolation
 
 ```bash
-deno test src/evaluator/update-evaluator.test.ts
-deno test -n "nested" src/wazoo-sparql-engine.test.ts
-deno task test:w3c   # then read the printed per-test report for gap details
+bun test src/evaluator/update-evaluator.test.ts
+bun test -t "nested" src/wazoo-sparql-engine.test.ts
+bun run test:w3c   # then read the printed per-test report for gap details
 ```
 
 The W3C runner prints one line per test with its category
@@ -350,11 +349,10 @@ defects.
 
 - `bun fmt` formats **markdown** too — keep docs at line width 80 or run
   `bun run fmt` before committing.
-- The generated `src/parser/parser.ts` carries `// @ts-nocheck` and
-  `// deno-lint-ignore-file`; edit `sparql.jison`, not the generated file, and
-  run `deno task parser:generate`.
+- The generated `src/parser/parser.ts` is generated; edit `sparql.jison`, not the generated file, and
+  run `bun run parser:generate`.
 - The durable
   [`SqliteStore`](https://github.com/wazootech/worlds-sqlite/blob/main/src/sqlite/rdfjs-store/sqlite-store.ts)
   moved to `@worlds/sqlite` (2026-08-17); the engine's export graph has no
-  `node:` imports, and `deno task publish:check`/`publish:dry` fail if that
+  `node:` imports, and `bun run publish:check`/`publish:dry` fail if that
   changes.

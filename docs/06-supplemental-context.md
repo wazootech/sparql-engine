@@ -15,10 +15,10 @@ architecture, parsing, and execution live in
 | Field                 | Value                                                                                                               |
 | --------------------- | ------------------------------------------------------------------------------------------------------------------- |
 | Package               | `@wazoo/sparql-engine` (JSR), version `0.4.1`, MIT                                                                  |
-| Runtime               | Deno 2.x (Node.js and browser via JSR; durable `node:sqlite` store lives in `@worlds/sqlite`, server-only)          |
+| Runtime               | Bun (Deno, Node.js and browser via JSR; durable `node:sqlite` store lives in `@worlds/sqlite`, server-only)         |
 | Runtime dependencies  | **zero** — only type-only `@rdfjs/types`                                                                            |
 | Dev/test dependencies | `@comunica/query-sparql-rdfjs-lite`, `oxigraph` (WASM), `n3`, `mitata`, `@types/node`                               |
-| Manifest              | `deno.json` (`exports["."] → ./src/mod.ts`, `@/` → `./src/`)                                                        |
+| Manifest              | `jsr.json` (`exports["."] → ./src/mod.ts`, `@/` → `./src/`) plus `package.json`                                     |
 | CI                    | `.github/workflows/ci.yml` (`ci`, `w3c-parity`, `latency-snapshot`, `docs-drift`, `docs-links` jobs), `publish.yml` |
 
 The "zero runtime dependencies" property is load-bearing: the package is
@@ -33,16 +33,16 @@ exist in-repo to preserve it.
 There are no hand-rolled toy datasets in the repo; the data that exercises the
 engine is generated or vendored:
 
-| Where                                                                  | What it is                                                                                                                                       | Used by                                        |
-| ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------- |
-| `bench/engine_bench.ts` (`buildDataset`)                               | Generated ring of 400 people: foaf:name, xsd:integer age, blank-node pets, knows edges, 5 city tags, spouse edges on even indices (~1,600 quads) | All three-engine benchmarks                    |
-| `bench/engine_bench.ts` (`buildGraphDataset` / `buildGraphOpsDataset`) | 200 person quads in `<http://example.org/g1>`; g1 + 50-quad g2 for ADD/COPY/MOVE/CLEAR/DROP                                                      | GRAPH/FROM benchmarks and graph-op updates     |
-| `bench/memory-probe.ts` (`buildPeopleDataset`)                         | 10,000-person graph, ~55k quads (foaf:name/age, pets, cities, spouses) — the peak-memory workload                                                | `deno task bench:memory`                       |
-| `test/parity/parity-fixtures.ts` (`createQuadStore`)                   | Small seeded stores for differential parity cases                                                                                                | `test/parity/*.test.ts`                        |
-| `test/w3c/fixtures/sparql11/`                                          | W3C [SPARQL 1.1](https://www.w3.org/TR/sparql11-query/) evaluation-core                                                                          | `deno task test:w3c`                           |
-| `test/w3c/fixtures/sparql12/`                                          | W3C [SPARQL 1.2](https://www.w3.org/TR/sparql12-query/) evaluation suite + triple-terms gap suite                                                | `deno task test:sparql12`, `test:sparql12:gap` |
-| `test/w3c/fixtures/rdf/`                                               | RDF 1.1 + 1.2 Turtle/TriG/N-Triples/N-Quads syntax suites                                                                                        | `deno task test:rdf11`, `test:rdf12`           |
-| `test/w3c/exists-ref.ts`                                               | Small inline Turtle graph (7 triples) cross-checked vs Oxigraph                                                                                  | `deno task test:exists-ref`                    |
+| Where                                                                  | What it is                                                                                                                                       | Used by                                      |
+| ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------- |
+| `bench/engine_bench.ts` (`buildDataset`)                               | Generated ring of 400 people: foaf:name, xsd:integer age, blank-node pets, knows edges, 5 city tags, spouse edges on even indices (~1,600 quads) | All three-engine benchmarks                  |
+| `bench/engine_bench.ts` (`buildGraphDataset` / `buildGraphOpsDataset`) | 200 person quads in `<http://example.org/g1>`; g1 + 50-quad g2 for ADD/COPY/MOVE/CLEAR/DROP                                                      | GRAPH/FROM benchmarks and graph-op updates   |
+| `bench/memory-probe.ts` (`buildPeopleDataset`)                         | 10,000-person graph, ~55k quads (foaf:name/age, pets, cities, spouses) — the peak-memory workload                                                | `bun run bench:memory`                       |
+| `test/parity/parity-fixtures.ts` (`createQuadStore`)                   | Small seeded stores for differential parity cases                                                                                                | `test/parity/*.test.ts`                      |
+| `test/w3c/fixtures/sparql11/`                                          | W3C [SPARQL 1.1](https://www.w3.org/TR/sparql11-query/) evaluation-core                                                                          | `bun run test:w3c`                           |
+| `test/w3c/fixtures/sparql12/`                                          | W3C [SPARQL 1.2](https://www.w3.org/TR/sparql12-query/) evaluation suite + triple-terms gap suite                                                | `bun run test:sparql12`, `test:sparql12:gap` |
+| `test/w3c/fixtures/rdf/`                                               | RDF 1.1 + 1.2 Turtle/TriG/N-Triples/N-Quads syntax suites                                                                                        | `bun run test:rdf11`, `test:rdf12`           |
+| `test/w3c/exists-ref.ts`                                               | Small inline Turtle graph (7 triples) cross-checked vs Oxigraph                                                                                  | `bun run test:exists-ref`                    |
 
 The W3C fixtures are vendored snapshots of `w3c/rdf-tests` (gh-pages branch) so
 CI is deterministic and offline-capable. Query and data files resolve against
@@ -68,7 +68,7 @@ with the W3C reference results as a secondary check. The posture is:
    even when the lenient reference (n3) accepts them; the only tolerated
    mismatches are _superset acceptances_ — the wazoo grammar is a single
    Turtle+TriG+N-Quads superset for `LOAD`'s content-sniffing — each audited
-   against Oxigraph and N3.js by `deno task test:ref` (all endorsed).
+   against Oxigraph and N3.js by `bun run test:ref` (all endorsed).
 
 Current standing: the SPARQL 1.2 evaluation suite (differential vs Comunica),
 the RDF 1.2 eval-triple-terms gap suite, and the SPARQL 1.1 evaluation-core all

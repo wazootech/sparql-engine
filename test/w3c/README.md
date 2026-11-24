@@ -10,7 +10,7 @@ are compared. This is the shared fixture base adopted by the wayfinder decision
 ## Run
 
 ```bash
-deno task test:w3c
+bun run test:w3c
 ```
 
 The runner prints a report and exits nonzero while **parity gaps** remain:
@@ -30,7 +30,7 @@ The runner prints a report and exits nonzero while **parity gaps** remain:
   SELECT/ASK SPARQL XML/JSON results are not parsed).
 
 A CI job (`w3c-parity` in `.github/workflows/ci.yml`) runs the gate on every
-push; it stays red until the gap count reaches zero. The default `deno test`
+push; it stays red until the gap count reaches zero. The default `bun test`
 does **not** include this suite.
 
 ## Scope
@@ -68,16 +68,16 @@ tar -xzf /tmp/rdf-tests.tar.gz -C /tmp
 #                update-silent} "$DST/"
 
 # 3. Remove any stray top-level files (index pages, template.haml, *.jsonld).
-# 4. Run `deno task test:w3c` and review the gap count before committing.
+# 4. Run `bun run test:w3c` and review the gap count before committing.
 ```
 
 # RDF 1.1 / 1.2 syntax gates
 
 The wazoo Turtle / TriG / N-Triples / N-Quads grammar used by SPARQL `LOAD`
 (`src/parser/turtle-parser.ts`) is gated against the W3C rdf-tests suites with
-two runners, both invoked from `deno task ci`:
+two runners, both invoked from `bun run ci`:
 
-- `deno task test:rdf11` — **RDF 1.1 differential** (`rdf-differential.ts`).
+- `bun run test:rdf11` — **RDF 1.1 differential** (`rdf-differential.ts`).
   Every Turtle / TriG / N-Triples / N-Quads syntax and eval test is parsed with
   both the wazoo grammar and `n3@2.2.0`; the two must agree on accept/reject and
   on the resulting quads (up to blank-node relabeling). Negative tests are
@@ -85,7 +85,7 @@ two runners, both invoked from `deno task ci`:
   Eval tests are also gated against their `.nt`/`.nq` reference result (parsed
   with the wazoo grammar), so a wazoo+n3 agreement on the wrong quads still
   fails.
-- `deno task test:rdf12` — **RDF 1.2 manifest classifier** (`rdf-classify.ts`).
+- `bun run test:rdf12` — **RDF 1.2 manifest classifier** (`rdf-classify.ts`).
   n3 predates RDF 1.2 triple terms and reifiers, so each positive syntax test
   must parse, each negative syntax test must be rejected, and each eval test
   must produce quads isomorphic to its `.nt`/`.nq` reference (parsed with the
@@ -100,7 +100,7 @@ documented divergences keyed inside each runner:
   strict N-Triples/N-Quads/Turtle/TriG grammar rejects them. Everything else
   must be fixed, never allowlisted.
 
-### Reference-engine cross-check (`deno task test:ref`)
+### Reference-engine cross-check (`bun run test:ref`)
 
 `ref-crosscheck.ts` audits every allowlisted divergence against two independent
 reference engines and fails if any of them is accepted by wazoo but rejected by
@@ -140,7 +140,7 @@ So none of the allowlisted cases requires "unholding": tightening the grammar
 would mean making `LOAD` format-strict, contradicting its content-sniffing
 design, and would reject constructs every reference engine accepts in the
 corresponding format. Re-run the audit any time the grammar or the allowlists
-change: `deno task test:ref`.
+change: `bun run test:ref`.
 
 ## Vendored fixtures and re-fetching
 
@@ -171,6 +171,6 @@ for v in rdf11 rdf12; do
 done
 
 # 3. Run both gates and review any new gaps before committing.
-deno task test:rdf11
-deno task test:rdf12
+bun run test:rdf11
+bun run test:rdf12
 ```

@@ -1271,7 +1271,7 @@ bench({ name: "oxigraph - update", group: "update" }, async () => {
 
 /**
  * BENCH_INVENTORY runs every registered bench exactly once with no warmup, so
- * the CI staleness check (`deno task bench:latency:check`) can compare the
+ * the CI staleness check (`bun run bench:latency:check`) can compare the
  * suite's bench inventory against the committed bench/latency-data.json
  * snapshot without paying for full timing runs. Timings under this mode are
  * meaningless — only the registered (group, name, baseline) set is used.
