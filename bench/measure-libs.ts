@@ -100,22 +100,6 @@ function scanInstalled(): void {
   }
 }
 
-function measure(name: string): number {
-  const dir = installed.get(name);
-  if (dir === undefined) {
-    return 0;
-  }
-  const pkg = JSON.parse(readFileSync(join(dir, "package.json"), "utf8")) as {
-    dependencies?: Record<string, string>;
-    optionalDependencies?: Record<string, string>;
-  };
-  const deps = [
-    ...Object.keys(pkg.dependencies ?? {}),
-    ...Object.keys(pkg.optionalDependencies ?? {}),
-  ];
-  return dirBytes(dir) + deps.reduce((sum, dep) => sum + measure(dep), 0);
-}
-
 function comunicaArtifact(): Sized {
   const rootName = "@comunica/query-sparql-rdfjs-lite";
   const rootDir = installed.get(rootName);

@@ -589,34 +589,3 @@ function writeWireValue(
   wire[variableName] = value;
 }
 
-/**
- * expressionContainsAggregate reports whether an expression tree contains an
- * aggregate node (COUNT, SUM, ...) anywhere inside it.
- */
-function expressionContainsAggregate(
-  expression: Expression | Expression[] | Pattern,
-): boolean {
-  if (Array.isArray(expression) || "termType" in expression) {
-    return false;
-  }
-  if (!("type" in expression)) {
-    return false;
-  }
-  if (expression.type === "aggregate") {
-    return true;
-  }
-  if (expression.type === "exists") {
-    return false;
-  }
-  if (expression.type === "membership") {
-    return expressionContainsAggregate(expression.subject) ||
-      expression.candidates.some(expressionContainsAggregate);
-  }
-  if (expression.type === "operation") {
-    return expression.args.some(expressionContainsAggregate);
-  }
-  if (expression.type === "functionCall") {
-    return expression.args.some(expressionContainsAggregate);
-  }
-  return false;
-}

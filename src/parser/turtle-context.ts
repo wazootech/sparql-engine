@@ -259,7 +259,7 @@ interface UriComponents {
 // Splits a URI reference into its five RFC 3986 components.
 function parseUriComponents(uri: string): UriComponents {
   const match =
-    /^(?:([^:\/?#]+):)?(?:\/\/([^\/?#]*))?([^?#]*)(?:\?([^#]*))?(?:#([\s\S]*))?$/
+    /^(?:([^:/?#]+):)?(?:\/\/([^/?#]*))?([^?#]*)(?:\?([^#]*))?(?:#([\s\S]*))?$/
       .exec(uri);
   if (match === null) {
     throw new Error("Invalid URI reference: " + uri);
@@ -288,14 +288,14 @@ function removeDotSegments(path: string): string {
       input = "/";
     } else if (input.indexOf("/../") === 0) {
       input = "/" + input.slice(4);
-      output = output.replace(/\/?[^\/]*$/, "");
+      output = output.replace(/\/?[^/]*$/, "");
     } else if (input === "/..") {
       input = "/";
-      output = output.replace(/\/?[^\/]*$/, "");
+      output = output.replace(/\/?[^/]*$/, "");
     } else if (input === "." || input === "..") {
       input = "";
     } else {
-      const segmentMatch = /^\/?[^\/]*/.exec(input);
+      const segmentMatch = /^\/?[^/]*/.exec(input);
       const segment = segmentMatch === null ? "" : segmentMatch[0];
       output += segment;
       input = input.slice(segment.length);
@@ -366,7 +366,7 @@ export function resolveIri(iri: string): string {
   if (!turtleContext.base) return iri;
   try {
     return resolveRfc3986(turtleContext.base, iri);
-  } catch (_error) {
+  } catch {
     return turtleContext.base + iri;
   }
 }
@@ -448,7 +448,7 @@ export function unescapeIri(iri: string): string {
   // IRIREF excludes U+0000-U+0020 and <>"{}|^`\\; an escape must not
   // smuggle any of them into the decoded IRI.
   // deno-lint-ignore no-control-regex
-  if (/[\u0000-\u0020<>"{}|^`\\]/.test(result)) {
+  if (/[\u0000-\u0020<>"{}|^`\\]/.test(result)) { // oxlint-disable-line no-control-regex -- IRIs may not contain control characters
     throw new Error("Invalid IRI escape: disallowed character");
   }
   return result;

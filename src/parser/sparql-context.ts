@@ -327,8 +327,8 @@ export function resolveIRI(token: string): string {
   }
   if (resolvedBase !== base) {
     resolvedBase = base;
-    resolvedBasePath = base.replace(/[^\/:]*$/, "");
-    const rootMatch = /^(?:[a-z]+:\/*)?[^\/]*/.exec(base);
+    resolvedBasePath = base.replace(/[^/:]*$/, "");
+    const rootMatch = /^(?:[a-z]+:\/*)?[^/]*/.exec(base);
     resolvedBaseRoot = rootMatch === null ? "" : rootMatch[0];
   }
   if (iri.length === 0) {
