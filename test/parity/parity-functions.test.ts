@@ -78,7 +78,11 @@ SELECT ?s ?p ?isNum WHERE {
 });
 
 test("parity - ENCODE_FOR_URI function", async () => {
-  const query = `SELECT ?encoded WHERE { BIND(ENCODE_FOR_URI("hello world! / foo&bar") AS ?encoded) }`;
+  // Reserved characters (! / &) are covered by the spec test in
+  // src/wazoo-sparql-engine-encode-for-uri.test.ts: comunica <= 5.4 leaves them
+  // unencoded (fixed in 5.5.0), so this parity case sticks to a space and a
+  // non-ASCII letter.
+  const query = `SELECT ?encoded WHERE { BIND(ENCODE_FOR_URI("hello world é") AS ?encoded) }`;
   await assertQueryParity({
     name: "ENCODE_FOR_URI parity",
     kind: "select",
