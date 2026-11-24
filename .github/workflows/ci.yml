@@ -7,52 +7,26 @@ on:
     branches: [main]
 
 jobs:
+  # Format, lint, type check, manifest check, generated-parser check, tests and
+  # the W3C / RDF / EXISTS / bench-budget / publish-graph gates all run on Bun
+  # (bun run ci). Bun floats on 1.x on purpose so a Bun regression surfaces
+  # early. The publish dry run goes through the jsr CLI (a devDependency that
+  # bundles its own publisher), so no Deno is installed anywhere in CI.
   ci:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-      - uses: denoland/setup-deno@v2
-        with:
-          deno-version: v2.x
-      - run: deno task ci
-      # Explicit step (not just a deno task ci dependency) so the Oxigraph
-      # EXISTS gate runs even if the ci task's dependency list changes.
-      - run: deno task test:exists-ref
-      - run: deno task publish:dry
-      # The compiled `sparql` binary must build and answer a query.
-      - run: deno task compile
-      - run: |
-          echo '<http://example.org/s> <http://example.org/p> <http://example.org/o> .' > "$RUNNER_TEMP/smoke.nt"
-          ./dist/sparql --data "$RUNNER_TEMP/smoke.nt" --query 'ASK { ?s ?p ?o }' | grep -q '"boolean":true'
-  # Bun gate (Deno -> Bun migration, wazootech/workspace#50): formatting,
-  # linting, type checking and the generated-parser check run on Bun here (bun
-  # fmt, Oxlint, bun check), because bun fmt and deno fmt disagree and the repo
-  # is formatted by bun fmt. The Deno job above still lints, type checks and
-  # runs the tests, which proves the code keeps running on Deno until the
-  # cutover. Bun floats on 1.x on purpose so a Bun regression surfaces early.
-  bun:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version: "1.x"
-      - run: bun install --frozen-lockfile
-      - run: bun run fmt:check
-      - run: bun run lint
-      - run: bun run check
-      - run: bun run parser:check
-      # The comunica parity suites build a full engine on first use, which
-      # takes longer than bun test's 5 s default timeout on a cold runner.
-      - run: bun test --timeout 120000
-      - run: bun test/publish-graph-check.ts
-      - run: bun bench/budget.ts
-      - run: bun test/w3c/exists-ref.ts
-      - run: bun test/w3c/sparql12-gap.ts
-      - run: bun test/w3c/sparql12-main.ts
-      - run: bun test/w3c/rdf-differential.ts
-      - run: bun test/w3c/rdf-classify.ts
-      - run: bun test/w3c/w3c-main.ts
+      - run: bun install --frozen-lockfile --ignore-scripts
+      - run: bun run ci
+      - run: bun run publish:dry
+      # The compiled `sparql` binary must build and answer a query.
+      - run: bun run compile
+      - run: |
+          echo '<http://example.org/s> <http://example.org/p> <http://example.org/o> .' > "$RUNNER_TEMP/smoke.nt"
+          ./dist/sparql --data "$RUNNER_TEMP/smoke.nt" --query 'ASK { ?s ?p ?o }' | grep -q '"boolean":true'
   # The committed bench/latency-data.json snapshot must match the current
   # bench suite — otherwise the published latency chart shows a stale query
   # inventory. Timings are machine-specific and never compared; the bench
@@ -73,11 +47,13 @@ jobs:
               - 'bench/bench.ts'
               - 'bench/latency-data.json'
       - if: steps.bench-changed.outputs.bench == 'true'
-        uses: denoland/setup-deno@v2
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
-          deno-version: v2.x
+          bun-version: "1.x"
       - if: steps.bench-changed.outputs.bench == 'true'
-        run: deno task bench:latency:check
+        run: bun install --frozen-lockfile --ignore-scripts
+      - if: steps.bench-changed.outputs.bench == 'true'
+        run: bun run bench:latency:check
   # Wiki drift guardrail (wiki sync detail_level: minimal): the wiki declares
   # its detail level in AGENTS.md and must never re-introduce L<line>
   # citations — the drift-prone artifact the minimal default removes. Greps
@@ -122,11 +98,13 @@ jobs:
               - 'README.md'
               - '.github/workflows/ci.yml'
       - if: steps.docs-changed.outputs.docs == 'true'
-        uses: denoland/setup-deno@v2
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
-          deno-version: v2.x
+          bun-version: "1.x"
       - if: steps.docs-changed.outputs.docs == 'true'
-        run: deno task docs:link-check
+        run: bun install --frozen-lockfile --ignore-scripts
+      - if: steps.docs-changed.outputs.docs == 'true'
+        run: bun run docs:link-check
   # W3C differential gate: wazoo must agree with comunica on the vendored
   # SPARQL 1.1 evaluation-core suite. The pass rate is the tracked progress
   # metric — this job goes green only on a full pass (345/345): wazoo agrees
@@ -135,19 +113,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: denoland/setup-deno@v2
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
-          deno-version: v2.x
-      - run: deno task test:w3c
+          bun-version: "1.x"
+      - run: bun install --frozen-lockfile --ignore-scripts
+      - run: bun run test:w3c
       # Oxigraph EXISTS differential gate, tracked alongside the W3C
       # conformance checks so a subquery-in-EXISTS regression fails here too.
-      - run: deno task test:exists-ref
+      - run: bun run test:exists-ref
   # Native build gate across operating systems: scriptc must still compile
   # cli/node-main.ts 100% statically, the native binary must build, and the
   # CLI contract suite (cli/run-cli.test.ts) must pass for both the scriptc
-  # and the deno-compile hosts against the in-process core. scriptc links
+  # and the bun-compile hosts against the in-process core. scriptc links
   # through zig, so zig is installed explicitly. Runs only when the engine,
-  # the CLI, the deno config or this job changes; timings are never compared.
+  # the CLI, the package manifests or this job changes; timings are never compared.
   native-gate:
     name: native-gate (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
@@ -164,21 +143,25 @@ jobs:
             native:
               - 'src/**'
               - 'cli/**'
-              - 'deno.json'
+              - 'jsr.json'
+              - 'package.json'
+              - 'bun.lock'
               - '.github/workflows/ci.yml'
       - if: steps.native-changed.outputs.native == 'true'
-        uses: denoland/setup-deno@v2
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
-          deno-version: v2.x
+          bun-version: "1.x"
+      - if: steps.native-changed.outputs.native == 'true'
+        run: bun install --frozen-lockfile --ignore-scripts
       - if: steps.native-changed.outputs.native == 'true'
         uses: actions/setup-node@v5
         with:
           node-version: 22
       - if: steps.native-changed.outputs.native == 'true'
         uses: mlugg/setup-zig@v2
-      # Build the deno-compile host first so its cross-target test runs
+      # Build the bun-compile host first so its cross-target test runs
       # instead of being ignored for a missing binary.
       - if: steps.native-changed.outputs.native == 'true'
-        run: deno task compile
+        run: bun run compile
       - if: steps.native-changed.outputs.native == 'true'
-        run: deno task native:gate
+        run: bun run native:gate

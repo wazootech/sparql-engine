@@ -30,15 +30,16 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - uses: denoland/setup-deno@v2
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
-          deno-version: v2.x
+          bun-version: "1.x"
+      - run: bun install --frozen-lockfile --ignore-scripts
 
       # Rebuild the vendored bundle from the pinned JSR version so the
       # deployed playground always matches playground/bundle-entry.ts, even
       # if the committed app.js goes stale.
       - name: Bundle the playground
-        run: deno task bundle
+        run: bun run bundle
 
       # The wiki relies on the same Jekyll plugins the legacy Pages build
       # runs (kramdown GFM, jekyll-readme-index, jekyll-relative-links,

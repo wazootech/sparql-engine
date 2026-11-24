@@ -12,52 +12,31 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@v5
-      - uses: denoland/setup-deno@v2
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
-          deno-version: v2.x
-      - run: deno task ci
-      - run: deno task publish:dry
-      - name: Check whether this merge is a release
-        id: release-check
+          bun-version: "1.x"
+      - run: bun install --frozen-lockfile --ignore-scripts
+      - run: bun run ci
+      # jsr (pinned in devDependencies) bundles its own Deno-based publisher and
+      # downloads it on first use, so this runner needs no Deno install.
+      - name: Publish dry run (smoke)
+        run: bun run publish:dry
+      # A push to main that does not bump jsr.json's version is routine (docs,
+      # CI, refactors): skip the publish green with a notice instead of failing
+      # main. A bumped version publishes. A published version is a JSR fact,
+      # so ask JSR (meta.json lists every published version) rather than
+      # trusting the tree.
+      - name: Check whether this version is already on JSR
+        id: guard
         run: |
-          version=$(deno eval 'console.log(JSON.parse(await Deno.readTextFile("deno.json")).version)')
-          curl -s https://jsr.io/@wazoo/sparql-engine/meta.json -o /tmp/jsr-meta.json
-          latest=$(deno eval 'console.log(JSON.parse(await Deno.readTextFile("/tmp/jsr-meta.json")).latest)')
-          echo "local version: $version / published latest: $latest"
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-          echo "published=$latest" >> "$GITHUB_OUTPUT"
-          if [ "$version" = "$latest" ]; then
-            echo "match=true" >> "$GITHUB_OUTPUT"
+          V=$(grep -m1 '"version"' jsr.json | sed 's/.*"\([^"]*\)".*/\1/')
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+          if curl -sf "https://jsr.io/@wazoo/sparql-engine/meta.json" | grep -q "\"$V\""; then
+            echo "::notice::Version $V of @wazoo/sparql-engine is already on JSR; nothing to publish. Bump the version in jsr.json to release."
+            echo "published=true" >> "$GITHUB_OUTPUT"
           else
-            echo "match=false" >> "$GITHUB_OUTPUT"
+            echo "published=false" >> "$GITHUB_OUTPUT"
           fi
-      # Only release when deno.json's version is newer than the published
-      # latest. deno publish exits 0 when the version is already on JSR, so a
-      # stale version would otherwise make this workflow a silent no-op (which
-      # is how 0.1.0 shipped without the MemoryStore export); when a bump IS
-      # expected but publish still skips, fail loudly. Routine non-release
-      # merges (version unchanged) skip cleanly instead of failing the job.
-      - name: Publish to JSR
-        if: steps.release-check.outputs.match == 'false'
-        run: |
-          # Capture without losing the failure: under the step's default
-          # `bash -e`, `output=$(deno publish 2>&1)` aborts the script before
-          # echo when publish exits nonzero, which silently discarded the
-          # actual error (the 0.4.2 release failed twice with no output).
-          set +e
-          output=$(deno publish 2>&1)
-          status=$?
-          set -e
-          echo "$output"
-          if [ "$status" -ne 0 ]; then
-            echo "::error::deno publish failed with exit $status (full output above)."
-            exit 1
-          fi
-          if echo "$output" | grep -q "already published"; then
-            echo "::error::deno publish skipped even though local version ${{ steps.release-check.outputs.version }} differs from published ${{ steps.release-check.outputs.published }}. Investigate before merging to main."
-            exit 1
-          fi
-      - name: No release needed
-        if: steps.release-check.outputs.match == 'true'
-        run: |
-          echo "::notice::Version ${{ steps.release-check.outputs.version }} already published on JSR; nothing new to release on this merge."
+      - name: Publish package
+        if: steps.guard.outputs.published == 'false'
+        run: bunx jsr publish
