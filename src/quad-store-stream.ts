@@ -2,8 +2,8 @@ import type { RdfQuad, RdfSource, RdfTerm } from "@/parser/rdf-terms.ts";
 import type { QuadEventSource } from "@/store/quad-event-source.ts";
 
 /**
- * matchQuadsViaStream drains an RDF/JS store.match stream into an array. Deno
- * uses this for generic Source implementations; scriptc replaces this module
+ * matchQuadsViaStream drains an RDF/JS store.match stream into an array. The
+ * JavaScript-runtime build uses this for generic Source implementations; scriptc replaces this module
  * with quad-store-stream.native.ts (see cli/tsconfig.json).
  */
 export function matchQuadsViaStream(

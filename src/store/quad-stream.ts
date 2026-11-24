@@ -1,4 +1,4 @@
-// quad-stream.ts is the Deno-only RDF/JS stream surface: MemoryStream, the
+// quad-stream.ts is the RDF/JS stream surface of the JavaScript-runtime build: MemoryStream, the
 // data-listener binding the shared store uses, and the generic match stream.
 // scriptc replaces this module with quad-stream.native.ts (cli/tsconfig.json);
 // the native CLI answers every scan through MemoryStore.getQuads instead.
