@@ -1,8 +1,8 @@
-// Runs the six per-engine memory probes (each in its own Deno process, so
+// Runs the six per-engine memory probes (each in its own Bun process, so
 // only the target engine is loaded) and writes the merged bench/memory-data.json
 // consumed by bench/treemap.ts and the README.
 //
-// Run: deno run --allow-all --allow-write --allow-read bench/collect-memory.ts
+// Run: bun bench/collect-memory.ts
 
 import process from "node:process";
 import { writeFileSync } from "node:fs";

@@ -3,7 +3,7 @@
 // target engine is loaded), executes the workload several times, and reports
 // the peak heap/RSS observed.
 //
-//   deno run --allow-all bench/memory-probe.ts <wazoo|comunica|oxigraph> <scan|exists>
+//   bun bench/memory-probe.ts <wazoo|comunica|oxigraph> <scan|exists>
 //
 // Prints one JSON document to stdout.
 import type * as rdfjs from "@rdfjs/types";

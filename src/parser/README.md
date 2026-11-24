@@ -71,7 +71,7 @@ the element they repeat. Generation fails if a nonterminal has no declared type.
 
 The in-repo grammar carries two SPARQL 1.2 additions beyond upstream sparqljs
 3.7.4, both applied **in `sparql.jison`** (the grammar source of truth);
-`parser.ts` is regenerated from it via `deno task parser:generate`, so the rules
+`parser.ts` is regenerated from it via `bun run parser:generate`, so the rules
 below always match the generated output.
 
 ### Direction functions (lexer whitelist)
@@ -188,10 +188,10 @@ The grammar is the source of truth, and `parser.ts` is generated from it:
    lexer rules and the triple-term/reifier/annotation productions (same rule
    names; verify the grammar's `FUNC_ARITY*` lines and triple-term productions
    if upstream changed).
-3. Run `deno task parser:generate` to regenerate `parser.ts`.
+3. Run `bun run parser:generate` to regenerate `parser.ts`.
 4. Update this README's version table and `LICENSE` if upstream changed.
 
-`deno task parser:check` (part of `deno task ci`) fails when `parser.ts` drifts
+`bun run parser:check` (part of `bun run ci`) fails when `parser.ts` drifts
 from `sparql.jison`, so a grammar edit without a regeneration cannot be
 committed silently. Generation is deterministic: `parser:generate` runs
 `deno fmt` on the emitted module, so regenerating from an unmodified grammar

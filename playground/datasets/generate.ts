@@ -1,6 +1,6 @@
 // Generates the playground's bundled sample dataset fixtures:
 //
-//   deno run --allow-write playground/datasets/generate.ts
+//   bun playground/datasets/generate.ts
 //
 // Deterministic (no randomness): the same bytes are produced on every run, so
 // the committed fixtures are reproducible from this script alone. Both

@@ -18,9 +18,9 @@
 // multiplier is the median of those paired ratios rather than a ratio of
 // medians. Pass several sizes to separate fixed cost from per-triple cost.
 //
-//   deno task bench:cli                      # compiled binary vs interpreted run
-//   deno task bench:cli --target scriptc=./sparql-native
-//   deno task bench:cli --people 200,800,3200 --runs 9
+//   bun run bench:cli                      # compiled binary vs interpreted run
+//   bun run bench:cli --target scriptc=./sparql-native
+//   bun run bench:cli --people 200,800,3200 --runs 9
 //
 // Numbers are machine-specific: report them in PRs/issues with the machine,
 // never commit them (README.md owns committed numbers).

@@ -1,12 +1,12 @@
 // cli-targets-bench compares one CLI invocation across the builds a host can
 // produce: the running runtime on the runtime-agnostic entry, its compiled
-// binary (`deno compile`), and the scriptc native binary. The shared bench
+// binary (`bun build --compile`), and the scriptc native binary. The shared bench
 // helper (mitata) supplies the warmup and the statistics, and the compiled
 // binary is the baseline so scriptc reports a relative multiplier instead of
 // two numbers a reader has to divide.
 //
-//   deno task bench:cli:targets
-//   deno run -A bench/cli-targets-bench.ts --json
+//   bun run bench:cli:targets
+//   bun bench/cli-targets-bench.ts --json
 //
 // This measures time only. Output equality is asserted by
 // cli/run-cli.test.ts: a bench must not fold an assertion into the timed
@@ -26,7 +26,7 @@ import { fileURLToPath } from "node:url";
 
 /**
  * CliTarget is one way to invoke the CLI, expressed as an argv prefix. A built
- * host is an argv prefix of one; `deno run` needs the runtime plus the entry.
+ * host is an argv prefix of one; `bun run` needs the runtime plus the entry.
  */
 interface CliTarget {
   /** name labels the target in the bench table and group summary. */
@@ -70,21 +70,21 @@ process.on("exit", () => {
   }
 });
 
-const denoCompile = builtBinary("sparql");
+const bunCompile = builtBinary("sparql");
 const scriptc = builtBinary("sparql-node");
 
 const TARGETS: CliTarget[] = [
   {
     name: `${runtimeName}-run`,
     command: scriptCommand("cli/main.ts"),
-    baseline: !binaryExists(denoCompile),
+    baseline: !binaryExists(bunCompile),
   },
 ];
 
-if (binaryExists(denoCompile)) {
+if (binaryExists(bunCompile)) {
   TARGETS.push({
     name: `${runtimeName}-compile`,
-    command: [denoCompile],
+    command: [bunCompile],
     baseline: true,
   });
 }
@@ -93,7 +93,7 @@ if (binaryExists(scriptc)) {
   TARGETS.push({ name: "scriptc", command: [scriptc], baseline: false });
 } else {
   console.log(
-    "cli-targets-bench: dist/sparql-node is missing (deno task native:build), " +
+    "cli-targets-bench: dist/sparql-node is missing (bun run native:build), " +
       "so the scriptc target is skipped",
   );
 }

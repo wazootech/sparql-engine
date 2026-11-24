@@ -36,7 +36,7 @@ import { readFileSync } from "node:fs";
  *      stripped — the oxigraph/TriG rejection of those files is only about
  *      graph-name placement (`<g>.` after a triple), not about the construct.
  *
- * Run with:  deno task test:ref
+ * Run with:  bun run test:ref
  */
 
 const MANIFESTS = [

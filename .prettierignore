@@ -7,4 +7,3 @@ docs/assets/
 dist/
 patches/
 bun.lock
-deno.lock

@@ -7,8 +7,7 @@
 // snapshot is stale: benches were added, renamed, or removed without
 // regenerating it.
 //
-// Run: deno bench --allow-all --json bench/engine_bench.ts \
-//        | deno run --allow-read bench/latency-check.ts
+// Run: bun bench/engine_bench.ts --json | bun bench/latency-check.ts
 
 import process from "node:process";
 import { readFileSync } from "node:fs";
@@ -109,6 +108,6 @@ if (baselineMismatch.length > 0) {
   }
 }
 console.log(
-  "\nFix: run `deno task bench:latency` (full timing run) and commit the refreshed bench/latency-data.json.",
+  "\nFix: run `bun run bench:latency` (full timing run) and commit the refreshed bench/latency-data.json.",
 );
 process.exit(1);

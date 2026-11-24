@@ -28,7 +28,7 @@ import process from "node:process";
  * correlates subqueries with outer bindings (wrong per §18.2.4) and
  * duplicates rows, so it cannot gate this surface.
  *
- * Run with:  deno task test:exists-ref
+ * Run with:  bun run test:exists-ref
  */
 
 const BASE = "http://example.org/base";

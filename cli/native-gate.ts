@@ -1,7 +1,7 @@
 // native-gate is the local scriptc loop: summarize blockers, build when the
 // linker (zig on Windows) is available, then hold the built hosts to the same
 // CLI contract as the in-process core (cli/run-cli.test.ts). It runs the three
-// steps with whichever runtime (Deno or Bun) is running it.
+// steps with the Bun binary that is running it.
 import { dirname, resolve } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";

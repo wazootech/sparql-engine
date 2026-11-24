@@ -89,9 +89,9 @@ test("runCli - query and load failures exit 1", async () => {
 
 /**
  * CliTarget is one built host entrypoint, checked against the in-process core.
- * The artifacts are optional: `deno task compile` writes dist/sparql and
- * `deno task native:build` writes dist/sparql-node, each with a .exe suffix on
- * Windows. A missing artifact skips its target, so `deno task ci` stays green
+ * The artifacts are optional: `bun run compile` writes dist/sparql and
+ * `bun run native:build` writes dist/sparql-node, each with a .exe suffix on
+ * Windows. A missing artifact skips its target, so `bun run ci` stays green
  * on a machine that has not built the hosts.
  */
 interface CliTarget {
@@ -105,7 +105,7 @@ interface CliTarget {
 /**
  * CliCase is one invocation every host must reproduce. stderrIncludes narrows
  * the stderr comparison for failures whose text the host's own file API spells:
- * the Deno and Node readers word a missing file differently, so only the exit
+ * the Bun and Node readers word a missing file differently, so only the exit
  * code, stdout, and the identifying fragment are compared.
  */
 interface CliCase {
@@ -124,7 +124,7 @@ const EXECUTABLE_SUFFIX = process.platform === "win32" ? ".exe" : "";
 
 const CLI_TARGETS: CliTarget[] = [
   {
-    name: "deno-compile",
+    name: "bun-compile",
     path: join(REPOSITORY_ROOT, `dist/sparql${EXECUTABLE_SUFFIX}`),
   },
   {
