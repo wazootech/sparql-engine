@@ -22,7 +22,7 @@
   "devDependencies": {
     "@types/node": "^22.10.0",
     "mitata": "1.0.34",
-    "oxlint": "1.95.0"
+    "oxlint": "1.94.0"
   },
   "patchedDependencies": {
     "@comunica/actor-http-fetch@5.4.0": "patches/@comunica%2Factor-http-fetch@5.4.0.patch"
