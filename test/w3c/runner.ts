@@ -4,10 +4,12 @@ import { DataFactory } from "@/term/mod.ts";
 import { MemoryStore } from "@/store/memory-store.ts";
 import { WazooSparqlEngine } from "@/wazoo-sparql-engine.ts";
 import type { SparqlResponse } from "@/sparql-engine-interface.ts";
-import { canonicalizeRdfTerm, canonicalizeSparqlValue } from "@/term/mod.ts";
+import { canonicalizeRdfTerm } from "@/term/mod.ts";
 import type { CanonicalTerm } from "@/term/mod.ts";
 import {
+  canonicalizeComunicaSelectTerm,
   canonicalizeComunicaTerm,
+  canonicalizeWazooSelectValue,
   getComunicaEngine,
   runComunicaRawSelectBindings,
 } from "../parity/parity-harness.ts";
@@ -747,7 +749,7 @@ export class W3cRunner {
     return wazooResult.data.results.bindings.map((binding) => {
       const record: Record<string, CanonicalTerm> = {};
       for (const name of Object.keys(binding)) {
-        record[name] = canonicalizeSparqlValue(binding[name]);
+        record[name] = canonicalizeWazooSelectValue(binding[name]);
       }
       return bindingRecord(record);
     });
@@ -760,7 +762,7 @@ export class W3cRunner {
     return wazooResult.data.results.bindings.map((binding) => {
       const record: Record<string, CanonicalTerm> = {};
       for (const name of Object.keys(binding)) {
-        record[name] = canonicalizeSparqlValue(binding[name]);
+        record[name] = canonicalizeWazooSelectValue(binding[name]);
       }
       return Object.keys(record)
         .sort()
@@ -780,7 +782,7 @@ export class W3cRunner {
     return raw.map((record) => {
       const canonical: Record<string, CanonicalTerm> = {};
       for (const name of Object.keys(record)) {
-        canonical[name] = canonicalizeComunicaTerm(record[name]);
+        canonical[name] = canonicalizeComunicaSelectTerm(record[name]);
       }
       return bindingRecord(canonical);
     });
@@ -798,7 +800,7 @@ export class W3cRunner {
     return raw.map((record) => {
       const canonical: Record<string, CanonicalTerm> = {};
       for (const name of Object.keys(record)) {
-        canonical[name] = canonicalizeComunicaTerm(record[name]);
+        canonical[name] = canonicalizeComunicaSelectTerm(record[name]);
       }
       return Object.keys(canonical)
         .sort()
