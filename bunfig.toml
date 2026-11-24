@@ -1,0 +1,4 @@
+[test]
+# The comunica parity suites build a full engine on first use (about 5 s per
+# cold query), so the 5 s default would time them out.
+timeout = 120000

@@ -1,0 +1,17 @@
+diff --git a/lib/FetchInitPreprocessor.js b/lib/FetchInitPreprocessor.js
+index 05e122ac356080185effe9c249980ea66c1e1b60..31cd4c1f322f02bf70446e69e1c79bbc51a1c89c 100644
+--- a/lib/FetchInitPreprocessor.js
++++ b/lib/FetchInitPreprocessor.js
+@@ -5,10 +5,10 @@ exports.FetchInitPreprocessor = void 0;
+ const node_http_1 = require("node:http");
+ const node_https_1 = require("node:https");
+ const context_entries_1 = require("@comunica/context-entries");
+-const undici_1 = require("undici");
++const undici_1 = require("undici/index.js");
+ const MetadataWrappingCacheStore_1 = require("./MetadataWrappingCacheStore");
+ // eslint-disable-next-line ts/no-require-imports,ts/no-var-requires
+-const cacheStores = require('undici').cacheStores;
++const cacheStores = require('undici/index.js').cacheStores;
+ // TODO: the require above can be replaced with import when undici updates.
+ /**
+  * Overrides the HTTP agent to perform better in Node.js.
