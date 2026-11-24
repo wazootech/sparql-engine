@@ -1,3 +1,4 @@
+import { encodeForUri } from "@/evaluator/encode-for-uri.ts";
 import type {
   RdfBaseQuad,
   RdfBlankNode,
@@ -592,7 +593,11 @@ export class ExpressionEvaluator {
         if (val === undefined) {
           return undefined;
         }
-        return literal(encodeURI(val.value), namedNode(XSD_STRING));
+        const encoded = encodeForUri(val.value);
+        if (encoded === undefined) {
+          return undefined;
+        }
+        return literal(encoded, namedNode(XSD_STRING));
       }
       case "iri":
       case "uri": {
@@ -1827,8 +1832,10 @@ export class ExpressionEvaluator {
 
   /**
    * langmatches implements LANGMATCHES basic filtering: the range "*"
-   * matches anything; otherwise the lowercased tag equals the lowercased
-   * range or has it as a prefix followed by "-".
+   * matches any non-empty tag (SPARQL 1.1 §17.4.3, langMatches: a plain literal's empty
+   * LANG() never matches, which is how `langMatches(lang(?x), "*")` selects
+   * language-tagged values); otherwise the lowercased tag equals the
+   * lowercased range or has it as a prefix followed by "-".
    */
   private langmatches(
     args: Expression[],
@@ -1844,7 +1851,7 @@ export class ExpressionEvaluator {
     const tagValue = tag.value.toLowerCase();
     const rangeValue = range.value.toLowerCase();
     const matches =
-      rangeValue === "*" ||
+      (rangeValue === "*" && tagValue !== "") ||
       tagValue === rangeValue ||
       tagValue.startsWith(`${rangeValue}-`);
     return booleanLiteral(matches);

@@ -47,7 +47,19 @@ test("WazooSparqlEngine - LANG and LANGMATCHES", async () => {
     `SELECT ?v WHERE { BIND(LANGMATCHES("", "*") AS ?v) }`,
     "v",
   );
+  // "*" matches any non-empty tag; the empty LANG() of a plain literal never
+  // matches (SPARQL 1.1 §17.4.3, langMatches), so this is false.
   assert.deepStrictEqual(wildcard, {
+    type: "literal",
+    value: "false",
+    datatype: `${XSD}boolean`,
+  });
+  const tagged = await bindValue(
+    engine,
+    `SELECT ?v WHERE { BIND(LANGMATCHES("en-US", "*") AS ?v) }`,
+    "v",
+  );
+  assert.deepStrictEqual(tagged, {
     type: "literal",
     value: "true",
     datatype: `${XSD}boolean`,
