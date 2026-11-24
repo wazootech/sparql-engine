@@ -20,14 +20,14 @@ type Slopes = Record<
 /** printReport writes the human-readable benchmark report to stdout. */
 export function printReport(
   options: Options,
-  environment: { os: string; deno: string; runs: number },
+  environment: { os: string; runtime: string; runs: number },
   sizes: Record<string, number | undefined>,
   measurements: SizeMeasurement[],
   slopes: Slopes,
 ): void {
   const targetNames = options.targets.map((target) => target.name);
   console.log(
-    `sparql CLI bench — ${environment.os}, Deno ${environment.deno}\n` +
+    `sparql CLI bench — ${environment.os}, ${environment.runtime}\n` +
       `targets: ${targetNames[0]} (baseline), ${
         targetNames.slice(1).join(", ") || "none"
       }\n` +

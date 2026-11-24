@@ -194,7 +194,7 @@ its source, unit tests, and crash-recovery suite live at
 | File                     | Role                                                                                                                     |
 | ------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
 | `cli/run-cli.ts`         | Runtime-agnostic core: argument parsing, loading RDF files into a `MemoryStore`, one query, serialization                |
-| `cli/deno-main.ts`       | Deno host entrypoint compiled by `deno task compile` into `dist/sparql`                                                  |
+| `cli/main.ts`            | Deno host entrypoint compiled by `deno task compile` into `dist/sparql`                                                  |
 | `cli/run-cli.test.ts`    | CLI contract tests: an in-memory host, plus every built host found in `dist/` (skipped when absent)                      |
 | `cli/node-main.ts`       | Node-API host entrypoint for scriptc native builds (issue [#221](https://github.com/wazootech/sparql-engine/issues/221)) |
 | `cli/tsconfig.json`      | scriptc compiler config: strict mode, `@/` → `../src/` path mapping                                                      |

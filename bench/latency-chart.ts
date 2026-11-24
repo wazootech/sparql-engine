@@ -1,14 +1,16 @@
 // Latency bar-chart SVG generator for the README's three-engine latency
 // comparison.
 //
-// Reads bench/latency-data.json (raw `deno bench --json` output from
+// Reads bench/latency-data.json (`--json` output from
 // bench/engine_bench.ts) and writes:
 //
 //   docs/assets/chart-latency.svg
 //
 // Run: deno run --allow-read --allow-write bench/latency-chart.ts
-import { join } from "@std/path";
 
+import { readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import process from "node:process";
 interface BenchOk {
   ok: {
     n: number;
@@ -341,10 +343,10 @@ function chartSvg(data: LatencyData): string {
 }
 
 const data = JSON.parse(
-  Deno.readTextFileSync(join(Deno.cwd(), "bench", "latency-data.json")),
+  readFileSync(join(process.cwd(), "bench", "latency-data.json"), "utf8"),
 ) as LatencyData;
-Deno.writeTextFileSync(
-  join(Deno.cwd(), "docs", "assets", "chart-latency.svg"),
+writeFileSync(
+  join(process.cwd(), "docs", "assets", "chart-latency.svg"),
   chartSvg(data),
 );
 console.log("wrote docs/assets/chart-latency.svg");

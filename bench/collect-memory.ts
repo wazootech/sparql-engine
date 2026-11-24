@@ -3,8 +3,11 @@
 // consumed by bench/treemap.ts and the README.
 //
 // Run: deno run --allow-all --allow-write --allow-read bench/collect-memory.ts
-import { join } from "@std/path";
 
+import process from "node:process";
+import { writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { runProcess, runtimeName, scriptCommand } from "../test/run-process.ts";
 const ENGINES = ["wazoo", "comunica", "oxigraph"];
 const WORKLOADS = ["scan", "exists"] as const;
 
@@ -12,26 +15,17 @@ const engines: Record<string, Record<string, unknown>> = {};
 for (const engine of ENGINES) {
   engines[engine] = {};
   for (const workload of WORKLOADS) {
-    const cmd = new Deno.Command(Deno.execPath(), {
-      args: [
-        "run",
-        "--allow-all",
-        join(Deno.cwd(), "bench", "memory-probe.ts"),
-        engine,
-        workload,
-      ],
-      stdout: "piped",
-      stderr: "piped",
-    });
-    const { code, stdout, stderr } = await cmd.output();
+    const [program, ...args] = scriptCommand(
+      join(process.cwd(), "bench", "memory-probe.ts"),
+      [engine, workload],
+    );
+    const { code, stdout, stderr } = await runProcess(program, args);
     if (code !== 0) {
       throw new Error(
-        `memory probe failed for ${engine}/${workload}:\n${
-          new TextDecoder().decode(stderr)
-        }`,
+        `memory probe failed for ${engine}/${workload}:\n${stderr}`,
       );
     }
-    const probe = JSON.parse(new TextDecoder().decode(stdout)) as {
+    const probe = JSON.parse(stdout) as {
       runs: number;
       peak: { heapUsed: number; rss: number; external: number };
     };
@@ -54,11 +48,11 @@ const data = {
   runs: 5,
   dataset: "10,000-person graph (~55,000 quads)",
   measurement:
-    "isolated Deno subprocess per engine, Deno.memoryUsage() peak after each run",
+    `isolated ${runtimeName} subprocess per engine, process.memoryUsage() peak after each run`,
   engines,
 };
-Deno.writeTextFileSync(
-  join(Deno.cwd(), "bench", "memory-data.json"),
+writeFileSync(
+  join(process.cwd(), "bench", "memory-data.json"),
   JSON.stringify(data, null, 2) + "\n",
 );
 console.error("wrote bench/memory-data.json");

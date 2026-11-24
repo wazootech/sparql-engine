@@ -3,6 +3,7 @@
  * stage timings (cold-start and query stage separation happens in
  * cli-bench-measure).
  */
+import { runProcess } from "../test/run-process.ts";
 import { REPO_ROOT } from "./cli-bench-env.ts";
 
 export async function runOnce(
@@ -14,19 +15,16 @@ export async function runOnce(
     ? ["/usr/bin/time", "-f", "%M", ...command, ...args]
     : [...command, ...args];
   const started = performance.now();
-  const { code, stdout, stderr } = await new Deno.Command(program, {
-    args: rest,
+  const { code, stdout, stderr } = await runProcess(program, rest, {
     cwd: REPO_ROOT,
-    stdout: "piped",
-    stderr: "piped",
-  }).output();
+  });
   const ms = performance.now() - started;
-  const errorText = new TextDecoder().decode(stderr);
+  const errorText = stderr;
   if (code !== 0) {
     throw new Error(`${command.join(" ")} exited ${code}:\n${errorText}`);
   }
   const peakRssKiB = measureRss
     ? Number(errorText.trim().split("\n").at(-1))
     : undefined;
-  return { ms, stdout: new TextDecoder().decode(stdout), peakRssKiB };
+  return { ms, stdout, peakRssKiB };
 }

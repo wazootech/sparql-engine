@@ -77,6 +77,8 @@ import {
   XSD_INTEGER,
 } from "@/term/mod.ts";
 import type { CanonicalTerm } from "@/term/mod.ts";
+import process from "node:process";
+import { writeFile } from "node:fs/promises";
 
 const { literal, namedNode, quad } = DataFactory;
 const EX = "http://example.org/";
@@ -99,7 +101,7 @@ function mulberry32(seed: number): () => number {
   };
 }
 
-const args = Deno.args;
+const args = process.argv.slice(2);
 const seedArg = args.indexOf("--seed");
 const countArg = args.indexOf("--count");
 const SEED = seedArg === -1 ? 20261110 : Number(args[seedArg + 1]);
@@ -1109,7 +1111,7 @@ const report = {
   elapsedMs,
   mismatches,
 };
-await Deno.writeTextFile(
+await writeFile(
   new URL("./heldout-fuzz-report.json", import.meta.url),
   JSON.stringify(report, null, 2) + "\n",
 );
@@ -1130,7 +1132,7 @@ if (gateFailures.length > 0) {
   console.log(
     `\nGate FAILED: ${gateFailures.length} mismatch(es) where wazoo is the lone outlier.`,
   );
-  Deno.exit(1);
+  process.exit(1);
 } else {
   console.log("\nGate passed: wazoo was never the lone outlier.");
 }

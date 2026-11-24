@@ -56,7 +56,7 @@
     "bench:cli": "deno run --allow-all bench/cli-bench.ts",
     "bench:cli:targets": "deno bench --allow-all bench/cli-targets-bench.ts",
     "check": "deno check",
-    "compile": "deno compile --allow-read --output dist/sparql cli/deno-main.ts",
+    "compile": "deno compile --allow-read --output dist/sparql cli/main.ts",
     "docs:link-check": "deno run --allow-read --allow-net docs/link-check.ts",
     "ci": {
       "description": "Formats, lints, checks, and tests the code",

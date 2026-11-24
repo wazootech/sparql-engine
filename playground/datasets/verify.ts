@@ -7,6 +7,8 @@
 // expectations and the round-trip loses nothing. Prints one line per fixture.
 
 import { MemoryStore, parseTurtleQuads, serializeTurtle } from "@/mod.ts";
+import process from "node:process";
+import { readFileSync } from "node:fs";
 
 interface Fixture {
   file: string;
@@ -73,8 +75,9 @@ let failures = 0;
 
 for (const fixture of fixtures) {
   const t0 = performance.now();
-  const text = Deno.readTextFileSync(
+  const text = readFileSync(
     new URL(`./${fixture.file}`, import.meta.url),
+    "utf8",
   );
 
   // parse → store
@@ -131,6 +134,6 @@ for (const fixture of fixtures) {
 
 if (failures > 0) {
   console.error(`${failures} failure(s)`);
-  Deno.exit(1);
+  process.exit(1);
 }
 console.log("all fixtures verified");

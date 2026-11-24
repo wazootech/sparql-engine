@@ -98,20 +98,25 @@ export interface UpdateEvaluatorOptions {
 }
 
 /**
- * defaultReadTextFile reads a file through Deno when it is the host runtime.
- * It reaches Deno through globalThis rather than the bare global so the
- * module also type-checks under non-Deno toolchains.
+ * defaultReadTextFile reads a file through the host runtime when that runtime
+ * is Deno or Bun. It reaches them through globalThis rather than the bare
+ * globals so the module type-checks under either toolchain, and it imports no
+ * `node:` builtin so the published package graph stays free of them.
  */
 function defaultReadTextFile(path: string): Promise<string> {
-  const deno = (globalThis as {
+  const host = globalThis as {
     Deno?: { readTextFile(path: string): Promise<string> };
-  }).Deno;
-  if (deno === undefined) {
-    throw new Error(
-      "LOAD of a local file needs the readTextFile option outside Deno",
-    );
+    Bun?: { file(path: string): { text(): Promise<string> } };
+  };
+  if (host.Deno !== undefined) {
+    return host.Deno.readTextFile(path);
   }
-  return deno.readTextFile(path);
+  if (host.Bun !== undefined) {
+    return host.Bun.file(path).text();
+  }
+  throw new Error(
+    "LOAD of a local file needs the readTextFile option outside Deno and Bun",
+  );
 }
 
 /**

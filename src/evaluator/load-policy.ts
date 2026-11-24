@@ -22,7 +22,7 @@ export type LoadFetch = (
  * LoadPolicy governs `LOAD <http(s)://...>`. Remote LOAD is denied unless
  * allowedHosts names the host, so a multi-tenant host never fetches an
  * arbitrary caller-chosen URL. File LOAD is unaffected (it needs the
- * readTextFile option outside Deno).
+ * readTextFile option outside Deno and Bun).
  */
 export interface LoadPolicy {
   /** allowedHosts lists exact hostnames LOAD may fetch. Empty or absent denies all remote LOAD. */
@@ -40,7 +40,7 @@ export interface LoadPolicy {
   /**
    * resolveHost resolves a hostname to IP addresses so they can be checked
    * against private ranges (DNS-rebinding defense). Optional because the
-   * package graph stays free of `node:` imports; pass one on Node/Deno.
+   * package graph stays free of `node:` imports; pass one on Node, Deno or Bun.
    */
   resolveHost?: (hostname: string) => Promise<string[]>;
   /** fetch overrides globalThis.fetch (tests, proxies). */

@@ -12,13 +12,22 @@
  * `lr-runtime.ts`, with no `@ts-nocheck`.
  * @see Aho, Sethi & Ullman, "Compilers: Principles, Techniques, and Tools," Addison-Wesley, 1986, ch. 4 (syntax analysis, LR parsing)
  *
- * The emitted modules are formatted with `deno fmt`, so the checked-in
- * artifacts are fmt-stable and regenerating reproduces them byte-for-byte.
+ * The emitted modules are formatted by the running runtime's own formatter
+ * (`<runtime> fmt <file>`: `deno fmt` under Deno, `bun fmt` under Bun), so the
+ * checked-in artifacts are fmt-stable for the toolchain that generated them
+ * and regenerating reproduces them byte-for-byte. The repository's formatter
+ * is Deno's until the Bun cutover, so `--check` is authoritative under Deno.
  *
- * Run via `deno task parser:generate`. With `--check`, it verifies instead of
- * writing: it exits non-zero when a checked-in artifact has drifted from its
- * grammar (used by `deno task parser:check` in CI).
+ * Run via `deno task parser:generate` (or `deno run -A` / `bun` on this file).
+ * With `--check`, it verifies instead of writing: it exits non-zero when a
+ * checked-in artifact has drifted from its grammar (used by
+ * `deno task parser:check` in CI).
  */
+import { spawnSync } from "node:child_process";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import process from "node:process";
 import jison from "jison";
 import { parse as parseGrammar } from "ebnf-parser";
 
@@ -834,48 +843,45 @@ export function ${config.entryFunctionName}(input: string): void {
 }
 
 /**
- * formatWithDenoFmt formats a source string with the project's `deno fmt`
- * rules (via a throwaway temp file), so the checked-in artifacts are
- * fmt-stable and regeneration reproduces them byte-for-byte.
+ * formatGenerated formats a source string with the running runtime's
+ * formatter (via a throwaway temp file), so the checked-in artifacts are
+ * fmt-stable and regeneration reproduces them byte-for-byte. The runtime
+ * binary is `process.execPath`, which is `deno` or `bun` depending on who
+ * runs this script; both accept `<runtime> fmt <file>`.
  */
-async function formatWithDenoFmt(source: string): Promise<string> {
+async function formatGenerated(source: string): Promise<string> {
   // The temp file lives in the OS temp dir (not the repo, where a crashed run
-  // would leak it into fmt:check and git status), and fileURLToPath is unused:
-  // Deno.makeTempFile already returns a platform-native path (URL.pathname is
-  // a POSIX-style `/C:/...` string that the Windows CLI mangles).
-  const tempPath = await Deno.makeTempFile({
-    prefix: "parser-fmt-",
-    suffix: ".ts",
-  });
-  await Deno.writeTextFile(tempPath, source);
+  // would leak it into fmt:check and git status), and mkdtemp returns a
+  // platform-native path (URL.pathname is a POSIX-style `/C:/...` string
+  // that the Windows CLI mangles).
+  const directory = await mkdtemp(join(tmpdir(), "parser-fmt-"));
+  const tempPath = join(directory, "generated.ts");
+  await writeFile(tempPath, source);
   try {
-    const cmd = new Deno.Command(Deno.execPath(), {
-      args: ["fmt", tempPath],
+    const { status, stderr } = spawnSync(process.execPath, ["fmt", tempPath], {
+      encoding: "utf8",
     });
-    const { code, stderr } = await cmd.output();
-    if (code !== 0) {
-      throw new Error(
-        `deno fmt failed: ${new TextDecoder().decode(stderr)}`,
-      );
+    if (status !== 0) {
+      throw new Error(`${process.execPath} fmt failed: ${stderr}`);
     }
-    return await Deno.readTextFile(tempPath);
+    return await readFile(tempPath, "utf8");
   } finally {
-    await Deno.remove(tempPath);
+    await rm(directory, { recursive: true, force: true });
   }
 }
 
 async function main(): Promise<void> {
-  const checkOnly = Deno.args.includes("--check");
+  const checkOnly = process.argv.slice(2).includes("--check");
   let allOk = true;
 
   for (const target of TARGETS) {
-    const rawGrammar = await Deno.readTextFile(target.grammarPath);
-    const formatted = await formatWithDenoFmt(
+    const rawGrammar = await readFile(target.grammarPath, "utf8");
+    const formatted = await formatGenerated(
       generateTypedParserSource(rawGrammar, target.typed),
     );
 
     if (checkOnly) {
-      const current = await Deno.readTextFile(target.outputPath);
+      const current = await readFile(target.outputPath, "utf8");
       if (current !== formatted) {
         console.error(
           `${target.label} is out of date with ${
@@ -890,13 +896,13 @@ async function main(): Promise<void> {
         console.log(`${target.label} is up to date with its grammar.`);
       }
     } else {
-      await Deno.writeTextFile(target.outputPath, formatted);
+      await writeFile(target.outputPath, formatted);
       console.log(`Generated ${target.label} (${formatted.length} bytes)`);
     }
   }
 
   if (checkOnly && !allOk) {
-    Deno.exit(1);
+    process.exit(1);
   }
 }
 
