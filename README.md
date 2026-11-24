@@ -61,11 +61,10 @@ for the W3C suite notes.
   terms, reifiers, and annotations); zero runtime dependencies (only type-only
   `@rdfjs/types`), and no Comunica framework overhead — browser-friendly and
   JSR-ready without transitive npm baggage.
-- **JSR & Deno Wazoo**: Published on JSR as `@wazoo/sparql-engine` for Deno,
-  Bun, Node.js, and browser environments. The source, tests, benches and scripts
-  use only `node:` APIs, so the repository's own suite runs on Deno (the
-  authoritative toolchain until the Bun cutover, wazootech/workspace#50) and on
-  Bun (`bun install && bun run test:bun`).
+- **JSR & Bun Wazoo**: Published on JSR as `@wazoo/sparql-engine` for Deno,
+  Bun, Node.js, and browser environments. The repository's toolchain is Bun
+  (`bun install && bun run test`; wazootech/workspace#50), and the source uses
+  only `node:` APIs, so the same code runs on Node and Deno.
 - **The engine behind `@worlds/sdk`**: Implements
   [`SparqlEngineInterface`](https://jsr.io/@wazoo/sparql-engine/doc/~/SparqlEngineInterface),
   which `@worlds/sdk`'s durable backend factory (`createLibsqlSdk` from
@@ -102,50 +101,52 @@ if (result.kind === "select") {
 
 ### Command line
 
-`deno task compile` builds a standalone `sparql` binary at `dist/sparql` (no
-Deno install needed to run it):
+`bun run compile` builds a standalone `sparql` binary at `dist/sparql` (no
+Bun install needed to run it):
 
 ```sh
-deno task compile
+bun run compile
 ./dist/sparql --data people.ttl --query 'SELECT * WHERE { ?s ?p ?o } LIMIT 10'
 ```
 
 SELECT and ASK print SPARQL 1.1 Query Results JSON, and CONSTRUCT and DESCRIBE
-print N-Quads. `deno task bench:cli` measures the binary's size, cold start,
+print N-Quads. `bun run bench:cli` measures the binary's size, cold start,
 isolated load stages, and query evaluation; see `bench/cli-bench.ts`.
 
 ### Native binary (optional)
 
-`deno task compile` still embeds Deno. `deno task native:build` goes further and
+`bun run compile` still embeds the Bun runtime (about 111 MiB on Windows). `bun run native:build` goes further and
 compiles `cli/node-main.ts` with [scriptc](https://scriptc.dev) 0.4.5 into a
 single executable at `dist/sparql-node` (`dist\sparql-node.exe` on Windows) with
-no runtime underneath it: no Deno, no V8, no `node_modules`.
+no runtime underneath it: no Bun, no JavaScript engine, no `node_modules`.
 
 ```sh
-deno task native:build
+bun run native:build
 ./dist/sparql-node --data people.ttl --query 'SELECT * WHERE { ?s ?p ?o } LIMIT 10'
 ```
 
-`deno task native:gate` runs the whole check: `scriptc coverage` (what the
+`bun run native:gate` runs the whole check: `scriptc coverage` (what the
 compiler can and cannot lower), the build, then the cross-host contract in
 `cli/run-cli.test.ts`, which replays 12 invocations through the in-process
 engine and through every built host and requires identical exit code, stdout,
 and stderr. Each target test skips when its artifact is absent, so
-`deno task ci` stays green on a checkout with no compiler installed.
+`bun run ci` stays green on a checkout with no compiler installed.
 
 The trade is startup and artifact size. Reading and indexing pay a constant
 per-triple factor; evaluation has near-zero fixed cost and a slightly steeper
 per-triple slope:
 
 ```sh
-deno task bench:cli --people 200,800,3200 --runs 9 \
-  --target deno-compile=dist/sparql.exe \
+bun run bench:cli --people 200,800,3200 --runs 9 \
+  --target bun-compile=dist/sparql.exe \
   --target scriptc=dist/sparql-node.exe
 ```
 
 `bench:cli` runs every target once per round in a rotated order and separates
 the stages by subtracting inside the round, so machine drift cannot land on one
-target. At 16,000 triples, over 9 rounds (median, interquartile range):
+target. At 16,000 triples, over 9 rounds (median, interquartile range), measured
+with `deno compile` before the Bun cutover (rerun the command above for
+`bun build --compile` numbers):
 
 | Isolated operation     | `deno compile`     | `scriptc`          | Ratio         |
 | ---------------------- | ------------------ | ------------------ | ------------- |
@@ -182,7 +183,7 @@ triples that cost 11.5 s natively. Matching at an offset with sticky regexes
 
 The native graph is fully static. `scriptc coverage` reports 5,784/5,784
 statements static (100%), 0 functions signature-blocked, 0 blocker groups, and 0
-likely-hot untyped reads, and `deno task native:coverage` exits non-zero if a
+likely-hot untyped reads, and `bun run native:coverage` exits non-zero if a
 blocker or an SC6101 group reappears, so the gate cannot regress quietly.
 
 47 statements across 70 functions stay in scriptc's report-only dynamic tier:
@@ -198,16 +199,16 @@ the boundaries the package's contract defines: arbitrary stores and terms,
 caught `unknown` errors, `AbortSignal` reasons, and function-valued hooks such
 as join callbacks, `fetch`, and `readTextFile`.
 
-Two Deno-only surfaces — RDF/JS streams and optional store statistics — never
+Two JavaScript-runtime-only surfaces — RDF/JS streams and optional store statistics — never
 enter the native graph. `cli/tsconfig.json` maps `src/store/quad-stream.ts` and
 `src/quad-store-stream.ts` to stubs, so no RDF/JS stream is constructed or
 drained natively (scans answer through `MemoryStore.getQuads`), and maps
 `src/store/store-statistics.ts` and `src/planner/pattern-statistics-hook.ts` to
 a stub that selects the deterministic planner fallback instead of probing a
 store for an optional statistics hook. Every stub throws or returns the
-documented fallback rather than emulate Deno behavior.
+documented fallback rather than emulate a JavaScript runtime.
 
-Parity with the W3C suites is measured through the Deno build; the native host
+Parity with the W3C suites is measured through the Bun build; the native host
 is held to the CLI contract above plus the engine's own test suite.
 
 #### Cross-compilation
@@ -232,7 +233,7 @@ without a value — with identical exit codes. The tenth differs only in the
 missing-file message: Windows reports the resolved absolute path, Linux reports
 the path as given, both with the same `ENOENT` text.
 
-`deno task native:build` always writes the name `cli/run-cli.test.ts` discovers
+`bun run native:build` always writes the name `cli/run-cli.test.ts` discovers
 (`dist/sparql-node`, plus `.exe` on Windows), so a native build on a Linux or
 macOS host joins the contract automatically. A cross-built artifact for a
 different platform does not: it cannot run on the build host, so verify it on
@@ -437,19 +438,19 @@ ordering: a three-pattern chain written in worst-case order runs ~80x faster
 with reordering enabled, because the planner scans each pattern once and joins
 in order of estimated cost, preferring patterns whose variables are already
 bound. Timings use [mitata](https://github.com/evanwashere/mitata) through the
-shared harness in `bench/bench.ts` (it runs on Deno and Bun) with the wazoo
+shared harness in `bench/bench.ts` (it runs on Bun) with the wazoo
 engine as the per-group baseline:
 
 ```bash
-deno task bench
+bun run bench
 ```
 
 ### Results
 
-A snapshot measured on a Windows desktop with Deno 2.9.5 (wazoo engine as the
+A snapshot measured on a Windows desktop with Deno 2.9.5, before the Bun cutover (wazoo engine as the
 per-group baseline). Each cell is the per-iteration average; every query is
 cross-verified to return identical results on all three engines before timing.
-Timings are machine-specific — run `deno task bench` for your own numbers.
+Timings are machine-specific — run `bun run bench` for your own numbers.
 
 Core joins, 400-person graph (~2,200 quads):
 
@@ -518,7 +519,7 @@ ms/iter within the row:
   row (each row normalized to its slowest engine — lower is better). The
   planner-only rows (3-pattern chain, planner on) have a single wazoo bar;
   Comunica and Oxigraph have no reordering equivalent. Snapshot from
-  `bench/latency-data.json`, regenerated by `deno task bench:latency`.</figcaption>
+  `bench/latency-data.json`, regenerated by `bun run bench:latency`.</figcaption>
 </figure>
 
 ### Size & memory footprint
@@ -544,7 +545,7 @@ treemap (length/area ∝ size) summarize both:
 | oxigraph | 7.9 MiB      | WASM runtime (7.8 MiB) + JS glue/types                                                                                       |
 | comunica | 28.3 MiB     | 368 npm packages in the transitive dependency closure                                                                        |
 
-Regenerated by `deno task bench:size`. The wazoo artifact is **~0.67 MiB on disk
+Regenerated by `bun run bench:size`. The wazoo artifact is **~0.67 MiB on disk
 (~0.15 MiB gzipped)** — the JSR `publish.exclude` drops the build-time grammar
 sources (`*.jison`, `generate-parser.ts`, ~87 KiB). The durable SQLite store
 moved to `@worlds/sqlite` (2026-08-17), so the root import graph is
@@ -552,7 +553,7 @@ server-optional. The chart and the `bench:size` JSON both mirror that file set
 exactly.
 
 **Peak heap during execution** on the 10k-person graph (55k quads), measured in
-an isolated Deno subprocess per engine (peak `process.memoryUsage().heapUsed`
+an isolated subprocess per engine (peak `process.memoryUsage().heapUsed`
 over 5 runs; all three share the same ~62 MiB runtime baseline, so the
 comparison is symmetric):
 
@@ -575,15 +576,15 @@ roughly a third of comunica's on the nested-EXISTS surface the timings above
 highlight. Oxigraph's WASM runtime is compact on disk, but its result
 materialization peaks higher than wazoo on both workloads.
 
-These are machine-specific snapshots (Deno 2.9.5, Windows), not guarantees.
-Regenerate them with `deno task bench:size` (library sizes, from the installed
-packages) and `deno task bench:memory` (peak memory, spawned per engine), which
+These are machine-specific snapshots (Deno 2.9.5, Windows, before the Bun cutover), not guarantees.
+Regenerate them with `bun run bench:size` (library sizes, from the installed
+packages) and `bun run bench:memory` (peak memory, spawned per engine), which
 write the SVGs into `docs/assets/`.
 
 ## Development
 
 ```bash
-deno task ci
+bun run ci
 ```
 
 ## Query design notes
@@ -705,20 +706,15 @@ a citation to the code adds the matching line here (and vice versa).
 
 ## Releases
 
-Every merge to `main` runs the Publish workflow. Following the standard JSR
-publish convention — `deno publish` will not attempt to publish a version that
-is already on JSR — a release ships **only when `deno.json`'s `version` is
-bumped** to something newer than the published latest:
+Every merge to `main` runs the Publish workflow. It publishes through the `jsr`
+CLI (`bunx jsr publish`) **only when `jsr.json`'s `version` is not on JSR yet**;
+it asks JSR's `meta.json` rather than the tree:
 
-- **Release PR** (bumps `version`): the Publish job publishes the new version;
-  if it somehow skips anyway, the job fails loudly.
+- **Release PR** (bumps `version`): the Publish job publishes the new version.
 - **Routine PR** (no bump): the Publish job skips with a notice — this is
   expected, not an error.
 
-To ship a release, bump `version` in `deno.json` (minor for additive public API,
-patch for fixes) in the same PR that should publish. One caveat, learned when
-the 0.4.2 release failed to ship twice
-([#206](https://github.com/wazootech/sparql-engine/pull/206)): any pinned
-`jsr:@wazoo/sparql-engine@<version>` import (the playground bundle pins one)
-must have its entry committed to `deno.lock`, or a cold `deno check` on CI
-rewrites the lockfile, the tree lands dirty, and `deno publish` aborts.
+To ship a release, bump `version` in `jsr.json` (minor for additive public API,
+patch for fixes) in the same PR that should publish. `jsr publish` refuses a
+dirty tree, so `bun install --frozen-lockfile` must leave `bun.lock` untouched
+and the Deno lockfile that `jsr` regenerates stays gitignored.

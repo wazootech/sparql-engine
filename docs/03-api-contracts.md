@@ -7,8 +7,8 @@ layout: default
 
 The public surface is small and stable: one engine class implementing one
 interface, typed request/response envelopes, one in-repo store implementation,
-and a term-utility layer. The complete export list (verified against
-`deno doc --json` of `src/mod.ts`) is at the end of this page.
+and a term-utility layer. The complete export list (verified against the
+exports of `src/mod.ts`) is at the end of this page.
 
 ## The engine interface
 
@@ -387,7 +387,7 @@ handling or differential testing:
 | [`numericValue`](https://jsr.io/@wazoo/sparql-engine/doc/~/numericValue), [`compareNumericValues`](https://jsr.io/@wazoo/sparql-engine/doc/~/compareNumericValues), [`formatNumber`](https://jsr.io/@wazoo/sparql-engine/doc/~/formatNumber), [`NUMERIC_DATATYPES`](https://jsr.io/@wazoo/sparql-engine/doc/~/NUMERIC_DATATYPES), `XSD*` | `src/term/numeric.ts`      | numeric value semantics                                                                                          |
 | [`compareRdfTerms`](https://jsr.io/@wazoo/sparql-engine/doc/~/compareRdfTerms)                                                                                                                                                                                                                                                           | `src/term/ordering.ts`     | SPARQL §12.4 term ordering (ORDER BY, MIN/MAX)                                                                   |
 
-## Public export inventory (from `deno doc --json`)
+## Public export inventory (from the exports of `src/mod.ts`)
 
 Types:
 [`SparqlEngineInterface`](https://jsr.io/@wazoo/sparql-engine/doc/~/SparqlEngineInterface),

@@ -15,26 +15,28 @@ Get the engine running, execute SPARQL against a store, and run the test suites
 
 ## Environment
 
-The project is a **Deno 2.x** package published to
-[JSR](https://jsr.io/@wazoo/sparql-engine). Install Deno:
+The project is a **Bun** package published to
+[JSR](https://jsr.io/@wazoo/sparql-engine). Install [Bun](https://bun.sh)
+(1.4.5 or newer: `bun fmt` and `bun check` need it), then:
 
 ```bash
-curl -fsSL https://deno.land/install.sh | sh   # macOS / Linux
-# Windows (PowerShell): irm https://deno.land/install.ps1 | iex
+bun install
 ```
 
-There is no Node build step and no package manager needed for development:
-`deno.json` at the repo root is the entire build config. `pnpm`/`npm`/`yarn` are
-**not** used by this repository — do not add a `package.json` or run
-`npm install`.
+`jsr.json` is the published package's manifest and `package.json` /
+`bun.lock` are what Bun installs; `bun run check:manifests` keeps the two in
+step. `pnpm`/`npm`/`yarn` are **not** used by this repository.
 
 ## Install the package
 
-From any Deno project (or `deno jupyter`, `deno repl`, browser via esm.sh):
+From a Deno, Bun or Node project (or the browser via esm.sh):
 
 ```bash
 # Deno
 deno add jsr:@wazoo/sparql-engine
+
+# Bun
+bunx jsr add @wazoo/sparql-engine
 
 # Node.js / npm
 npx jsr add @wazoo/sparql-engine
@@ -85,15 +87,15 @@ if (result.kind === "select") {
 ```
 
 ```bash
-deno run query.ts
+bun query.ts
 ```
 
 There is no CLI binary and no dev server in this repository — the distribution
-surface is the programmatic API. For quick REPL-style checks, `deno eval` is the
+surface is the programmatic API. For quick REPL-style checks, `bun -e` is the
 CLI:
 
 ```bash
-deno eval '
+bun -e '
 import { DataFactory, MemoryStore, WazooSparqlEngine } from "./src/mod.ts";
 const { namedNode, literal, quad } = DataFactory;
 const store = new MemoryStore();
@@ -139,57 +141,55 @@ const patch = await engine.execute({
 ## Verify and build
 
 ```bash
-deno task check        # typecheck the whole package (deno check)
 bun run fmt:check      # formatting gate (bun fmt --check)
-deno task lint         # deno lint
 bun run lint           # Oxlint
-bun run check          # typecheck on Bun (bun check)
+bun run check          # typecheck (bun check)
+bun run check:manifests # jsr.json and package.json agree on exports and deps
 bun run parser:check   # generated parser.ts in sync with sparql.jison?
-deno task publish:check # default graph has no node:/npm: runtime imports
-deno task publish:dry  # JSR publish dry-run (zero runtime deps must hold)
+bun run publish:check # default graph has no node:/npm: runtime imports
+bun run publish:dry  # JSR publish dry-run (zero runtime deps must hold)
 ```
 
-`deno task ci` runs all of the above plus every test gate — see
+`bun run ci` runs all of the above plus every test gate — see
 [05 — Verification & Testing](05-testing.md) for the full task table.
 
 ## Run the test suites
 
 ```bash
-deno task test         # unit + integration + parity tests (deno test --allow-all)
-bun test --timeout 120000   # the same node:test suite on Bun (after `bun install`)
-deno task test:w3c     # W3C SPARQL 1.1 evaluation-core, differential vs Comunica
-deno task test:sparql12    # W3C SPARQL 1.2 evaluation suite
-deno task test:sparql12:gap # RDF 1.2 eval-triple-terms gap suite
-deno task test:rdf11   # RDF 1.1 Turtle/TriG/N-Triples/N-Quads syntax gate
-deno task test:rdf12   # RDF 1.2 triple-term/reifier syntax gate
-deno task test:exists-ref # EXISTS subquery surface vs Oxigraph
-deno task test:ref     # allowlisted-divergence audit vs Oxigraph + N3.js
+bun run test         # unit + integration + parity tests (bun test --timeout 120000)
+bun run test:w3c     # W3C SPARQL 1.1 evaluation-core, differential vs Comunica
+bun run test:sparql12    # W3C SPARQL 1.2 evaluation suite
+bun run test:sparql12:gap # RDF 1.2 eval-triple-terms gap suite
+bun run test:rdf11   # RDF 1.1 Turtle/TriG/N-Triples/N-Quads syntax gate
+bun run test:rdf12   # RDF 1.2 triple-term/reifier syntax gate
+bun run test:exists-ref # EXISTS subquery surface vs Oxigraph
+bun run test:ref     # allowlisted-divergence audit vs Oxigraph + N3.js
 ```
 
-`deno test` needs no network for the [W3C](https://www.w3.org/) suites: fixtures
+`bun test` needs no network for the [W3C](https://www.w3.org/) suites: fixtures
 are vendored under `test/w3c/fixtures/`.
 
 ## Benchmarks
 
 ```bash
-deno task bench        # wazoo vs Comunica vs Oxigraph, verification-first
-deno task bench:check  # regression budget gate (bench/budget.ts)
-deno task bench:size   # on-disk library footprint → docs/assets/chart-library-size.svg
-deno task bench:size:closures # per-entrypoint import closure → docs/assets/chart-closures.svg
-deno task bench:memory # peak heap per engine → docs/assets/treemap-memory.svg
-deno task bench:latency # committed latency snapshot → docs/assets/chart-latency.svg
+bun run bench        # wazoo vs Comunica vs Oxigraph, verification-first
+bun run bench:check  # regression budget gate (bench/budget.ts)
+bun run bench:size   # on-disk library footprint → docs/assets/chart-library-size.svg
+bun run bench:size:closures # per-entrypoint import closure → docs/assets/chart-closures.svg
+bun run bench:memory # peak heap per engine → docs/assets/treemap-memory.svg
+bun run bench:latency # committed latency snapshot → docs/assets/chart-latency.svg
 ```
 
 ## Development loop
 
 ```bash
 bun run fmt            # format source AND markdown (bun fmt, line width 80)
-deno test src/         # fast unit loop for engine internals
+bun test src/          # fast unit loop for engine internals
 ```
 
 If you change `src/parser/sparql.jison`, regenerate the parser and keep it in
 sync (CI fails otherwise):
 
 ```bash
-deno task parser:generate
+bun run parser:generate
 ```
