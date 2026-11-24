@@ -6,15 +6,19 @@ export const RDF_DIR_LANG_STRING =
   "http://www.w3.org/1999/02/22-rdf-syntax-ns#dirLangString";
 export const XSD_STRING = "http://www.w3.org/2001/XMLSchema#string";
 
-export class NamedNodeImpl<Iri extends string = string>
-  implements rdfjs.NamedNode<Iri> {
+export class NamedNodeImpl<
+  Iri extends string = string,
+> implements rdfjs.NamedNode<Iri> {
   public readonly termType = "NamedNode" as const;
 
   public constructor(public readonly value: Iri) {}
 
   public equals(other?: rdfjs.Term | null): boolean {
-    return other != null && other.termType === "NamedNode" &&
-      other.value === this.value;
+    return (
+      other != null &&
+      other.termType === "NamedNode" &&
+      other.value === this.value
+    );
   }
 }
 
@@ -24,8 +28,11 @@ export class BlankNodeImpl implements rdfjs.BlankNode {
   public constructor(public readonly value: string) {}
 
   public equals(other?: rdfjs.Term | null): boolean {
-    return other != null && other.termType === "BlankNode" &&
-      other.value === this.value;
+    return (
+      other != null &&
+      other.termType === "BlankNode" &&
+      other.value === this.value
+    );
   }
 }
 
@@ -35,8 +42,11 @@ export class VariableImpl implements rdfjs.Variable {
   public constructor(public readonly value: string) {}
 
   public equals(other?: rdfjs.Term | null): boolean {
-    return other != null && other.termType === "Variable" &&
-      other.value === this.value;
+    return (
+      other != null &&
+      other.termType === "Variable" &&
+      other.value === this.value
+    );
   }
 }
 

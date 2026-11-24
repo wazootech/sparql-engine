@@ -41,7 +41,9 @@ LrParser.prototype.parse = function (
   lexer: LrLexer,
 ): void {
   if (parseMode === "lex-only") {
-    while (lexer.lex() !== LR_EOF) { /* drain tokens */ }
+    while (lexer.lex() !== LR_EOF) {
+      /* drain tokens */
+    }
     return;
   }
   if (parseMode === "noop-actions") {
@@ -80,8 +82,11 @@ function keyWork(quads: RdfQuad[]): number {
       termKey(quad.object),
       termKey(quad.graph),
     ].join("|").length;
-    total += termKey(quad.subject).length + termKey(quad.predicate).length +
-      termKey(quad.object).length + termKey(quad.graph).length;
+    total +=
+      termKey(quad.subject).length +
+      termKey(quad.predicate).length +
+      termKey(quad.object).length +
+      termKey(quad.graph).length;
   }
   return total;
 }
@@ -120,9 +125,10 @@ function countLexing(text: string): {
 const peopleList = argValue("--people", "2000,10000").split(",").map(Number);
 const rounds = Number(argValue("--rounds", "11"));
 const warmups = 3;
-const runtimeLabel = process.versions.bun !== undefined
-  ? `Bun ${process.versions.bun}`
-  : `Deno ${process.versions.deno} / V8 ${process.versions.v8}`;
+const runtimeLabel =
+  process.versions.bun !== undefined
+    ? `Bun ${process.versions.bun}`
+    : `Deno ${process.versions.deno} / V8 ${process.versions.v8}`;
 const tempDirectory = await mkdtemp(join(tmpdir(), "parse-profile-"));
 const tempPath = join(tempDirectory, "people.ttl");
 
@@ -163,8 +169,15 @@ for (const people of peopleList) {
     return {
       min: summary.minimum,
       median: summary.median,
-      iqr: quantile([...samples[name]!].sort((a, b) => a - b), 0.75) -
-        quantile([...samples[name]!].sort((a, b) => a - b), 0.25),
+      iqr:
+        quantile(
+          [...samples[name]!].sort((a, b) => a - b),
+          0.75,
+        ) -
+        quantile(
+          [...samples[name]!].sort((a, b) => a - b),
+          0.25,
+        ),
     };
   };
   const counts = countLexing(text);

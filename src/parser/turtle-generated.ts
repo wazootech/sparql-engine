@@ -44,10 +44,7 @@ import { LrLexer, LrParser, type LrTables } from "./lr-runtime.ts";
 
 /** TurtleValue is what a grammar symbol leaves on the parser's value stack. */
 type TurtleValue =
-  | string
-  | RdfTerm
-  | undefined
-  | Array<string | RdfTerm | undefined>;
+  string | RdfTerm | undefined | Array<string | RdfTerm | undefined>;
 
 const TABLES: LrTables = {
   terminalNames: {
@@ -2969,7 +2966,7 @@ class TurtleLrParser extends LrParser<TurtleValue> {
       case 99:
       case 100:
       case 101: {
-        return (values[top - 0] as RdfTerm);
+        return values[top - 0] as RdfTerm;
       }
       case 40: {
         return values[top - 3];
@@ -3046,7 +3043,7 @@ class TurtleLrParser extends LrParser<TurtleValue> {
       }
       case 80:
       case 81: {
-        return (values[top - 0] as string);
+        return values[top - 0] as string;
       }
       case 82: {
         return labelledBlankNode(values[top - 0] as string);

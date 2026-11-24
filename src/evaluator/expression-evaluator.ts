@@ -89,7 +89,8 @@ function substituteTripleTerm(
   const predicateArm = narrowQuadPredicate(predicate);
   const objectArm = narrowQuadObject(object);
   if (
-    subjectArm === undefined || predicateArm === undefined ||
+    subjectArm === undefined ||
+    predicateArm === undefined ||
     objectArm === undefined
   ) {
     return undefined;
@@ -274,10 +275,10 @@ export class ExpressionEvaluator {
     aggregates?: (aggregate: AggregateExpression) => RdfTerm | undefined,
     context?: ExpressionEvaluationContext,
   ): boolean {
-    return this.ebv(
-      this.evaluateWith(expression, binding, aggregates, context),
-    ) ===
-      true;
+    return (
+      this.ebv(this.evaluateWith(expression, binding, aggregates, context)) ===
+      true
+    );
   }
 
   private evaluateWith(
@@ -326,17 +327,14 @@ export class ExpressionEvaluator {
     binding: TermBinding,
     context?: ExpressionEvaluationContext,
   ): boolean {
-    return this.ebv(
-      this.evaluateWith(expression, binding, undefined, context),
-    ) ===
-      true;
+    return (
+      this.ebv(this.evaluateWith(expression, binding, undefined, context)) ===
+      true
+    );
   }
 
   private evaluateOperation(
-    operation:
-      | OperationExpression
-      | ExistsExpression
-      | MembershipExpression,
+    operation: OperationExpression | ExistsExpression | MembershipExpression,
     binding: TermBinding,
     aggregates?: (aggregate: AggregateExpression) => RdfTerm | undefined,
     context?: ExpressionEvaluationContext,
@@ -420,7 +418,8 @@ export class ExpressionEvaluator {
         if (operation.args.length === 1 && operation.operator === "+") {
           const val = this.evaluateWith(arg(0), binding, aggregates, context);
           if (
-            val === undefined || val.termType !== "Literal" ||
+            val === undefined ||
+            val.termType !== "Literal" ||
             numericValue(val) === null
           ) {
             return undefined;
@@ -458,11 +457,12 @@ export class ExpressionEvaluator {
             "EXISTS requires a pattern-evaluation context from the group evaluator",
           );
         }
-        const matched = operation.operator === "exists"
-          ? evaluateExists(existsPattern, binding)
-          : context?.evaluateNotExists !== undefined
-          ? context.evaluateNotExists(existsPattern, binding)
-          : !evaluateExists(existsPattern, binding);
+        const matched =
+          operation.operator === "exists"
+            ? evaluateExists(existsPattern, binding)
+            : context?.evaluateNotExists !== undefined
+              ? context.evaluateNotExists(existsPattern, binding)
+              : !evaluateExists(existsPattern, binding);
         return booleanLiteral(matched);
       }
       case "bound": {
@@ -501,7 +501,8 @@ export class ExpressionEvaluator {
       case "strlen": {
         const value = this.evaluateWith(arg(0), binding, aggregates, context);
         if (
-          value === undefined || value.termType !== "Literal" ||
+          value === undefined ||
+          value.termType !== "Literal" ||
           !this.isStringTyped(value)
         ) {
           return undefined;
@@ -519,23 +520,11 @@ export class ExpressionEvaluator {
       case "strdt":
         return this.strdt(args, binding, aggregates);
       case "strlang":
-        return this.strlang(
-          args,
-          binding,
-          aggregates,
-        );
+        return this.strlang(args, binding, aggregates);
       case "regex":
-        return this.regex(
-          args,
-          binding,
-          aggregates,
-        );
+        return this.regex(args, binding, aggregates);
       case "replace":
-        return this.replace(
-          args,
-          binding,
-          aggregates,
-        );
+        return this.replace(args, binding, aggregates);
       case "contains":
         return this.stringPredicate(
           args,
@@ -560,35 +549,15 @@ export class ExpressionEvaluator {
           aggregates,
         );
       case "strbefore":
-        return this.stringSlice(
-          args,
-          binding,
-          true,
-          aggregates,
-          context,
-        );
+        return this.stringSlice(args, binding, true, aggregates, context);
       case "strafter":
-        return this.stringSlice(
-          args,
-          binding,
-          false,
-          aggregates,
-          context,
-        );
+        return this.stringSlice(args, binding, false, aggregates, context);
       case "lang":
         return this.lang(arg(0), binding, aggregates);
       case "langmatches":
-        return this.langmatches(
-          args,
-          binding,
-          aggregates,
-        );
+        return this.langmatches(args, binding, aggregates);
       case "coalesce":
-        return this.coalesce(
-          args,
-          binding,
-          aggregates,
-        );
+        return this.coalesce(args, binding, aggregates);
       case "if":
         return this.ifElse(args, binding, aggregates);
       case "in": {
@@ -616,11 +585,7 @@ export class ExpressionEvaluator {
         return booleanLiteral(member.value !== "true");
       }
       case "sameterm":
-        return this.sameterm(
-          args,
-          binding,
-          aggregates,
-        );
+        return this.sameterm(args, binding, aggregates);
       case "encode_for_uri":
       case "encode-for-uri": {
         const val = this.stringTerm(arg(0), binding, aggregates, context);
@@ -649,7 +614,8 @@ export class ExpressionEvaluator {
       case "tz": {
         const val = this.evaluateWith(arg(0), binding, aggregates, context);
         if (
-          val === undefined || val.termType !== "Literal" ||
+          val === undefined ||
+          val.termType !== "Literal" ||
           val.datatype?.value !== XSD_DATETIME
         ) {
           return undefined;
@@ -659,12 +625,7 @@ export class ExpressionEvaluator {
       }
       case "BNODE":
       case "bnode":
-        return this.bnode(
-          args,
-          binding,
-          aggregates,
-          context,
-        );
+        return this.bnode(args, binding, aggregates, context);
       case "struuid":
       case "STRUUID":
         return this.struuid();
@@ -697,17 +658,9 @@ export class ExpressionEvaluator {
           aggregates,
         );
       case "seconds":
-        return this.seconds(
-          arg(0),
-          binding,
-          aggregates,
-        );
+        return this.seconds(arg(0), binding, aggregates);
       case "timezone":
-        return this.timezone(
-          arg(0),
-          binding,
-          aggregates,
-        );
+        return this.timezone(arg(0), binding, aggregates);
       case "md5":
       case "sha1":
       case "sha256":
@@ -722,32 +675,13 @@ export class ExpressionEvaluator {
       case "triple":
         return this.triple(args, binding, aggregates);
       case "subject":
-        return this.tripleComponent(
-          "subject",
-          arg(0),
-          binding,
-          aggregates,
-        );
+        return this.tripleComponent("subject", arg(0), binding, aggregates);
       case "predicate":
-        return this.tripleComponent(
-          "predicate",
-          arg(0),
-          binding,
-          aggregates,
-        );
+        return this.tripleComponent("predicate", arg(0), binding, aggregates);
       case "object":
-        return this.tripleComponent(
-          "object",
-          arg(0),
-          binding,
-          aggregates,
-        );
+        return this.tripleComponent("object", arg(0), binding, aggregates);
       case "istriple":
-        return this.isTriple(
-          arg(0),
-          binding,
-          aggregates,
-        );
+        return this.isTriple(arg(0), binding, aggregates);
       case "datatype": {
         const val = this.evaluateWith(arg(0), binding, aggregates, context);
         if (val === undefined || val.termType !== "Literal") {
@@ -775,7 +709,8 @@ export class ExpressionEvaluator {
         //     direction both match (direction canonicalized to lowercase).
         const val = this.evaluateWith(args[0], binding, aggregates, context);
         if (
-          val === undefined || val.termType !== "Literal" ||
+          val === undefined ||
+          val.termType !== "Literal" ||
           val.language === ""
         ) {
           return booleanLiteral(false);
@@ -823,15 +758,20 @@ export class ExpressionEvaluator {
         const lang = this.evaluateWith(arg(1), binding, aggregates, context);
         const dir = this.evaluateWith(arg(2), binding, aggregates, context);
         if (
-          val === undefined || val.termType !== "Literal" ||
-          lang === undefined || lang.termType !== "Literal" ||
-          dir === undefined || dir.termType !== "Literal"
+          val === undefined ||
+          val.termType !== "Literal" ||
+          lang === undefined ||
+          lang.termType !== "Literal" ||
+          dir === undefined ||
+          dir.termType !== "Literal"
         ) {
           return undefined;
         }
         if (
-          !this.isStringTyped(val) || !this.isStringTyped(lang) ||
-          !this.isStringTyped(dir) || lang.value === ""
+          !this.isStringTyped(val) ||
+          !this.isStringTyped(lang) ||
+          !this.isStringTyped(dir) ||
+          lang.value === ""
         ) {
           return undefined;
         }
@@ -848,7 +788,8 @@ export class ExpressionEvaluator {
         // direction (datatype rdf:dirLangString); false otherwise.
         const val = this.evaluateWith(arg(0), binding, aggregates, context);
         return booleanLiteral(
-          val !== undefined && val.termType === "Literal" &&
+          val !== undefined &&
+            val.termType === "Literal" &&
             Boolean(val.direction),
         );
       }
@@ -869,9 +810,11 @@ export class ExpressionEvaluator {
   private valuesEqual(a: RdfTerm, b: RdfTerm): boolean {
     if (a.termType === "Quad" && b.termType === "Quad") {
       // RDFterm-equal recurses through triple terms on all three positions.
-      return this.valuesEqual(a.subject, b.subject) &&
+      return (
+        this.valuesEqual(a.subject, b.subject) &&
         this.valuesEqual(a.predicate, b.predicate) &&
-        this.valuesEqual(a.object, b.object);
+        this.valuesEqual(a.object, b.object)
+      );
     }
     if (a.termType === "Quad" || b.termType === "Quad") {
       return false;
@@ -900,9 +843,13 @@ export class ExpressionEvaluator {
       if (aLang || bLang) {
         // RDF 1.2: lang-tagged strings are the same term only when the value,
         // language tag, and base direction all match.
-        return aLang && bLang && a.value === b.value &&
+        return (
+          aLang &&
+          bLang &&
+          a.value === b.value &&
           a.language === b.language &&
-          (a.direction ?? "") === (b.direction ?? "");
+          (a.direction ?? "") === (b.direction ?? "")
+        );
       }
       return a.value === b.value;
     }
@@ -952,8 +899,10 @@ export class ExpressionEvaluator {
     const db = b.datatype?.value;
     if (
       operator !== "/" &&
-      da === XSD_INTEGER && db === XSD_INTEGER &&
-      typeof an === "bigint" && typeof bn === "bigint"
+      da === XSD_INTEGER &&
+      db === XSD_INTEGER &&
+      typeof an === "bigint" &&
+      typeof bn === "bigint"
     ) {
       let result: bigint;
       if (operator === "+") {
@@ -1010,10 +959,7 @@ export class ExpressionEvaluator {
     if (typeof numeric === "bigint") {
       return literal((-numeric).toString(), namedNode(XSD_INTEGER));
     }
-    return literal(
-      formatNumber(-numeric, datatype),
-      namedNode(datatype),
-    );
+    return literal(formatNumber(-numeric, datatype), namedNode(datatype));
   }
 
   /**
@@ -1049,8 +995,11 @@ export class ExpressionEvaluator {
 
   private isStringTyped(literalTerm: RdfLiteral): boolean {
     const datatype = literalTerm.datatype?.value;
-    return datatype === undefined || datatype === XSD_STRING ||
-      literalTerm.language !== undefined && literalTerm.language !== "";
+    return (
+      datatype === undefined ||
+      datatype === XSD_STRING ||
+      (literalTerm.language !== undefined && literalTerm.language !== "")
+    );
   }
 
   private isLangTagged(literalTerm: RdfLiteral): boolean {
@@ -1062,9 +1011,11 @@ export class ExpressionEvaluator {
   }
 
   private isSimpleLiteral(literalTerm: RdfLiteral): boolean {
-    return !this.isLangTagged(literalTerm) &&
+    return (
+      !this.isLangTagged(literalTerm) &&
       (literalTerm.datatype === undefined ||
-        literalTerm.datatype.value === XSD_STRING);
+        literalTerm.datatype.value === XSD_STRING)
+    );
   }
 
   /**
@@ -1096,14 +1047,16 @@ export class ExpressionEvaluator {
   ): RdfLiteral | undefined {
     const value = this.evaluateWith(expression, binding, aggregates, context);
     if (
-      value === undefined || value.termType !== "Literal" ||
+      value === undefined ||
+      value.termType !== "Literal" ||
       !this.isStringTyped(value)
     ) {
       return undefined;
     }
-    const transformed = operator === "ucase"
-      ? value.value.toUpperCase()
-      : value.value.toLowerCase();
+    const transformed =
+      operator === "ucase"
+        ? value.value.toUpperCase()
+        : value.value.toLowerCase();
     return this.stringResult(
       transformed,
       this.isLangTagged(value) ? value.language : undefined,
@@ -1129,7 +1082,8 @@ export class ExpressionEvaluator {
     for (const expression of expressions) {
       const value = this.evaluateWith(expression, binding, aggregates, context);
       if (
-        value === undefined || value.termType !== "Literal" ||
+        value === undefined ||
+        value.termType !== "Literal" ||
         !this.isStringTyped(value)
       ) {
         return undefined;
@@ -1184,12 +1138,15 @@ export class ExpressionEvaluator {
       aggregates,
       context,
     );
-    const lenTerm = expressions.length === 3
-      ? this.evaluateWith(expressions[2], binding, aggregates, context)
-      : undefined;
+    const lenTerm =
+      expressions.length === 3
+        ? this.evaluateWith(expressions[2], binding, aggregates, context)
+        : undefined;
     if (
-      str === undefined || startTerm === undefined ||
-      str.termType !== "Literal" || !this.isStringTyped(str)
+      str === undefined ||
+      startTerm === undefined ||
+      str.termType !== "Literal" ||
+      !this.isStringTyped(str)
     ) {
       return undefined;
     }
@@ -1204,9 +1161,10 @@ export class ExpressionEvaluator {
     const codePoints = Array.from(str.value);
     const end = length === null ? Number.POSITIVE_INFINITY : start + length;
     const from = Math.max(start, 1) - 1;
-    const to = end === Number.POSITIVE_INFINITY
-      ? codePoints.length
-      : Math.max(0, Math.floor(end) - 1);
+    const to =
+      end === Number.POSITIVE_INFINITY
+        ? codePoints.length
+        : Math.max(0, Math.floor(end) - 1);
     const sliced = to <= from ? "" : codePoints.slice(from, to).join("");
     return this.stringResult(
       sliced,
@@ -1241,7 +1199,8 @@ export class ExpressionEvaluator {
       return undefined;
     }
     if (
-      value.termType !== "Literal" || datatype.termType !== "NamedNode" ||
+      value.termType !== "Literal" ||
+      datatype.termType !== "NamedNode" ||
       !this.isSimpleLiteral(value)
     ) {
       return undefined;
@@ -1252,7 +1211,8 @@ export class ExpressionEvaluator {
     // with no direction would be ill-formed.
     const datatypeIri = datatype.value;
     if (
-      datatypeIri === RDF_LANG_STRING || datatypeIri === RDF_DIR_LANG_STRING
+      datatypeIri === RDF_LANG_STRING ||
+      datatypeIri === RDF_DIR_LANG_STRING
     ) {
       return undefined;
     }
@@ -1285,7 +1245,8 @@ export class ExpressionEvaluator {
       return undefined;
     }
     if (
-      value.termType !== "Literal" || !this.isStringTyped(value) ||
+      value.termType !== "Literal" ||
+      !this.isStringTyped(value) ||
       this.isLangTagged(value)
     ) {
       return undefined;
@@ -1313,11 +1274,12 @@ export class ExpressionEvaluator {
     context?: ExpressionEvaluationContext,
   ): RdfTerm | undefined {
     const fn = expression.function;
-    const fnIri = typeof fn === "string"
-      ? fn
-      : fn.termType === "NamedNode"
-      ? fn.value
-      : null;
+    const fnIri =
+      typeof fn === "string"
+        ? fn
+        : fn.termType === "NamedNode"
+          ? fn.value
+          : null;
     if (fnIri === null) {
       throw new Error(
         "Unsupported SPARQL expression: functionCall without an IRI function",
@@ -1329,7 +1291,7 @@ export class ExpressionEvaluator {
     const registered = this.functions[fnIri];
     if (registered !== undefined) {
       const args = expression.args.map((arg) =>
-        this.evaluateWith(arg, binding, aggregates, context)
+        this.evaluateWith(arg, binding, aggregates, context),
       );
       return registered(args);
     }
@@ -1385,9 +1347,7 @@ export class ExpressionEvaluator {
             context,
           );
         }
-        throw new Error(
-          `Unsupported SPARQL expression: functionCall ${fnIri}`,
-        );
+        throw new Error(`Unsupported SPARQL expression: functionCall ${fnIri}`);
       }
     }
   }
@@ -1464,9 +1424,7 @@ export class ExpressionEvaluator {
    * constructorDouble implements xsd:double(x), producing the canonical
    * XPath double lexical form ("5.0E0", "1.0E3", "INF").
    */
-  private constructorDouble(
-    term: RdfTerm | undefined,
-  ): RdfLiteral | undefined {
+  private constructorDouble(term: RdfTerm | undefined): RdfLiteral | undefined {
     if (term === undefined || term.termType !== "Literal") {
       return undefined;
     }
@@ -1495,9 +1453,7 @@ export class ExpressionEvaluator {
    * constructorFloat implements xsd:float(x): the numeric value in its
    * Number string form tagged as xsd:float.
    */
-  private constructorFloat(
-    term: RdfTerm | undefined,
-  ): RdfLiteral | undefined {
+  private constructorFloat(term: RdfTerm | undefined): RdfLiteral | undefined {
     if (term === undefined || term.termType !== "Literal") {
       return undefined;
     }
@@ -1526,9 +1482,7 @@ export class ExpressionEvaluator {
    * constructorString implements xsd:string(x): the lexical form of any
    * literal, IRI, or blank node re-tagged as xsd:string.
    */
-  private constructorString(
-    term: RdfTerm | undefined,
-  ): RdfLiteral | undefined {
+  private constructorString(term: RdfTerm | undefined): RdfLiteral | undefined {
     if (term === undefined) {
       return undefined;
     }
@@ -1691,7 +1645,8 @@ export class ExpressionEvaluator {
   ): RdfLiteral | undefined {
     const value = this.evaluateWith(expression, binding, aggregates, context);
     if (
-      value === undefined || value.termType !== "Literal" ||
+      value === undefined ||
+      value.termType !== "Literal" ||
       !this.isStringTyped(value)
     ) {
       return undefined;
@@ -1759,10 +1714,14 @@ export class ExpressionEvaluator {
       result,
       index === -1
         ? undefined
-        : (this.isLangTagged(value) ? value.language : undefined),
+        : this.isLangTagged(value)
+          ? value.language
+          : undefined,
       index === -1
         ? undefined
-        : (this.isLangTagged(value) ? (value.direction ?? "") : undefined),
+        : this.isLangTagged(value)
+          ? (value.direction ?? "")
+          : undefined,
     );
   }
 
@@ -1821,7 +1780,8 @@ export class ExpressionEvaluator {
     const pattern = this.stringTerm(args[1], binding, aggregates, context);
     const replacement = this.stringTerm(args[2], binding, aggregates, context);
     if (
-      value === undefined || pattern === undefined ||
+      value === undefined ||
+      pattern === undefined ||
       replacement === undefined
     ) {
       return undefined;
@@ -1883,7 +1843,9 @@ export class ExpressionEvaluator {
     }
     const tagValue = tag.value.toLowerCase();
     const rangeValue = range.value.toLowerCase();
-    const matches = rangeValue === "*" || tagValue === rangeValue ||
+    const matches =
+      rangeValue === "*" ||
+      tagValue === rangeValue ||
       tagValue.startsWith(`${rangeValue}-`);
     return booleanLiteral(matches);
   }
@@ -2109,7 +2071,8 @@ export class ExpressionEvaluator {
   ): RdfLiteral | undefined {
     const value = this.evaluateWith(expression, binding, aggregates, context);
     if (
-      value === undefined || value.termType !== "Literal" ||
+      value === undefined ||
+      value.termType !== "Literal" ||
       value.datatype?.value !== XSD_DATETIME
     ) {
       return undefined;
@@ -2153,7 +2116,8 @@ export class ExpressionEvaluator {
   ): RdfLiteral | undefined {
     const value = this.evaluateWith(expression, binding, aggregates, context);
     if (
-      value === undefined || value.termType !== "Literal" ||
+      value === undefined ||
+      value.termType !== "Literal" ||
       value.datatype?.value !== XSD_DATETIME
     ) {
       return undefined;
@@ -2181,7 +2145,8 @@ export class ExpressionEvaluator {
   ): RdfLiteral | undefined {
     const value = this.evaluateWith(expression, binding, aggregates, context);
     if (
-      value === undefined || value.termType !== "Literal" ||
+      value === undefined ||
+      value.termType !== "Literal" ||
       value.datatype?.value !== XSD_DATETIME
     ) {
       return undefined;
@@ -2246,7 +2211,9 @@ export class ExpressionEvaluator {
     const predicate = this.evaluateWith(args[1], binding, aggregates, context);
     const object = this.evaluateWith(args[2], binding, aggregates, context);
     if (
-      subject === undefined || predicate === undefined || object === undefined
+      subject === undefined ||
+      predicate === undefined ||
+      object === undefined
     ) {
       return undefined;
     }
@@ -2254,7 +2221,8 @@ export class ExpressionEvaluator {
     const predicateArm = narrowQuadPredicate(predicate);
     const objectArm = narrowQuadObject(object);
     if (
-      subjectArm === undefined || predicateArm === undefined ||
+      subjectArm === undefined ||
+      predicateArm === undefined ||
       objectArm === undefined
     ) {
       return undefined;

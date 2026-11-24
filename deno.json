@@ -12,11 +12,7 @@
     "./serialize": "./src/serialize/mod.ts"
   },
   "publish": {
-    "include": [
-      "src/",
-      "README.md",
-      "LICENSE"
-    ],
+    "include": ["src/", "README.md", "LICENSE"],
     "exclude": [
       "src/**/*.test.ts",
       "src/**/*.jison",

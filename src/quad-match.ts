@@ -16,9 +16,7 @@ import type { Term as SparqlTerm } from "@/parser/sparql-parser.ts";
  * that snapshot the store (the EXISTS synchronous index) must then rebuild
  * the snapshot per query.
  */
-export function storeVersion(
-  store: RdfSource<RdfQuad>,
-): number | null {
+export function storeVersion(store: RdfSource<RdfQuad>): number | null {
   const version = (store as { version?: unknown }).version;
   return typeof version === "number" ? version : null;
 }
@@ -50,7 +48,8 @@ function isSimplePredicate(
   predicate: TriplePredicate,
 ): predicate is SparqlTerm {
   return (
-    typeof predicate === "object" && predicate !== null &&
+    typeof predicate === "object" &&
+    predicate !== null &&
     "termType" in predicate
   );
 }

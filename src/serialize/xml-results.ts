@@ -77,11 +77,7 @@ export function serializeXmlResults(response: SparqlResponse): string {
  * their datatype; triple terms nest a subject/predicate/object wrapper, each
  * holding a term element — the SPARQL 1.2 triple-term results encoding.
  */
-function pushTerm(
-  out: string[],
-  value: SparqlValue,
-  indent: number,
-): void {
+function pushTerm(out: string[], value: SparqlValue, indent: number): void {
   const pad = " ".repeat(indent);
   switch (value.type) {
     case "uri":
@@ -103,8 +99,7 @@ function pushTerm(
       out.push(
         `${pad}<literal${
           attributes.length > 0 ? " " + attributes.join(" ") : ""
-        }>` +
-          `${escapeText(value.value)}</literal>`,
+        }>` + `${escapeText(value.value)}</literal>`,
       );
       break;
     }
@@ -134,10 +129,10 @@ function pushTriplePart(
 
 /** escapeText XML-escapes text content (&, <, >). */
 function escapeText(text: string): string {
-  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(
-    />/g,
-    "&gt;",
-  );
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
 }
 
 /** escapeAttr XML-escapes an attribute value (&, <, >, ", '). */

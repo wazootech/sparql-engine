@@ -57,10 +57,10 @@ function parseTestCase(
 
   const isQueryEval = types.includes(TYPE_QUERY_EVAL);
   const isUpdateEval = types.includes(TYPE_UPDATE_EVAL);
-  const negativeSyntax = types.includes(TYPE_NEG_SYNTAX) ||
-    types.includes(TYPE_NEG_SYNTAX_LEGACY);
-  const positiveSyntax = types.includes(TYPE_POS_SYNTAX) ||
-    types.includes(TYPE_POS_SYNTAX_LEGACY);
+  const negativeSyntax =
+    types.includes(TYPE_NEG_SYNTAX) || types.includes(TYPE_NEG_SYNTAX_LEGACY);
+  const positiveSyntax =
+    types.includes(TYPE_POS_SYNTAX) || types.includes(TYPE_POS_SYNTAX_LEGACY);
 
   // NegativeSyntaxTest11 and PositiveSyntaxTest11 entries are query syntax tests;
   // treat them as query-kind tests.
@@ -68,16 +68,25 @@ function parseTestCase(
     return null;
   }
 
-  const nameQuad =
-    store.getQuads(subject, rdfjsNamedNode(MF_NAME), null, null)[0];
+  const nameQuad = store.getQuads(
+    subject,
+    rdfjsNamedNode(MF_NAME),
+    null,
+    null,
+  )[0];
   const name = nameQuad ? nameQuad.object.value : subject.value;
 
-  const localId = subject.termType === "NamedNode"
-    ? subject.value.split(/[#/]/).pop() ?? subject.value
-    : name;
+  const localId =
+    subject.termType === "NamedNode"
+      ? (subject.value.split(/[#/]/).pop() ?? subject.value)
+      : name;
 
-  const resultQuad =
-    store.getQuads(subject, rdfjsNamedNode(MF_RESULT), null, null)[0];
+  const resultQuad = store.getQuads(
+    subject,
+    rdfjsNamedNode(MF_RESULT),
+    null,
+    null,
+  )[0];
   let resultFile: string | null = null;
   if (resultQuad) {
     const result = resultQuad.object;
@@ -131,7 +140,9 @@ function parseTestCase(
   // Query evaluation tests: the action is either a blank node with qt:query /
   // qt:data / qt:graphData, or (for NegativeSyntaxTest11) the query file IRI.
   if (
-    action && action.termType === "NamedNode" && action.value.endsWith(".rq")
+    action &&
+    action.termType === "NamedNode" &&
+    action.value.endsWith(".rq")
   ) {
     return {
       id: `${category}:${localId}`,
@@ -148,7 +159,9 @@ function parseTestCase(
   // Negative-update-syntax entries: the action is a .ru request file directly;
   // both engines must reject it, so it runs through the update path.
   if (
-    action && action.termType === "NamedNode" && action.value.endsWith(".ru")
+    action &&
+    action.termType === "NamedNode" &&
+    action.value.endsWith(".ru")
   ) {
     return {
       id: `${category}:${localId}`,
@@ -230,14 +243,12 @@ export function loadManifest(
     }
     seenManifests.add(mkey);
 
-    for (
-      const include of store.getQuads(
-        manifest,
-        rdfjsNamedNode(MF_INCLUDE),
-        null,
-        null,
-      )
-    ) {
+    for (const include of store.getQuads(
+      manifest,
+      rdfjsNamedNode(MF_INCLUDE),
+      null,
+      null,
+    )) {
       if (
         include.object.termType === "BlankNode" ||
         include.object.termType === "NamedNode"
@@ -247,17 +258,19 @@ export function loadManifest(
         queue.push(include.object);
       }
     }
-    for (
-      const entries of store.getQuads(
-        manifest,
-        rdfjsNamedNode(MF_ENTRIES),
-        null,
-        null,
-      )
-    ) {
+    for (const entries of store.getQuads(
+      manifest,
+      rdfjsNamedNode(MF_ENTRIES),
+      null,
+      null,
+    )) {
       for (const entry of listTerms(store, entries.object)) {
-        const action =
-          store.getQuads(entry, rdfjsNamedNode(MF_ACTION), null, null)[0];
+        const action = store.getQuads(
+          entry,
+          rdfjsNamedNode(MF_ACTION),
+          null,
+          null,
+        )[0];
         const testCase = parseTestCase(
           store,
           categoryDir,

@@ -168,9 +168,7 @@ export function graphTermFromDescriptor(
 }
 
 /** resolveGraphScope returns the active graph term for store scans. */
-export function resolveGraphScope(
-  store: RdfSource<RdfQuad>,
-): RdfQuadGraph {
+export function resolveGraphScope(store: RdfSource<RdfQuad>): RdfQuadGraph {
   if (storeKindOf(store) === "graph-scoped") {
     const scoped = asGraphScopedStore(store);
     return graphTermFromDescriptor(scoped.graphTermType, scoped.graphValue);

@@ -35,9 +35,7 @@ interface GraphImports {
 
 /** stripComments removes whole-line and block comments so prose is not scanned. */
 function stripComments(source: string): string {
-  return source
-    .replace(/\/\*[\s\S]*?\*\//g, "")
-    .replace(/^\s*\/\/.*$/gm, "");
+  return source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
 }
 
 /** valueSpecifiers lists the specifiers a file loads at runtime (type-only imports are erased). */
@@ -96,12 +94,11 @@ function assertPurity(
   expectedNode: string[],
 ): void {
   const nodeImports = [
-    ...new Set(
-      specifiers.filter((specifier) => specifier.startsWith("node:")),
-    ),
+    ...new Set(specifiers.filter((specifier) => specifier.startsWith("node:"))),
   ].sort();
-  const foreign = specifiers.filter((specifier) =>
-    !specifier.startsWith("node:") && !TYPE_ONLY_ALLOWED.includes(specifier)
+  const foreign = specifiers.filter(
+    (specifier) =>
+      !specifier.startsWith("node:") && !TYPE_ONLY_ALLOWED.includes(specifier),
   );
 
   const expected = [...expectedNode].sort();

@@ -116,91 +116,78 @@ test("PatternStatistics - no hook falls back to the candidates scan", async () =
   });
 });
 
-test(
-  "PatternStatistics - fallback agrees with the hook on identical data",
-  async () => {
-    const plain = seedStore(10);
-    const candidates = candidatesFor(plain);
+test("PatternStatistics - fallback agrees with the hook on identical data", async () => {
+  const plain = seedStore(10);
+  const candidates = candidatesFor(plain);
 
-    // The hook answers with the exact numbers the fallback derives.
-    const hooked = statsStore(
-      seedStore(10),
-      () => fallbackStats(entry(candidates)),
-    );
-    const fromHook = await new PatternStatistics(hooked).statsFor(
-      hooked,
-      entry(candidates),
-    );
-    const fromFallback = await new PatternStatistics(plain).statsFor(
-      plain,
-      entry(candidates),
-    );
-    assert.deepStrictEqual(fromHook, fromFallback);
-  },
-);
+  // The hook answers with the exact numbers the fallback derives.
+  const hooked = statsStore(seedStore(10), () =>
+    fallbackStats(entry(candidates)),
+  );
+  const fromHook = await new PatternStatistics(hooked).statsFor(
+    hooked,
+    entry(candidates),
+  );
+  const fromFallback = await new PatternStatistics(plain).statsFor(
+    plain,
+    entry(candidates),
+  );
+  assert.deepStrictEqual(fromHook, fromFallback);
+});
 
-test(
-  "PatternStatistics - a hook returning undefined selects the fallback",
-  async () => {
-    const store = seedStore(10);
-    const hooked = statsStore(store, () => undefined);
-    const stats = await new PatternStatistics(hooked).statsFor(
-      hooked,
-      entry(candidatesFor(hooked)),
-    );
-    assert.deepStrictEqual(stats.candidates, 10);
-    assert.deepStrictEqual(stats.distinctByVar.o, 10);
-  },
-);
+test("PatternStatistics - a hook returning undefined selects the fallback", async () => {
+  const store = seedStore(10);
+  const hooked = statsStore(store, () => undefined);
+  const stats = await new PatternStatistics(hooked).statsFor(
+    hooked,
+    entry(candidatesFor(hooked)),
+  );
+  assert.deepStrictEqual(stats.candidates, 10);
+  assert.deepStrictEqual(stats.distinctByVar.o, 10);
+});
 
-test(
-  "PatternStatistics - named-graph scope never consults the hook",
-  async () => {
-    const store = seedStore(5);
-    const hooked = statsStore(store, () => {
-      throw new Error("hook must not be consulted in a named scope");
-    });
-    const source = new PatternStatistics(hooked);
-    const graph = namedNode("http://example.org/g");
-    const scoped = new GraphScopedStore(hooked, graph);
-    const stats = await source.statsFor(
-      scoped,
-      entry(
-        collectMatch(scoped as unknown as Parameters<typeof collectMatch>[0]),
-      ),
-    );
-    // The scoped candidates are empty (all data is in the default graph),
-    // so the exact fallback reports zero candidates — never the hook.
-    assert.deepStrictEqual(stats, { candidates: 0, distinctByVar: {} });
-  },
-);
+test("PatternStatistics - named-graph scope never consults the hook", async () => {
+  const store = seedStore(5);
+  const hooked = statsStore(store, () => {
+    throw new Error("hook must not be consulted in a named scope");
+  });
+  const source = new PatternStatistics(hooked);
+  const graph = namedNode("http://example.org/g");
+  const scoped = new GraphScopedStore(hooked, graph);
+  const stats = await source.statsFor(
+    scoped,
+    entry(
+      collectMatch(scoped as unknown as Parameters<typeof collectMatch>[0]),
+    ),
+  );
+  // The scoped candidates are empty (all data is in the default graph),
+  // so the exact fallback reports zero candidates — never the hook.
+  assert.deepStrictEqual(stats, { candidates: 0, distinctByVar: {} });
+});
 
-test(
-  "PatternStatistics - default-graph scope sees through the GraphScopedStore view",
-  async () => {
-    const store = seedStore(5);
-    let calls = 0;
-    const hooked = statsStore(store, () => {
-      calls += 1;
-      return { candidates: 5, distinctByVar: { x: 5, o: 5 } };
-    });
-    const source = new PatternStatistics(hooked);
-    // The default-scope view wraps the raw store; the hook must be visible
-    // through it (mirroring version forwarding).
-    const scoped = new GraphScopedStore(hooked, defaultGraph());
-    const stats = await source.statsFor(
-      scoped,
-      entry(
-        collectMatch(scoped as unknown as Parameters<typeof collectMatch>[0]),
-      ),
-    );
-    assert.deepStrictEqual(stats, {
-      candidates: 5,
-      distinctByVar: { x: 5, o: 5 },
-    });
-    assert.deepStrictEqual(calls, 1);
-  },
-);
+test("PatternStatistics - default-graph scope sees through the GraphScopedStore view", async () => {
+  const store = seedStore(5);
+  let calls = 0;
+  const hooked = statsStore(store, () => {
+    calls += 1;
+    return { candidates: 5, distinctByVar: { x: 5, o: 5 } };
+  });
+  const source = new PatternStatistics(hooked);
+  // The default-scope view wraps the raw store; the hook must be visible
+  // through it (mirroring version forwarding).
+  const scoped = new GraphScopedStore(hooked, defaultGraph());
+  const stats = await source.statsFor(
+    scoped,
+    entry(
+      collectMatch(scoped as unknown as Parameters<typeof collectMatch>[0]),
+    ),
+  );
+  assert.deepStrictEqual(stats, {
+    candidates: 5,
+    distinctByVar: { x: 5, o: 5 },
+  });
+  assert.deepStrictEqual(calls, 1);
+});
 
 test("fallbackStats - bounded sample stays deterministic for large scans", () => {
   // 4x the cap: the stride samples every 4th candidate, so the distinct
@@ -217,22 +204,19 @@ test("fallbackStats - zero candidates reports empty stats", () => {
   assert.deepStrictEqual(stats, { candidates: 0, distinctByVar: {} });
 });
 
-test(
-  "WazooSparqlEngine - a stats-providing store feeds the estimator without changing results",
-  async () => {
-    const store = seedStore(10);
-    const hooked = statsStore(
-      store,
-      () => ({ candidates: 10, distinctByVar: { x: 10, o: 10 } }),
-    );
-    const engine = new WazooSparqlEngine({ store: hooked });
-    const query =
-      "SELECT ?x ?o WHERE { ?x <http://example.org/p> ?o . ?x ?p ?o }";
-    const withHook = await engine.execute({ query });
-    const withoutHook = await new WazooSparqlEngine({
-      store: seedStore(10),
-    }).execute({ query });
-    assert.deepStrictEqual(withHook, withoutHook);
-    assert.deepStrictEqual(withHook.kind, "select");
-  },
-);
+test("WazooSparqlEngine - a stats-providing store feeds the estimator without changing results", async () => {
+  const store = seedStore(10);
+  const hooked = statsStore(store, () => ({
+    candidates: 10,
+    distinctByVar: { x: 10, o: 10 },
+  }));
+  const engine = new WazooSparqlEngine({ store: hooked });
+  const query =
+    "SELECT ?x ?o WHERE { ?x <http://example.org/p> ?o . ?x ?p ?o }";
+  const withHook = await engine.execute({ query });
+  const withoutHook = await new WazooSparqlEngine({
+    store: seedStore(10),
+  }).execute({ query });
+  assert.deepStrictEqual(withHook, withoutHook);
+  assert.deepStrictEqual(withHook.kind, "select");
+});

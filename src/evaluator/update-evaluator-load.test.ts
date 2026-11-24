@@ -121,12 +121,14 @@ test("UpdateEvaluator - LOAD preserves directional literals and keeps directions
 
   await engine.execute({ query: `LOAD <file://${file.replace(/\\/g, "/")}>` });
 
-  const labels = store.getQuads(
-    namedNode("http://ex/a"),
-    namedNode("http://ex/label"),
-    null,
-    null,
-  ).map((q) => q.object as rdfjs.Literal);
+  const labels = store
+    .getQuads(
+      namedNode("http://ex/a"),
+      namedNode("http://ex/label"),
+      null,
+      null,
+    )
+    .map((q) => q.object as rdfjs.Literal);
   assert.deepStrictEqual(labels.length, 3);
   const dirs = labels.map((l) => l.direction ?? "").sort();
   assert.deepStrictEqual(dirs, ["", "ltr", "rtl"]);

@@ -162,15 +162,13 @@ async function compareResult(
       if (varsMismatch !== null) {
         return varsMismatch;
       }
-      const wazooBindings = wazooResult.data.results.bindings.map(
-        (binding) => {
-          const canonical: Record<string, CanonicalTerm> = {};
-          for (const name of Object.keys(binding)) {
-            canonical[name] = canonicalizeSparqlValue(binding[name]);
-          }
-          return canonicalBindingRecord(canonical);
-        },
-      );
+      const wazooBindings = wazooResult.data.results.bindings.map((binding) => {
+        const canonical: Record<string, CanonicalTerm> = {};
+        for (const name of Object.keys(binding)) {
+          canonical[name] = canonicalizeSparqlValue(binding[name]);
+        }
+        return canonicalBindingRecord(canonical);
+      });
       return testCase.orderSensitive === true
         ? compareOrdered(comunicaBindings, wazooBindings, "SELECT bindings")
         : compareMultisets(comunicaBindings, wazooBindings, "SELECT bindings");

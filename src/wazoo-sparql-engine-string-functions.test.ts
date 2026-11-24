@@ -30,7 +30,8 @@ test("WazooSparqlEngine - UCASE and LCASE preserve language tags", async () => {
   const engine = new WazooSparqlEngine({ store });
 
   const result = await engine.execute({
-    query: "SELECT ?person (UCASE(?name) AS ?upper) (LCASE(?name) AS ?lower) " +
+    query:
+      "SELECT ?person (UCASE(?name) AS ?upper) (LCASE(?name) AS ?lower) " +
       "WHERE { ?person <http://xmlns.com/foaf/0.1/name> ?name }",
   });
 
@@ -90,7 +91,8 @@ test("WazooSparqlEngine - CONCAT type error leaves the projection unbound", asyn
   const engine = new WazooSparqlEngine({ store });
 
   const result = await engine.execute({
-    query: 'SELECT (CONCAT(?age, "!") AS ?c) ' +
+    query:
+      'SELECT (CONCAT(?age, "!") AS ?c) ' +
       "WHERE { <http://example.org/alice> <http://xmlns.com/foaf/0.1/age> ?age }",
   });
 
@@ -113,7 +115,8 @@ test("WazooSparqlEngine - XSD value constructors produce canonical forms", async
   const engine = new WazooSparqlEngine({ store });
 
   const result = await engine.execute({
-    query: 'SELECT (xsd:integer("42") AS ?i) (xsd:double("5") AS ?d) ' +
+    query:
+      'SELECT (xsd:integer("42") AS ?i) (xsd:double("5") AS ?d) ' +
       "(xsd:boolean(1) AS ?b) (xsd:decimal(3.5) AS ?dec) " +
       "(xsd:integer(28) AS ?fromNum) (xsd:double(true) AS ?fromBool) " +
       "WHERE { <http://example.org/alice> <http://xmlns.com/foaf/0.1/name> ?name }",
@@ -168,7 +171,8 @@ test("WazooSparqlEngine - STRDT and STRLANG re-tag literals", async () => {
   const engine = new WazooSparqlEngine({ store });
 
   const result = await engine.execute({
-    query: 'SELECT (STRDT("x", <http://example.org/t>) AS ?t) ' +
+    query:
+      'SELECT (STRDT("x", <http://example.org/t>) AS ?t) ' +
       '(STRLANG("hello", "en") AS ?sl) ' +
       "WHERE { <http://example.org/alice> <http://xmlns.com/foaf/0.1/name> ?name }",
   });
@@ -203,7 +207,8 @@ test("WazooSparqlEngine - unknown function call raises a clear error", async () 
   await rejected(
     () =>
       engine.execute({
-        query: "SELECT (<http://example.org/custom>(?name) AS ?c) " +
+        query:
+          "SELECT (<http://example.org/custom>(?name) AS ?c) " +
           "WHERE { <http://example.org/alice> <http://xmlns.com/foaf/0.1/name> ?name }",
       }),
     Error,
@@ -311,8 +316,6 @@ test("WazooSparqlEngine - GROUP_CONCAT joins values with the separator", async (
       'SELECT (GROUP_CONCAT(?o; SEPARATOR = "--") AS ?gc) ' +
         "WHERE { VALUES ?o { 1 2 3 } }",
     ),
-    [
-      '{"gc":"1--2--3^^string"}',
-    ],
+    ['{"gc":"1--2--3^^string"}'],
   );
 });

@@ -145,24 +145,20 @@ function fmtBytes(bytes: number): string {
 }
 
 function esc(text: string): string {
-  return text.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(
-    ">",
-    "&gt;",
-  );
+  return text
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
 }
 
-function renderNode(
-  node: Placed,
-  depth: number,
-  parts: string[],
-): void {
+function renderNode(node: Placed, depth: number, parts: string[]): void {
   const { x, y, w, h } = node.rect;
   if (node.panel !== undefined) {
     parts.push(
       `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" ` +
-        `height="${
-          h.toFixed(1)
-        }" fill="#f1f3f5" stroke="#dee2e6" stroke-width="1"/>`,
+        `height="${h.toFixed(
+          1,
+        )}" fill="#f1f3f5" stroke="#dee2e6" stroke-width="1"/>`,
     );
     parts.push(
       `<text x="${(x + 6).toFixed(1)}" y="${(y + 16).toFixed(1)}" ` +
@@ -176,9 +172,9 @@ function renderNode(
   }
   parts.push(
     `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" ` +
-      `height="${
-        h.toFixed(1)
-      }" fill="${node.color}" stroke="#ffffff" stroke-width="1"/>`,
+      `height="${h.toFixed(
+        1,
+      )}" fill="${node.color}" stroke="#ffffff" stroke-width="1"/>`,
   );
   const label = `${node.name} (${node.valueText})`;
   const fits = w > label.length * 5.5 && h > 12;
@@ -276,9 +272,9 @@ function sizeChart(): void {
     parts.push(
       `<text x="${padL + barW}" y="${(y + barH / 2 + 3).toFixed(1)}" ` +
         `text-anchor="end" font-family="sans-serif" font-size="10" fill="#212529">` +
-        `${esc(entry.label)} — ${
-          fmtBytes(entry.bytes)
-        } (${share}% of total)</text>`,
+        `${esc(entry.label)} — ${fmtBytes(
+          entry.bytes,
+        )} (${share}% of total)</text>`,
     );
   });
   parts.push("</svg>");
@@ -413,14 +409,16 @@ function submoduleTree(): Placed[] {
       valueText: fmtBytes(item.bytes),
     };
   });
-  return [{
-    name: `Full engine — ${fmtBytes(full.bytes)}`,
-    rect: outer,
-    color: "#f1f3f5",
-    valueText: "",
-    panel: `@wazoo/sparql-engine (full) — ${fmtBytes(full.bytes)}`,
-    children,
-  }];
+  return [
+    {
+      name: `Full engine — ${fmtBytes(full.bytes)}`,
+      rect: outer,
+      color: "#f1f3f5",
+      valueText: "",
+      panel: `@wazoo/sparql-engine (full) — ${fmtBytes(full.bytes)}`,
+      children,
+    },
+  ];
 }
 
 /* ------------------------------------------------------------------ */
@@ -481,9 +479,9 @@ function closuresChart(): boolean {
     parts.push(
       `<text x="${padL + barW}" y="${(y + barH / 2 + 3).toFixed(1)}" ` +
         `text-anchor="end" font-family="sans-serif" font-size="10" fill="#212529">` +
-        `${esc(entry.label)} — ${
-          fmtBytes(entry.bytes)
-        } (${entry.files.length} files)</text>`,
+        `${esc(entry.label)} — ${fmtBytes(
+          entry.bytes,
+        )} (${entry.files.length} files)</text>`,
     );
   });
   parts.push("</svg>");

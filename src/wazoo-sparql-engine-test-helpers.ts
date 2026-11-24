@@ -35,9 +35,10 @@ export async function aggregateRows(engine: WazooSparqlEngine, query: string) {
     const rec: Record<string, string> = {};
     for (const key of Object.keys(b)) {
       const value = b[key];
-      rec[key] = value.type === "literal"
-        ? `${value.value}^^${value.datatype ?? "string"}`
-        : (value as { value: string }).value;
+      rec[key] =
+        value.type === "literal"
+          ? `${value.value}^^${value.datatype ?? "string"}`
+          : (value as { value: string }).value;
     }
     return JSON.stringify(rec);
   });
@@ -70,9 +71,9 @@ export async function pathBindings(engine: WazooSparqlEngine, query: string) {
   if (result.kind !== "select") {
     return [];
   }
-  return result.data.results.bindings.map((b) =>
-    `${b.x ? b.x.value : "?"}->${b.y ? b.y.value : "?"}`
-  ).sort();
+  return result.data.results.bindings
+    .map((b) => `${b.x ? b.x.value : "?"}->${b.y ? b.y.value : "?"}`)
+    .sort();
 }
 
 export const XSD = "http://www.w3.org/2001/XMLSchema#";
@@ -85,9 +86,12 @@ export async function bindValue(
   engine: WazooSparqlEngine,
   query: string,
   variable: string,
-): Promise<
-  { type: string; value: string; datatype?: string; lang?: string } | null
-> {
+): Promise<{
+  type: string;
+  value: string;
+  datatype?: string;
+  lang?: string;
+} | null> {
   const result = await engine.execute({ query });
   if (result.kind !== "select") {
     throw new Error(`expected select, got ${result.kind}`);
@@ -100,9 +104,10 @@ export async function bindValue(
   const out: { type: string; value: string; datatype?: string; lang?: string } =
     {
       type: value.type,
-      value: typeof value.value === "string"
-        ? value.value
-        : JSON.stringify(value.value),
+      value:
+        typeof value.value === "string"
+          ? value.value
+          : JSON.stringify(value.value),
     };
   if (value.type === "literal") {
     if (value.datatype !== undefined) {

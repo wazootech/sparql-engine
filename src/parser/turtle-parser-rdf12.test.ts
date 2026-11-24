@@ -25,8 +25,8 @@ test("turtle-parser: reified triple inside an annotation block gets its own reif
   assert.deepStrictEqual(quads.length, 4);
   const reifies = quads.filter((q) => q.predicate.value === RDF_REIFIES);
   assert.deepStrictEqual(reifies.length, 2);
-  const nested = reifies.find((q) =>
-    (q.object as rdfjs.Quad).subject.value === "http://ex/s1"
+  const nested = reifies.find(
+    (q) => (q.object as rdfjs.Quad).subject.value === "http://ex/s1",
   );
   assert.notDeepStrictEqual(nested, undefined);
   assert.deepStrictEqual(
@@ -128,9 +128,7 @@ test("turtle-parser: accepts well-formed language tags", () => {
     ["x-foo", "x-foo", "", RDF_LANG_STRING],
   ];
   for (const [tag, language, direction, datatype] of cases) {
-    const quads = parseTurtleQuads(
-      `<http://a> <http://b> "hello"@${tag} .`,
-    );
+    const quads = parseTurtleQuads(`<http://a> <http://b> "hello"@${tag} .`);
     const lit = quads[0].object as rdfjs.Literal;
     assert.deepStrictEqual(lit.language, language);
     assert.deepStrictEqual(lit.direction, direction);
@@ -192,9 +190,7 @@ test("turtle-parser: collections and blank-node property lists nest (#210)", () 
   const rdf = (local: string) =>
     namedNode(`http://www.w3.org/1999/02/22-rdf-syntax-ns#${local}`);
   // W3C Turtle: blankNodePropertyList_containing_collection.ttl
-  const containing = parseTurtleQuads(
-    `[ <http://a.example/p1> (1) ] .`,
-  );
+  const containing = parseTurtleQuads(`[ <http://a.example/p1> (1) ] .`);
   const b0 = blankNode("b0");
   const l0 = blankNode("l0");
   const one = literal(

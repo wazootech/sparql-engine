@@ -65,9 +65,7 @@ test("turtle-writer: typed, language, and plain literals serialize distinctly", 
 });
 
 test("turtle-writer: RDF 1.2 triple terms round-trip", () => {
-  const quads = [
-    quad(ex("s"), ex("p"), quad(ex("a"), ex("b"), ex("c"))),
-  ];
+  const quads = [quad(ex("s"), ex("p"), quad(ex("a"), ex("b"), ex("c")))];
   roundTrip(quads);
 });
 
@@ -107,9 +105,7 @@ test("turtle-writer: N-Quads round-trips graph labels", () => {
 });
 
 test("turtle-writer: N-Triples round-trips and rejects named graphs", () => {
-  const quads = [
-    quad(ex("s"), ex("p"), literal("v")),
-  ];
+  const quads = [quad(ex("s"), ex("p"), literal("v"))];
   const text = roundTrip(quads, { format: "n-triples" });
   assert.deepStrictEqual(
     text,

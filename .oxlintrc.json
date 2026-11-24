@@ -1,10 +1,6 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": [
-    "typescript",
-    "unicorn",
-    "oxc"
-  ],
+  "plugins": ["typescript", "unicorn", "oxc"],
   "categories": {
     "correctness": "error"
   },
@@ -27,5 +23,13 @@
     "playground/app.js",
     "src/parser/parser*.ts",
     "src/parser/turtle-generated.ts"
+  ],
+  "overrides": [
+    {
+      "files": ["src/parser/turtle-context.ts"],
+      "rules": {
+        "no-control-regex": "off"
+      }
+    }
   ]
 }

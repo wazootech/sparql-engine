@@ -14,8 +14,10 @@ export function expressionContainsExists(expression: Expression): boolean {
     return true;
   }
   if (expression.type === "membership") {
-    return expressionContainsExists(expression.subject) ||
-      expression.candidates.some(expressionContainsExists);
+    return (
+      expressionContainsExists(expression.subject) ||
+      expression.candidates.some(expressionContainsExists)
+    );
   }
   if (expression.type === "operation") {
     // Narrows the argument union to its expression arm once: scriptc has no
@@ -63,8 +65,10 @@ export function expressionContainsAggregate(
     return false;
   }
   if (expression.type === "membership") {
-    return expressionContainsAggregate(expression.subject) ||
-      expression.candidates.some(expressionContainsAggregate);
+    return (
+      expressionContainsAggregate(expression.subject) ||
+      expression.candidates.some(expressionContainsAggregate)
+    );
   }
   if (expression.type === "operation") {
     // Narrows the argument union to its expression arm once: scriptc has no

@@ -55,19 +55,24 @@ export function joinTriplePattern(
 
   const candidateQuads = entry.candidates;
 
-  const needsIndex = prebuiltIndex != null
-    ? false
-    : currentBindings.some((binding) =>
-      (subjectIsVariable && binding[getQueryVarName(subject)] !== undefined) ||
-      (predicateIsVariable &&
-        binding[getQueryVarName(predicate)] !== undefined) ||
-      (objectIsVariable && binding[getQueryVarName(object)] !== undefined)
-    );
-  const quadIndex = prebuiltIndex != null
-    ? prebuiltIndex
-    : needsIndex
-    ? buildQuadIndex(candidateQuads)
-    : null;
+  const needsIndex =
+    prebuiltIndex != null
+      ? false
+      : currentBindings.some(
+          (binding) =>
+            (subjectIsVariable &&
+              binding[getQueryVarName(subject)] !== undefined) ||
+            (predicateIsVariable &&
+              binding[getQueryVarName(predicate)] !== undefined) ||
+            (objectIsVariable &&
+              binding[getQueryVarName(object)] !== undefined),
+        );
+  const quadIndex =
+    prebuiltIndex != null
+      ? prebuiltIndex
+      : needsIndex
+        ? buildQuadIndex(candidateQuads)
+        : null;
 
   const nextBindings: TermBinding[] = [];
 
@@ -81,16 +86,20 @@ export function joinTriplePattern(
     const resolvedPredicate = resolveTerm(predicate, binding);
     const resolvedObject = resolveTerm(object, binding);
 
-    const matchingQuads = quadIndex === null ? candidateQuads : probeQuadIndex(
-      quadIndex,
-      candidateQuads,
-      resolvedSubject,
-      resolvedPredicate,
-      resolvedObject,
-    );
-    const scopedQuads = graphScope === undefined || graphScope === null
-      ? matchingQuads
-      : matchingQuads.filter((item) => sameRdfTerm(item.graph, graphScope));
+    const matchingQuads =
+      quadIndex === null
+        ? candidateQuads
+        : probeQuadIndex(
+            quadIndex,
+            candidateQuads,
+            resolvedSubject,
+            resolvedPredicate,
+            resolvedObject,
+          );
+    const scopedQuads =
+      graphScope === undefined || graphScope === null
+        ? matchingQuads
+        : matchingQuads.filter((item) => sameRdfTerm(item.graph, graphScope));
 
     for (let quadIndex2 = 0; quadIndex2 < scopedQuads.length; quadIndex2++) {
       const matchQuad = scopedQuads[quadIndex2];
@@ -100,10 +109,7 @@ export function joinTriplePattern(
       if (subjectIsVariable) {
         const varName = getQueryVarName(subject);
         const val = matchQuad.subject;
-        if (
-          newBinding[varName] &&
-          !sameRdfTerm(newBinding[varName], val)
-        ) {
+        if (newBinding[varName] && !sameRdfTerm(newBinding[varName], val)) {
           valid = false;
         } else {
           newBinding[varName] = val;
@@ -113,10 +119,7 @@ export function joinTriplePattern(
       if (valid && predicateIsVariable) {
         const varName = getQueryVarName(predicate);
         const val = matchQuad.predicate;
-        if (
-          newBinding[varName] &&
-          !sameRdfTerm(newBinding[varName], val)
-        ) {
+        if (newBinding[varName] && !sameRdfTerm(newBinding[varName], val)) {
           valid = false;
         } else {
           newBinding[varName] = val;
@@ -126,10 +129,7 @@ export function joinTriplePattern(
       if (valid && objectIsVariable) {
         const varName = getQueryVarName(object);
         const val = matchQuad.object;
-        if (
-          newBinding[varName] &&
-          !sameRdfTerm(newBinding[varName], val)
-        ) {
+        if (newBinding[varName] && !sameRdfTerm(newBinding[varName], val)) {
           valid = false;
         } else {
           newBinding[varName] = val;

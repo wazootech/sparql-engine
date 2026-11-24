@@ -118,8 +118,8 @@ function parseGraphReference(
   const quads: rdfjs.Quad[] = parser.parse(fixtureText(testCase, file));
   return quads.map((quad) =>
     [quad.subject, quad.predicate, quad.object, quad.graph].map((term) =>
-      canonicalizeRdfTerm(term)
-    )
+      canonicalizeRdfTerm(term),
+    ),
   );
 }
 
@@ -130,15 +130,17 @@ function wazooSelectRecords(result: SparqlResponse): CanonicalTerm[][] {
     for (const name of Object.keys(binding)) {
       record[name] = canonicalizeSparqlValue(binding[name]);
     }
-    return Object.keys(record).sort().map((name) => record[name]);
+    return Object.keys(record)
+      .sort()
+      .map((name) => record[name]);
   });
 }
 
 function wazooQuadRecords(quads: rdfjs.Quad[]): CanonicalTerm[][] {
   return quads.map((quad) =>
     [quad.subject, quad.predicate, quad.object, quad.graph].map((term) =>
-      canonicalizeRdfTerm(term)
-    )
+      canonicalizeRdfTerm(term),
+    ),
   );
 }
 
@@ -196,9 +198,8 @@ async function evaluate(testCase: W3cTestCase): Promise<Verdict> {
   // SPARQL XML results (.srx) and their JSON siblings (.srj) encode the same
   // expected bindings — the W3C suite ships both serializations for one
   // test — so route XML results through the JSON reader.
-  const compareFile = kind === "srx"
-    ? resultFile?.replace(/\.srx$/, ".srj")
-    : resultFile;
+  const compareFile =
+    kind === "srx" ? resultFile?.replace(/\.srx$/, ".srj") : resultFile;
   const compareKind = kind === "srx" ? "srj" : kind;
 
   if (!compareFile) {
@@ -264,8 +265,7 @@ async function evaluate(testCase: W3cTestCase): Promise<Verdict> {
   }
   return {
     status: "error",
-    detail:
-      `unexpected wazoo result kind ${wazoo.result.kind} for ${kind} result`,
+    detail: `unexpected wazoo result kind ${wazoo.result.kind} for ${kind} result`,
   };
 }
 

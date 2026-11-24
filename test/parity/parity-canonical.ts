@@ -84,9 +84,7 @@ export function extractSelectVars(query: string): string[] | null {
   for (const variable of ast.variables) {
     if (typeof variable === "string") {
       vars.push(variable);
-    } else if (
-      "termType" in variable && variable.termType === "Variable"
-    ) {
+    } else if ("termType" in variable && variable.termType === "Variable") {
       vars.push(variable.value);
     } else {
       return null;

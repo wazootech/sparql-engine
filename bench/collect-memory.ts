@@ -35,10 +35,9 @@ for (const engine of ENGINES) {
       external: probe.peak.external,
     };
     console.error(
-      `${engine}/${workload}: peak heap ${
-        (probe.peak.heapUsed / 1048576).toFixed(1)
-      } MiB, ` +
-        `rss ${(probe.peak.rss / 1048576).toFixed(1)} MiB`,
+      `${engine}/${workload}: peak heap ${(
+        probe.peak.heapUsed / 1048576
+      ).toFixed(1)} MiB, ` + `rss ${(probe.peak.rss / 1048576).toFixed(1)} MiB`,
     );
   }
 }
@@ -47,8 +46,7 @@ const data = {
   generatedAt: new Date().toISOString(),
   runs: 5,
   dataset: "10,000-person graph (~55,000 quads)",
-  measurement:
-    `isolated ${runtimeName} subprocess per engine, process.memoryUsage() peak after each run`,
+  measurement: `isolated ${runtimeName} subprocess per engine, process.memoryUsage() peak after each run`,
   engines,
 };
 writeFileSync(

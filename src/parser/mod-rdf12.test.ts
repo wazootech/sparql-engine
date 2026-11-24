@@ -6,7 +6,7 @@ import { parseBgpTriples } from "@/parser/mod-test-helpers.ts";
 
 test("parser: unknown bare function names still rejected", () => {
   thrown(() =>
-    new Parser().parse('SELECT ?x WHERE { BIND(foo("hello") AS ?x) }')
+    new Parser().parse('SELECT ?x WHERE { BIND(foo("hello") AS ?x) }'),
   );
 });
 
@@ -23,9 +23,7 @@ test("parser: AST is a drop-in for upstream sparqljs", () => {
 });
 
 test("parser: reifier and annotation after an object expand to reifies + annotation triples", () => {
-  const triples = parseBgpTriples(
-    "SELECT * { ?s ?p ?o ~ :iri {| :r ?Z |} . }",
-  );
+  const triples = parseBgpTriples("SELECT * { ?s ?p ?o ~ :iri {| :r ?Z |} . }");
   assert.deepStrictEqual(triples.length, 3);
   const [base, reifies, ann] = triples;
   assert.deepStrictEqual(base.subject.value, "s");
@@ -42,9 +40,7 @@ test("parser: reifier and annotation after an object expand to reifies + annotat
 });
 
 test("parser: reifier-only object (no annotation block)", () => {
-  const triples = parseBgpTriples(
-    "SELECT * { ?s ?p ?o ~ :iri . }",
-  );
+  const triples = parseBgpTriples("SELECT * { ?s ?p ?o ~ :iri . }");
   assert.deepStrictEqual(triples.length, 2);
   const [, reifies] = triples;
   assert.deepStrictEqual(reifies.subject.value, "http://example.com/ns#iri");
@@ -99,30 +95,26 @@ test("parser: subject-position annotation blocks are rejected per the SPARQL 1.2
   // Annotations attach to objects (Object ::= GraphNode Annotation); a quoted
   // triple subject takes a plain property list (ReifiedTripleBlock).
   thrown(() =>
-    new Parser({ sparqlStar: true, prefixes: { "": "http://example.com/ns#" } })
-      .parse(
-        "SELECT * { << :s :p :o >> {| :a :b |} }",
-      )
+    new Parser({
+      sparqlStar: true,
+      prefixes: { "": "http://example.com/ns#" },
+    }).parse("SELECT * { << :s :p :o >> {| :a :b |} }"),
   );
-  new Parser({ sparqlStar: true, prefixes: { "": "http://example.com/ns#" } })
-    .parse(
-      "SELECT * { << :s :p :o >> :p2 :o2 }",
-    );
+  new Parser({
+    sparqlStar: true,
+    prefixes: { "": "http://example.com/ns#" },
+  }).parse("SELECT * { << :s :p :o >> :p2 :o2 }");
 });
 
 test("parser: CONSTRUCT and INSERT templates accept reifiers", () => {
   const construct = new Parser({
     sparqlStar: true,
     prefixes: { "": "http://example.com/ns#" },
-  }).parse(
-    "CONSTRUCT { ?s ?p ?o ~ :iri {| :source ?g |} } WHERE { ?s ?p ?o }",
-  );
+  }).parse("CONSTRUCT { ?s ?p ?o ~ :iri {| :source ?g |} } WHERE { ?s ?p ?o }");
   assert.deepStrictEqual(construct.type, "query");
   const insert = new Parser({
     sparqlStar: true,
     prefixes: { "": "http://example.com/ns#" },
-  }).parse(
-    "INSERT DATA { :s :p :o ~ :iri {| :a :b |} }",
-  );
+  }).parse("INSERT DATA { :s :p :o ~ :iri {| :a :b |} }");
   assert.deepStrictEqual(insert.type, "update");
 });

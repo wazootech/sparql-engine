@@ -13,7 +13,8 @@ const { namedNode, blankNode, literal, quad, defaultGraph } = DataFactory;
  */
 function referenceQuadKey(item: RdfQuad): string {
   return [item.subject, item.predicate, item.object, item.graph]
-    .map(termKey).join("|");
+    .map(termKey)
+    .join("|");
 }
 
 /**
@@ -36,12 +37,14 @@ class ReferenceStore {
     graph?: RdfTerm | null,
   ): string[] {
     const wanted = [subject, predicate, object, graph];
-    return [...this.quads.values()].filter((item) =>
-      [item.subject, item.predicate, item.object, item.graph].every(
-        (term, index) =>
-          wanted[index] == null || termKey(term) === termKey(wanted[index]),
+    return [...this.quads.values()]
+      .filter((item) =>
+        [item.subject, item.predicate, item.object, item.graph].every(
+          (term, index) =>
+            wanted[index] == null || termKey(term) === termKey(wanted[index]),
+        ),
       )
-    ).map(referenceQuadKey);
+      .map(referenceQuadKey);
   }
 }
 
@@ -82,10 +85,9 @@ function corpus(): RdfQuad[] {
 
 function assertSame(store: MemoryStore, reference: ReferenceStore): void {
   assert.deepStrictEqual(store.size, reference.quads.size);
-  assert.deepStrictEqual(
-    store.getQuads().map(referenceQuadKey),
-    [...reference.quads.keys()],
-  );
+  assert.deepStrictEqual(store.getQuads().map(referenceQuadKey), [
+    ...reference.quads.keys(),
+  ]);
   const probes: (RdfTerm | null)[][] = [
     [subjects[0], null, null, null],
     [subjects[1], null, null, null],

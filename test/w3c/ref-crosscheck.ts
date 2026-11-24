@@ -68,10 +68,12 @@ function strictFormat(rel: string): string {
   return "text/turtle";
 }
 
-type Verdict = { kind: "accept"; quads: number } | {
-  kind: "reject";
-  why: string;
-};
+type Verdict =
+  | { kind: "accept"; quads: number }
+  | {
+      kind: "reject";
+      why: string;
+    };
 
 function verdictOf(run: () => unknown[]): Verdict {
   try {
@@ -94,17 +96,21 @@ function n3(
   baseIRI: string,
   star: boolean,
 ): Verdict {
-  return verdictOf(() =>
-    new N3Parser({ format: `${mediaType}${star ? "*" : ""}`, baseIRI } as never)
-      .parse(text) as unknown[]
+  return verdictOf(
+    () =>
+      new N3Parser({
+        format: `${mediaType}${star ? "*" : ""}`,
+        baseIRI,
+      } as never).parse(text) as unknown[],
   );
 }
 
 /** Strip trailing N-Quads graph names (` <g>.`) so TriG can express the content. */
 function stripGraphNames(text: string): string {
-  return text.split("\n").map((line) =>
-    line.replace(/^(.*?) <([^<>]*)> \.$/, "$1 .")
-  ).join("\n");
+  return text
+    .split("\n")
+    .map((line) => line.replace(/^(.*?) <([^<>]*)> \.$/, "$1 ."))
+    .join("\n");
 }
 
 interface Row {
@@ -130,7 +136,8 @@ for (const manifest of MANIFESTS) {
     const wazoo = verdictOf(() => parseTurtleQuads(text, c.actionUrl));
     const oxiSup = oxi(text, supersetFormat(c.action), c.actionUrl);
     const n3Len = n3(text, strictFormat(c.action), c.actionUrl, true);
-    let endorsed = wazoo.kind === "accept" &&
+    let endorsed =
+      wazoo.kind === "accept" &&
       (n3Len.kind === "accept" || oxiSup.kind === "accept");
     if (!endorsed && c.action.endsWith(".nq")) {
       const stripped = oxi(stripGraphNames(text), "text/turtle", c.actionUrl);
@@ -151,7 +158,8 @@ for (const manifest of MANIFESTS) {
   }
 }
 
-const fmt = (v: Verdict): string => v.kind === "accept" ? `A(${v.quads})` : `R`;
+const fmt = (v: Verdict): string =>
+  v.kind === "accept" ? `A(${v.quads})` : `R`;
 
 console.log(
   "case | wazoo | oxi-superset | oxi-strict | n3-lenient | n3-strict | endorsed",
@@ -165,8 +173,8 @@ for (const r of rows) {
 }
 
 const unendorsed = rows.filter((r) => !r.endorsed);
-const n3Crashed = rows.filter((r) =>
-  r.n3Len.kind === "reject" && r.n3Len.why.includes("termType")
+const n3Crashed = rows.filter(
+  (r) => r.n3Len.kind === "reject" && r.n3Len.why.includes("termType"),
 );
 
 console.log(`\n${rows.length} allowlisted case(s) cross-checked.`);

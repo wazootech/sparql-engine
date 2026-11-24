@@ -59,11 +59,9 @@ function scanHoisted(): void {
       installed.set(entry.name, join(NODE_MODULES, entry.name));
       continue;
     }
-    for (
-      const scoped of readdirSync(join(NODE_MODULES, entry.name), {
-        withFileTypes: true,
-      })
-    ) {
+    for (const scoped of readdirSync(join(NODE_MODULES, entry.name), {
+      withFileTypes: true,
+    })) {
       installed.set(
         `${entry.name}/${scoped.name}`,
         join(NODE_MODULES, entry.name, scoped.name),
@@ -86,9 +84,8 @@ function scanInstalled(): void {
     }
     const key = entry.name.slice(0, at);
     const version = entry.name.slice(at + 1);
-    const name = key.includes("+") && key.startsWith("@")
-      ? key.replace("+", "/")
-      : key;
+    const name =
+      key.includes("+") && key.startsWith("@") ? key.replace("+", "/") : key;
     const dir = join(DENO_DIR, entry.name, "node_modules", name);
     if (!dir.startsWith(DENO_DIR)) {
       continue;
@@ -132,18 +129,14 @@ function comunicaArtifact(): Sized {
       return;
     }
     self.set(name, dirBytes(dir));
-    const pkg = JSON.parse(
-      readFileSync(join(dir, "package.json"), "utf8"),
-    ) as {
+    const pkg = JSON.parse(readFileSync(join(dir, "package.json"), "utf8")) as {
       dependencies?: Record<string, string>;
       optionalDependencies?: Record<string, string>;
     };
-    for (
-      const dep of [
-        ...Object.keys(pkg.dependencies ?? {}),
-        ...Object.keys(pkg.optionalDependencies ?? {}),
-      ]
-    ) {
+    for (const dep of [
+      ...Object.keys(pkg.dependencies ?? {}),
+      ...Object.keys(pkg.optionalDependencies ?? {}),
+    ]) {
       collect(dep);
     }
   };
@@ -164,9 +157,7 @@ function comunicaArtifact(): Sized {
     if (dir === undefined) {
       continue;
     }
-    const pkg = JSON.parse(
-      readFileSync(join(dir, "package.json"), "utf8"),
-    ) as {
+    const pkg = JSON.parse(readFileSync(join(dir, "package.json"), "utf8")) as {
       dependencies?: Record<string, string>;
       optionalDependencies?: Record<string, string>;
     };
@@ -210,9 +201,7 @@ function comunicaArtifact(): Sized {
  * deno.json) — build-time grammar sources and unreachable Node-only code.
  * Paths are relative to src/ (the walk below starts at src/). */
 const ARTIFACT_EXCLUDED_SUFFIXES = [".test.ts", ".jison"];
-const ARTIFACT_EXCLUDED_FILES = [
-  "parser/generate-parser.ts",
-];
+const ARTIFACT_EXCLUDED_FILES = ["parser/generate-parser.ts"];
 
 function isExcluded(relPath: string): boolean {
   if (ARTIFACT_EXCLUDED_FILES.includes(relPath)) {

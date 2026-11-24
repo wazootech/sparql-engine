@@ -55,8 +55,7 @@ function divergenceReason(id: string): string | null {
 }
 
 type Verdict =
-  | { status: "pass" }
-  | { status: "gap"; detail: string; allowlisted: boolean };
+  { status: "pass" } | { status: "gap"; detail: string; allowlisted: boolean };
 
 interface Row {
   id: string;
@@ -131,8 +130,7 @@ function evaluate(testCase: RdfSyntaxCase): Verdict {
     }
     return {
       status: "gap",
-      detail:
-        `eval mismatch: wazoo ${quads.length} quads vs reference ${reference.length} quads`,
+      detail: `eval mismatch: wazoo ${quads.length} quads vs reference ${reference.length} quads`,
       allowlisted: false,
     };
   }
@@ -161,11 +159,11 @@ if (import.meta.main) {
 
   const pass = rows.filter((r) => r.verdict.status === "pass").length;
   const gaps = rows.filter((r) => r.verdict.status === "gap");
-  const allowlisted = gaps.filter((r) =>
-    r.verdict.status === "gap" && r.verdict.allowlisted
+  const allowlisted = gaps.filter(
+    (r) => r.verdict.status === "gap" && r.verdict.allowlisted,
   );
-  const realGaps = gaps.filter((r) =>
-    r.verdict.status === "gap" && !r.verdict.allowlisted
+  const realGaps = gaps.filter(
+    (r) => r.verdict.status === "gap" && !r.verdict.allowlisted,
   );
 
   console.log("\n=== RDF 1.2 manifest classifier ===");
@@ -175,9 +173,10 @@ if (import.meta.main) {
   console.log(`allowlisted:${allowlisted.length}`);
 
   for (const r of gaps) {
-    const tag = r.verdict.status === "gap" && r.verdict.allowlisted
-      ? "ALLOWLISTED"
-      : "GAP";
+    const tag =
+      r.verdict.status === "gap" && r.verdict.allowlisted
+        ? "ALLOWLISTED"
+        : "GAP";
     console.log(`\n[${tag}] ${r.id} (${r.format}, ${r.kind})`);
     if (r.verdict.status === "gap") console.log(`  ${r.verdict.detail}`);
   }

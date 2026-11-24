@@ -48,24 +48,31 @@ export function serializeTurtle(
   }
 
   if (format === "n-quads") {
-    return quadArray
-      .map((q) =>
-        `${term(q.subject)} ${term(q.predicate)} ${term(q.object)}` +
-        `${q.graph.termType === "DefaultGraph" ? "" : ` ${term(q.graph)}`} .`
-      )
-      .join("\n") + "\n";
+    return (
+      quadArray
+        .map(
+          (q) =>
+            `${term(q.subject)} ${term(q.predicate)} ${term(q.object)}` +
+            `${q.graph.termType === "DefaultGraph" ? "" : ` ${term(q.graph)}`} .`,
+        )
+        .join("\n") + "\n"
+    );
   }
 
   if (format === "n-triples") {
-    return quadArray.map((q) => {
-      if (q.graph.termType !== "DefaultGraph") {
-        throw new Error(
-          "N-Triples cannot serialize quads with a named graph " +
-            `(${term(q.graph)}); use Turtle or N-Quads for graph data.`,
-        );
-      }
-      return `${term(q.subject)} ${term(q.predicate)} ${term(q.object)} .`;
-    }).join("\n") + "\n";
+    return (
+      quadArray
+        .map((q) => {
+          if (q.graph.termType !== "DefaultGraph") {
+            throw new Error(
+              "N-Triples cannot serialize quads with a named graph " +
+                `(${term(q.graph)}); use Turtle or N-Quads for graph data.`,
+            );
+          }
+          return `${term(q.subject)} ${term(q.predicate)} ${term(q.object)} .`;
+        })
+        .join("\n") + "\n"
+    );
   }
 
   // Turtle / TriG.

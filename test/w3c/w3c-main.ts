@@ -83,7 +83,12 @@ function printReport(
     console.log("\n--- parity gaps (wazoo disagrees with comunica) ---");
     for (const gap of report.gapDetails) {
       console.log(`\n[${gap.id}] ${gap.name}`);
-      console.log(gap.detail.split("\n").map((line) => `  ${line}`).join("\n"));
+      console.log(
+        gap.detail
+          .split("\n")
+          .map((line) => `  ${line}`)
+          .join("\n"),
+      );
     }
   }
   if (report.errorDetails.length > 0) {
@@ -93,21 +98,19 @@ function printReport(
     }
   }
   if (report.conformance.length > 0) {
-    const conforms = report.conformance.filter((c) =>
-      c.wazoo === "conforms" && c.comunica === "conforms"
+    const conforms = report.conformance.filter(
+      (c) => c.wazoo === "conforms" && c.comunica === "conforms",
     ).length;
-    const wazooConforms = report.conformance.filter((c) =>
-      c.wazoo === "conforms"
+    const wazooConforms = report.conformance.filter(
+      (c) => c.wazoo === "conforms",
     ).length;
-    const wazooDeviations = report.conformance.filter((c) =>
-      c.wazoo === "deviates"
+    const wazooDeviations = report.conformance.filter(
+      (c) => c.wazoo === "deviates",
     ).length;
-    const comunicaDeviations = report.conformance.filter((c) =>
-      c.comunica === "deviates"
+    const comunicaDeviations = report.conformance.filter(
+      (c) => c.comunica === "deviates",
     ).length;
-    console.log(
-      "\n--- conformance soft-report (parseable results only) ---",
-    );
+    console.log("\n--- conformance soft-report (parseable results only) ---");
     console.log(
       `checked: ${report.conformance.length} | wazoo conforms: ${wazooConforms}/${report.conformance.length} | both conform: ${conforms} | ` +
         `wazoo deviates: ${wazooDeviations} | comunica deviates: ` +

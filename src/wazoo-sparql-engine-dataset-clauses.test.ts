@@ -75,7 +75,8 @@ test("WazooSparqlEngine - FROM scopes the default graph", async () => {
   const engine = new WazooSparqlEngine({ store });
 
   const fromG1 = await engine.execute({
-    query: `SELECT ?s ?o FROM <http://example.org/g1> ` +
+    query:
+      `SELECT ?s ?o FROM <http://example.org/g1> ` +
       `WHERE { ?s <http://example.org/p> ?o } ORDER BY ?s`,
   });
   assert.deepStrictEqual(fromG1.kind, "select");
@@ -97,7 +98,8 @@ test("WazooSparqlEngine - FROM scopes the default graph", async () => {
   }
 
   const missing = await engine.execute({
-    query: `SELECT ?s ?o FROM <http://example.org/none> ` +
+    query:
+      `SELECT ?s ?o FROM <http://example.org/none> ` +
       `WHERE { ?s <http://example.org/p> ?o }`,
   });
   assert.deepStrictEqual(missing.kind, "select");
@@ -106,8 +108,7 @@ test("WazooSparqlEngine - FROM scopes the default graph", async () => {
   }
 
   const ask = await engine.execute({
-    query:
-      `ASK FROM <http://example.org/g1> WHERE { ?s <http://example.org/p> ?o }`,
+    query: `ASK FROM <http://example.org/g1> WHERE { ?s <http://example.org/p> ?o }`,
   });
   assert.deepStrictEqual(ask.kind, "ask");
   if (ask.kind === "ask") {
@@ -123,7 +124,8 @@ test("WazooSparqlEngine - FROM NAMED restricts GRAPH enumeration", async () => {
   const engine = new WazooSparqlEngine({ store });
 
   const graphs = await engine.execute({
-    query: `SELECT ?g FROM NAMED <http://example.org/g1> ` +
+    query:
+      `SELECT ?g FROM NAMED <http://example.org/g1> ` +
       `WHERE { GRAPH ?g { ?s ?p ?o } }`,
   });
   assert.deepStrictEqual(graphs.kind, "select");
@@ -134,7 +136,8 @@ test("WazooSparqlEngine - FROM NAMED restricts GRAPH enumeration", async () => {
 
   // FROM without FROM NAMED leaves no named graphs.
   const none = await engine.execute({
-    query: `SELECT ?g FROM <http://example.org/g1> ` +
+    query:
+      `SELECT ?g FROM <http://example.org/g1> ` +
       `WHERE { GRAPH ?g { ?s ?p ?o } }`,
   });
   assert.deepStrictEqual(none.kind, "select");
@@ -155,8 +158,7 @@ test("WazooSparqlEngine - SERVICE pattern single-endpoint fallback", async () =>
   const engine = new WazooSparqlEngine({ store });
 
   const result = await engine.execute({
-    query:
-      `SELECT ?name WHERE { SERVICE <http://example.org/sparql> { ?person <http://xmlns.com/foaf/0.1/name> ?name } }`,
+    query: `SELECT ?name WHERE { SERVICE <http://example.org/sparql> { ?person <http://xmlns.com/foaf/0.1/name> ?name } }`,
   });
 
   assert.deepStrictEqual(result.kind, "select");

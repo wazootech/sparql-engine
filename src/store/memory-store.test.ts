@@ -13,9 +13,7 @@ const knows = ex("knows");
 const graphA = ex("g/a");
 const graphB = ex("g/b");
 
-function collect(
-  stream: rdfjs.Stream<rdfjs.Quad>,
-): Promise<rdfjs.Quad[]> {
+function collect(stream: rdfjs.Stream<rdfjs.Quad>): Promise<rdfjs.Quad[]> {
   return new Promise((resolve, reject) => {
     const out: rdfjs.Quad[] = [];
     stream.on("data", (q: rdfjs.Quad) => out.push(q));
@@ -55,14 +53,8 @@ test("MemoryStore - 4-argument addQuad matches the quad form", () => {
   store.addQuad(alice, knows, ex("bob"), graphB);
   store.addQuad(alice, knows, ex("bob"));
   assert.deepStrictEqual(store.size, 3);
-  assert.deepStrictEqual(
-    store.countQuads(alice, knows, ex("bob"), graphA),
-    1,
-  );
-  assert.deepStrictEqual(
-    store.countQuads(alice, knows, ex("bob"), graphB),
-    1,
-  );
+  assert.deepStrictEqual(store.countQuads(alice, knows, ex("bob"), graphA), 1);
+  assert.deepStrictEqual(store.countQuads(alice, knows, ex("bob"), graphB), 1);
   // No graph filter spans all graphs; an explicit default graph is exact.
   assert.deepStrictEqual(store.countQuads(alice, knows, ex("bob")), 3);
   assert.deepStrictEqual(

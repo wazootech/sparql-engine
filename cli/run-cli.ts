@@ -14,8 +14,7 @@ import { serializeTurtle } from "@/serialize/turtle-writer.ts";
 /**
  * CLI_USAGE is the help text printed for --help and argument errors.
  */
-export const CLI_USAGE =
-  `Usage: sparql [--data <file>]... (--query <text> | --query-file <file>)
+export const CLI_USAGE = `Usage: sparql [--data <file>]... (--query <text> | --query-file <file>)
 
 Loads Turtle, TriG, N-Triples, or N-Quads files into an in-memory store and
 runs one SPARQL query or update against them.
@@ -85,8 +84,8 @@ export async function runCli(
         store.addQuad(quad);
       }
     }
-    const query = parsed.query ??
-      await host.readTextFile(parsed.queryPath as string);
+    const query =
+      parsed.query ?? (await host.readTextFile(parsed.queryPath as string));
 
     const engine = new WazooSparqlEngine({ store });
     const response = await engine.execute({

@@ -298,7 +298,8 @@ test("WazooSparqlEngine - GRAPH scopes patterns to a named graph", async () => {
   const engine = new WazooSparqlEngine({ store });
 
   const scoped = await engine.execute({
-    query: "SELECT ?s ?n WHERE { GRAPH <http://example.org/g1> { " +
+    query:
+      "SELECT ?s ?n WHERE { GRAPH <http://example.org/g1> { " +
       "?s <http://xmlns.com/foaf/0.1/name> ?n } } ORDER BY ?n",
   });
   assert.deepStrictEqual(scoped.kind, "select");

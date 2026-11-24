@@ -40,18 +40,14 @@ export function aggregateSamples(
     raw[target.name] = {};
     for (const workload of WORKLOADS) {
       raw[target.name][workload.name] = summarize(
-        Array.from(
-          { length: options.runs },
-          (_, round) => sampleAt(round, workload.name, target.name),
+        Array.from({ length: options.runs }, (_, round) =>
+          sampleAt(round, workload.name, target.name),
         ),
       );
     }
   }
 
-  const operationValues = (
-    target: string,
-    operation: Operation,
-  ): number[] =>
+  const operationValues = (target: string, operation: Operation): number[] =>
     Array.from({ length: options.runs }, (_, round) => {
       const value = sampleAt(round, operation.workload, target);
       const subtrahend = operation.subtrahend
@@ -86,14 +82,15 @@ export function aggregateSamples(
         // point the stage is smaller than the drift the round removes.
         .filter((pair) => pair.baseline > 0 && pair.target > 0)
         .map((pair) => pair.baseline / pair.target);
-      ratios[target.name][operation.name] = paired.length > 0
-        ? summarize(paired)
-        : {
-          median: Number.NaN,
-          lowerQuartile: Number.NaN,
-          upperQuartile: Number.NaN,
-          minimum: Number.NaN,
-        };
+      ratios[target.name][operation.name] =
+        paired.length > 0
+          ? summarize(paired)
+          : {
+              median: Number.NaN,
+              lowerQuartile: Number.NaN,
+              upperQuartile: Number.NaN,
+              minimum: Number.NaN,
+            };
     }
   }
 

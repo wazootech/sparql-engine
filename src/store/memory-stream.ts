@@ -65,7 +65,8 @@ export class MemoryStream implements RdfStream<RdfQuad> {
     if (eventName === "readable" && !this._ended && this.quads.length > 0) {
       queueMicrotask(() => {
         if (
-          !this._ended && this.quads.length > 0 &&
+          !this._ended &&
+          this.quads.length > 0 &&
           this.listenerCount("readable") > 0
         ) {
           this.emit("readable");
@@ -75,7 +76,9 @@ export class MemoryStream implements RdfStream<RdfQuad> {
     if (eventName === "end" && !this._ended) {
       queueMicrotask(() => {
         if (
-          !this._ended && !this._flowing && !this._readStarted &&
+          !this._ended &&
+          !this._flowing &&
+          !this._readStarted &&
           this.listenerCount("data") === 0 &&
           this.listenerCount("readable") === 0
         ) {

@@ -142,7 +142,8 @@ test("UpdateEvaluator - DELETE/INSERT through the transaction buffers deletes an
   });
 
   const result = await engine.execute({
-    query: "DELETE { ?s <http://example.org/p> ?o } " +
+    query:
+      "DELETE { ?s <http://example.org/p> ?o } " +
       "INSERT { ?s <http://example.org/q> ?o } " +
       "WHERE { ?s <http://example.org/p> ?o }",
   });
@@ -200,10 +201,7 @@ test("UpdateEvaluator - LOAD merges the document dataset, preserving named graph
 
   // default graph triples and the TriG named graph are both merged in.
   assert.deepStrictEqual(store.countQuads(null, null, null, null), 2);
-  assert.deepStrictEqual(
-    store.countQuads(null, null, null, defaultGraph()),
-    1,
-  );
+  assert.deepStrictEqual(store.countQuads(null, null, null, defaultGraph()), 1);
   assert.deepStrictEqual(
     store.countQuads(null, null, null, namedNode("http://example.org/g")),
     1,
@@ -222,9 +220,10 @@ test("UpdateEvaluator - LOAD INTO GRAPH maps the default graph into the destinat
   );
 
   await engine.execute({
-    query: `LOAD <file://${
-      file.replace(/\\/g, "/")
-    }> INTO GRAPH <http://example.org/dest>`,
+    query: `LOAD <file://${file.replace(
+      /\\/g,
+      "/",
+    )}> INTO GRAPH <http://example.org/dest>`,
   });
 
   assert.deepStrictEqual(
@@ -247,9 +246,10 @@ test("UpdateEvaluator - LOAD INTO GRAPH rejects documents that contain named gra
   await rejected(
     () =>
       engine.execute({
-        query: `LOAD <file://${
-          file.replace(/\\/g, "/")
-        }> INTO GRAPH <http://example.org/dest>`,
+        query: `LOAD <file://${file.replace(
+          /\\/g,
+          "/",
+        )}> INTO GRAPH <http://example.org/dest>`,
       }),
     Error,
   );

@@ -45,9 +45,12 @@ export function pathStepsSync(
         for (const item of path.items) {
           const next: RdfTerm[] = [];
           for (const node of current) {
-            for (
-              const target of pathStepsSync(candidates, item, "forward", node)
-            ) {
+            for (const target of pathStepsSync(
+              candidates,
+              item,
+              "forward",
+              node,
+            )) {
               next.push(target);
             }
           }
@@ -63,14 +66,12 @@ export function pathStepsSync(
         const item = path.items[i];
         const next: RdfTerm[] = [];
         for (const node of current) {
-          for (
-            const source of pathStepsSync(
-              candidates,
-              item,
-              "backward",
-              node,
-            )
-          ) {
+          for (const source of pathStepsSync(
+            candidates,
+            item,
+            "backward",
+            node,
+          )) {
             next.push(source);
           }
         }
@@ -87,9 +88,7 @@ export function pathStepsSync(
       // are concatenated, not deduplicated.
       const results: RdfTerm[] = [];
       for (const item of path.items) {
-        for (
-          const target of pathStepsSync(candidates, item, direction, term)
-        ) {
+        for (const target of pathStepsSync(candidates, item, direction, term)) {
           results.push(target);
         }
       }
@@ -98,14 +97,12 @@ export function pathStepsSync(
     case "?": {
       // Zero-or-one: the anchor itself plus the inner path's targets.
       const results: RdfTerm[] = [term];
-      for (
-        const target of pathStepsSync(
-          candidates,
-          path.items[0],
-          direction,
-          term,
-        )
-      ) {
+      for (const target of pathStepsSync(
+        candidates,
+        path.items[0],
+        direction,
+        term,
+      )) {
         if (!sameRdfTerm(target, term)) {
           results.push(target);
         }
@@ -119,14 +116,12 @@ export function pathStepsSync(
       const queue: RdfTerm[] = [term];
       while (queue.length > 0) {
         const current = queue.shift()!;
-        for (
-          const target of pathStepsSync(
-            candidates,
-            path.items[0],
-            direction,
-            current,
-          )
-        ) {
+        for (const target of pathStepsSync(
+          candidates,
+          path.items[0],
+          direction,
+          current,
+        )) {
           const key = termKey(target);
           if (!visited.has(key)) {
             visited.add(key);
@@ -149,14 +144,12 @@ export function pathStepsSync(
       let startEmitted = false;
       while (queue.length > 0) {
         const current = queue.shift()!;
-        for (
-          const target of pathStepsSync(
-            candidates,
-            path.items[0],
-            direction,
-            current,
-          )
-        ) {
+        for (const target of pathStepsSync(
+          candidates,
+          path.items[0],
+          direction,
+          current,
+        )) {
           const key = termKey(target);
           if (key === startKey) {
             if (!startEmitted) {

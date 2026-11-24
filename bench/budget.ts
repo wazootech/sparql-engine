@@ -79,13 +79,15 @@ function writeStepSummary(rows: BudgetRow[]): void {
   const summaryPath = process.env["GITHUB_STEP_SUMMARY"];
   if (summaryPath === undefined || summaryPath === "") return;
 
-  const header =
-    `### bench:check — perf budget rows\n\n| Test | Median | Min | Max | Budget | Result |\n| --- | --- | --- | --- | --- | --- |\n`;
-  const table = rows.map((row) =>
-    `| ${row.name} | ${row.medianMs.toFixed(3)} | ${row.minMs.toFixed(3)} | ${
-      row.maxMs.toFixed(3)
-    } | ${row.budgetMs.toFixed(1)} | ${row.exceeded ? "❌ FAIL" : "✅ pass"} |`
-  ).join("\n");
+  const header = `### bench:check — perf budget rows\n\n| Test | Median | Min | Max | Budget | Result |\n| --- | --- | --- | --- | --- | --- |\n`;
+  const table = rows
+    .map(
+      (row) =>
+        `| ${row.name} | ${row.medianMs.toFixed(3)} | ${row.minMs.toFixed(3)} | ${row.maxMs.toFixed(
+          3,
+        )} | ${row.budgetMs.toFixed(1)} | ${row.exceeded ? "❌ FAIL" : "✅ pass"} |`,
+    )
+    .join("\n");
   const payload = JSON.stringify(
     rows.map(({ name, medianMs, minMs, maxMs, budgetMs, exceeded }) => ({
       name,
@@ -120,13 +122,15 @@ const tests: BudgetTest[] = [
   },
   {
     name: "EXISTS filter",
-    query: "SELECT ?s WHERE { ?s <http://xmlns.com/foaf/0.1/name> ?n " +
+    query:
+      "SELECT ?s WHERE { ?s <http://xmlns.com/foaf/0.1/name> ?n " +
       "FILTER EXISTS { ?s <http://example.org/p> ?o } }",
     budgetMs: 3.0,
   },
   {
     name: "Nested EXISTS filter",
-    query: "SELECT ?s WHERE { ?s <http://xmlns.com/foaf/0.1/name> ?n " +
+    query:
+      "SELECT ?s WHERE { ?s <http://xmlns.com/foaf/0.1/name> ?n " +
       "FILTER EXISTS { ?s <http://example.org/p1> ?o . " +
       "FILTER EXISTS { ?o <http://example.org/p2> ?x } } }",
     budgetMs: 4.0,
@@ -184,8 +188,8 @@ async function main() {
       for (let i = 0; i < MEASURED_ITERATIONS_PER_ROUND; i++) {
         await engine.execute({ query: test.query });
       }
-      const averageMs = (performance.now() - start) /
-        MEASURED_ITERATIONS_PER_ROUND;
+      const averageMs =
+        (performance.now() - start) / MEASURED_ITERATIONS_PER_ROUND;
       roundAverages[testIndex].push(averageMs);
     }
   }
@@ -197,19 +201,19 @@ async function main() {
     const minMs = Math.min(...averages);
     const maxMs = Math.max(...averages);
     console.log(
-      `- ${test.name}: median ${
-        medianMs.toFixed(3)
-      } ms/iter over ${ROUNDS} rounds of ${MEASURED_ITERATIONS_PER_ROUND} iters (min ${
-        minMs.toFixed(3)
-      }, max ${maxMs.toFixed(3)}; budget: <= ${test.budgetMs} ms/iter)`,
+      `- ${test.name}: median ${medianMs.toFixed(
+        3,
+      )} ms/iter over ${ROUNDS} rounds of ${MEASURED_ITERATIONS_PER_ROUND} iters (min ${minMs.toFixed(
+        3,
+      )}, max ${maxMs.toFixed(3)}; budget: <= ${test.budgetMs} ms/iter)`,
     );
 
     const exceeded = medianMs > test.budgetMs;
     if (exceeded) {
       console.error(
-        `  FAIL: ${test.name} exceeded performance budget (median ${
-          medianMs.toFixed(3)
-        } ms > ${test.budgetMs} ms)`,
+        `  FAIL: ${test.name} exceeded performance budget (median ${medianMs.toFixed(
+          3,
+        )} ms > ${test.budgetMs} ms)`,
       );
       failed = true;
     }

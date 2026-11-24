@@ -50,9 +50,11 @@ function canonicalizeBnodes(records: CanonicalTerm[][]): string[] {
   const refersTo = (term: CanonicalTerm, label: string): boolean => {
     if (term.termType === "BlankNode") return term.value === label;
     if (term.termType === "Quad") {
-      return (term.subject !== undefined && refersTo(term.subject, label)) ||
+      return (
+        (term.subject !== undefined && refersTo(term.subject, label)) ||
         (term.predicate !== undefined && refersTo(term.predicate, label)) ||
-        (term.object !== undefined && refersTo(term.object, label));
+        (term.object !== undefined && refersTo(term.object, label))
+      );
     }
     return false;
   };
@@ -93,7 +95,7 @@ function canonicalizeBnodes(records: CanonicalTerm[][]): string[] {
   ordered.forEach((label, index) => canonical.set(label, `_:${index}`));
 
   return records.map((record) =>
-    record.map((term) => render(term, canonical)).join("\u0000")
+    record.map((term) => render(term, canonical)).join("\u0000"),
   );
 }
 

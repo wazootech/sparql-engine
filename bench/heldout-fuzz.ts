@@ -184,14 +184,12 @@ function buildDataset(): rdfjs.Quad[] {
       quad(person, ex("nick"), literal(pick(FIRST_NAMES).toLowerCase(), "en")),
     );
     const knowsCount = intBetween(0, 3);
-    for (
-      const target of pickN(
-        Array.from({ length: PERSON_COUNT }, (_, i) => i).filter((i) =>
-          i !== index
-        ),
-        knowsCount,
-      )
-    ) {
+    for (const target of pickN(
+      Array.from({ length: PERSON_COUNT }, (_, i) => i).filter(
+        (i) => i !== index,
+      ),
+      knowsCount,
+    )) {
       quads.push(quad(person, ex("knows"), ex(`person${target}`)));
     }
     for (const tag of pickN(TAGS, intBetween(0, 2))) {
@@ -262,7 +260,9 @@ const comunicaEngine = getComunicaEngine();
 
 function bindingRecord(record: Record<string, CanonicalTerm>): string {
   return JSON.stringify(
-    Object.keys(record).sort().map((name) => [name, record[name]]),
+    Object.keys(record)
+      .sort()
+      .map((name) => [name, record[name]]),
   );
 }
 
@@ -283,9 +283,8 @@ type OxigraphBinding = {
 function oxigraphBindingRecord(binding: OxigraphBinding): string {
   const record: Record<string, CanonicalTerm> = {};
   for (const key of binding.keys()) {
-    const name = typeof key === "string"
-      ? key
-      : (key as { value: string }).value;
+    const name =
+      typeof key === "string" ? key : (key as { value: string }).value;
     const term = binding.get(name) as rdfjs.Term | undefined;
     if (term !== undefined && term !== null) {
       record[name] = canonicalizeRdfTerm(term);
@@ -377,39 +376,39 @@ function generateBgp(): GeneratedQuery {
 function generateJoinChain(): GeneratedQuery {
   const template = pick([
     {
-      chain: `${PERSON} ${exIri("knows")} ${FRIEND} . ${FRIEND} ${
-        exIri("name")
-      } ${NAME}`,
+      chain: `${PERSON} ${exIri("knows")} ${FRIEND} . ${FRIEND} ${exIri(
+        "name",
+      )} ${NAME}`,
       vars: [PERSON, FRIEND, NAME],
     },
     {
-      chain: `${PERSON} ${exIri("knows")} ${FRIEND} . ${FRIEND} ${
-        exIri("knows")
-      } ?second . ?second ${exIri("name")} ${NAME}`,
+      chain: `${PERSON} ${exIri("knows")} ${FRIEND} . ${FRIEND} ${exIri(
+        "knows",
+      )} ?second . ?second ${exIri("name")} ${NAME}`,
       vars: [PERSON, FRIEND, "?second", NAME],
     },
     {
-      chain: `${PERSON} ${exIri("knows")} ${FRIEND} . ${FRIEND} ${
-        exIri("city")
-      } ${CITY}`,
+      chain: `${PERSON} ${exIri("knows")} ${FRIEND} . ${FRIEND} ${exIri(
+        "city",
+      )} ${CITY}`,
       vars: [PERSON, FRIEND, CITY],
     },
     {
-      chain: `${PERSON} ${exIri("knows")} ${FRIEND} . ${FRIEND} ${
-        exIri("age")
-      } ${AGE}`,
+      chain: `${PERSON} ${exIri("knows")} ${FRIEND} . ${FRIEND} ${exIri(
+        "age",
+      )} ${AGE}`,
       vars: [PERSON, FRIEND, AGE],
     },
     {
-      chain: `${personIri()} ${exIri("knows")} ${FRIEND} . ${FRIEND} ${
-        exIri("name")
-      } ${NAME}`,
+      chain: `${personIri()} ${exIri("knows")} ${FRIEND} . ${FRIEND} ${exIri(
+        "name",
+      )} ${NAME}`,
       vars: [FRIEND, NAME],
     },
     {
-      chain: `${PERSON} ${exIri("knows")} ${FRIEND} . ${FRIEND} ${
-        exIri("knows")
-      } ?second . ?second ${exIri("score")} ${SCORE}`,
+      chain: `${PERSON} ${exIri("knows")} ${FRIEND} . ${FRIEND} ${exIri(
+        "knows",
+      )} ?second . ?second ${exIri("score")} ${SCORE}`,
       vars: [PERSON, FRIEND, "?second", SCORE],
     },
   ]);
@@ -426,15 +425,15 @@ function generateOptional(): GeneratedQuery {
     `OPTIONAL { ${PERSON} ${exIri("tag")} ?tag }`,
     `OPTIONAL { ${PERSON} ${exIri("knows")} ${FRIEND} }`,
     `OPTIONAL { ${PERSON} ${exIri("nick")} ?nick }`,
-    `OPTIONAL { ${PERSON} ${exIri("knows")} ${FRIEND} . ${FRIEND} ${
-      exIri("name")
-    } ?friendName }`,
-    `OPTIONAL { ${PERSON} ${exIri("knows")} ${FRIEND} . ${FRIEND} ${
-      exIri("city")
-    } ?friendCity }`,
-    `OPTIONAL { ${PERSON} ${
-      exIri("tag")
-    } ?tag . FILTER(?tag = ${tagLiteral()}) }`,
+    `OPTIONAL { ${PERSON} ${exIri("knows")} ${FRIEND} . ${FRIEND} ${exIri(
+      "name",
+    )} ?friendName }`,
+    `OPTIONAL { ${PERSON} ${exIri("knows")} ${FRIEND} . ${FRIEND} ${exIri(
+      "city",
+    )} ?friendCity }`,
+    `OPTIONAL { ${PERSON} ${exIri(
+      "tag",
+    )} ?tag . FILTER(?tag = ${tagLiteral()}) }`,
   ]);
   const vars = [PERSON, NAME, AGE];
   if (optionalPattern.includes("?tag")) vars.push("?tag");
@@ -445,9 +444,9 @@ function generateOptional(): GeneratedQuery {
   return {
     family: "optional",
     kind: "select",
-    query: `SELECT ${projectVars(vars)} WHERE { ${PERSON} ${
-      exIri("name")
-    } ${NAME} . ${PERSON} ${exIri("age")} ${AGE} . ${optionalPattern} }`,
+    query: `SELECT ${projectVars(vars)} WHERE { ${PERSON} ${exIri(
+      "name",
+    )} ${NAME} . ${PERSON} ${exIri("age")} ${AGE} . ${optionalPattern} }`,
     ordered: false,
   };
 }
@@ -480,9 +479,9 @@ function generateMinus(): GeneratedQuery {
   return {
     family: "minus",
     kind: "select",
-    query: `SELECT ${PERSON} ${NAME} WHERE { ${PERSON} ${
-      exIri("name")
-    } ${NAME} MINUS { ${excluded} } }`,
+    query: `SELECT ${PERSON} ${NAME} WHERE { ${PERSON} ${exIri(
+      "name",
+    )} ${NAME} MINUS { ${excluded} } }`,
     ordered: false,
   };
 }
@@ -492,17 +491,18 @@ function generateFilterNumeric(): GeneratedQuery {
   const variable = random() < 0.5 ? AGE : SCORE;
   const predicate = variable === AGE ? "age" : "score";
   const operator = pick([">", "<", ">=", "<=", "=", "!="]);
-  const extra = random() < 0.4
-    ? ` && ${variable} ${pick([">", "<"])} ${intBetween(0, 40)}`
-    : "";
+  const extra =
+    random() < 0.4
+      ? ` && ${variable} ${pick([">", "<"])} ${intBetween(0, 40)}`
+      : "";
   return {
     family: "filter-numeric",
     kind: "select",
-    query: `SELECT ${PERSON} ${NAME} ${variable} WHERE { ${PERSON} ${
-      exIri("name")
-    } ${NAME} . ${PERSON} ${
-      exIri(predicate)
-    } ${variable} . FILTER(${variable} ${operator} ${threshold}${extra}) }`,
+    query: `SELECT ${PERSON} ${NAME} ${variable} WHERE { ${PERSON} ${exIri(
+      "name",
+    )} ${NAME} . ${PERSON} ${exIri(
+      predicate,
+    )} ${variable} . FILTER(${variable} ${operator} ${threshold}${extra}) }`,
     ordered: false,
   };
 }
@@ -537,51 +537,51 @@ function generateBindValues(): GeneratedQuery {
       vars: [PERSON, AGE, "?double"],
     },
     {
-      where: `${PERSON} ${exIri("age")} ${AGE} . ${PERSON} ${
-        exIri("score")
-      } ${SCORE} . BIND(${AGE} + ${SCORE} AS ?total)`,
+      where: `${PERSON} ${exIri("age")} ${AGE} . ${PERSON} ${exIri(
+        "score",
+      )} ${SCORE} . BIND(${AGE} + ${SCORE} AS ?total)`,
       vars: [PERSON, AGE, SCORE, "?total"],
     },
     {
-      where: `${PERSON} ${
-        exIri("age")
-      } ${AGE} . BIND(IF(${AGE} > ${ageThreshold()}, "senior", "junior") AS ?band)`,
+      where: `${PERSON} ${exIri(
+        "age",
+      )} ${AGE} . BIND(IF(${AGE} > ${ageThreshold()}, "senior", "junior") AS ?band)`,
       vars: [PERSON, AGE, "?band"],
     },
     {
-      where: `${PERSON} ${
-        exIri("name")
-      } ${NAME} . BIND(STRLEN(${NAME}) AS ?nameLength)`,
+      where: `${PERSON} ${exIri(
+        "name",
+      )} ${NAME} . BIND(STRLEN(${NAME}) AS ?nameLength)`,
       vars: [PERSON, NAME, "?nameLength"],
     },
     {
-      where: `${PERSON} ${
-        exIri("name")
-      } ${NAME} . VALUES ${PERSON} { ${personIri()} ${personIri()} }`,
+      where: `${PERSON} ${exIri(
+        "name",
+      )} ${NAME} . VALUES ${PERSON} { ${personIri()} ${personIri()} }`,
       vars: [PERSON, NAME],
     },
     {
-      where: `${PERSON} ${
-        exIri("city")
-      } ${CITY} . VALUES ${CITY} { ${cityLiteral()} ${cityLiteral()} }`,
+      where: `${PERSON} ${exIri(
+        "city",
+      )} ${CITY} . VALUES ${CITY} { ${cityLiteral()} ${cityLiteral()} }`,
       vars: [PERSON, CITY],
     },
     {
-      where: `${PERSON} ${
-        exIri("age")
-      } ${AGE} . BIND(ABS(${AGE} - 40) AS ?distance)`,
+      where: `${PERSON} ${exIri(
+        "age",
+      )} ${AGE} . BIND(ABS(${AGE} - 40) AS ?distance)`,
       vars: [PERSON, AGE, "?distance"],
     },
     {
-      where: `${PERSON} ${
-        exIri("name")
-      } ${NAME} . BIND(CONCAT(${NAME}, " Jr.") AS ?formal)`,
+      where: `${PERSON} ${exIri(
+        "name",
+      )} ${NAME} . BIND(CONCAT(${NAME}, " Jr.") AS ?formal)`,
       vars: [PERSON, NAME, "?formal"],
     },
     {
-      where: `${PERSON} ${
-        exIri("score")
-      } ${SCORE} . BIND(${SCORE} - ${SCORE} AS ?zero)`,
+      where: `${PERSON} ${exIri(
+        "score",
+      )} ${SCORE} . BIND(${SCORE} - ${SCORE} AS ?zero)`,
       vars: [PERSON, SCORE, "?zero"],
     },
   ]);
@@ -631,13 +631,13 @@ function generateAggregate(): GeneratedQuery {
   return {
     family: "aggregate",
     kind: "select",
-    query: `SELECT ${template.select} WHERE { ${PERSON} ${
-      exIri("city")
-    } ${CITY} . ${PERSON} ${exIri("age")} ${AGE} . ${PERSON} ${
-      exIri("name")
-    } ${NAME} . ${PERSON} ${
-      exIri("score")
-    } ${SCORE} } GROUP BY ${template.group} HAVING(${template.having})`,
+    query: `SELECT ${template.select} WHERE { ${PERSON} ${exIri(
+      "city",
+    )} ${CITY} . ${PERSON} ${exIri("age")} ${AGE} . ${PERSON} ${exIri(
+      "name",
+    )} ${NAME} . ${PERSON} ${exIri(
+      "score",
+    )} ${SCORE} } GROUP BY ${template.group} HAVING(${template.having})`,
     ordered: false,
   };
 }
@@ -652,18 +652,18 @@ function generateOrderLimit(): GeneratedQuery {
   const orderKeys = [orderVariable, NAME, AGE, PERSON].filter(
     (variable, index, list) => list.indexOf(variable) === index,
   );
-  const order = direction === "ASC"
-    ? orderKeys.join(" ")
-    : `DESC(${orderVariable}) ${orderKeys.slice(1).join(" ")}`;
+  const order =
+    direction === "ASC"
+      ? orderKeys.join(" ")
+      : `DESC(${orderVariable}) ${orderKeys.slice(1).join(" ")}`;
   return {
     family: "order-limit",
     kind: "select",
-    query:
-      `SELECT DISTINCT ${PERSON} ${NAME} ${AGE} ${SCORE} WHERE { ${PERSON} ${
-        exIri("name")
-      } ${NAME} . ${PERSON} ${exIri("age")} ${AGE} . ${PERSON} ${
-        exIri("score")
-      } ${SCORE} } ORDER BY ${order} LIMIT ${limit} OFFSET ${offset}`,
+    query: `SELECT DISTINCT ${PERSON} ${NAME} ${AGE} ${SCORE} WHERE { ${PERSON} ${exIri(
+      "name",
+    )} ${NAME} . ${PERSON} ${exIri("age")} ${AGE} . ${PERSON} ${exIri(
+      "score",
+    )} ${SCORE} } ORDER BY ${order} LIMIT ${limit} OFFSET ${offset}`,
     ordered: true,
   };
 }
@@ -686,8 +686,8 @@ function generatePath(): GeneratedQuery {
   const vars = template.includes("?target")
     ? [PERSON, "?target"]
     : template.includes(CITY)
-    ? [PERSON, CITY]
-    : [PERSON, FRIEND];
+      ? [PERSON, CITY]
+      : [PERSON, FRIEND];
   return {
     family: "path",
     kind: "select",
@@ -699,13 +699,13 @@ function generatePath(): GeneratedQuery {
 function generateAsk(): GeneratedQuery {
   const template = pick([
     `ASK WHERE { ${personIri()} ${exIri("knows")} ${personIri()} }`,
-    `ASK WHERE { ${PERSON} ${exIri("city")} ${cityLiteral()} . ${PERSON} ${
-      exIri("age")
-    } ${AGE} . FILTER(${AGE} > ${ageThreshold()}) }`,
+    `ASK WHERE { ${PERSON} ${exIri("city")} ${cityLiteral()} . ${PERSON} ${exIri(
+      "age",
+    )} ${AGE} . FILTER(${AGE} > ${ageThreshold()}) }`,
     `ASK WHERE { ${PERSON} ${exIri("tag")} ${tagLiteral()} }`,
-    `ASK WHERE { ${PERSON} ${exIri("name")} ${nameLiteral()} . ${PERSON} ${
-      exIri("score")
-    } ${SCORE} . FILTER(${SCORE} >= ${scoreThreshold()}) }`,
+    `ASK WHERE { ${PERSON} ${exIri("name")} ${nameLiteral()} . ${PERSON} ${exIri(
+      "score",
+    )} ${SCORE} . FILTER(${SCORE} >= ${scoreThreshold()}) }`,
   ]);
   return { family: "ask", kind: "ask", query: template, ordered: false };
 }
@@ -714,21 +714,21 @@ function generateConstruct(): GeneratedQuery {
   const template = pick([
     {
       template: `${PERSON} ${exIri("score")} ${SCORE}`,
-      where: `${PERSON} ${
-        exIri("score")
-      } ${SCORE} . FILTER(${SCORE} > ${scoreThreshold()})`,
+      where: `${PERSON} ${exIri(
+        "score",
+      )} ${SCORE} . FILTER(${SCORE} > ${scoreThreshold()})`,
     },
     {
       template: `${PERSON} ${exIri("city")} ${CITY}`,
-      where: `${PERSON} ${exIri("city")} ${CITY} . ${PERSON} ${
-        exIri("age")
-      } ${AGE} . FILTER(${AGE} >= ${ageThreshold()})`,
+      where: `${PERSON} ${exIri("city")} ${CITY} . ${PERSON} ${exIri(
+        "age",
+      )} ${AGE} . FILTER(${AGE} >= ${ageThreshold()})`,
     },
     {
       template: `${PERSON} ${exIri("knows")} ${FRIEND}`,
-      where: `${PERSON} ${exIri("knows")} ${FRIEND} . ${FRIEND} ${
-        exIri("city")
-      } ${cityLiteral()}`,
+      where: `${PERSON} ${exIri("knows")} ${FRIEND} . ${FRIEND} ${exIri(
+        "city",
+      )} ${cityLiteral()}`,
     },
   ]);
   return {
@@ -770,8 +770,7 @@ function generateQueries(): GeneratedQuery[] {
 // ---------------------------------------------------------------------------
 
 type EngineResult =
-  | { ok: true; records: string[] }
-  | { ok: false; error: string };
+  { ok: true; records: string[] } | { ok: false; error: string };
 
 function dedupe(records: string[]): string[] {
   return [...new Set(records)];
@@ -781,25 +780,22 @@ function sortRecords(records: string[]): string[] {
   return [...records].sort();
 }
 
-function compareRecords(
-  first: string[],
-  second: string[],
-): string | null {
+function compareRecords(first: string[], second: string[]): string | null {
   if (first.length !== second.length) {
     return `count mismatch: ${first.length} vs ${second.length}`;
   }
   for (let index = 0; index < first.length; index++) {
     if (first[index] !== second[index]) {
-      return `first difference at sorted index ${index}:\n` +
-        `  A: ${first[index]}\n  B: ${second[index]}`;
+      return (
+        `first difference at sorted index ${index}:\n` +
+        `  A: ${first[index]}\n  B: ${second[index]}`
+      );
     }
   }
   return null;
 }
 
-async function runWazoo(
-  generated: GeneratedQuery,
-): Promise<EngineResult> {
+async function runWazoo(generated: GeneratedQuery): Promise<EngineResult> {
   try {
     const response = await wazooEngine.execute({ query: generated.query });
     if (generated.kind === "select") {
@@ -831,7 +827,7 @@ async function runWazoo(
       ok: true,
       records: sortRecords(
         response.data.quads.map((item) =>
-          quadRecord(item, canonicalizeRdfTerm)
+          quadRecord(item, canonicalizeRdfTerm),
         ),
       ),
     };
@@ -840,9 +836,7 @@ async function runWazoo(
   }
 }
 
-async function runComunica(
-  generated: GeneratedQuery,
-): Promise<EngineResult> {
+async function runComunica(generated: GeneratedQuery): Promise<EngineResult> {
   try {
     if (generated.kind === "select") {
       const rawBindings = await runComunicaRawSelectBindings(
@@ -873,8 +867,9 @@ async function runComunica(
     });
     const quads = await stream.toArray();
     const records = quads.map((item) => {
-      const parts = [item.subject, item.predicate, item.object, item.graph]
-        .map((term) => JSON.stringify(canonicalizeComunicaTerm(term)));
+      const parts = [item.subject, item.predicate, item.object, item.graph].map(
+        (term) => JSON.stringify(canonicalizeComunicaTerm(term)),
+      );
       return parts.join(" ");
     });
     return { ok: true, records: sortRecords(dedupe(records)) };
@@ -952,24 +947,19 @@ function classify(
     compareRecords(sortRecords(first), sortRecords(second));
   const wazooComunica = ordered
     ? multiset(wazoo.records, comunica.records)
-    : compareRecords(
-      sortRecords(wazoo.records),
-      sortRecords(comunica.records),
-    );
+    : compareRecords(sortRecords(wazoo.records), sortRecords(comunica.records));
   const wazooOxigraph = ordered
     ? compareRecords(wazoo.records, oxigraph.records)
-    : compareRecords(
-      sortRecords(wazoo.records),
-      sortRecords(oxigraph.records),
-    );
+    : compareRecords(sortRecords(wazoo.records), sortRecords(oxigraph.records));
   const comunicaOxigraph = ordered
     ? multiset(comunica.records, oxigraph.records)
     : compareRecords(
-      sortRecords(comunica.records),
-      sortRecords(oxigraph.records),
-    );
+        sortRecords(comunica.records),
+        sortRecords(oxigraph.records),
+      );
   if (
-    wazooComunica === null && wazooOxigraph === null &&
+    wazooComunica === null &&
+    wazooOxigraph === null &&
     comunicaOxigraph === null
   ) {
     return { verdict: "agree-all", detail: null };
@@ -1063,7 +1053,7 @@ for (const result of results) {
 console.log(`\nDone in ${(elapsedMs / 1000).toFixed(1)}s.`);
 console.log(
   `Agree-all: ${agreeAll}/${results.length} ` +
-    `(${(100 * agreeAll / results.length).toFixed(1)}%)`,
+    `(${((100 * agreeAll) / results.length).toFixed(1)}%)`,
 );
 for (const [verdict, count] of [...byVerdict.entries()].sort()) {
   if (verdict !== "agree-all") console.log(`  ${verdict}: ${count}`);
@@ -1124,8 +1114,11 @@ console.log("\nReport written to bench/heldout-fuzz-report.json");
 // reference-engine divergence (e.g. Comunica's ORDER BY slips), reported
 // above but not a wazoo regression, so it does not fail the gate.
 function failsGate(verdict: Verdict): boolean {
-  return verdict === "comunica-oxigraph-vs-wazoo" ||
-    verdict === "all-differ" || verdict === "error";
+  return (
+    verdict === "comunica-oxigraph-vs-wazoo" ||
+    verdict === "all-differ" ||
+    verdict === "error"
+  );
 }
 const gateFailures = mismatches.filter((result) => failsGate(result.verdict));
 if (gateFailures.length > 0) {

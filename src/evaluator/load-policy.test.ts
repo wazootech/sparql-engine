@@ -46,10 +46,8 @@ function run(
 }
 
 test("LOAD of a remote URL is denied without a policy", async () => {
-  const { calls, outcome } = run(
-    "https://data.example/a.ttl",
-    undefined,
-    () => reply(200, TURTLE),
+  const { calls, outcome } = run("https://data.example/a.ttl", undefined, () =>
+    reply(200, TURTLE),
   );
   await rejected(() => outcome, Error, "not permitted by policy");
   assert.deepStrictEqual(calls.length, 0);
@@ -166,17 +164,15 @@ test("LOAD still works for an allowlisted https host and follows a safe redirect
 });
 
 test("isBlockedAddress covers private, mapped and public ranges", () => {
-  for (
-    const blocked of [
-      "0.0.0.0",
-      "172.16.0.1",
-      "192.168.1.1",
-      "fd00::1",
-      "fe80::1",
-      "::ffff:127.0.0.1",
-      "::ffff:a9fe:a9fe",
-    ]
-  ) {
+  for (const blocked of [
+    "0.0.0.0",
+    "172.16.0.1",
+    "192.168.1.1",
+    "fd00::1",
+    "fe80::1",
+    "::ffff:127.0.0.1",
+    "::ffff:a9fe:a9fe",
+  ]) {
     assert.ok(isBlockedAddress(blocked), blocked);
   }
   for (const open of ["8.8.8.8", "93.184.216.34", "2606:4700::1"]) {

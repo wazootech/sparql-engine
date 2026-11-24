@@ -371,9 +371,10 @@ export class UpdateEvaluator {
         if (operation.type !== "load") {
           throw new Error("Unsupported SPARQL update operation: load");
         }
-        const sourceIri = operation.source.termType === "NamedNode"
-          ? operation.source.value
-          : undefined;
+        const sourceIri =
+          operation.source.termType === "NamedNode"
+            ? operation.source.value
+            : undefined;
         await this.applyLoad(
           {
             silent: operation.silent,
@@ -463,11 +464,12 @@ export class UpdateEvaluator {
     },
     add: (item: RdfQuad) => unknown,
   ): void {
-    const destGraphTerm = (!destRef || destRef.default)
-      ? defaultGraph()
-      : destRef.name
-      ? sparqlTermToRdfTerm(destRef.name)
-      : defaultGraph();
+    const destGraphTerm =
+      !destRef || destRef.default
+        ? defaultGraph()
+        : destRef.name
+          ? sparqlTermToRdfTerm(destRef.name)
+          : defaultGraph();
     for (const q of sourceQuads) {
       add(quad(q.subject, q.predicate, q.object, destGraphTerm));
     }
@@ -511,8 +513,7 @@ export class UpdateEvaluator {
         // Normalize the file-URL form a URL resolution can produce on
         // Windows (file:///C:/x) back to a readable drive path (C:/x).
         cleanPath = cleanPath.replace(/^\/([A-Za-z]:)/, "$1");
-        const readTextFile = this.options.readTextFile ??
-          defaultReadTextFile;
+        const readTextFile = this.options.readTextFile ?? defaultReadTextFile;
         text = await readTextFile(cleanPath);
       }
 
@@ -566,11 +567,11 @@ export class UpdateEvaluator {
         add(
           intoGraph
             ? quad(
-              remapped.subject,
-              remapped.predicate,
-              remapped.object,
-              intoGraph,
-            )
+                remapped.subject,
+                remapped.predicate,
+                remapped.object,
+                intoGraph,
+              )
             : remapped,
         );
       }
@@ -681,14 +682,12 @@ export class UpdateEvaluator {
     for (const binding of bindings) {
       const bnodeMap = new Map<string, RdfBlankNode>();
       for (const pattern of operation.insert ?? []) {
-        for (
-          const item of this.instantiateInsertPattern(
-            pattern,
-            binding,
-            bnodeMap,
-            withGraph,
-          )
-        ) {
+        for (const item of this.instantiateInsertPattern(
+          pattern,
+          binding,
+          bnodeMap,
+          withGraph,
+        )) {
           add(item);
         }
       }
@@ -752,9 +751,10 @@ export class UpdateEvaluator {
       : null;
     const triples: Triple[] =
       (pattern as unknown as { triples?: Triple[] }).triples ??
-        (pattern as unknown as { patterns?: { triples?: Triple[] }[] }).patterns
-          ?.flatMap((p) => p.triples ?? []) ??
-        [];
+      (
+        pattern as unknown as { patterns?: { triples?: Triple[] }[] }
+      ).patterns?.flatMap((p) => p.triples ?? []) ??
+      [];
     for (const triple of triples) {
       const scan = this.deleteScanPositions(triple);
       // A variable graph scans every graph and filters per solution below.
@@ -786,7 +786,8 @@ export class UpdateEvaluator {
         );
         const object = this.resolveDeleteTerm(triple.object, binding);
         if (
-          subject.kind === "skip" || predicate.kind === "skip" ||
+          subject.kind === "skip" ||
+          predicate.kind === "skip" ||
           object.kind === "skip"
         ) {
           continue;
@@ -848,15 +849,17 @@ export class UpdateEvaluator {
     bnodeMap: Map<string, RdfBlankNode>,
     withGraph: RdfTerm | null = null,
   ): RdfQuad[] {
-    const graph = pattern.type === "graph"
-      ? this.convertTerm(pattern.name, null)
-      : (withGraph ?? defaultGraph());
+    const graph =
+      pattern.type === "graph"
+        ? this.convertTerm(pattern.name, null)
+        : (withGraph ?? defaultGraph());
     const quads: RdfQuad[] = [];
     const rawTriples: Triple[] =
       (pattern as unknown as { triples?: Triple[] }).triples ??
-        (pattern as unknown as { patterns?: { triples?: Triple[] }[] }).patterns
-          ?.flatMap((p) => p.triples ?? []) ??
-        [];
+      (
+        pattern as unknown as { patterns?: { triples?: Triple[] }[] }
+      ).patterns?.flatMap((p) => p.triples ?? []) ??
+      [];
     for (const triple of expandReifiedTriples(rawTriples)) {
       const subject = this.resolveInsertTerm(triple.subject, binding, bnodeMap);
       const predicate = this.resolveInsertTerm(
@@ -866,7 +869,8 @@ export class UpdateEvaluator {
       );
       const object = this.resolveInsertTerm(triple.object, binding, bnodeMap);
       if (
-        subject.kind !== "value" || predicate.kind !== "value" ||
+        subject.kind !== "value" ||
+        predicate.kind !== "value" ||
         object.kind !== "value"
       ) {
         continue;
@@ -968,16 +972,17 @@ export class UpdateEvaluator {
   ): RdfQuad[] {
     const rawTriples: Triple[] =
       (pattern as unknown as { triples?: Triple[] }).triples ??
-        (pattern as unknown as { patterns?: { triples?: Triple[] }[] }).patterns
-          ?.flatMap((p) => p.triples ?? []) ??
-        [];
+      (
+        pattern as unknown as { patterns?: { triples?: Triple[] }[] }
+      ).patterns?.flatMap((p) => p.triples ?? []) ??
+      [];
     const triples: Triple[] = expandReifiedTriples(rawTriples);
     if (pattern.type === "graph") {
       const graph = this.convertTerm(pattern.name, bnodeMap);
       return triples.map((item) => this.convertTriple(item, graph, bnodeMap));
     }
     return triples.map((item) =>
-      this.convertTriple(item, defaultGraph(), bnodeMap)
+      this.convertTriple(item, defaultGraph(), bnodeMap),
     );
   }
 

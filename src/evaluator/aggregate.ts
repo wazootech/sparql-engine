@@ -97,9 +97,7 @@ export function aggregateValue(
 ): RdfTerm | undefined {
   const wildcard = isAggregateWildcard(aggregate);
   if (wildcard && aggregate.aggregation !== "count") {
-    throw new Error(
-      `Unsupported aggregate over *: ${aggregate.aggregation}`,
-    );
+    throw new Error(`Unsupported aggregate over *: ${aggregate.aggregation}`);
   }
   const values: (RdfTerm | undefined)[] = [];
   const distinctSeen = new Set<string>();

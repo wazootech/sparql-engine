@@ -21,14 +21,16 @@ export class LiteralImpl implements rdfjs.Literal {
       this.direction = "";
       this.datatype = new NamedNodeImpl(RDF_LANG_STRING);
     } else if (
-      languageOrDatatype && typeof languageOrDatatype === "object" &&
+      languageOrDatatype &&
+      typeof languageOrDatatype === "object" &&
       "termType" in languageOrDatatype
     ) {
       this.language = "";
       this.direction = "";
       this.datatype = languageOrDatatype;
     } else if (
-      languageOrDatatype && typeof languageOrDatatype === "object" &&
+      languageOrDatatype &&
+      typeof languageOrDatatype === "object" &&
       "language" in languageOrDatatype
     ) {
       // DirectionalLanguage: a language tag with an optional RDF 1.2 initial

@@ -31,18 +31,20 @@ export function scanEntry(
   const candidates = reifies
     ? matchQuads(store, null, predicate, null)
     : tripleTermObject
-    ? matchQuads(
-      store,
-      patternConstant(subject),
-      patternConstant(predicate),
-      null,
-    ).then((quads) => quads.filter((quad) => quad.object.termType === "Quad"))
-    : matchQuads(
-      store,
-      patternConstant(subject),
-      patternConstant(predicate),
-      patternConstant(object),
-    );
+      ? matchQuads(
+          store,
+          patternConstant(subject),
+          patternConstant(predicate),
+          null,
+        ).then((quads) =>
+          quads.filter((quad) => quad.object.termType === "Quad"),
+        )
+      : matchQuads(
+          store,
+          patternConstant(subject),
+          patternConstant(predicate),
+          patternConstant(object),
+        );
   return candidates.then((cs): ScanEntry => ({
     subject,
     predicate,

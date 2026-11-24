@@ -59,7 +59,7 @@ scripts must run on Deno **and** Bun, so:
   `testCommand`, `compileCommand`), not a hard-coded `deno`.
 - `package.json` and `bun.lock` are Bun's manifest; keep their dependency ranges
   in step with the `deno.json` import map. `bun install &&
-  bun run test:bun`
+bun run test:bun`
   runs the suite on Bun (the `bun` CI job runs it on Bun 1.x with
   `--timeout 120000` for the cold comunica parity suites).
 - `parser:check` is authoritative under Deno only: the generated parsers are

@@ -128,17 +128,11 @@ test("WazooSparqlEngine - SELECT * wildcard projects all bound variables", async
   });
   assert.deepStrictEqual(result.kind, "select");
   if (result.kind === "select") {
-    assert.deepStrictEqual(
-      result.data.head.vars.sort(),
-      ["o", "p"],
-    );
+    assert.deepStrictEqual(result.data.head.vars.sort(), ["o", "p"]);
     assert.deepStrictEqual(result.data.results.bindings.length, 2);
     assert.deepStrictEqual(
       result.data.results.bindings.map((b) => b.p.value).sort(),
-      [
-        "http://xmlns.com/foaf/0.1/age",
-        "http://xmlns.com/foaf/0.1/name",
-      ],
+      ["http://xmlns.com/foaf/0.1/age", "http://xmlns.com/foaf/0.1/name"],
     );
     for (const binding of result.data.results.bindings) {
       assert.deepStrictEqual(Object.keys(binding).sort(), ["o", "p"]);
@@ -150,23 +144,21 @@ test("WazooSparqlEngine - VALUES block joins as a multiset with UNDEF rows", asy
   const store = new Store();
   const engine = new WazooSparqlEngine({ store });
   const result = await engine.execute({
-    query: "SELECT ?s ?n WHERE { VALUES (?s ?n) " +
+    query:
+      "SELECT ?s ?n WHERE { VALUES (?s ?n) " +
       "{ (<http://example.org/a> 1) (<http://example.org/a> 1) (UNDEF 2) } }",
   });
   assert.deepStrictEqual(result.kind, "select");
   if (result.kind === "select") {
     assert.deepStrictEqual(result.data.results.bindings.length, 3);
     // Duplicate rows survive; the UNDEF row leaves ?s unbound.
-    assert.deepStrictEqual(
-      result.data.results.bindings[2],
-      {
-        n: {
-          type: "literal",
-          value: "2",
-          datatype: "http://www.w3.org/2001/XMLSchema#integer",
-        },
+    assert.deepStrictEqual(result.data.results.bindings[2], {
+      n: {
+        type: "literal",
+        value: "2",
+        datatype: "http://www.w3.org/2001/XMLSchema#integer",
       },
-    );
+    });
   }
 });
 
@@ -188,7 +180,8 @@ test("WazooSparqlEngine - VALUES block constrains a preceding BGP join", async (
   );
   const engine = new WazooSparqlEngine({ store });
   const result = await engine.execute({
-    query: "SELECT ?s ?n WHERE { ?s <http://example.org/p> ?o . " +
+    query:
+      "SELECT ?s ?n WHERE { ?s <http://example.org/p> ?o . " +
       "VALUES (?s ?n) { (<http://example.org/a> 1) (<http://example.org/c> 2) } }",
   });
   assert.deepStrictEqual(result.kind, "select");
@@ -255,13 +248,11 @@ test("WazooSparqlEngine - REDUCED dedups like DISTINCT", async () => {
   // REDUCED is a permitted hint to drop duplicates; this engine implements
   // it as full dedup (REDUCED ≡ DISTINCT), matching Comunica/Oxigraph.
   const store = new Store();
-  for (
-    const [s, o] of [
-      ["a", "c"],
-      ["b", "c"],
-      ["c", "d"],
-    ]
-  ) {
+  for (const [s, o] of [
+    ["a", "c"],
+    ["b", "c"],
+    ["c", "d"],
+  ]) {
     store.addQuad(
       quad(
         namedNode(`http://example.org/${s}`),
@@ -283,13 +274,11 @@ test("WazooSparqlEngine - REDUCED dedups like DISTINCT", async () => {
 
 test("WazooSparqlEngine - DISTINCT with ORDER BY keeps order and dedups", async () => {
   const store = new Store();
-  for (
-    const [s, o] of [
-      ["a", "c"],
-      ["b", "c"],
-      ["c", "d"],
-    ]
-  ) {
+  for (const [s, o] of [
+    ["a", "c"],
+    ["b", "c"],
+    ["c", "d"],
+  ]) {
     store.addQuad(
       quad(
         namedNode(`http://example.org/${s}`),
@@ -300,7 +289,8 @@ test("WazooSparqlEngine - DISTINCT with ORDER BY keeps order and dedups", async 
   }
   const engine = new WazooSparqlEngine({ store });
   const result = await engine.execute({
-    query: "SELECT DISTINCT ?o WHERE { ?s <http://example.org/p> ?o } " +
+    query:
+      "SELECT DISTINCT ?o WHERE { ?s <http://example.org/p> ?o } " +
       "ORDER BY ?o",
   });
   assert.deepStrictEqual(result.kind, "select");

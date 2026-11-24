@@ -22,11 +22,13 @@ export function pipelineNeedsExistsIndex(query: SelectQuery): boolean {
     (v): v is VariableExpression =>
       typeof v === "object" && "variable" in v && Boolean(v.variable),
   );
-  return projections.some((v) => expressionContainsExists(v.expression)) ||
+  return (
+    projections.some((v) => expressionContainsExists(v.expression)) ||
     (query.order ?? []).some((clause) =>
-      expressionContainsExists(clause.expression)
+      expressionContainsExists(clause.expression),
     ) ||
-    (query.having ?? []).some(expressionContainsExists);
+    (query.having ?? []).some(expressionContainsExists)
+  );
 }
 
 /**

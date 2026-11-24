@@ -106,7 +106,7 @@ label identity.
   beyond that floor the engine should carry) is an open question.
 - **Pattern-evaluation hook** — the injected
   `evaluateExists(pattern,
-  solution) => boolean` seam binding the pure
+solution) => boolean` seam binding the pure
   expression layer to the graph scope and active dataset. Backed by a per-call
   [`ExistsSnapshot`](https://github.com/wazootech/sparql-engine/blob/main/src/evaluator/bgp-evaluator.ts)
   (issue [#72](https://github.com/wazootech/sparql-engine/issues/72)), so

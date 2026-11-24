@@ -71,18 +71,22 @@ export function sameRdfTerm(a: RdfTerm, b: RdfTerm): boolean {
       return true;
     case "Literal": {
       const other = b as RdfLiteral;
-      return a.value === other.value &&
+      return (
+        a.value === other.value &&
         a.language === other.language &&
         (a.direction ?? "") === (other.direction ?? "") &&
-        (a.datatype?.value ?? "") === (other.datatype?.value ?? "");
+        (a.datatype?.value ?? "") === (other.datatype?.value ?? "")
+      );
     }
     case "Quad": {
       // RdfQuad narrows its components; the structural comparison only needs
       // the base quad shape (components are plain terms).
       const other = b as RdfBaseQuad;
-      return sameRdfTerm(a.subject, other.subject) &&
+      return (
+        sameRdfTerm(a.subject, other.subject) &&
         sameRdfTerm(a.predicate, other.predicate) &&
-        sameRdfTerm(a.object, other.object);
+        sameRdfTerm(a.object, other.object)
+      );
     }
     default:
       throw new Error("Unsupported RDF term type");

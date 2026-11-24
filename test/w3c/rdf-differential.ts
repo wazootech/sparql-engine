@@ -76,8 +76,7 @@ export const supersetDivergences: ReadonlySet<string> = new Set([
 ]);
 
 type Verdict =
-  | { status: "pass" }
-  | { status: "gap"; detail: string; allowlisted: boolean };
+  { status: "pass" } | { status: "gap"; detail: string; allowlisted: boolean };
 
 interface Row {
   id: string;
@@ -141,16 +140,17 @@ function evaluate(testCase: RdfSyntaxCase): Verdict {
     }`;
     return allowlisted
       ? {
-        status: "gap",
-        detail: `${detail} — allowlisted: ${SUPERSET_REASON}`,
-        allowlisted,
-      }
+          status: "gap",
+          detail: `${detail} — allowlisted: ${SUPERSET_REASON}`,
+          allowlisted,
+        }
       : { status: "gap", detail, allowlisted: false };
   }
 
   // Positive / eval: wazoo must parse, and agree with n3 when both parse.
   if (!wazooAccepts) {
-    const detail = `wazoo rejected a positive test: ${wazooError}` +
+    const detail =
+      `wazoo rejected a positive test: ${wazooError}` +
       (n3Accepts ? " (n3 accepted it)" : " (n3 also rejected it)");
     return { status: "gap", detail, allowlisted: false };
   }
@@ -191,7 +191,8 @@ function evaluate(testCase: RdfSyntaxCase): Verdict {
       if (!quadSetsIsomorphicAsSets(wazooQuads!, reference)) {
         return {
           status: "gap",
-          detail: `eval mismatch vs reference: wazoo ${wazooQuads!.length} ` +
+          detail:
+            `eval mismatch vs reference: wazoo ${wazooQuads!.length} ` +
             `quads vs reference ${reference.length} quads`,
           allowlisted: false,
         };
@@ -229,11 +230,11 @@ if (import.meta.main) {
 
   const pass = rows.filter((r) => r.verdict.status === "pass").length;
   const gaps = rows.filter((r) => r.verdict.status === "gap");
-  const allowlisted = gaps.filter((r) =>
-    r.verdict.status === "gap" && r.verdict.allowlisted
+  const allowlisted = gaps.filter(
+    (r) => r.verdict.status === "gap" && r.verdict.allowlisted,
   );
-  const realGaps = gaps.filter((r) =>
-    r.verdict.status === "gap" && !r.verdict.allowlisted
+  const realGaps = gaps.filter(
+    (r) => r.verdict.status === "gap" && !r.verdict.allowlisted,
   );
 
   console.log("\n=== RDF 1.1 differential (wazoo vs n3) ===");
@@ -243,9 +244,10 @@ if (import.meta.main) {
   console.log(`allowlisted:${allowlisted.length}`);
 
   for (const r of gaps) {
-    const tag = r.verdict.status === "gap" && r.verdict.allowlisted
-      ? "ALLOWLISTED"
-      : "GAP";
+    const tag =
+      r.verdict.status === "gap" && r.verdict.allowlisted
+        ? "ALLOWLISTED"
+        : "GAP";
     console.log(`\n[${tag}] ${r.id} (${r.format}, ${r.kind})`);
     if (r.verdict.status === "gap") console.log(`  ${r.verdict.detail}`);
   }

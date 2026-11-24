@@ -85,13 +85,15 @@ async function measureOne(
   // mode asks for one sample, no warmup).
   const stats = await measure(
     fn,
-    exact === undefined ? {} : {
-      min_samples: exact,
-      max_samples: exact,
-      min_cpu_time: 0,
-      warmup_samples: 0,
-      batch_samples: 1,
-    },
+    exact === undefined
+      ? {}
+      : {
+          min_samples: exact,
+          max_samples: exact,
+          min_cpu_time: 0,
+          warmup_samples: 0,
+          batch_samples: 1,
+        },
   );
   const sorted = [...stats.samples].sort((a, b) => a - b);
   return {
@@ -122,15 +124,16 @@ function printTable(results: BenchResult[]): void {
     const baseline = rows.find((row) => row.baseline);
     console.log(`\ngroup ${group}`);
     for (const row of rows) {
-      const ratio = baseline && baseline !== row
-        ? `  ${(row.timings.avg / baseline.timings.avg).toFixed(2)}x baseline`
-        : baseline === row
-        ? "  (baseline)"
-        : "";
+      const ratio =
+        baseline && baseline !== row
+          ? `  ${(row.timings.avg / baseline.timings.avg).toFixed(2)}x baseline`
+          : baseline === row
+            ? "  (baseline)"
+            : "";
       console.log(
-        `  ${row.name.padEnd(40)} avg ${
-          formatDuration(row.timings.avg).padStart(10)
-        }` +
+        `  ${row.name.padEnd(40)} avg ${formatDuration(
+          row.timings.avg,
+        ).padStart(10)}` +
           `  p99 ${formatDuration(row.timings.p99).padStart(10)}` +
           `  n=${row.timings.n}${ratio}`,
       );

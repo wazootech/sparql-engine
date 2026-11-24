@@ -26,10 +26,7 @@ export class SparqlParser {
    * optional baseIri is the base for relative IRIs when the query has no
    * BASE directive (the directive wins when both are present).
    */
-  public parse(
-    query: string,
-    options?: { baseIRI?: string },
-  ): SparqlQuery {
+  public parse(query: string, options?: { baseIRI?: string }): SparqlQuery {
     return this.parser.parse(query, options);
   }
 }

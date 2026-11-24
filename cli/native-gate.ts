@@ -19,10 +19,10 @@ async function runStep(command: string[]): Promise<number> {
   return code;
 }
 
-if (await runStep(scriptCommand("cli/native-coverage.ts")) !== 0) {
+if ((await runStep(scriptCommand("cli/native-coverage.ts"))) !== 0) {
   process.exit(1);
 }
-if (await runStep(scriptCommand("cli/native-build.ts")) !== 0) {
+if ((await runStep(scriptCommand("cli/native-build.ts"))) !== 0) {
   process.exit(1);
 }
 

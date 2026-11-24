@@ -18,10 +18,11 @@ export function matchQuadsSync(
   p: RdfTerm | null,
   o: RdfTerm | null,
 ): RdfQuad[] {
-  return candidates.filter((quad) =>
-    (s === null || sameRdfTerm(quad.subject, s)) &&
-    (p === null || sameRdfTerm(quad.predicate, p)) &&
-    (o === null || sameRdfTerm(quad.object, o))
+  return candidates.filter(
+    (quad) =>
+      (s === null || sameRdfTerm(quad.subject, s)) &&
+      (p === null || sameRdfTerm(quad.predicate, p)) &&
+      (o === null || sameRdfTerm(quad.object, o)),
   );
 }
 

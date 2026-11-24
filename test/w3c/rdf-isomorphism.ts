@@ -7,12 +7,7 @@ import type { CanonicalTerm } from "@/term/mod.ts";
 /* ------------------------------------------------------------------ */
 
 /** Canonical record for one quad: [subject, predicate, object, graph]. */
-type QuadRecord = [
-  CanonicalTerm,
-  CanonicalTerm,
-  CanonicalTerm,
-  CanonicalTerm,
-];
+type QuadRecord = [CanonicalTerm, CanonicalTerm, CanonicalTerm, CanonicalTerm];
 
 function quadRecords(quads: rdfjs.Quad[]): QuadRecord[] {
   return quads.map((q) => [
@@ -26,9 +21,11 @@ function quadRecords(quads: rdfjs.Quad[]): QuadRecord[] {
 function refersTo(term: CanonicalTerm, label: string): boolean {
   if (term.termType === "BlankNode") return term.value === label;
   if (term.termType === "Quad") {
-    return (term.subject !== undefined && refersTo(term.subject, label)) ||
+    return (
+      (term.subject !== undefined && refersTo(term.subject, label)) ||
       (term.predicate !== undefined && refersTo(term.predicate, label)) ||
-      (term.object !== undefined && refersTo(term.object, label));
+      (term.object !== undefined && refersTo(term.object, label))
+    );
   }
   return false;
 }
@@ -110,7 +107,7 @@ function canonicalizeRecords(records: QuadRecord[]): string[] {
   ordered.forEach((label, index) => canonical.set(label, `_:${index}`));
 
   return records.map((record) =>
-    record.map((term) => render(term, canonical)).join("\u0000")
+    record.map((term) => render(term, canonical)).join("\u0000"),
   );
 }
 
@@ -127,10 +124,7 @@ function multisetEqual(a: string[], b: string[]): boolean {
 }
 
 /** True when two quad sets are equal up to blank-node relabeling. */
-export function quadSetsIsomorphic(
-  a: rdfjs.Quad[],
-  b: rdfjs.Quad[],
-): boolean {
+export function quadSetsIsomorphic(a: rdfjs.Quad[], b: rdfjs.Quad[]): boolean {
   if (a.length !== b.length) return false;
   return multisetEqual(
     canonicalizeRecords(quadRecords(a)),

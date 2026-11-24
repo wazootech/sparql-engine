@@ -125,7 +125,7 @@ for removed files, and confirm every path the wiki references resolves.
 - Bump `docs/.sync-base` to the new `origin/main` HEAD.
 - Land from a fresh worktree off `origin/main`
   (`git worktree add
-  "$PWD/worktrees/sparql-engine/docs-sync" -b docs/sync origin/main`),
+"$PWD/worktrees/sparql-engine/docs-sync" -b docs/sync origin/main`),
   commit only `docs/`, open a PR, merge, and confirm the Pages build reports
   `built` with no error before declaring done.
 

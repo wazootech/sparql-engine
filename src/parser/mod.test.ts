@@ -27,10 +27,7 @@ test("parser: malformed numeric literal reports line and column", () => {
 
 test("parser: unclosed group reports the end-of-input column", () => {
   const query = "SELECT ?s WHERE { ?s <http://example.org/p> ?o ";
-  const error = thrown(
-    () => new Parser().parse(query),
-    SparqlSyntaxError,
-  );
+  const error = thrown(() => new Parser().parse(query), SparqlSyntaxError);
   assert.deepStrictEqual(error.line, 1);
   assert.deepStrictEqual(error.column, query.length + 1);
   assert.deepStrictEqual(error.token, "EOF");
@@ -41,9 +38,7 @@ test("parser: unclosed group reports the end-of-input column", () => {
 test("parser: bad prefix reports the offending token", () => {
   const error = thrown(
     () =>
-      new Parser().parse(
-        "PREFIX x: <http://example.org/ SELECT ?s WHERE {}",
-      ),
+      new Parser().parse("PREFIX x: <http://example.org/ SELECT ?s WHERE {}"),
     SparqlSyntaxError,
   );
   assert.deepStrictEqual(error.line, 1);
@@ -55,9 +50,7 @@ test("parser: bad prefix reports the offending token", () => {
 test("parser: stray closing brace reports the trailing token", () => {
   const error = thrown(
     () =>
-      new Parser().parse(
-        "SELECT ?s WHERE { ?s <http://example.org/p> ?o } }",
-      ),
+      new Parser().parse("SELECT ?s WHERE { ?s <http://example.org/p> ?o } }"),
     SparqlSyntaxError,
   );
   assert.deepStrictEqual(error.line, 1);
@@ -113,8 +106,8 @@ test("parser: lexical failures map to kind 'lexical'", () => {
 });
 
 test("parser: non-syntax errors pass through unchanged", () => {
-  const error = thrown(
-    () => new Parser().parse("SELECT ?s WHERE { ?s <p> ?o }"),
+  const error = thrown(() =>
+    new Parser().parse("SELECT ?s WHERE { ?s <p> ?o }"),
   );
   assert.deepStrictEqual(error instanceof SparqlSyntaxError, false);
 });
@@ -163,9 +156,10 @@ test("parser: hasLang works in FILTER", () => {
     "SELECT ?x WHERE { ?s ?p ?x FILTER(hasLang(?x)) }",
   );
   if (ast.type !== "query") throw new Error("expected a query");
-  const where = ast.where as Array<
-    { type: string; expression?: { operator: string } }
-  >;
+  const where = ast.where as Array<{
+    type: string;
+    expression?: { operator: string };
+  }>;
   const filter = where.find((w) => w.type === "filter");
   assert.deepStrictEqual(filter?.expression?.operator, "haslang");
 });
@@ -193,8 +187,8 @@ test("parser: prefix conflicts still lex correctly", () => {
     'STRLANG("abc", "en")',
     'LANGMATCHES("en", "en")',
     'STR("abc")',
-  ].map((expr) =>
-    parseExpression(`SELECT ?x WHERE { BIND(${expr} AS ?x) }`).name
+  ].map(
+    (expr) => parseExpression(`SELECT ?x WHERE { BIND(${expr} AS ?x) }`).name,
   );
   assert.deepStrictEqual(names, ["lang", "strlang", "langmatches", "str"]);
 });
@@ -205,9 +199,10 @@ test("parser: recursive unary ! allows double negation", () => {
     "SELECT ?v WHERE { VALUES ?v { true false } BIND(!!?v AS ?ebv) }",
   );
   if (ast.type !== "query") throw new Error("expected a query");
-  const where = ast.where as Array<
-    { type: string; expression?: { operator: string; args: unknown[] } }
-  >;
+  const where = ast.where as Array<{
+    type: string;
+    expression?: { operator: string; args: unknown[] };
+  }>;
   const bind = where.find((w) => w.type === "bind");
   assert.deepStrictEqual(bind?.expression?.operator, "!");
   assert.deepStrictEqual(

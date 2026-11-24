@@ -26,9 +26,9 @@ test("WazooSparqlEngine - property paths inside EXISTS respect GRAPH scopes", as
     if (result.kind !== "select") {
       throw new Error(`expected select, got ${result.kind}`);
     }
-    return result.data.results.bindings.map((b) =>
-      String((b[variable] as { value: string }).value)
-    ).sort();
+    return result.data.results.bindings
+      .map((b) => String((b[variable] as { value: string }).value))
+      .sort();
   }
 
   // Inside the g1 scope, q+ reaches only c (no d), but the EXISTS still holds
@@ -80,7 +80,8 @@ test("WazooSparqlEngine - EXISTS in the projection expression evaluates per row"
   const engine = new WazooSparqlEngine({ store });
 
   const result = await engine.execute({
-    query: "SELECT ?s (EXISTS { ?s <http://example.org/r> ?o } AS ?flag) " +
+    query:
+      "SELECT ?s (EXISTS { ?s <http://example.org/r> ?o } AS ?flag) " +
       "WHERE { ?s <http://example.org/q> ?w }",
   });
   assert.deepStrictEqual(result.kind, "select");
@@ -89,11 +90,14 @@ test("WazooSparqlEngine - EXISTS in the projection expression evaluates per row"
       s: (b.s as { value: string }).value,
       flag: (b.flag as { value: string }).value,
     }));
-    assert.deepStrictEqual(rows.sort((a, b) => a.s.localeCompare(b.s)), [
-      { s: "http://example.org/s", flag: "true" },
-      { s: "http://example.org/t", flag: "false" },
-      { s: "http://example.org/u", flag: "false" },
-    ]);
+    assert.deepStrictEqual(
+      rows.sort((a, b) => a.s.localeCompare(b.s)),
+      [
+        { s: "http://example.org/s", flag: "true" },
+        { s: "http://example.org/t", flag: "false" },
+        { s: "http://example.org/u", flag: "false" },
+      ],
+    );
   }
 });
 
@@ -119,17 +123,20 @@ test("WazooSparqlEngine - main-path joins never leak named graphs when EXISTS is
   // ?s p1 ?o joins against a bound ?s, so it would reuse the prebuilt index;
   // the default-scope answer must contain only s's default-graph p1 quads.
   const result = await engine.execute({
-    query: "SELECT ?s ?o WHERE { ?s <http://example.org/name> ?n " +
+    query:
+      "SELECT ?s ?o WHERE { ?s <http://example.org/name> ?n " +
       ". ?s <http://example.org/p1> ?o " +
       "FILTER EXISTS { ?s <http://example.org/p> ?v } }",
   });
   if (result.kind !== "select") {
     throw new Error(`expected select, got ${result.kind}`);
   }
-  const rows = result.data.results.bindings.map((b) => [
-    String((b.s as { value: string }).value),
-    String((b.o as { value: string }).value),
-  ]).sort();
+  const rows = result.data.results.bindings
+    .map((b) => [
+      String((b.s as { value: string }).value),
+      String((b.o as { value: string }).value),
+    ])
+    .sort();
   assert.deepStrictEqual(rows, [
     ["http://example.org/s", "http://example.org/o1"],
   ]);
@@ -159,16 +166,16 @@ test("WazooSparqlEngine - concurrent execute() calls are isolated from each othe
 
   const queries = [
     "SELECT ?s WHERE { ?s <http://example.org/name> ?n " +
-    "FILTER EXISTS { ?s <http://example.org/spouse> ?spouse } }",
+      "FILTER EXISTS { ?s <http://example.org/spouse> ?spouse } }",
     "SELECT ?s WHERE { ?s <http://example.org/name> ?n " +
-    "FILTER NOT EXISTS { ?s <http://example.org/spouse> ?spouse } }",
+      "FILTER NOT EXISTS { ?s <http://example.org/spouse> ?spouse } }",
     "SELECT ?s WHERE { ?s <http://example.org/name> ?n " +
-    "FILTER EXISTS { ?s <http://example.org/spouse> ?spouse . " +
-    "FILTER EXISTS { ?spouse <http://example.org/name> ?n2 } } }",
+      "FILTER EXISTS { ?s <http://example.org/spouse> ?spouse . " +
+      "FILTER EXISTS { ?spouse <http://example.org/name> ?n2 } } }",
     "SELECT ?s (COUNT(?o) AS ?c) WHERE { ?s <http://example.org/name> ?n " +
-    "OPTIONAL { ?s <http://example.org/spouse> ?spouse . " +
-    "FILTER EXISTS { ?spouse <http://example.org/name> ?n2 } } } " +
-    "GROUP BY ?s",
+      "OPTIONAL { ?s <http://example.org/spouse> ?spouse . " +
+      "FILTER EXISTS { ?spouse <http://example.org/name> ?n2 } } } " +
+      "GROUP BY ?s",
   ];
 
   async function resultOf(query: string): Promise<string> {
@@ -177,13 +184,15 @@ test("WazooSparqlEngine - concurrent execute() calls are isolated from each othe
       throw new Error(`expected select, got ${result.kind}`);
     }
     return JSON.stringify(
-      result.data.results.bindings.map((binding) => {
-        const record: Record<string, unknown> = {};
-        for (const name of Object.keys(binding)) {
-          record[name] = binding[name];
-        }
-        return record;
-      }).sort((a, b) => JSON.stringify(a) < JSON.stringify(b) ? -1 : 1),
+      result.data.results.bindings
+        .map((binding) => {
+          const record: Record<string, unknown> = {};
+          for (const name of Object.keys(binding)) {
+            record[name] = binding[name];
+          }
+          return record;
+        })
+        .sort((a, b) => (JSON.stringify(a) < JSON.stringify(b) ? -1 : 1)),
     );
   }
 
@@ -227,9 +236,11 @@ test("WazooSparqlEngine - concurrent updates never corrupt in-flight EXISTS eval
   }
   const engine = new WazooSparqlEngine({ store });
 
-  const existsQuery = "SELECT ?s WHERE { ?s <http://example.org/name> ?n " +
+  const existsQuery =
+    "SELECT ?s WHERE { ?s <http://example.org/name> ?n " +
     "FILTER EXISTS { ?s <http://example.org/spouse> ?spouse } }";
-  const rewrite = "DELETE { ?s <http://example.org/spouse> ?spouse } " +
+  const rewrite =
+    "DELETE { ?s <http://example.org/spouse> ?spouse } " +
     "INSERT { ?s <http://example.org/spouse> ?spouse } " +
     "WHERE { ?s <http://example.org/spouse> ?spouse }";
 

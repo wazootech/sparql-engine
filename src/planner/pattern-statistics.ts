@@ -31,9 +31,9 @@ export function patternSignature(entry: ScanEntry): string {
     return termKey(sparqlTermToRdfTerm(t));
   };
   const shape = entry.reifies ? "R" : entry.tripleTermObject ? "T" : "";
-  return `${shape}(${term(entry.subject)}|${term(entry.predicate)}|${
-    term(entry.object)
-  })`;
+  return `${shape}(${term(entry.subject)}|${term(entry.predicate)}|${term(
+    entry.object,
+  )})`;
 }
 
 /**
@@ -77,7 +77,8 @@ export class PatternStatistics {
     storeView: RdfSource<RdfQuad>,
     entry: ScanEntry,
   ): Promise<PatternStats> {
-    const namedScope = storeKindOf(storeView) === "graph-scoped" &&
+    const namedScope =
+      storeKindOf(storeView) === "graph-scoped" &&
       (storeView as GraphScopedStore).graphTermType !== "DefaultGraph";
     const key = `${namedScope ? "s" : "d"}::${patternSignature(entry)}`;
     const cached = this.cache.get(key);
@@ -94,7 +95,9 @@ export class PatternStatistics {
     namedScope: boolean,
   ): Promise<PatternStats> {
     if (
-      !namedScope && this.hook !== undefined && !entry.reifies &&
+      !namedScope &&
+      this.hook !== undefined &&
+      !entry.reifies &&
       !entry.tripleTermObject
     ) {
       const fromHook = await this.hook({

@@ -198,8 +198,7 @@ test("WazooSparqlEngine - ORDER BY orders directional literals deterministically
 
   async function orderedObjects(order: string): Promise<string[]> {
     const result = await engine.execute({
-      query:
-        `SELECT ?o WHERE { ?s <http://example.org/p> ?o } ORDER BY ${order}`,
+      query: `SELECT ?o WHERE { ?s <http://example.org/p> ?o } ORDER BY ${order}`,
     });
     if (result.kind !== "select") {
       throw new Error(`expected select, got ${result.kind}`);
@@ -227,12 +226,8 @@ test("WazooSparqlEngine - property paths inside EXISTS evaluate like the main pa
   // Named graph g1 carries a -p-> b -q-> c (same nodes).
   const store = new Store();
   const ex = (local: string) => namedNode(`http://example.org/${local}`);
-  const add = (
-    s: string,
-    p: string,
-    o: string,
-    graph?: string,
-  ) => store.addQuad(quad(ex(s), ex(p), ex(o), graph ? ex(graph) : undefined));
+  const add = (s: string, p: string, o: string, graph?: string) =>
+    store.addQuad(quad(ex(s), ex(p), ex(o), graph ? ex(graph) : undefined));
   add("a", "p", "b");
   add("b", "q", "c");
   add("c", "q", "d");
@@ -246,9 +241,9 @@ test("WazooSparqlEngine - property paths inside EXISTS evaluate like the main pa
     if (result.kind !== "select") {
       throw new Error(`expected select, got ${result.kind}`);
     }
-    return result.data.results.bindings.map((b) =>
-      String((b[variable] as { value: string }).value)
-    ).sort();
+    return result.data.results.bindings
+      .map((b) => String((b[variable] as { value: string }).value))
+      .sort();
   }
 
   // EXISTS: b reaches c and d via q+ (one or more q edges), so a passes.

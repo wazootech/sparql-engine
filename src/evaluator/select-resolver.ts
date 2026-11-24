@@ -21,10 +21,7 @@ export function aggregateResolver(
     return () => undefined;
   }
   return (aggregate) =>
-    aggregateValue(
-      aggregate,
-      group,
-      (expression, binding) =>
-        expressionEvaluator.evaluate(expression, binding, context),
+    aggregateValue(aggregate, group, (expression, binding) =>
+      expressionEvaluator.evaluate(expression, binding, context),
     );
 }

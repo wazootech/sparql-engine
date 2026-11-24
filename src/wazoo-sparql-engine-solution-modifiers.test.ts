@@ -60,8 +60,8 @@ test("WazooSparqlEngine - DISTINCT keeps bound and unbound solutions apart", asy
   if (result.kind === "select") {
     // {?o: c, ?x: unbound} and any bound variant are different solutions:
     // DISTINCT must not collapse a missing key onto a present one.
-    const keys = result.data.results.bindings.map((b) =>
-      `${b.o.value}|${b.x ? b.x.value : "UNBOUND"}`
+    const keys = result.data.results.bindings.map(
+      (b) => `${b.o.value}|${b.x ? b.x.value : "UNBOUND"}`,
     );
     assert.deepStrictEqual(keys, ["http://example.org/c|UNBOUND"]);
   }
@@ -80,7 +80,8 @@ test("WazooSparqlEngine - LIMIT and OFFSET slice ordered results", async () => {
   }
   const engine = new WazooSparqlEngine({ store });
   const result = await engine.execute({
-    query: "SELECT ?o WHERE { ?s <http://example.org/p> ?o } " +
+    query:
+      "SELECT ?o WHERE { ?s <http://example.org/p> ?o } " +
       "ORDER BY ?o LIMIT 2 OFFSET 1",
   });
   assert.deepStrictEqual(result.kind, "select");
@@ -183,8 +184,8 @@ test("WazooSparqlEngine - property path * is reflexive-transitive closure over a
   });
   assert.deepStrictEqual(reflexive.length, 8); // a, b, c, d, w, x, y, z
   // Multi-hop reachability deduplicates the two routes a->c.
-  const reachable = bindings.filter((b) =>
-    b === "http://example.org/a->http://example.org/c"
+  const reachable = bindings.filter(
+    (b) => b === "http://example.org/a->http://example.org/c",
   );
   assert.deepStrictEqual(reachable.length, 1);
 });
@@ -242,8 +243,7 @@ test("WazooSparqlEngine - property path works inside GRAPH scope", async () => {
 
   const engine = new WazooSparqlEngine({ store });
   const result = await engine.execute({
-    query:
-      `SELECT ?y WHERE { GRAPH <http://example.org/g1> { <http://example.org/a> <http://example.org/p>+ ?y } }`,
+    query: `SELECT ?y WHERE { GRAPH <http://example.org/g1> { <http://example.org/a> <http://example.org/p>+ ?y } }`,
   });
 
   assert.deepStrictEqual(result.kind, "select");

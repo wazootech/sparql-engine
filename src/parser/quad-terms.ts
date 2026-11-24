@@ -25,10 +25,12 @@ export function quadComponentsEqual(
     return false;
   }
   const otherQuad = other as RdfBaseQuad;
-  return termKey(subject) === termKey(otherQuad.subject) &&
+  return (
+    termKey(subject) === termKey(otherQuad.subject) &&
     termKey(predicate) === termKey(otherQuad.predicate) &&
     termKey(object) === termKey(otherQuad.object) &&
-    termKey(graph) === termKey(otherQuad.graph);
+    termKey(graph) === termKey(otherQuad.graph)
+  );
 }
 
 /** quadTerm builds a quad in the default graph. */

@@ -101,13 +101,13 @@ const SPARQL_SNIPPETS = [
 
 test("dispatch is equivalent to exhaustive on Turtle snippets", () => {
   TURTLE_SNIPPETS.forEach((snippet, index) =>
-    assertEquivalent(`turtle snippet ${index}`, snippet, turtleRules)
+    assertEquivalent(`turtle snippet ${index}`, snippet, turtleRules),
   );
 });
 
 test("dispatch is equivalent to exhaustive on SPARQL snippets", () => {
   SPARQL_SNIPPETS.forEach((snippet, index) =>
-    assertEquivalent(`sparql snippet ${index}`, snippet, sparqlRules)
+    assertEquivalent(`sparql snippet ${index}`, snippet, sparqlRules),
   );
 });
 
@@ -147,7 +147,10 @@ test("dispatch narrows the candidates for punctuation and keeps order", () => {
   assert.ok(dispatch.ascii[";".charCodeAt(0)]!.length < 10);
   assert.deepStrictEqual(exhaustive.ascii[0]!.length, turtleRules.length);
   for (const candidates of dispatch.ascii) {
-    assert.deepStrictEqual(candidates, [...candidates].sort((a, b) => a - b));
+    assert.deepStrictEqual(
+      candidates,
+      [...candidates].sort((a, b) => a - b),
+    );
   }
 });
 

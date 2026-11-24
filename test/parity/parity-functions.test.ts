@@ -78,8 +78,7 @@ SELECT ?s ?p ?isNum WHERE {
 });
 
 test("parity - ENCODE_FOR_URI function", async () => {
-  const query =
-    `SELECT ?encoded WHERE { BIND(ENCODE_FOR_URI("hello world! / foo&bar") AS ?encoded) }`;
+  const query = `SELECT ?encoded WHERE { BIND(ENCODE_FOR_URI("hello world! / foo&bar") AS ?encoded) }`;
   await assertQueryParity({
     name: "ENCODE_FOR_URI parity",
     kind: "select",
@@ -89,8 +88,7 @@ test("parity - ENCODE_FOR_URI function", async () => {
 });
 
 test("parity - IRI and URI function", async () => {
-  const query =
-    `SELECT ?iri ?uri WHERE { BIND(IRI("http://example.org/test") AS ?iri) BIND(URI("http://example.org/test2") AS ?uri) }`;
+  const query = `SELECT ?iri ?uri WHERE { BIND(IRI("http://example.org/test") AS ?iri) BIND(URI("http://example.org/test2") AS ?uri) }`;
   await assertQueryParity({
     name: "IRI and URI parity",
     kind: "select",

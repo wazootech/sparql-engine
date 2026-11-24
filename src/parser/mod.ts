@@ -84,10 +84,7 @@ export class Parser {
    * baseIRI is the base for relative IRIs when the query has no BASE
    * directive (the directive wins when both are present).
    */
-  public parse(
-    query: string,
-    options: { baseIRI?: string } = {},
-  ): SparqlQuery {
+  public parse(query: string, options: { baseIRI?: string } = {}): SparqlQuery {
     try {
       // The per-parse base overrides the construction-time base, and the
       // grammar's BASE directive action in turn overrides both (resolving

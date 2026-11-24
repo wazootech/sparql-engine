@@ -108,11 +108,13 @@ console.log(JSON.stringify(r.kind === "select" ? r.data.results.bindings : r));
 Prints:
 
 ```json
-[{
-  "s": { "type": "uri", "value": "https://example.org/alice" },
-  "p": { "type": "uri", "value": "https://xmlns.com/foaf/0.1/name" },
-  "o": { "type": "literal", "value": "Alice" }
-}]
+[
+  {
+    "s": { "type": "uri", "value": "https://example.org/alice" },
+    "p": { "type": "uri", "value": "https://xmlns.com/foaf/0.1/name" },
+    "o": { "type": "literal", "value": "Alice" }
+  }
+]
 ```
 
 ### ASK, CONSTRUCT, and UPDATE in the same loop

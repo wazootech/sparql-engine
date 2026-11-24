@@ -21,9 +21,12 @@ test("WazooSparqlEngine - INSERT DATA mints fresh blank nodes per execution", as
   });
 
   const subjects = new Set<string>();
-  for (
-    const q of store.match(null, namedNode("http://example.org/p"), null, null)
-  ) {
+  for (const q of store.match(
+    null,
+    namedNode("http://example.org/p"),
+    null,
+    null,
+  )) {
     subjects.add(q.subject.value);
   }
   assert.deepStrictEqual(subjects.size, 2);
@@ -34,7 +37,8 @@ test("WazooSparqlEngine - INSERT DATA into a named graph", async () => {
   const engine = new WazooSparqlEngine({ store });
 
   await engine.execute({
-    query: "INSERT DATA { GRAPH <http://example.org/g> { " +
+    query:
+      "INSERT DATA { GRAPH <http://example.org/g> { " +
       '<http://example.org/x> <http://example.org/p> "v" } }',
   });
 
@@ -108,9 +112,11 @@ test("WazooSparqlEngine - unsupported update operation is rejected", async () =>
   const engine = new WazooSparqlEngine({ store });
   await rejected(
     () =>
-      (engine as unknown as {
-        updateEvaluator: { executeUpdate: (u: unknown) => Promise<void> };
-      }).updateEvaluator.executeUpdate({
+      (
+        engine as unknown as {
+          updateEvaluator: { executeUpdate: (u: unknown) => Promise<void> };
+        }
+      ).updateEvaluator.executeUpdate({
         type: "update",
         prefixes: {},
         updates: [
@@ -143,7 +149,8 @@ test("WazooSparqlEngine - INSERT WHERE instantiates per solution", async () => {
   const engine = new WazooSparqlEngine({ store });
 
   await engine.execute({
-    query: "INSERT { <http://example.org/x> <http://example.org/saw> ?name } " +
+    query:
+      "INSERT { <http://example.org/x> <http://example.org/saw> ?name } " +
       "WHERE { ?person <http://xmlns.com/foaf/0.1/name> ?name }",
   });
 
@@ -154,10 +161,10 @@ test("WazooSparqlEngine - INSERT WHERE instantiates per solution", async () => {
     null,
   ) as Array<{ object: { value: string } }>;
   assert.deepStrictEqual(saw.length, 2);
-  assert.deepStrictEqual(
-    saw.map((q) => q.object.value).sort(),
-    ["Ethan", "Gregory"],
-  );
+  assert.deepStrictEqual(saw.map((q) => q.object.value).sort(), [
+    "Ethan",
+    "Gregory",
+  ]);
 });
 
 test("WazooSparqlEngine - INSERT WHERE mints fresh blank nodes per solution", async () => {
@@ -179,19 +186,18 @@ test("WazooSparqlEngine - INSERT WHERE mints fresh blank nodes per solution", as
   const engine = new WazooSparqlEngine({ store });
 
   await engine.execute({
-    query: "INSERT { _:fresh <http://example.org/owns> ?name } " +
+    query:
+      "INSERT { _:fresh <http://example.org/owns> ?name } " +
       "WHERE { ?person <http://xmlns.com/foaf/0.1/name> ?name }",
   });
 
   const subjects = new Set<string>();
-  for (
-    const q of store.match(
-      null,
-      namedNode("http://example.org/owns"),
-      null,
-      null,
-    )
-  ) {
+  for (const q of store.match(
+    null,
+    namedNode("http://example.org/owns"),
+    null,
+    null,
+  )) {
     subjects.add(q.subject.value);
   }
   assert.deepStrictEqual(subjects.size, 2);
@@ -251,7 +257,8 @@ test("WazooSparqlEngine - DELETE/INSERT moves quads", async () => {
   const engine = new WazooSparqlEngine({ store });
 
   await engine.execute({
-    query: "DELETE { ?s <http://example.org/p> ?o } " +
+    query:
+      "DELETE { ?s <http://example.org/p> ?o } " +
       "INSERT { ?s <http://example.org/q> ?o } " +
       "WHERE { ?s <http://example.org/p> ?o }",
   });

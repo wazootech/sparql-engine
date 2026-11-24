@@ -95,17 +95,9 @@ const environment = {
 };
 
 if (options.json) {
-  console.log(JSON.stringify(
-    { environment, sizes, measurements, slopes },
-    null,
-    2,
-  ));
-} else {
-  printReport(
-    options,
-    environment,
-    sizes,
-    measurements,
-    slopes,
+  console.log(
+    JSON.stringify({ environment, sizes, measurements, slopes }, null, 2),
   );
+} else {
+  printReport(options, environment, sizes, measurements, slopes);
 }

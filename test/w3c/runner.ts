@@ -224,9 +224,11 @@ function canonicalizeBnodes(records: CanonicalTerm[][]): string[] {
       return term.value === label;
     }
     if (term.termType === "Quad") {
-      return (term.subject !== undefined && refersTo(term.subject, label)) ||
+      return (
+        (term.subject !== undefined && refersTo(term.subject, label)) ||
         (term.predicate !== undefined && refersTo(term.predicate, label)) ||
-        (term.object !== undefined && refersTo(term.object, label));
+        (term.object !== undefined && refersTo(term.object, label))
+      );
     }
     return false;
   };
@@ -271,7 +273,7 @@ function canonicalizeBnodes(records: CanonicalTerm[][]): string[] {
   ordered.forEach((label, index) => canonical.set(label, `_:${index}`));
 
   return records.map((record) =>
-    record.map((term) => render(term, canonical)).join("\u0000")
+    record.map((term) => render(term, canonical)).join("\u0000"),
   );
 }
 
@@ -292,9 +294,7 @@ export class W3cRunner {
     conformance: [],
   };
 
-  public constructor(
-    private readonly readFixture: (file: string) => string,
-  ) {}
+  public constructor(private readonly readFixture: (file: string) => string) {}
 
   /**
    * run executes every test case and returns the aggregate report.
@@ -317,9 +317,10 @@ export class W3cRunner {
         // result, not against Comunica (which is known to be buggy there).
         outcome = await this.compareReference(testCase);
       } else {
-        outcome = testCase.kind === "update"
-          ? await this.compareUpdate(testCase)
-          : await this.compareQuery(testCase);
+        outcome =
+          testCase.kind === "update"
+            ? await this.compareUpdate(testCase)
+            : await this.compareQuery(testCase);
       }
     } catch (error) {
       outcome = {
@@ -400,9 +401,10 @@ export class W3cRunner {
    */
   private queryText(testCase: W3cTestCase): string {
     const raw = this.fixtureText(testCase, testCase.queryFile);
-    return `BASE <${
-      canonicalUrl(testCase.category, testCase.queryFile)
-    }>\n${raw}`;
+    return `BASE <${canonicalUrl(
+      testCase.category,
+      testCase.queryFile,
+    )}>\n${raw}`;
   }
 
   /**
@@ -459,8 +461,7 @@ export class W3cRunner {
     if (!testCase.resultFile) {
       return {
         status: "error",
-        detail:
-          `documented SELECT divergence ${testCase.id} has no result file`,
+        detail: `documented SELECT divergence ${testCase.id} has no result file`,
       };
     }
 
@@ -472,8 +473,7 @@ export class W3cRunner {
     if (wazooResult.kind !== "select") {
       return {
         status: "error",
-        detail:
-          `documented divergence ${testCase.id} returned kind ${wazooResult.kind}, expected select`,
+        detail: `documented divergence ${testCase.id} returned kind ${wazooResult.kind}, expected select`,
       };
     }
 
@@ -521,8 +521,7 @@ export class W3cRunner {
     }
     return {
       status: "gap",
-      detail:
-        `wazoo left ${quads.length} quad(s) after ${testCase.id}; the W3C reference (mf:result []) expects an empty store`,
+      detail: `wazoo left ${quads.length} quad(s) after ${testCase.id}; the W3C reference (mf:result []) expects an empty store`,
     };
   }
 
@@ -557,23 +556,19 @@ export class W3cRunner {
     const resultSet = resultSetQuad.subject;
 
     const solutions: Record<string, CanonicalTerm>[] = [];
-    for (
-      const solutionQuad of store.getQuads(
-        resultSet,
-        DataFactory.namedNode(RS_SOLUTION),
-        null,
-        null,
-      )
-    ) {
+    for (const solutionQuad of store.getQuads(
+      resultSet,
+      DataFactory.namedNode(RS_SOLUTION),
+      null,
+      null,
+    )) {
       const record: Record<string, CanonicalTerm> = {};
-      for (
-        const bindingQuad of store.getQuads(
-          solutionQuad.object,
-          DataFactory.namedNode(RS_BINDING),
-          null,
-          null,
-        )
-      ) {
+      for (const bindingQuad of store.getQuads(
+        solutionQuad.object,
+        DataFactory.namedNode(RS_BINDING),
+        null,
+        null,
+      )) {
         const variable = store.getQuads(
           bindingQuad.object,
           DataFactory.namedNode(RS_VARIABLE),
@@ -600,7 +595,9 @@ export class W3cRunner {
     solutions: Record<string, CanonicalTerm>[],
   ): CanonicalTerm[][] {
     return solutions.map((record) =>
-      Object.keys(record).sort().map((name) => record[name])
+      Object.keys(record)
+        .sort()
+        .map((name) => record[name]),
     );
   }
 
@@ -668,9 +665,9 @@ export class W3cRunner {
         return isomorphicMultiset(wazooRecords, comunicaRecords)
           ? { status: "pass" }
           : {
-            status: "gap",
-            detail: this.firstDiff(wazoo, comunica, "SELECT bindings"),
-          };
+              status: "gap",
+              detail: this.firstDiff(wazoo, comunica, "SELECT bindings"),
+            };
       }
       case "ask": {
         let comunica: boolean;
@@ -684,11 +681,12 @@ export class W3cRunner {
             }`,
           };
         }
-        return comunica === wazooResult.data.boolean ? { status: "pass" } : {
-          status: "gap",
-          detail:
-            `ASK mismatch: comunica=${comunica} wazoo=${wazooResult.data.boolean}`,
-        };
+        return comunica === wazooResult.data.boolean
+          ? { status: "pass" }
+          : {
+              status: "gap",
+              detail: `ASK mismatch: comunica=${comunica} wazoo=${wazooResult.data.boolean}`,
+            };
       }
       case "construct": {
         let comunicaSet: string[];
@@ -698,11 +696,11 @@ export class W3cRunner {
           const stream = await this.comunicaEngine.queryQuads(query, options);
           const comunicaQuads = await stream.toArray();
           comunicaKeys = comunicaQuads.map((item) =>
-            canonicalQuadString(item, canonicalizeComunicaTerm)
+            canonicalQuadString(item, canonicalizeComunicaTerm),
           );
           comunicaSet = [...comunicaKeys].sort();
           comunicaRecords = comunicaQuads.map((item) =>
-            this.quadRecords(item, canonicalizeComunicaTerm)
+            this.quadRecords(item, canonicalizeComunicaTerm),
           );
         } catch (error) {
           return {
@@ -713,7 +711,7 @@ export class W3cRunner {
           };
         }
         const wazooKeys = wazooResult.data.quads.map((item) =>
-          canonicalQuadString(item, canonicalizeRdfTerm)
+          canonicalQuadString(item, canonicalizeRdfTerm),
         );
         const wazooSet = [...wazooKeys].sort();
         // Issue #87 contract: the reference side is normalized to its graph
@@ -721,18 +719,18 @@ export class W3cRunner {
         // #29 guarantees a conforming engine emits no duplicate quads, so a
         // future change that starts emitting them fails this gate.
         const wazooRecords = wazooResult.data.quads.map((item) =>
-          this.quadRecords(item, canonicalizeRdfTerm)
+          this.quadRecords(item, canonicalizeRdfTerm),
         );
         return compareConstructRecords(
-            wazooRecords,
-            comunicaRecords,
-            comunicaKeys,
-          )
+          wazooRecords,
+          comunicaRecords,
+          comunicaKeys,
+        )
           ? { status: "pass" }
           : {
-            status: "gap",
-            detail: this.firstDiff(wazooSet, comunicaSet, "CONSTRUCT quads"),
-          };
+              status: "gap",
+              detail: this.firstDiff(wazooSet, comunicaSet, "CONSTRUCT quads"),
+            };
       }
       default:
         return {
@@ -764,7 +762,9 @@ export class W3cRunner {
       for (const name of Object.keys(binding)) {
         record[name] = canonicalizeSparqlValue(binding[name]);
       }
-      return Object.keys(record).sort().map((name) => record[name]);
+      return Object.keys(record)
+        .sort()
+        .map((name) => record[name]);
     });
   }
 
@@ -800,7 +800,9 @@ export class W3cRunner {
       for (const name of Object.keys(record)) {
         canonical[name] = canonicalizeComunicaTerm(record[name]);
       }
-      return Object.keys(canonical).sort().map((name) => canonical[name]);
+      return Object.keys(canonical)
+        .sort()
+        .map((name) => canonical[name]);
     });
   }
 
@@ -808,8 +810,9 @@ export class W3cRunner {
     item: rdfjs.Quad,
     canonicalize: (term: rdfjs.Term) => CanonicalTerm,
   ): CanonicalTerm[] {
-    return [item.subject, item.predicate, item.object, item.graph]
-      .map((term) => canonicalize(term));
+    return [item.subject, item.predicate, item.object, item.graph].map((term) =>
+      canonicalize(term),
+    );
   }
 
   private firstDiff(a: string[], b: string[], label: string): string {
@@ -874,9 +877,9 @@ export class W3cRunner {
     return isomorphicMultiset(wazooRecords, comunicaRecords)
       ? { status: "pass" }
       : {
-        status: "gap",
-        detail: this.firstDiff(wazooSet, comunicaSet, "final store contents"),
-      };
+          status: "gap",
+          detail: this.firstDiff(wazooSet, comunicaSet, "final store contents"),
+        };
   }
 
   private storeQuadStrings(store: MemoryStore): string[] {
@@ -913,25 +916,24 @@ export class W3cRunner {
       // rs:ResultSet files are SELECT references, not graph post-states;
       // compareReference validates those tests, so skip the soft report.
       if (
-        expectedQuads.some((quad) =>
-          quad.predicate.termType === "NamedNode" &&
-          quad.predicate.value === RDF_TYPE &&
-          quad.object.termType === "NamedNode" &&
-          quad.object.value === RS_RESULT_SET
+        expectedQuads.some(
+          (quad) =>
+            quad.predicate.termType === "NamedNode" &&
+            quad.predicate.value === RDF_TYPE &&
+            quad.object.termType === "NamedNode" &&
+            quad.object.value === RS_RESULT_SET,
         )
       ) {
         return null;
       }
       expectedRecords = expectedQuads.map((quad) =>
-        this.quadRecords(quad, canonicalizeRdfTerm)
+        this.quadRecords(quad, canonicalizeRdfTerm),
       );
     } catch {
       return null; // XML/JSON result files are not parseable here.
     }
 
-    const evaluate = async (
-      engine: "wazoo" | "comunica",
-    ): Promise<boolean> => {
+    const evaluate = async (engine: "wazoo" | "comunica"): Promise<boolean> => {
       try {
         const store = this.loadStore(testCase);
         let actualQuads: rdfjs.Quad[] = [];
@@ -969,7 +971,7 @@ export class W3cRunner {
           }
         }
         const actualRecords = actualQuads.map((quad) =>
-          this.quadRecords(quad, canonicalizeRdfTerm)
+          this.quadRecords(quad, canonicalizeRdfTerm),
         );
         return isomorphicMultiset(actualRecords, expectedRecords);
       } catch {

@@ -46,25 +46,22 @@ const selectResponse: SparqlResponse = {
   },
 };
 
-test(
-  "serializeJsonResults - SELECT round-trips every SparqlValue variant",
-  () => {
-    const parsed = JSON.parse(serializeJsonResults(selectResponse)) as {
-      head: { vars: string[] };
-      results: { bindings: Array<Record<string, SparqlValue>> };
-    };
-    assert.deepStrictEqual(parsed.head.vars, Object.keys(fullSpread));
-    assert.deepStrictEqual(parsed.results.bindings.length, 1);
-    const row = parsed.results.bindings[0];
-    for (const name of Object.keys(fullSpread)) {
-      assert.deepStrictEqual(
-        canonicalizeSparqlValue(row[name]),
-        canonicalizeSparqlValue(fullSpread[name]),
-        `round-trip ${name}`,
-      );
-    }
-  },
-);
+test("serializeJsonResults - SELECT round-trips every SparqlValue variant", () => {
+  const parsed = JSON.parse(serializeJsonResults(selectResponse)) as {
+    head: { vars: string[] };
+    results: { bindings: Array<Record<string, SparqlValue>> };
+  };
+  assert.deepStrictEqual(parsed.head.vars, Object.keys(fullSpread));
+  assert.deepStrictEqual(parsed.results.bindings.length, 1);
+  const row = parsed.results.bindings[0];
+  for (const name of Object.keys(fullSpread)) {
+    assert.deepStrictEqual(
+      canonicalizeSparqlValue(row[name]),
+      canonicalizeSparqlValue(fullSpread[name]),
+      `round-trip ${name}`,
+    );
+  }
+});
 
 test("serializeJsonResults - ASK round-trips the boolean", () => {
   for (const boolean of [true, false]) {
@@ -96,7 +93,8 @@ test("serializeJsonResults - emits a deterministic .srj document", () => {
       },
     },
   };
-  const golden = '{"head":{"vars":["iri","lang"]},"results":{"bindings":[' +
+  const golden =
+    '{"head":{"vars":["iri","lang"]},"results":{"bindings":[' +
     '{"iri":{"type":"uri","value":"http://example.org/s"},' +
     '"lang":{"type":"literal","value":"hola","xml:lang":"es","its:dir":"rtl"}}]}}';
   assert.deepStrictEqual(serializeJsonResults(response), golden);
@@ -118,73 +116,62 @@ test("serializeJsonResults - passes head link through", () => {
   assert.deepStrictEqual(parsed.boolean, true);
 });
 
-test(
-  "serializeJsonResults - rejects kinds the format does not cover",
-  () => {
-    thrown(
-      () =>
-        serializeJsonResults({
-          kind: "construct",
-          data: { quads: [] },
-        }),
-      Error,
-      "SELECT and ASK",
-    );
-    thrown(
-      () => serializeJsonResults({ kind: "void" }),
-      Error,
-      "SELECT and ASK",
-    );
-  },
-);
-
-test(
-  "serializeJsonResults - JSON-escapes special characters in values",
-  () => {
-    const parsed = JSON.parse(
+test("serializeJsonResults - rejects kinds the format does not cover", () => {
+  thrown(
+    () =>
       serializeJsonResults({
-        kind: "select",
-        data: {
-          head: { vars: ["v"] },
-          results: {
-            bindings: [{
-              v: { type: "literal", value: 'a"b\\c\n\u0001d' },
-            }],
-          },
-        },
+        kind: "construct",
+        data: { quads: [] },
       }),
-    ) as { results: { bindings: Array<Record<string, SparqlValue>> } };
-    // JSON.stringify escapes quotes, backslashes, and control characters;
-    // the parsed value is byte-identical to the original literal text.
-    assert.deepStrictEqual(parsed.results.bindings[0].v, {
-      type: "literal",
-      value: 'a"b\\c\n\u0001d',
-    });
-  },
-);
+    Error,
+    "SELECT and ASK",
+  );
+  thrown(() => serializeJsonResults({ kind: "void" }), Error, "SELECT and ASK");
+});
 
-test(
-  "serializeJsonResults - round-trips a directional literal end to end",
-  async () => {
-    // A real query through the engine: the RDF 1.2 directional literal
-    // ("its:dir") must survive execute() -> SparqlValue -> .srj -> parse.
-    const store = new Store();
-    const engine = new WazooSparqlEngine({ store });
-    const result = await engine.execute({
-      query: 'SELECT ?v WHERE { BIND("hola"@es--rtl AS ?v) }',
-    });
-    if (result.kind !== "select") {
-      throw new Error(`expected select, got ${result.kind}`);
-    }
-    const doc = JSON.parse(serializeJsonResults(result)) as {
-      results: { bindings: Array<Record<string, SparqlValue>> };
-    };
-    const emitted = doc.results.bindings[0].v;
-    assert.deepStrictEqual(emitted, {
-      type: "literal",
-      value: "hola",
-      "xml:lang": "es",
-      "its:dir": "rtl",
-    });
-  },
-);
+test("serializeJsonResults - JSON-escapes special characters in values", () => {
+  const parsed = JSON.parse(
+    serializeJsonResults({
+      kind: "select",
+      data: {
+        head: { vars: ["v"] },
+        results: {
+          bindings: [
+            {
+              v: { type: "literal", value: 'a"b\\c\n\u0001d' },
+            },
+          ],
+        },
+      },
+    }),
+  ) as { results: { bindings: Array<Record<string, SparqlValue>> } };
+  // JSON.stringify escapes quotes, backslashes, and control characters;
+  // the parsed value is byte-identical to the original literal text.
+  assert.deepStrictEqual(parsed.results.bindings[0].v, {
+    type: "literal",
+    value: 'a"b\\c\n\u0001d',
+  });
+});
+
+test("serializeJsonResults - round-trips a directional literal end to end", async () => {
+  // A real query through the engine: the RDF 1.2 directional literal
+  // ("its:dir") must survive execute() -> SparqlValue -> .srj -> parse.
+  const store = new Store();
+  const engine = new WazooSparqlEngine({ store });
+  const result = await engine.execute({
+    query: 'SELECT ?v WHERE { BIND("hola"@es--rtl AS ?v) }',
+  });
+  if (result.kind !== "select") {
+    throw new Error(`expected select, got ${result.kind}`);
+  }
+  const doc = JSON.parse(serializeJsonResults(result)) as {
+    results: { bindings: Array<Record<string, SparqlValue>> };
+  };
+  const emitted = doc.results.bindings[0].v;
+  assert.deepStrictEqual(emitted, {
+    type: "literal",
+    value: "hola",
+    "xml:lang": "es",
+    "its:dir": "rtl",
+  });
+});

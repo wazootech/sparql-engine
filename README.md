@@ -373,9 +373,7 @@ const response = {
   data: {
     head: { vars: ["s"] },
     results: {
-      bindings: [
-        { s: { type: "uri", value: "https://example.org/alice" } },
-      ],
+      bindings: [{ s: { type: "uri", value: "https://example.org/alice" } }],
     },
   },
 };

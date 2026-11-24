@@ -227,9 +227,7 @@ function firstCharacters(rule: RegExp): FirstSet | null {
     : rule.source;
   const state: ScanState = { source, flags, position: 0, supported: true };
   const first = scanAlternation(state);
-  if (
-    !state.supported || state.position !== source.length || first.nullable
-  ) {
+  if (!state.supported || state.position !== source.length || first.nullable) {
     return null;
   }
   return first;
@@ -244,7 +242,9 @@ export function buildLexerDispatch(
   rules: readonly RegExp[],
   exhaustive: boolean,
 ): LexerDispatch {
-  const firsts = rules.map((rule) => exhaustive ? null : firstCharacters(rule));
+  const firsts = rules.map((rule) =>
+    exhaustive ? null : firstCharacters(rule),
+  );
   const ascii: number[][] = [];
   for (let code = 0; code < ASCII_COUNT; code++) {
     ascii.push([]);

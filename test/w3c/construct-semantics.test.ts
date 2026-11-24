@@ -34,38 +34,32 @@ function key(item: rdfjs.Quad): string {
   return JSON.stringify(rec(item));
 }
 
-test(
-  "CONSTRUCT gate fails when wazoo emits a duplicate quad (issue #87 regression detector)",
-  () => {
-    const quad1 = q("s", "p", "o");
-    // Wazoo emits the same quad twice; the reference holds it once.
-    assert.deepStrictEqual(
-      compareConstructRecords(
-        [rec(quad1), rec(quad1)],
-        [rec(quad1)],
-        [key(quad1)],
-      ),
-      false,
-    );
-  },
-);
+test("CONSTRUCT gate fails when wazoo emits a duplicate quad (issue #87 regression detector)", () => {
+  const quad1 = q("s", "p", "o");
+  // Wazoo emits the same quad twice; the reference holds it once.
+  assert.deepStrictEqual(
+    compareConstructRecords(
+      [rec(quad1), rec(quad1)],
+      [rec(quad1)],
+      [key(quad1)],
+    ),
+    false,
+  );
+});
 
-test(
-  "CONSTRUCT gate normalizes duplicate reference-stream quads",
-  () => {
-    const quad1 = q("s", "p", "o");
-    // Wazoo emits once; Comunica's stream repeats the triple — the
-    // reference side is normalized, so the graphs agree.
-    assert.deepStrictEqual(
-      compareConstructRecords(
-        [rec(quad1)],
-        [rec(quad1), rec(quad1)],
-        [key(quad1), key(quad1)],
-      ),
-      true,
-    );
-  },
-);
+test("CONSTRUCT gate normalizes duplicate reference-stream quads", () => {
+  const quad1 = q("s", "p", "o");
+  // Wazoo emits once; Comunica's stream repeats the triple — the
+  // reference side is normalized, so the graphs agree.
+  assert.deepStrictEqual(
+    compareConstructRecords(
+      [rec(quad1)],
+      [rec(quad1), rec(quad1)],
+      [key(quad1), key(quad1)],
+    ),
+    true,
+  );
+});
 
 test("CONSTRUCT gate passes on agreeing results in any order", () => {
   const quad1 = q("s", "p", "o");

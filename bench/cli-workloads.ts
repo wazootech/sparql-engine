@@ -56,9 +56,9 @@ export const WORKLOADS: Workload[] = [
       dataPath,
       "--query",
       "PREFIX : <http://example.org/> " +
-      "SELECT ?city (COUNT(*) AS ?pairs) WHERE { " +
-      "?a :knows ?b . ?b :knows ?c . ?a :city ?city . ?c :city ?city " +
-      "} GROUP BY ?city ORDER BY ?city",
+        "SELECT ?city (COUNT(*) AS ?pairs) WHERE { " +
+        "?a :knows ?b . ?b :knows ?c . ?a :city ?city . ?c :city ?city " +
+        "} GROUP BY ?city ORDER BY ?city",
     ],
   },
 ];

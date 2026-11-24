@@ -103,8 +103,10 @@ export function expandReifiedTriples(triples: Triple[]): Triple[] {
   for (const triple of triples) {
     const p = triple.predicate;
     if (
-      "termType" in p && p.termType === "NamedNode" &&
-      p.value === RDF_REIFIES && triple.object.termType === "Quad"
+      "termType" in p &&
+      p.termType === "NamedNode" &&
+      p.value === RDF_REIFIES &&
+      triple.object.termType === "Quad"
     ) {
       const s = expandQuotedTerm(triple.subject);
       for (const expandedTriple of s.triples) expanded.push(expandedTriple);
@@ -131,7 +133,9 @@ export function isReifiesPattern(
   predicate: SparqlTerm,
   object: SparqlTerm,
 ): boolean {
-  return predicate.termType === "NamedNode" &&
+  return (
+    predicate.termType === "NamedNode" &&
     predicate.value === RDF_REIFIES &&
-    object.termType === "Quad";
+    object.termType === "Quad"
+  );
 }

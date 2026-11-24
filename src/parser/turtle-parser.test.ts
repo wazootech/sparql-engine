@@ -71,9 +71,7 @@ test("turtle-parser: resolves relative IRIs against the base IRI", () => {
 });
 
 test("turtle-parser: N-Triples input", () => {
-  const quads = parseTurtleQuads(
-    "<http://a> <http://b> <http://c> .",
-  );
+  const quads = parseTurtleQuads("<http://a> <http://b> <http://c> .");
   assert.deepStrictEqual(quads.length, 1);
   assertSameQuad(
     quads[0],
@@ -131,8 +129,10 @@ test("turtle-parser: reified triple emits rdf:reifies with its reifier", () => {
   );
   // r rdf:reifies <<( a b c )>>  and  r :q :v
   assert.deepStrictEqual(quads.length, 2);
-  const reifies = quads.find((q) =>
-    q.predicate.value === "http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies"
+  const reifies = quads.find(
+    (q) =>
+      q.predicate.value ===
+      "http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies",
   );
   assert.deepStrictEqual(reifies!.subject.value, "http://ex/r");
   assert.deepStrictEqual(reifies!.object.termType, "Quad");
@@ -179,10 +179,10 @@ test("turtle-parser: graph block statement separators", () => {
     1,
   );
   const quads = parseTurtleQuads(prefix + ":g { :a :p :o . :b :p :o }");
-  assert.deepStrictEqual(quads.map((quad) => quad.subject.value), [
-    "http://ex/a",
-    "http://ex/b",
-  ]);
+  assert.deepStrictEqual(
+    quads.map((quad) => quad.subject.value),
+    ["http://ex/a", "http://ex/b"],
+  );
   assert.deepStrictEqual(quads[1].graph.value, "http://ex/g");
   thrown(() => parseTurtleQuads(prefix + ":g { :s :p :o . . }"));
   thrown(() => parseTurtleQuads(prefix + ":g { . }"));

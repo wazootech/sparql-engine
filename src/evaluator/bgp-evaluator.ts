@@ -218,9 +218,10 @@ export class BgpEvaluator {
     // query evaluation and threaded through every group, so pattern
     // statistics are computed once per query (issue #129) — the greedy
     // reorder loop and repeated BGP blocks never re-derive them.
-    const defaultScope = storeKindOf(this.store) === "graph-scoped"
-      ? this.store as GraphScopedStore
-      : new GraphScopedStore(this.store, defaultGraphInstance);
+    const defaultScope =
+      storeKindOf(this.store) === "graph-scoped"
+        ? (this.store as GraphScopedStore)
+        : new GraphScopedStore(this.store, defaultGraphInstance);
     const stats = new PatternStatistics(this.store);
     return await this.evaluateGroup(
       patterns,
@@ -255,8 +256,10 @@ export class BgpEvaluator {
   public async prepareExistsIndex(): Promise<ExistsSnapshot> {
     const version = storeVersion(this.store);
     if (
-      this.existsIndex !== null && this.existsQuads !== null &&
-      version !== null && this.existsVersion === version
+      this.existsIndex !== null &&
+      this.existsQuads !== null &&
+      version !== null &&
+      this.existsVersion === version
     ) {
       return {
         quads: this.existsQuads,
@@ -330,7 +333,7 @@ export class BgpEvaluator {
     // evaluateExists call; the recursive probes reuse these candidates (see
     // evaluateExistsScoped) instead of re-filtering per nested EXISTS.
     const candidates = quads.filter((item) =>
-      sameRdfTerm(item.graph, scopeGraph)
+      sameRdfTerm(item.graph, scopeGraph),
     );
     return this.evaluateExistsScoped(
       pattern,
@@ -360,15 +363,17 @@ export class BgpEvaluator {
     baseIri?: string,
   ): boolean {
     const patterns = pattern.type === "group" ? pattern.patterns : [pattern];
-    return this.evaluateExistsGroup(
-      patterns,
-      [solution],
-      candidates,
-      graph,
-      index,
-      quads,
-      baseIri,
-    ).length > 0;
+    return (
+      this.evaluateExistsGroup(
+        patterns,
+        [solution],
+        candidates,
+        graph,
+        index,
+        quads,
+        baseIri,
+      ).length > 0
+    );
   }
 
   /**
@@ -452,8 +457,8 @@ export class BgpEvaluator {
           }
           const predicate = simplePredicate(triple.predicate);
           const reifies = isReifiesPattern(predicate, triple.object);
-          const tripleTermObject = !reifies &&
-            triple.object.termType === "Quad";
+          const tripleTermObject =
+            !reifies && triple.object.termType === "Quad";
           const entry: ScanEntry = {
             subject: triple.subject,
             predicate,
@@ -467,13 +472,14 @@ export class BgpEvaluator {
             // triple-term objects scan every quad with a triple-term object
             // (both subsets of the scoped candidates).
             candidates: reifies
-              ? candidates.filter((item) =>
-                item.predicate.termType === "NamedNode" &&
-                item.predicate.value === RDF_REIFIES
-              )
+              ? candidates.filter(
+                  (item) =>
+                    item.predicate.termType === "NamedNode" &&
+                    item.predicate.value === RDF_REIFIES,
+                )
               : tripleTermObject
-              ? candidates.filter((item) => item.object.termType === "Quad")
-              : candidates,
+                ? candidates.filter((item) => item.object.termType === "Quad")
+                : candidates,
           };
           // The join probes the once-per-query snapshot index with each
           // solution's resolved positions (constants and bound variables)
@@ -493,7 +499,7 @@ export class BgpEvaluator {
             pattern.expression,
             binding,
             context,
-          )
+          ),
         );
       case "graph": {
         const name = pattern.name;
@@ -505,7 +511,7 @@ export class BgpEvaluator {
         if (name.termType === "NamedNode") {
           const graphTerm = sparqlTermToRdfTerm(name);
           const scopedCandidates = quads.filter((item) =>
-            sameRdfTerm(item.graph, graphTerm)
+            sameRdfTerm(item.graph, graphTerm),
           );
           return this.evaluateExistsGroup(
             pattern.patterns,
@@ -526,7 +532,7 @@ export class BgpEvaluator {
             const boundGraph = binding[name.value];
             if (boundGraph !== undefined) {
               const scopedCandidates = quads.filter((item) =>
-                sameRdfTerm(item.graph, boundGraph)
+                sameRdfTerm(item.graph, boundGraph),
               );
               result.push(
                 ...this.evaluateExistsGroup(
@@ -542,7 +548,7 @@ export class BgpEvaluator {
             } else {
               for (const graphTerm of namedGraphTerms(quads)) {
                 const scopedCandidates = quads.filter((item) =>
-                  sameRdfTerm(item.graph, graphTerm)
+                  sameRdfTerm(item.graph, graphTerm),
                 );
                 const inner = this.evaluateExistsGroup(
                   pattern.patterns,
@@ -793,7 +799,7 @@ export class BgpEvaluator {
     // The scoped candidates and index are captured once per context, so a
     // concurrent call's rebuild never swaps them mid-evaluation (issue #72).
     const candidates = snapshot.quads.filter((item) =>
-      sameRdfTerm(item.graph, graph)
+      sameRdfTerm(item.graph, graph),
     );
     const { index, quads } = snapshot;
     return {
@@ -824,7 +830,7 @@ export class BgpEvaluator {
   ): ExpressionEvaluationContext {
     const graph = defaultGraphInstance;
     const candidates = snapshot.quads.filter((item) =>
-      sameRdfTerm(item.graph, graph)
+      sameRdfTerm(item.graph, graph),
     );
     const { index, quads } = snapshot;
     return {
@@ -956,14 +962,12 @@ export class BgpEvaluator {
         const context = expressionContainsExists(pattern.expression)
           ? this.scopedExistsContext(store, snapshot, baseIri)
           : this.existsContext(store, baseIri);
-        return filterBindingsArray(
-          bindings,
-          (binding) =>
-            this.expressionEvaluator.filterPasses(
-              pattern.expression,
-              binding,
-              context,
-            ),
+        return filterBindingsArray(bindings, (binding) =>
+          this.expressionEvaluator.filterPasses(
+            pattern.expression,
+            binding,
+            context,
+          ),
         );
       }
       case "optional": {
@@ -1092,9 +1096,7 @@ export class BgpEvaluator {
         // is exhausted, so there is no typed value left to read in the throw.
         const graphTermType: string = graphName.termType;
         if (graphTermType !== "NamedNode" && graphTermType !== "Variable") {
-          throw new Error(
-            "Unsupported GRAPH name term type: " + graphTermType,
-          );
+          throw new Error("Unsupported GRAPH name term type: " + graphTermType);
         }
         const graphTerms: RdfTerm[] = [];
         if (graphName.termType === "Variable") {
@@ -1169,9 +1171,8 @@ export class BgpEvaluator {
         }
       }
       case "query": {
-        const { SparqlEvaluator } = await import(
-          "@/evaluator/sparql-evaluator.ts"
-        );
+        const { SparqlEvaluator } =
+          await import("@/evaluator/sparql-evaluator.ts");
         const subEvaluator = new SparqlEvaluator(store, {
           reorderPatterns: this.reorderPatterns,
           functions: this.functions,
@@ -1306,18 +1307,15 @@ export class BgpEvaluator {
     // estimatorKind field is the source of truth), so the DP path and the
     // greedy baseline path both call through a declared type instead of a
     // dynamic class cast/protocol fallback (issue #247).
-    const baselineEstimator = this.estimator.estimatorKind === "baseline"
-      ? (this.estimator as BaselineJoinCostEstimator)
-      : null;
+    const baselineEstimator =
+      this.estimator.estimatorKind === "baseline"
+        ? (this.estimator as BaselineJoinCostEstimator)
+        : null;
     if (baselineEstimator !== null && remaining.length <= DP_MAX_PATTERNS) {
-      const order = searchBestJoinOrder(
-        remaining,
-        perEntryStats,
-        {
-          card: result.length,
-          bound: boundVariables(result),
-        },
-      );
+      const order = searchBestJoinOrder(remaining, perEntryStats, {
+        card: result.length,
+        bound: boundVariables(result),
+      });
       if (order !== null) {
         for (const index of order) {
           checkAborted(signal);
@@ -1334,25 +1332,26 @@ export class BgpEvaluator {
       let bestCost = Number.POSITIVE_INFINITY;
       for (let index = 0; index < remaining.length; index++) {
         const pattern = remaining[index];
-        const cost = baselineEstimator !== null
-          ? estimateBaselineJoinCost(
-            patternVariableName(pattern.subject),
-            patternVariableName(pattern.predicate),
-            patternVariableName(pattern.object),
-            pattern.candidates.length,
-            result,
-            perEntryStats[index],
-          )
-          : this.estimator.estimateJoinCost(
-            // Custom estimator: the interface call is statically dispatched
-            // once the baseline arm is excluded by the kind tag.
-            patternVariableName(pattern.subject),
-            patternVariableName(pattern.predicate),
-            patternVariableName(pattern.object),
-            pattern.candidates.length,
-            result.length,
-            perEntryStats[index],
-          );
+        const cost =
+          baselineEstimator !== null
+            ? estimateBaselineJoinCost(
+                patternVariableName(pattern.subject),
+                patternVariableName(pattern.predicate),
+                patternVariableName(pattern.object),
+                pattern.candidates.length,
+                result,
+                perEntryStats[index],
+              )
+            : this.estimator.estimateJoinCost(
+                // Custom estimator: the interface call is statically dispatched
+                // once the baseline arm is excluded by the kind tag.
+                patternVariableName(pattern.subject),
+                patternVariableName(pattern.predicate),
+                patternVariableName(pattern.object),
+                pattern.candidates.length,
+                result.length,
+                perEntryStats[index],
+              );
         if (cost < bestCost) {
           bestCost = cost;
           bestIndex = index;

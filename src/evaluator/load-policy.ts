@@ -50,11 +50,17 @@ export interface LoadPolicy {
 const IPV4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
 
 function isBlockedIpv4(a: number, b: number): boolean {
-  return a === 0 || a === 10 || a === 127 || a >= 224 ||
+  return (
+    a === 0 ||
+    a === 10 ||
+    a === 127 ||
+    a >= 224 ||
     (a === 100 && b >= 64 && b <= 127) ||
-    (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) ||
+    (a === 169 && b === 254) ||
+    (a === 172 && b >= 16 && b <= 31) ||
     (a === 192 && (b === 168 || b === 0)) ||
-    (a === 198 && (b === 18 || b === 19));
+    (a === 198 && (b === 18 || b === 19))
+  );
 }
 
 /** isBlockedAddress reports loopback, private, link-local, metadata and reserved IP literals. */
@@ -75,8 +81,13 @@ export function isBlockedAddress(address: string): boolean {
   const v4 = host.match(IPV4);
   if (v4) return isBlockedIpv4(Number(v4[1]), Number(v4[2]));
   if (host.includes(":")) {
-    return host === "::" || host === "::1" || /^f[cd]/.test(host) ||
-      /^fe[89ab]/.test(host) || host.startsWith("ff");
+    return (
+      host === "::" ||
+      host === "::1" ||
+      /^f[cd]/.test(host) ||
+      /^fe[89ab]/.test(host) ||
+      host.startsWith("ff")
+    );
   }
   return false;
 }
@@ -102,7 +113,7 @@ export async function assertLoadAllowed(
   const isLiteral = IPV4.test(hostname) || hostname.includes(":");
   const addresses = isLiteral
     ? [hostname]
-    : (await policy?.resolveHost?.(hostname)) ?? [];
+    : ((await policy?.resolveHost?.(hostname)) ?? []);
   if (addresses.some(isBlockedAddress)) {
     throw new Error("LOAD target resolves to a blocked address");
   }

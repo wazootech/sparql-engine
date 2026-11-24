@@ -56,9 +56,7 @@ const { stdout: text, stderr } = await runProcess(
   { cwd: REPO_ROOT },
 );
 if (!text.trimStart().startsWith("{")) {
-  throw new Error(
-    `scriptc printed no diagnostics:\n${stderr}`,
-  );
+  throw new Error(`scriptc printed no diagnostics:\n${stderr}`);
 }
 
 if (process.argv.slice(2).includes("--json")) {

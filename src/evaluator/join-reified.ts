@@ -48,11 +48,7 @@ export function joinReifiesPattern(
       if (extended === null) {
         continue;
       }
-      extended = matchPatternTerm(
-        tripleTerm.object,
-        quoted.object,
-        extended,
-      );
+      extended = matchPatternTerm(tripleTerm.object, quoted.object, extended);
       if (extended === null) {
         continue;
       }
@@ -107,11 +103,7 @@ export function joinTripleTermObject(
       if (extended === null) {
         continue;
       }
-      const bound = matchPatternTerm(
-        entry.object,
-        candidate.object,
-        extended,
-      );
+      const bound = matchPatternTerm(entry.object, candidate.object, extended);
       if (bound !== null) {
         out.push(bound);
       }

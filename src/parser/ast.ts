@@ -293,11 +293,7 @@ export interface GraphRefAll {
 
 export interface InsertDeleteOperation {
   updateType:
-    | "insert"
-    | "delete"
-    | "deletewhere"
-    | "deleteinsert"
-    | "insertdelete";
+    "insert" | "delete" | "deletewhere" | "deleteinsert" | "insertdelete";
   type?: undefined;
   graph?: Term;
   insert?: Pattern[];

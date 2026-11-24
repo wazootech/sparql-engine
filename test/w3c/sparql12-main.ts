@@ -98,9 +98,10 @@ function loadStore(testCase: W3cTestCase): MemoryStore {
 
 function queryText(testCase: W3cTestCase): string {
   const raw = fixtureText(testCase, testCase.queryFile);
-  return `BASE <${
-    canonicalUrl(testCase.category, testCase.queryFile)
-  }>\n${raw}`;
+  return `BASE <${canonicalUrl(
+    testCase.category,
+    testCase.queryFile,
+  )}>\n${raw}`;
 }
 
 async function evaluate(testCase: W3cTestCase): Promise<Verdict> {
@@ -123,8 +124,10 @@ async function evaluate(testCase: W3cTestCase): Promise<Verdict> {
     !testCase.resultFile &&
     (testCase.category.includes("syntax") ||
       testCase.category === "codepoint-escapes" ||
-      testCase.category === "version" || testCase.category === "grouping" ||
-      testCase.category === "lang-basedir" || testCase.category === "rdf11")
+      testCase.category === "version" ||
+      testCase.category === "grouping" ||
+      testCase.category === "lang-basedir" ||
+      testCase.category === "rdf11")
   ) {
     try {
       parseQuery(query);
@@ -162,25 +165,22 @@ async function evaluate(testCase: W3cTestCase): Promise<Verdict> {
       const expectedQuads = parser.parse(
         fixtureText(testCase, testCase.resultFile),
       );
-      const expectedRecords = expectedQuads.map(
-        (q: rdfjs.Quad) => [
-          canonicalizeRdfTerm(q.subject),
-          canonicalizeRdfTerm(q.predicate),
-          canonicalizeRdfTerm(q.object),
-        ],
-      );
-      const actualQuads = wazooResult.kind === "construct"
-        ? wazooResult.data.quads
-        : (wazooResult.kind === "void"
-          ? store.getQuads(null, null, null, null)
-          : []);
-      const actualRecords = actualQuads.map(
-        (q: rdfjs.Quad) => [
-          canonicalizeRdfTerm(q.subject),
-          canonicalizeRdfTerm(q.predicate),
-          canonicalizeRdfTerm(q.object),
-        ],
-      );
+      const expectedRecords = expectedQuads.map((q: rdfjs.Quad) => [
+        canonicalizeRdfTerm(q.subject),
+        canonicalizeRdfTerm(q.predicate),
+        canonicalizeRdfTerm(q.object),
+      ]);
+      const actualQuads =
+        wazooResult.kind === "construct"
+          ? wazooResult.data.quads
+          : wazooResult.kind === "void"
+            ? store.getQuads(null, null, null, null)
+            : [];
+      const actualRecords = actualQuads.map((q: rdfjs.Quad) => [
+        canonicalizeRdfTerm(q.subject),
+        canonicalizeRdfTerm(q.predicate),
+        canonicalizeRdfTerm(q.object),
+      ]);
       if (isomorphicMultiset(actualRecords, expectedRecords)) {
         return { status: "pass" };
       }

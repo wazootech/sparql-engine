@@ -55,8 +55,13 @@ export function parseDateTime(lexical: string): DateTimeParts | null {
   const minutes = numberFromText(match[5]);
   const seconds = numberFromText(match[6]);
   if (
-    month < 1 || month > 12 || day < 1 || day > 31 ||
-    hours > 23 || minutes > 59 || seconds > 60
+    month < 1 ||
+    month > 12 ||
+    day < 1 ||
+    day > 31 ||
+    hours > 23 ||
+    minutes > 59 ||
+    seconds > 60
   ) {
     return null;
   }
@@ -81,9 +86,8 @@ export function parseDateTime(lexical: string): DateTimeParts | null {
     day,
     hours,
     minutes,
-    seconds: match[7] !== undefined
-      ? numberFromText(match[6] + match[7])
-      : seconds,
+    seconds:
+      match[7] !== undefined ? numberFromText(match[6] + match[7]) : seconds,
     hasTimezone,
     timezoneMinutes,
   };

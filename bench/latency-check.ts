@@ -45,9 +45,7 @@ function inventory(data: LatencyData): Map<string, boolean> {
 const committed = JSON.parse(
   readFileSync(join(process.cwd(), "bench", "latency-data.json"), "utf8"),
 ) as LatencyData;
-const fresh = JSON.parse(
-  await readStdin(),
-) as LatencyData;
+const fresh = JSON.parse(await readStdin()) as LatencyData;
 
 const committedInv = inventory(committed);
 const freshInv = inventory(fresh);

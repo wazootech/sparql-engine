@@ -96,9 +96,7 @@ async function runWorkload(): Promise<void> {
     for (const q of dataset) {
       store.addQuad(q);
     }
-    const { QueryEngine } = await import(
-      "@comunica/query-sparql-rdfjs-lite"
-    );
+    const { QueryEngine } = await import("@comunica/query-sparql-rdfjs-lite");
     const comunicaEngine = new QueryEngine();
     for (let i = 0; i < RUNS; i++) {
       const stream = await comunicaEngine.queryBindings(query, {

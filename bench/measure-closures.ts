@@ -40,10 +40,7 @@ const VALUE_EXPORT_RE = /\bexport\s+(?!type\b)[^;]*?\bfrom\s*["']([^"']+)["']/g;
 const SIDE_EFFECT_RE = /\bimport\s*["']([^"']+)["']/g;
 const DYNAMIC_IMPORT_RE = /import\(\s*["']([^"']+)["']\s*\)/g;
 
-function resolveSpecifier(
-  specifier: string,
-  importer: string,
-): string | null {
+function resolveSpecifier(specifier: string, importer: string): string | null {
   if (specifier.startsWith("@/")) {
     return join(CWD, "src", specifier.slice(2));
   }
@@ -86,14 +83,12 @@ function closureOf(entry: string): { files: string[]; bytes: number } {
     }
     visited.add(file);
     const text = readFileSync(file, "utf8");
-    for (
-      const re of [
-        VALUE_IMPORT_RE,
-        VALUE_EXPORT_RE,
-        SIDE_EFFECT_RE,
-        DYNAMIC_IMPORT_RE,
-      ]
-    ) {
+    for (const re of [
+      VALUE_IMPORT_RE,
+      VALUE_EXPORT_RE,
+      SIDE_EFFECT_RE,
+      DYNAMIC_IMPORT_RE,
+    ]) {
       re.lastIndex = 0;
       let match: RegExpExecArray | null;
       while ((match = re.exec(text)) !== null) {
@@ -112,9 +107,7 @@ function closureOf(entry: string): { files: string[]; bytes: number } {
     (sum, file) => sum + statSync(file).size,
     0,
   );
-  const files = [...visited]
-    .map((file) => file.slice(CWD.length + 1))
-    .sort();
+  const files = [...visited].map((file) => file.slice(CWD.length + 1)).sort();
   return { files, bytes };
 }
 

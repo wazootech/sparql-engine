@@ -259,8 +259,9 @@ interface UriComponents {
 // Splits a URI reference into its five RFC 3986 components.
 function parseUriComponents(uri: string): UriComponents {
   const match =
-    /^(?:([^:/?#]+):)?(?:\/\/([^/?#]*))?([^?#]*)(?:\?([^#]*))?(?:#([\s\S]*))?$/
-      .exec(uri);
+    /^(?:([^:/?#]+):)?(?:\/\/([^/?#]*))?([^?#]*)(?:\?([^#]*))?(?:#([\s\S]*))?$/.exec(
+      uri,
+    );
   if (match === null) {
     throw new Error("Invalid URI reference: " + uri);
   }
@@ -336,9 +337,10 @@ function resolveRfc3986(baseIri: string, reference: string): string {
         path = base.path;
         query = ref.query !== undefined ? ref.query : base.query;
       } else {
-        path = ref.path.charAt(0) === "/"
-          ? removeDotSegments(ref.path)
-          : removeDotSegments(mergePaths(base, ref.path));
+        path =
+          ref.path.charAt(0) === "/"
+            ? removeDotSegments(ref.path)
+            : removeDotSegments(mergePaths(base, ref.path));
         query = ref.query;
       }
       authority = base.authority;
@@ -377,7 +379,7 @@ function decodeUnicodeEscape(
   eightDigits: string | undefined,
 ): string {
   const codePoint = parseInt(fourDigits ?? eightDigits ?? "", 16);
-  if (codePoint >= 0xD800 && codePoint <= 0xDFFF) {
+  if (codePoint >= 0xd800 && codePoint <= 0xdfff) {
     throw new Error(
       "Invalid Unicode escape (surrogate code point): " + matched,
     );
@@ -392,7 +394,8 @@ function decodeUnicodeEscapes(text: string): string {
   let copiedUpTo = 0;
   let match = pattern.exec(text);
   while (match !== null) {
-    result += text.slice(copiedUpTo, match.index) +
+    result +=
+      text.slice(copiedUpTo, match.index) +
       decodeUnicodeEscape(match[0], match[1], match[2]);
     copiedUpTo = match.index + match[0].length;
     match = pattern.exec(text);
@@ -424,8 +427,7 @@ function decodeStringEscapes(text: string): string {
   let copiedUpTo = 0;
   let match = pattern.exec(text);
   while (match !== null) {
-    result += text.slice(copiedUpTo, match.index) +
-      echarValue(match[1]!);
+    result += text.slice(copiedUpTo, match.index) + echarValue(match[1]!);
     copiedUpTo = match.index + match[0].length;
     match = pattern.exec(text);
   }
@@ -448,7 +450,7 @@ export function unescapeIri(iri: string): string {
   // IRIREF excludes U+0000-U+0020 and <>"{}|^`\\; an escape must not
   // smuggle any of them into the decoded IRI.
   // deno-lint-ignore no-control-regex
-  if (/[\u0000-\u0020<>"{}|^`\\]/.test(result)) { // oxlint-disable-line no-control-regex -- IRIs may not contain control characters
+  if (/[\u0000-\u0020<>"{}|^`\\]/.test(result)) {
     throw new Error("Invalid IRI escape: disallowed character");
   }
   return result;
@@ -541,8 +543,10 @@ function isWellFormedLanguageTag(tag: string): boolean {
     // extlang = 3ALPHA *2("-" 3ALPHA)
     let extlangs = 0;
     while (
-      index < subtags.length && extlangs < 3 &&
-      subtags[index]!.length === 3 && alpha.test(subtags[index]!)
+      index < subtags.length &&
+      extlangs < 3 &&
+      subtags[index]!.length === 3 &&
+      alpha.test(subtags[index]!)
     ) {
       index++;
       extlangs++;
@@ -557,7 +561,8 @@ function isWellFormedLanguageTag(tag: string): boolean {
 
   // script = 4ALPHA
   if (
-    index < subtags.length && subtags[index]!.length === 4 &&
+    index < subtags.length &&
+    subtags[index]!.length === 4 &&
     alpha.test(subtags[index]!)
   ) {
     index++;
@@ -577,9 +582,12 @@ function isWellFormedLanguageTag(tag: string): boolean {
   // variant = 5*8alphanum / (DIGIT 3alphanum)
   while (index < subtags.length) {
     const variant = subtags[index]!;
-    const isVariant = (variant.length >= 5 && variant.length <= 8 &&
-      alphanumeric.test(variant)) ||
-      (variant.length === 4 && digits.test(variant.charAt(0)) &&
+    const isVariant =
+      (variant.length >= 5 &&
+        variant.length <= 8 &&
+        alphanumeric.test(variant)) ||
+      (variant.length === 4 &&
+        digits.test(variant.charAt(0)) &&
         alphanumeric.test(variant));
     if (!isVariant) break;
     index++;
@@ -588,13 +596,16 @@ function isWellFormedLanguageTag(tag: string): boolean {
   // extension = singleton 1*("-" 2*8alphanum), where singleton is a single
   // alphanumeric other than x/X.
   while (
-    index < subtags.length && /^[0-9A-WY-Za-wy-z]$/.test(subtags[index]!)
+    index < subtags.length &&
+    /^[0-9A-WY-Za-wy-z]$/.test(subtags[index]!)
   ) {
     index++;
     let extensionCount = 0;
     while (
-      index < subtags.length && subtags[index]!.length >= 2 &&
-      subtags[index]!.length <= 8 && alphanumeric.test(subtags[index]!)
+      index < subtags.length &&
+      subtags[index]!.length >= 2 &&
+      subtags[index]!.length <= 8 &&
+      alphanumeric.test(subtags[index]!)
     ) {
       index++;
       extensionCount++;
@@ -607,8 +618,10 @@ function isWellFormedLanguageTag(tag: string): boolean {
     index++;
     let privateUseCount = 0;
     while (
-      index < subtags.length && subtags[index]!.length >= 1 &&
-      subtags[index]!.length <= 8 && alphanumeric.test(subtags[index]!)
+      index < subtags.length &&
+      subtags[index]!.length >= 1 &&
+      subtags[index]!.length <= 8 &&
+      alphanumeric.test(subtags[index]!)
     ) {
       index++;
       privateUseCount++;
@@ -628,9 +641,8 @@ function languageWithDirection(
   languageDirection: string,
 ): RdfDirectionalLanguage {
   const dash = languageDirection.indexOf("--");
-  const tag = dash === -1
-    ? languageDirection
-    : languageDirection.slice(0, dash);
+  const tag =
+    dash === -1 ? languageDirection : languageDirection.slice(0, dash);
   if (!isWellFormedLanguageTag(tag)) {
     throw new Error("Language tag is not well-formed per BCP47: " + tag);
   }
@@ -660,12 +672,10 @@ export function languageLiteral(
 }
 
 /** datatypedLiteral builds a literal with an explicit datatype IRI. */
-export function datatypedLiteral(
-  token: string,
-  datatype: RdfTerm,
-): RdfTerm {
+export function datatypedLiteral(token: string, datatype: RdfTerm): RdfTerm {
   if (
-    datatype.value === RDF_LANGSTRING || datatype.value === RDF_DIRLANGSTRING
+    datatype.value === RDF_LANGSTRING ||
+    datatype.value === RDF_DIRLANGSTRING
   ) {
     throw new Error(
       "rdf:langString and rdf:dirLangString must not be written as an explicit datatype IRI",

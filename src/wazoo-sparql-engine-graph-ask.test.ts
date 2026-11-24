@@ -26,13 +26,14 @@ test("WazooSparqlEngine - GRAPH ?g enumerates named graphs and binds the variabl
   const engine = new WazooSparqlEngine({ store });
 
   const result = await engine.execute({
-    query: "SELECT ?g ?s WHERE { GRAPH ?g { " +
+    query:
+      "SELECT ?g ?s WHERE { GRAPH ?g { " +
       "?s <http://xmlns.com/foaf/0.1/name> ?n } } ORDER BY ?g ?s",
   });
   assert.deepStrictEqual(result.kind, "select");
   if (result.kind === "select") {
-    const rows = result.data.results.bindings.map((b) =>
-      `${b.g.value}:${b.s.value}`
+    const rows = result.data.results.bindings.map(
+      (b) => `${b.g.value}:${b.s.value}`,
     );
     // The default graph is not a named graph, so it never appears.
     assert.deepStrictEqual(rows, [
@@ -62,7 +63,8 @@ test("WazooSparqlEngine - GRAPH joins with a preceding pattern", async () => {
   );
   const engine = new WazooSparqlEngine({ store });
   const result = await engine.execute({
-    query: "SELECT ?s ?o WHERE { ?s <http://example.org/p> ?o1 . " +
+    query:
+      "SELECT ?s ?o WHERE { ?s <http://example.org/p> ?o1 . " +
       "GRAPH <http://example.org/g1> { ?s <http://example.org/p> ?o } }",
   });
   assert.deepStrictEqual(result.kind, "select");
@@ -164,8 +166,8 @@ test("WazooSparqlEngine - DESCRIBE variable describes bindings, skips literals",
   assert.deepStrictEqual(result.kind, "construct");
   if (result.kind === "construct") {
     // ?o binds the literal (not describable) and :b; only :b is described.
-    const contents = result.data.quads.map((q) =>
-      `${q.subject.value} ${q.predicate.value} ${q.object.value}`
+    const contents = result.data.quads.map(
+      (q) => `${q.subject.value} ${q.predicate.value} ${q.object.value}`,
     );
     assert.deepStrictEqual(contents, [
       "http://example.org/b http://example.org/r http://example.org/c",
@@ -204,8 +206,8 @@ test("WazooSparqlEngine - DESCRIBE star describes the bound variables only", asy
     // DESCRIBE * describes the variables bound in the WHERE (?o → :b, :c),
     // not the constant :a; only :b has an outgoing arc. The result is a
     // deduped graph set.
-    const contents = result.data.quads.map((q) =>
-      `${q.subject.value} ${q.predicate.value} ${q.object.value}`
+    const contents = result.data.quads.map(
+      (q) => `${q.subject.value} ${q.predicate.value} ${q.object.value}`,
     );
     assert.deepStrictEqual(contents, [
       "http://example.org/b http://example.org/p http://example.org/c",
@@ -268,9 +270,9 @@ test("WazooSparqlEngine - CONSTRUCT result is a graph (duplicates collapse)", as
 
   assert.deepStrictEqual(result.kind, "construct");
   if (result.kind === "construct") {
-    const contents = result.data.quads.map((q) =>
-      `${q.subject.value} ${q.predicate.value} ${q.object.value}`
-    ).sort();
+    const contents = result.data.quads
+      .map((q) => `${q.subject.value} ${q.predicate.value} ${q.object.value}`)
+      .sort();
     assert.deepStrictEqual(contents, [
       "http://example.org/s1 http://example.org/p http://example.org/o1",
       "http://example.org/s2 http://example.org/p http://example.org/o1",
@@ -290,12 +292,7 @@ test("WazooSparqlEngine - INSERT DATA adds quads and returns void", async () => 
 
   assert.deepStrictEqual(result.kind, "void");
   assert.deepStrictEqual(
-    store.countQuads(
-      namedNode("http://example.org/alice"),
-      null,
-      null,
-      null,
-    ),
+    store.countQuads(namedNode("http://example.org/alice"), null, null, null),
     2,
   );
   assert.deepStrictEqual(

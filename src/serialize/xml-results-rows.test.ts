@@ -25,7 +25,8 @@ test("serializeXmlResults - emits a deterministic .srx document", () => {
       },
     },
   };
-  const golden = '<?xml version="1.0" encoding="UTF-8"?>\n' +
+  const golden =
+    '<?xml version="1.0" encoding="UTF-8"?>\n' +
     '<sparql xmlns="http://www.w3.org/2005/sparql-results#" ' +
     'xmlns:its="http://www.w3.org/2005/11/its" its:version="2.0">\n' +
     "  <head>\n" +
@@ -54,22 +55,15 @@ test("serializeXmlResults - emits a deterministic .srx document", () => {
   );
 });
 
-test(
-  "serializeXmlResults - rejects kinds the format does not cover",
-  () => {
-    thrown(
-      () =>
-        serializeXmlResults({
-          kind: "construct",
-          data: { quads: [] },
-        }),
-      Error,
-      "SELECT and ASK",
-    );
-    thrown(
-      () => serializeXmlResults({ kind: "void" }),
-      Error,
-      "SELECT and ASK",
-    );
-  },
-);
+test("serializeXmlResults - rejects kinds the format does not cover", () => {
+  thrown(
+    () =>
+      serializeXmlResults({
+        kind: "construct",
+        data: { quads: [] },
+      }),
+    Error,
+    "SELECT and ASK",
+  );
+  thrown(() => serializeXmlResults({ kind: "void" }), Error, "SELECT and ASK");
+});

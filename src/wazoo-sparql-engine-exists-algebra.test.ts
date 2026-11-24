@@ -28,9 +28,9 @@ test("WazooSparqlEngine - OPTIONAL, MINUS, UNION inside EXISTS reuse the join al
     if (result.kind !== "select") {
       throw new Error(`expected select, got ${result.kind}`);
     }
-    return result.data.results.bindings.map((b) =>
-      String((b[variable] as { value: string }).value)
-    ).sort();
+    return result.data.results.bindings
+      .map((b) => String((b[variable] as { value: string }).value))
+      .sort();
   }
 
   // MINUS: for o=b, z=c is excluded only when the minus side matches c
@@ -64,7 +64,8 @@ test("WazooSparqlEngine - OPTIONAL, MINUS, UNION inside EXISTS reuse the join al
   );
   // A UNION branch may reference the outer solution's variables directly.
   const both = await engine.execute({
-    query: "SELECT ?s WHERE { ?s <http://example.org/p> ?o " +
+    query:
+      "SELECT ?s WHERE { ?s <http://example.org/p> ?o " +
       "FILTER EXISTS { { ?o <http://example.org/q> ?z } UNION { ?s <http://example.org/p> ?x } } }",
   });
   if (both.kind !== "select") throw new Error("expected select");
@@ -147,9 +148,9 @@ test("WazooSparqlEngine - subqueries inside EXISTS evaluate over the graph-scope
     if (result.kind !== "select") {
       throw new Error(`expected select, got ${result.kind}`);
     }
-    return result.data.results.bindings.map((b) =>
-      String((b[variable] as { value: string }).value)
-    ).sort();
+    return result.data.results.bindings
+      .map((b) => String((b[variable] as { value: string }).value))
+      .sort();
   }
 
   // Basic subquery: EXISTS holds whenever the subquery has any result, so
@@ -248,9 +249,9 @@ test("WazooSparqlEngine - NOT EXISTS and EXISTS nest inside EXISTS subqueries", 
     if (result.kind !== "select") {
       throw new Error(`expected select, got ${result.kind}`);
     }
-    return result.data.results.bindings.map((b) =>
-      String((b[variable] as { value: string }).value)
-    ).sort();
+    return result.data.results.bindings
+      .map((b) => String((b[variable] as { value: string }).value))
+      .sort();
   }
 
   // NOT EXISTS inside the EXISTS subquery correlates with the subquery's own
@@ -298,15 +299,16 @@ test("WazooSparqlEngine - EXISTS snapshot cache sees store mutations between que
 
   async function projected(variable: string): Promise<string[]> {
     const result = await engine.execute({
-      query: "SELECT ?s WHERE { ?s <http://example.org/p> ?o " +
+      query:
+        "SELECT ?s WHERE { ?s <http://example.org/p> ?o " +
         "FILTER EXISTS { ?s <http://example.org/q> ?z } }",
     });
     if (result.kind !== "select") {
       throw new Error(`expected select, got ${result.kind}`);
     }
-    return result.data.results.bindings.map((b) =>
-      String((b[variable] as { value: string }).value)
-    ).sort();
+    return result.data.results.bindings
+      .map((b) => String((b[variable] as { value: string }).value))
+      .sort();
   }
 
   // Only a has a q edge: EXISTS keeps a. A second identical query (cache
@@ -316,8 +318,8 @@ test("WazooSparqlEngine - EXISTS snapshot cache sees store mutations between que
   // Mutate the store, then re-run: the cached snapshot must be rebuilt, so
   // b now passes the EXISTS filter too.
   store.addQuad(quad(ex("b"), ex("q"), literal("2")));
-  assert.deepStrictEqual(
-    await projected("s"),
-    ["http://example.org/a", "http://example.org/b"],
-  );
+  assert.deepStrictEqual(await projected("s"), [
+    "http://example.org/a",
+    "http://example.org/b",
+  ]);
 });

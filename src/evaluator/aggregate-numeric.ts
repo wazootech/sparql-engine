@@ -81,13 +81,11 @@ export function integerLiteral(value: number | bigint): RdfLiteral {
   return literal(String(value), namedNode(XSD_INTEGER));
 }
 
-function numericLiteral(
-  value: number,
-  datatype: string,
-): RdfLiteral {
-  const text = datatype === XSD_DOUBLE || datatype === XSD_FLOAT
-    ? canonicalDouble(value)
-    : formatNumber(value, datatype);
+function numericLiteral(value: number, datatype: string): RdfLiteral {
+  const text =
+    datatype === XSD_DOUBLE || datatype === XSD_FLOAT
+      ? canonicalDouble(value)
+      : formatNumber(value, datatype);
   return literal(text, namedNode(datatype));
 }
 
@@ -135,19 +133,15 @@ function numericLiteralFromExactDecimal(
   scale: number,
 ): RdfLiteral {
   const negative = total < 0n;
-  const absolute = (negative ? -total : total).toString().padStart(
-    scale + 1,
-    "0",
-  );
+  const absolute = (negative ? -total : total)
+    .toString()
+    .padStart(scale + 1, "0");
   let text: string;
   if (scale === 0) {
     text = absolute;
   } else {
     const intPart = absolute.slice(0, absolute.length - scale);
-    const fracPart = absolute.slice(absolute.length - scale).replace(
-      /0+$/,
-      "",
-    );
+    const fracPart = absolute.slice(absolute.length - scale).replace(/0+$/, "");
     text = fracPart.length === 0 ? intPart : `${intPart}.${fracPart}`;
   }
   if (negative) {
