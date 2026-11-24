@@ -6,28 +6,28 @@ import type { RdfLiteral } from "@/parser/rdf-terms.ts";
 export const XSD = "http://www.w3.org/2001/XMLSchema#";
 
 /** XSD_STRING is the xsd:string datatype IRI. */
-export const XSD_STRING = `${XSD}string`;
+export const XSD_STRING: string = `${XSD}string`;
 
 /** XSD_BOOLEAN is the xsd:boolean datatype IRI. */
-export const XSD_BOOLEAN = `${XSD}boolean`;
+export const XSD_BOOLEAN: string = `${XSD}boolean`;
 
 /** XSD_INTEGER is the xsd:integer datatype IRI. */
-export const XSD_INTEGER = `${XSD}integer`;
+export const XSD_INTEGER: string = `${XSD}integer`;
 
 /** XSD_DECIMAL is the xsd:decimal datatype IRI. */
-export const XSD_DECIMAL = `${XSD}decimal`;
+export const XSD_DECIMAL: string = `${XSD}decimal`;
 
 /** XSD_FLOAT is the xsd:float datatype IRI. */
-export const XSD_FLOAT = `${XSD}float`;
+export const XSD_FLOAT: string = `${XSD}float`;
 
 /** XSD_DOUBLE is the xsd:double datatype IRI. */
-export const XSD_DOUBLE = `${XSD}double`;
+export const XSD_DOUBLE: string = `${XSD}double`;
 
 /** XSD_DATETIME is the xsd:dateTime datatype IRI. */
-export const XSD_DATETIME = `${XSD}dateTime`;
+export const XSD_DATETIME: string = `${XSD}dateTime`;
 
 /** XSD_DAYTIME_DURATION is the xsd:dayTimeDuration datatype IRI. */
-export const XSD_DAYTIME_DURATION = `${XSD}dayTimeDuration`;
+export const XSD_DAYTIME_DURATION: string = `${XSD}dayTimeDuration`;
 
 /**
  * NUMERIC_DATATYPES is the set of XSD datatypes with numeric value semantics
