@@ -58,15 +58,15 @@ job + publish job |
 ## Unit & integration tests
 
 Tests use `node:test` and `node:assert/strict`, so the same files run on Deno
-(`deno test`, the CI gate) and on Bun (`bun test`, the `bun` CI job; Bun's test
-timeout is raised in `bunfig.toml`). `deno test` discovers `*.test.ts` alongside
-sources and under `test/`:
+(`deno test`, the CI gate) and on Bun (`bun test --timeout 120000`, the `bun` CI
+job; the default 5 s timeout is too short for the cold comunica parity suites).
+`deno test` discovers `*.test.ts` alongside sources and under `test/`:
 
 ```bash
 deno test src/              # engine internals only (fast loop)
 deno test src/wazoo-sparql-engine.test.ts   # single file
 deno test -n "exists"       # filter by test name substring
-bun test                    # the same suite on Bun (after `bun install`)
+bun test --timeout 120000   # the same suite on Bun (after `bun install`)
 ```
 
 Covered areas: parser (`src/parser/mod.test.ts`, `turtle-parser.test.ts`), store

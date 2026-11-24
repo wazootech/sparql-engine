@@ -152,7 +152,7 @@ deno task publish:dry  # JSR publish dry-run (zero runtime deps must hold)
 
 ```bash
 deno task test         # unit + integration + parity tests (deno test --allow-all)
-bun test               # the same node:test suite on Bun (after `bun install`)
+bun test --timeout 120000   # the same node:test suite on Bun (after `bun install`)
 deno task test:w3c     # W3C SPARQL 1.1 evaluation-core, differential vs Comunica
 deno task test:sparql12    # W3C SPARQL 1.2 evaluation suite
 deno task test:sparql12:gap # RDF 1.2 eval-triple-terms gap suite

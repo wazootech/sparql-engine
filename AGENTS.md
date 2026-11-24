@@ -57,11 +57,11 @@ scripts must run on Deno **and** Bun, so:
   `await runBenches()`; never call `Deno.bench`.
 - Spawn the running runtime with `test/run-process.ts` (`scriptCommand`,
   `testCommand`, `compileCommand`), not a hard-coded `deno`.
-- `package.json`, `bun.lock` and `bunfig.toml` are Bun's manifest; keep their
-  dependency ranges in step with the `deno.json` import map.
-  `bun install &&
-  bun test` runs the suite on Bun (the `bun` CI job runs it on
-  Bun 1.x).
+- `package.json` and `bun.lock` are Bun's manifest; keep their dependency ranges
+  in step with the `deno.json` import map. `bun install &&
+  bun run test:bun`
+  runs the suite on Bun (the `bun` CI job runs it on Bun 1.x with
+  `--timeout 120000` for the cold comunica parity suites).
 - `parser:check` is authoritative under Deno only: the generated parsers are
   formatted by `deno fmt`, and `bun fmt` formats them differently.
 

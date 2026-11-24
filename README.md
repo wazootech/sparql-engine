@@ -65,7 +65,7 @@ for the W3C suite notes.
   Bun, Node.js, and browser environments. The source, tests, benches and scripts
   use only `node:` APIs, so the repository's own suite runs on Deno (the
   authoritative toolchain until the Bun cutover, wazootech/workspace#50) and on
-  Bun (`bun install && bun test`).
+  Bun (`bun install && bun run test:bun`).
 - **The engine behind `@worlds/sdk`**: Implements
   [`SparqlEngineInterface`](https://jsr.io/@wazoo/sparql-engine/doc/~/SparqlEngineInterface),
   which `@worlds/sdk`'s durable backend factory (`createLibsqlSdk` from
