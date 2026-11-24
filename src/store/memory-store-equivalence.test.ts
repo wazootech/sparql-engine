@@ -1,4 +1,5 @@
-import { assertEquals } from "@std/assert";
+import assert from "node:assert/strict";
+import { test } from "node:test";
 import type { RdfQuad, RdfTerm } from "@/parser/rdf-terms.ts";
 import { DataFactory } from "@/term/public.ts";
 import { termKey } from "@/term/mod.ts";
@@ -80,8 +81,8 @@ function corpus(): RdfQuad[] {
 }
 
 function assertSame(store: MemoryStore, reference: ReferenceStore): void {
-  assertEquals(store.size, reference.quads.size);
-  assertEquals(
+  assert.deepStrictEqual(store.size, reference.quads.size);
+  assert.deepStrictEqual(
     store.getQuads().map(referenceQuadKey),
     [...reference.quads.keys()],
   );
@@ -97,14 +98,14 @@ function assertSame(store: MemoryStore, reference: ReferenceStore): void {
     [null, null, ex("absent"), null],
   ];
   for (const [s, p, o, g] of probes) {
-    assertEquals(
+    assert.deepStrictEqual(
       store.getQuads(s, p, o, g).map(referenceQuadKey),
       reference.match(s, p, o, g),
     );
   }
 }
 
-Deno.test("MemoryStore - add, duplicate add, remove, re-add match the old key behavior", () => {
+test("MemoryStore - add, duplicate add, remove, re-add match the old key behavior", () => {
   const all = corpus();
   const store = new MemoryStore();
   const reference = new ReferenceStore();

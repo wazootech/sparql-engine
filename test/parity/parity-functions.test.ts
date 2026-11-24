@@ -1,9 +1,10 @@
 import { DataFactory } from "@/term/mod.ts";
 import { assertQueryParity } from "./parity-harness.ts";
+import { test } from "node:test";
 
 const { literal, namedNode, quad } = DataFactory;
 
-Deno.test("parity - BIND filter scoping", async () => {
+test("parity - BIND filter scoping", async () => {
   const query = `PREFIX : <http://example.org/>
 SELECT ?s ?p ?o ?z WHERE {
   ?s ?p ?o .
@@ -25,7 +26,7 @@ SELECT ?s ?p ?o ?z WHERE {
   });
 });
 
-Deno.test("parity - GROUP BY function expression", async () => {
+test("parity - GROUP BY function expression", async () => {
   const query = `PREFIX : <http://example.org/>
 SELECT ?g (COUNT(?p) AS ?cnt) WHERE {
   ?s :p ?p .
@@ -50,7 +51,7 @@ SELECT ?g (COUNT(?p) AS ?cnt) WHERE {
   });
 });
 
-Deno.test("parity - ISNUMERIC built-in function", async () => {
+test("parity - ISNUMERIC built-in function", async () => {
   const query = `PREFIX : <http://example.org/>
 SELECT ?s ?p ?isNum WHERE {
   ?s :p ?p .
@@ -76,7 +77,7 @@ SELECT ?s ?p ?isNum WHERE {
   });
 });
 
-Deno.test("parity - ENCODE_FOR_URI function", async () => {
+test("parity - ENCODE_FOR_URI function", async () => {
   const query =
     `SELECT ?encoded WHERE { BIND(ENCODE_FOR_URI("hello world! / foo&bar") AS ?encoded) }`;
   await assertQueryParity({
@@ -87,7 +88,7 @@ Deno.test("parity - ENCODE_FOR_URI function", async () => {
   });
 });
 
-Deno.test("parity - IRI and URI function", async () => {
+test("parity - IRI and URI function", async () => {
   const query =
     `SELECT ?iri ?uri WHERE { BIND(IRI("http://example.org/test") AS ?iri) BIND(URI("http://example.org/test2") AS ?uri) }`;
   await assertQueryParity({
@@ -98,7 +99,7 @@ Deno.test("parity - IRI and URI function", async () => {
   });
 });
 
-Deno.test("parity - request-level baseIri resolves relative IRIs (no BASE directive)", async () => {
+test("parity - request-level baseIri resolves relative IRIs (no BASE directive)", async () => {
   const query = `SELECT ?iri WHERE { BIND(IRI("rel/path") AS ?iri) }`;
   await assertQueryParity({
     name: "request baseIri resolves relative IRIs",
@@ -109,7 +110,7 @@ Deno.test("parity - request-level baseIri resolves relative IRIs (no BASE direct
   });
 });
 
-Deno.test("parity - BASE directive wins over request-level baseIri", async () => {
+test("parity - BASE directive wins over request-level baseIri", async () => {
   const query = `BASE <http://directive.example/>
 SELECT ?iri WHERE { BIND(IRI("rel/path") AS ?iri) }`;
   await assertQueryParity({
@@ -121,7 +122,7 @@ SELECT ?iri WHERE { BIND(IRI("rel/path") AS ?iri) }`;
   });
 });
 
-Deno.test("parity - relative PREFIX IRI resolves against request baseIri", async () => {
+test("parity - relative PREFIX IRI resolves against request baseIri", async () => {
   const query = `PREFIX ex: <relative/ns#>
 SELECT ?s WHERE { ?s ex:p ?o }`;
   await assertQueryParity({
@@ -139,7 +140,7 @@ SELECT ?s WHERE { ?s ex:p ?o }`;
   });
 });
 
-Deno.test("parity - TZ function", async () => {
+test("parity - TZ function", async () => {
   const query = `PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
 SELECT ?tz1 ?tz2 WHERE {
   BIND(TZ("2011-01-10T14:45:13-05:00"^^xsd:dateTime) AS ?tz1)
@@ -153,7 +154,7 @@ SELECT ?tz1 ?tz2 WHERE {
   });
 });
 
-Deno.test("parity - non-BMP STRLEN and SUBSTR", async () => {
+test("parity - non-BMP STRLEN and SUBSTR", async () => {
   const query = `SELECT ?len ?sub WHERE {
   BIND(STRLEN("𐍈bar") AS ?len)
   BIND(SUBSTR("𐍈bar", 1, 2) AS ?sub)
@@ -166,7 +167,7 @@ Deno.test("parity - non-BMP STRLEN and SUBSTR", async () => {
   });
 });
 
-Deno.test("parity - path - negated property set direct and inverse", async () => {
+test("parity - path - negated property set direct and inverse", async () => {
   const query = `PREFIX : <http://example.org/>
 SELECT ?s ?o WHERE {
   ?s !(:p|^:q) ?o
@@ -201,7 +202,7 @@ SELECT ?s ?o WHERE {
   });
 });
 
-Deno.test("parity - subquery in WHERE clause", async () => {
+test("parity - subquery in WHERE clause", async () => {
   const query = `PREFIX : <http://example.org/>
 SELECT ?s ?o WHERE {
   ?s :p ?mid .

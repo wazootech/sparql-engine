@@ -1,6 +1,8 @@
 import { loadManifest } from "./manifest.ts";
 import type { W3cTestCase } from "./manifest.ts";
 import { W3cRunner } from "./runner.ts";
+import process from "node:process";
+import { readFileSync } from "node:fs";
 
 /**
  * W3C_BASE_RESOLVER resolves fixture paths on disk. The fixtures live in
@@ -50,7 +52,7 @@ const CATEGORIES = [
 function readFixture(file: string): string {
   // Every reference (manifest, query, data, result) is relative to the
   // fixtures root; W3cTestCase file fields already carry the category prefix.
-  return Deno.readTextFileSync(`${FIXTURES_ROOT}${file}`);
+  return readFileSync(`${FIXTURES_ROOT}${file}`, "utf8");
 }
 
 function loadAllCases(): { cases: W3cTestCase[]; skipped: number } {
@@ -136,7 +138,7 @@ if (report.pass < threshold || report.error > 0) {
       `tracked progress metric — each gap is a place wazoo must converge ` +
       `with comunica.`,
   );
-  Deno.exit(1);
+  process.exit(1);
 }
 console.log(
   `\nW3C differential gate passed: ${report.pass}/${report.total} pass is at ` +

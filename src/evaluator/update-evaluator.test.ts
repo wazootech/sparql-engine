@@ -8,11 +8,16 @@ import {
 } from "@/evaluator/update-evaluator-test-helpers.ts";
 import { MemoryStore as Store } from "@/store/memory-store.ts";
 import { WazooSparqlEngine } from "@/wazoo-sparql-engine.ts";
-import { assertEquals, assertRejects } from "@std/assert";
+import assert from "node:assert/strict";
+import { test } from "node:test";
+import { rejected } from "../../test/thrown.ts";
+import { mkdtemp, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 const { namedNode, literal, quad, defaultGraph } = DataFactory;
 
-Deno.test("UpdateEvaluator - INSERT DATA buffers through the transaction and commits", async () => {
+test("UpdateEvaluator - INSERT DATA buffers through the transaction and commits", async () => {
   const store = new Store();
   let transactionsCreated = 0;
   const transaction = new RecordingTransaction(store);
@@ -28,17 +33,17 @@ Deno.test("UpdateEvaluator - INSERT DATA buffers through the transaction and com
     query: 'INSERT DATA { <http://example.org/a> <http://example.org/p> "v" }',
   });
 
-  assertEquals(result.kind, "void");
-  assertEquals(transactionsCreated, 1);
-  assertEquals(transaction.added.length, 1);
-  assertEquals(transaction.deleted.length, 0);
-  assertEquals(transaction.committed, true);
-  assertEquals(transaction.rolledBack, false);
+  assert.deepStrictEqual(result.kind, "void");
+  assert.deepStrictEqual(transactionsCreated, 1);
+  assert.deepStrictEqual(transaction.added.length, 1);
+  assert.deepStrictEqual(transaction.deleted.length, 0);
+  assert.deepStrictEqual(transaction.committed, true);
+  assert.deepStrictEqual(transaction.rolledBack, false);
   // The quad reached the store only via the transaction's commit.
-  assertEquals(store.countQuads(exampleA, exampleP, null, null), 1);
+  assert.deepStrictEqual(store.countQuads(exampleA, exampleP, null, null), 1);
 });
 
-Deno.test("UpdateEvaluator - nothing touches the store until commit", async () => {
+test("UpdateEvaluator - nothing touches the store until commit", async () => {
   const store = new Store();
   const transaction = new RecordingTransaction(store, false);
   const engine = new WazooSparqlEngine({
@@ -50,14 +55,14 @@ Deno.test("UpdateEvaluator - nothing touches the store until commit", async () =
     query: 'INSERT DATA { <http://example.org/a> <http://example.org/p> "v" }',
   });
 
-  assertEquals(transaction.added.length, 1);
-  assertEquals(transaction.committed, true);
+  assert.deepStrictEqual(transaction.added.length, 1);
+  assert.deepStrictEqual(transaction.committed, true);
   // The engine never wrote to the store directly; the buffered quad was
   // discarded because the fake does not apply on commit.
-  assertEquals(store.countQuads(null, null, null, null), 0);
+  assert.deepStrictEqual(store.countQuads(null, null, null, null), 0);
 });
 
-Deno.test("UpdateEvaluator - rollback discards buffered changes when an operation fails", async () => {
+test("UpdateEvaluator - rollback discards buffered changes when an operation fails", async () => {
   const store = new Store();
   const transaction = new RecordingTransaction(store);
   const evaluator = new (await import("./update-evaluator.ts")).UpdateEvaluator(
@@ -67,7 +72,7 @@ Deno.test("UpdateEvaluator - rollback discards buffered changes when an operatio
     },
   );
 
-  await assertRejects(
+  await rejected(
     () =>
       evaluator.executeUpdate({
         type: "update",
@@ -97,13 +102,13 @@ Deno.test("UpdateEvaluator - rollback discards buffered changes when an operatio
     "Unsupported SPARQL update operation: unsupported_op",
   );
 
-  assertEquals(transaction.added.length, 1);
-  assertEquals(transaction.committed, false);
-  assertEquals(transaction.rolledBack, true);
-  assertEquals(store.countQuads(null, null, null, null), 0);
+  assert.deepStrictEqual(transaction.added.length, 1);
+  assert.deepStrictEqual(transaction.committed, false);
+  assert.deepStrictEqual(transaction.rolledBack, true);
+  assert.deepStrictEqual(store.countQuads(null, null, null, null), 0);
 });
 
-Deno.test("UpdateEvaluator - rollback when commit fails", async () => {
+test("UpdateEvaluator - rollback when commit fails", async () => {
   const store = new Store();
   const transaction = new RecordingTransaction(store);
   transaction.failCommit = true;
@@ -112,7 +117,7 @@ Deno.test("UpdateEvaluator - rollback when commit fails", async () => {
     createTransaction: () => transaction,
   });
 
-  await assertRejects(
+  await rejected(
     () =>
       engine.execute({
         query:
@@ -122,12 +127,12 @@ Deno.test("UpdateEvaluator - rollback when commit fails", async () => {
     "commit failed",
   );
 
-  assertEquals(transaction.committed, false);
-  assertEquals(transaction.rolledBack, true);
-  assertEquals(store.countQuads(null, null, null, null), 0);
+  assert.deepStrictEqual(transaction.committed, false);
+  assert.deepStrictEqual(transaction.rolledBack, true);
+  assert.deepStrictEqual(store.countQuads(null, null, null, null), 0);
 });
 
-Deno.test("UpdateEvaluator - DELETE/INSERT through the transaction buffers deletes and inserts", async () => {
+test("UpdateEvaluator - DELETE/INSERT through the transaction buffers deletes and inserts", async () => {
   const store = new Store();
   store.addQuad(quad(exampleA, exampleP, exampleV));
   const transaction = new RecordingTransaction(store);
@@ -142,17 +147,17 @@ Deno.test("UpdateEvaluator - DELETE/INSERT through the transaction buffers delet
       "WHERE { ?s <http://example.org/p> ?o }",
   });
 
-  assertEquals(result.kind, "void");
-  assertEquals(transaction.deleted.length, 1);
-  assertEquals(transaction.added.length, 1);
-  assertEquals(transaction.committed, true);
-  assertEquals(transaction.rolledBack, false);
+  assert.deepStrictEqual(result.kind, "void");
+  assert.deepStrictEqual(transaction.deleted.length, 1);
+  assert.deepStrictEqual(transaction.added.length, 1);
+  assert.deepStrictEqual(transaction.committed, true);
+  assert.deepStrictEqual(transaction.rolledBack, false);
   // The move was applied atomically at commit time.
-  assertEquals(store.countQuads(null, exampleP, null, null), 0);
-  assertEquals(store.countQuads(null, exampleQ, null, null), 1);
+  assert.deepStrictEqual(store.countQuads(null, exampleP, null, null), 0);
+  assert.deepStrictEqual(store.countQuads(null, exampleQ, null, null), 1);
 });
 
-Deno.test("UpdateEvaluator - CLEAR, DROP, CREATE operations work", async () => {
+test("UpdateEvaluator - CLEAR, DROP, CREATE operations work", async () => {
   const store = new Store();
   store.addQuad(quad(exampleA, exampleP, exampleV));
   store.addQuad(
@@ -166,23 +171,23 @@ Deno.test("UpdateEvaluator - CLEAR, DROP, CREATE operations work", async () => {
   });
 
   await engine.execute({ query: "CLEAR GRAPH <http://example.org/g1>" });
-  assertEquals(
+  assert.deepStrictEqual(
     store.countQuads(null, null, null, namedNode("http://example.org/g1")),
     0,
   );
-  assertEquals(store.countQuads(null, null, null, null), 1);
+  assert.deepStrictEqual(store.countQuads(null, null, null, null), 1);
 
   await engine.execute({ query: "DROP ALL" });
-  assertEquals(store.countQuads(null, null, null, null), 0);
+  assert.deepStrictEqual(store.countQuads(null, null, null, null), 0);
 });
 
-Deno.test("UpdateEvaluator - LOAD merges the document dataset, preserving named graphs", async () => {
+test("UpdateEvaluator - LOAD merges the document dataset, preserving named graphs", async () => {
   const store = new Store();
   const engine = new WazooSparqlEngine({ store });
 
-  const dir = await Deno.makeTempDir();
+  const dir = await mkdtemp(join(tmpdir(), "sparql-engine-"));
   const file = `${dir}/data.trig`;
-  await Deno.writeTextFile(
+  await writeFile(
     file,
     `
     @prefix : <http://example.org/> .
@@ -194,24 +199,24 @@ Deno.test("UpdateEvaluator - LOAD merges the document dataset, preserving named 
   await engine.execute({ query: `LOAD <file://${file.replace(/\\/g, "/")}>` });
 
   // default graph triples and the TriG named graph are both merged in.
-  assertEquals(store.countQuads(null, null, null, null), 2);
-  assertEquals(
+  assert.deepStrictEqual(store.countQuads(null, null, null, null), 2);
+  assert.deepStrictEqual(
     store.countQuads(null, null, null, defaultGraph()),
     1,
   );
-  assertEquals(
+  assert.deepStrictEqual(
     store.countQuads(null, null, null, namedNode("http://example.org/g")),
     1,
   );
 });
 
-Deno.test("UpdateEvaluator - LOAD INTO GRAPH maps the default graph into the destination", async () => {
+test("UpdateEvaluator - LOAD INTO GRAPH maps the default graph into the destination", async () => {
   const store = new Store();
   const engine = new WazooSparqlEngine({ store });
 
-  const dir = await Deno.makeTempDir();
+  const dir = await mkdtemp(join(tmpdir(), "sparql-engine-"));
   const file = `${dir}/data.ttl`;
-  await Deno.writeTextFile(
+  await writeFile(
     file,
     "<http://example.org/s> <http://example.org/p> <http://example.org/o> .",
   );
@@ -222,24 +227,24 @@ Deno.test("UpdateEvaluator - LOAD INTO GRAPH maps the default graph into the des
     }> INTO GRAPH <http://example.org/dest>`,
   });
 
-  assertEquals(
+  assert.deepStrictEqual(
     store.countQuads(null, null, null, namedNode("http://example.org/dest")),
     1,
   );
 });
 
-Deno.test("UpdateEvaluator - LOAD INTO GRAPH rejects documents that contain named graphs", async () => {
+test("UpdateEvaluator - LOAD INTO GRAPH rejects documents that contain named graphs", async () => {
   const store = new Store();
   const engine = new WazooSparqlEngine({ store });
 
-  const dir = await Deno.makeTempDir();
+  const dir = await mkdtemp(join(tmpdir(), "sparql-engine-"));
   const file = `${dir}/data.trig`;
-  await Deno.writeTextFile(
+  await writeFile(
     file,
     "<http://example.org/g> { <http://example.org/s> <http://example.org/p> <http://example.org/o> . }",
   );
 
-  await assertRejects(
+  await rejected(
     () =>
       engine.execute({
         query: `LOAD <file://${
@@ -250,11 +255,11 @@ Deno.test("UpdateEvaluator - LOAD INTO GRAPH rejects documents that contain name
   );
 });
 
-Deno.test("UpdateEvaluator - LOAD operation with SILENT error handling", async () => {
+test("UpdateEvaluator - LOAD operation with SILENT error handling", async () => {
   const store = new Store();
   const engine = new WazooSparqlEngine({ store });
 
   // Non-existent file with SILENT does not throw
   await engine.execute({ query: "LOAD SILENT <file:///nonexistent-file.ttl>" });
-  assertEquals(store.countQuads(null, null, null, null), 0);
+  assert.deepStrictEqual(store.countQuads(null, null, null, null), 0);
 });

@@ -6,11 +6,12 @@ import {
   emptyEngine,
   XSD,
 } from "@/wazoo-sparql-engine-test-helpers.ts";
-import { assertEquals } from "@std/assert";
+import assert from "node:assert/strict";
+import { test } from "node:test";
 
 const { namedNode, literal, quad } = DataFactory;
 
-Deno.test("WazooSparqlEngine - directional literals match only with same direction", async () => {
+test("WazooSparqlEngine - directional literals match only with same direction", async () => {
   const store = new Store();
   const RDF = "http://www.w3.org/1999/02/22-rdf-syntax-ns#";
   store.addQuad(
@@ -34,28 +35,28 @@ Deno.test("WazooSparqlEngine - directional literals match only with same directi
 
   // A directional literal in the query matches the store term with the same
   // direction and only that direction.
-  assertEquals(
+  assert.deepStrictEqual(
     await firstObject(
       "SELECT ?o WHERE { <http://example.org/s> <http://example.org/p> ?o " +
         'FILTER(?o = "x"@en--ltr) }',
     ),
     { type: "literal", value: "x", "xml:lang": "en", "its:dir": "ltr" },
   );
-  assertEquals(
+  assert.deepStrictEqual(
     await firstObject(
       "SELECT ?o WHERE { <http://example.org/s> <http://example.org/p> ?o " +
         'FILTER(?o = "x"@en--rtl) }',
     ),
     null,
   );
-  assertEquals(
+  assert.deepStrictEqual(
     await firstObject(
       "SELECT ?o WHERE { <http://example.org/s> <http://example.org/p> ?o " +
         'FILTER(?o = "x"@en) }',
     ),
     null,
   );
-  assertEquals(
+  assert.deepStrictEqual(
     await firstObject(
       `SELECT ?o WHERE { <http://example.org/s> <http://example.org/p> ?o ` +
         `FILTER(DATATYPE(?o) = <${RDF}dirLangString>) }`,
@@ -64,7 +65,7 @@ Deno.test("WazooSparqlEngine - directional literals match only with same directi
   );
 });
 
-Deno.test("WazooSparqlEngine - results serialize directional literals with its:dir", async () => {
+test("WazooSparqlEngine - results serialize directional literals with its:dir", async () => {
   const store = new Store();
   store.addQuad(
     quad(
@@ -85,7 +86,7 @@ Deno.test("WazooSparqlEngine - results serialize directional literals with its:d
   if (direct.kind !== "select") {
     throw new Error(`expected select, got ${direct.kind}`);
   }
-  assertEquals(direct.data.results.bindings[0].o, {
+  assert.deepStrictEqual(direct.data.results.bindings[0].o, {
     type: "literal",
     value: "x",
     "xml:lang": "en",
@@ -100,7 +101,7 @@ Deno.test("WazooSparqlEngine - results serialize directional literals with its:d
   if (triple.kind !== "select") {
     throw new Error(`expected select, got ${triple.kind}`);
   }
-  assertEquals(triple.data.results.bindings[0].t, {
+  assert.deepStrictEqual(triple.data.results.bindings[0].t, {
     type: "triple",
     value: {
       subject: { type: "uri", value: "http://s" },
@@ -121,19 +122,19 @@ Deno.test("WazooSparqlEngine - results serialize directional literals with its:d
   if (plain.kind !== "select") {
     throw new Error(`expected select, got ${plain.kind}`);
   }
-  assertEquals(plain.data.results.bindings[0].o, {
+  assert.deepStrictEqual(plain.data.results.bindings[0].o, {
     type: "literal",
     value: "y",
     "xml:lang": "en",
   });
 });
 
-Deno.test("WazooSparqlEngine - TRIPLE/SUBJECT/OBJECT preserve the direction", async () => {
+test("WazooSparqlEngine - TRIPLE/SUBJECT/OBJECT preserve the direction", async () => {
   const engine = emptyEngine();
 
   // OBJECT of a triple term keeps the directional literal intact, so it
   // round-trips with its direction and compares direction-sensitively.
-  assertEquals(
+  assert.deepStrictEqual(
     await bindValue(
       engine,
       'SELECT ?v WHERE { BIND(OBJECT(TRIPLE(<http://s>, <http://p>, "x"@en--ltr)) AS ?v) }',
@@ -141,7 +142,7 @@ Deno.test("WazooSparqlEngine - TRIPLE/SUBJECT/OBJECT preserve the direction", as
     ),
     { type: "literal", value: "x", lang: "en" },
   );
-  assertEquals(
+  assert.deepStrictEqual(
     await bindValue(
       engine,
       'SELECT ?v WHERE { BIND(OBJECT(TRIPLE(<http://s>, <http://p>, "x"@en--ltr)) = "x"@en--ltr AS ?v) }',
@@ -149,7 +150,7 @@ Deno.test("WazooSparqlEngine - TRIPLE/SUBJECT/OBJECT preserve the direction", as
     ),
     { type: "literal", value: "true", datatype: `${XSD}boolean` },
   );
-  assertEquals(
+  assert.deepStrictEqual(
     await bindValue(
       engine,
       'SELECT ?v WHERE { BIND(OBJECT(TRIPLE(<http://s>, <http://p>, "x"@en--ltr)) = "x"@en AS ?v) }',
@@ -157,7 +158,7 @@ Deno.test("WazooSparqlEngine - TRIPLE/SUBJECT/OBJECT preserve the direction", as
     ),
     { type: "literal", value: "false", datatype: `${XSD}boolean` },
   );
-  assertEquals(
+  assert.deepStrictEqual(
     await bindValue(
       engine,
       'SELECT ?v WHERE { BIND(LANGDIR(OBJECT(TRIPLE(<http://s>, <http://p>, "x"@en--rtl))) AS ?v) }',
@@ -167,7 +168,7 @@ Deno.test("WazooSparqlEngine - TRIPLE/SUBJECT/OBJECT preserve the direction", as
   );
 });
 
-Deno.test("WazooSparqlEngine - ORDER BY orders directional literals deterministically", async () => {
+test("WazooSparqlEngine - ORDER BY orders directional literals deterministically", async () => {
   const store = new Store();
   // Same lexical form, three direction variants: the datatype rdf:dirLangString
   // sorts before rdf:langString, and within it the direction breaks the tie
@@ -209,11 +210,19 @@ Deno.test("WazooSparqlEngine - ORDER BY orders directional literals deterministi
     });
   }
 
-  assertEquals(await orderedObjects("ASC(?o)"), ["x@ltr", "x@rtl", "x@"]);
-  assertEquals(await orderedObjects("DESC(?o)"), ["x@", "x@rtl", "x@ltr"]);
+  assert.deepStrictEqual(await orderedObjects("ASC(?o)"), [
+    "x@ltr",
+    "x@rtl",
+    "x@",
+  ]);
+  assert.deepStrictEqual(await orderedObjects("DESC(?o)"), [
+    "x@",
+    "x@rtl",
+    "x@ltr",
+  ]);
 });
 
-Deno.test("WazooSparqlEngine - property paths inside EXISTS evaluate like the main pattern", async () => {
+test("WazooSparqlEngine - property paths inside EXISTS evaluate like the main pattern", async () => {
   // Default graph: a -p-> b -q-> c -q-> d, plus a labeled edge b -r-> c.
   // Named graph g1 carries a -p-> b -q-> c (same nodes).
   const store = new Store();
@@ -243,7 +252,7 @@ Deno.test("WazooSparqlEngine - property paths inside EXISTS evaluate like the ma
   }
 
   // EXISTS: b reaches c and d via q+ (one or more q edges), so a passes.
-  assertEquals(
+  assert.deepStrictEqual(
     await projected(
       "SELECT ?s WHERE { ?s <http://example.org/p> ?o " +
         "FILTER EXISTS { ?o <http://example.org/q>+ ?z } }",
@@ -252,7 +261,7 @@ Deno.test("WazooSparqlEngine - property paths inside EXISTS evaluate like the ma
     ["http://example.org/a"],
   );
   // zero-or-more also admits b itself (reflexive), so EXISTS holds.
-  assertEquals(
+  assert.deepStrictEqual(
     await projected(
       "SELECT ?s WHERE { ?s <http://example.org/p> ?o " +
         "FILTER EXISTS { ?o <http://example.org/q>* ?z } }",
@@ -261,7 +270,7 @@ Deno.test("WazooSparqlEngine - property paths inside EXISTS evaluate like the ma
     ["http://example.org/a"],
   );
   // NOT EXISTS with a zero-or-one path: b -q-> c exists, so b is excluded.
-  assertEquals(
+  assert.deepStrictEqual(
     await projected(
       "SELECT ?s WHERE { ?s <http://example.org/p> ?o " +
         "FILTER NOT EXISTS { ?o <http://example.org/q>? ?z } }",
@@ -270,7 +279,7 @@ Deno.test("WazooSparqlEngine - property paths inside EXISTS evaluate like the ma
     [],
   );
   // Sequence: b -q-> c -q-> d, so EXISTS { ?o <q>/<q> ?z } holds.
-  assertEquals(
+  assert.deepStrictEqual(
     await projected(
       "SELECT ?s WHERE { ?s <http://example.org/p> ?o " +
         "FILTER EXISTS { ?o <http://example.org/q>/<http://example.org/q> ?z } }",
@@ -279,7 +288,7 @@ Deno.test("WazooSparqlEngine - property paths inside EXISTS evaluate like the ma
     ["http://example.org/a"],
   );
   // Alternative: b -r-> c, so (q|r) matches.
-  assertEquals(
+  assert.deepStrictEqual(
     await projected(
       "SELECT ?s WHERE { ?s <http://example.org/p> ?o " +
         "FILTER EXISTS { ?o (<http://example.org/q>|<http://example.org/r>) ?z } }",
@@ -288,7 +297,7 @@ Deno.test("WazooSparqlEngine - property paths inside EXISTS evaluate like the ma
     ["http://example.org/a"],
   );
   // Inverse: nothing points at b via q (c does via b, d via c), so no pass.
-  assertEquals(
+  assert.deepStrictEqual(
     await projected(
       "SELECT ?s WHERE { ?s <http://example.org/p> ?o " +
         "FILTER EXISTS { ?o ^<http://example.org/q> ?x } }",
@@ -298,7 +307,7 @@ Deno.test("WazooSparqlEngine - property paths inside EXISTS evaluate like the ma
   );
   // Negated property set: b has a q edge and an r edge; excluding q still
   // matches r, so EXISTS holds.
-  assertEquals(
+  assert.deepStrictEqual(
     await projected(
       "SELECT ?s WHERE { ?s <http://example.org/p> ?o " +
         "FILTER EXISTS { ?o !(<http://example.org/q>) ?z } }",
@@ -307,7 +316,7 @@ Deno.test("WazooSparqlEngine - property paths inside EXISTS evaluate like the ma
     ["http://example.org/a"],
   );
   // Negated property set excluding both q and r leaves b with no edges.
-  assertEquals(
+  assert.deepStrictEqual(
     await projected(
       "SELECT ?s WHERE { ?s <http://example.org/p> ?o " +
         "FILTER EXISTS { ?o !(<http://example.org/q>|<http://example.org/r>) ?z } }",
@@ -317,7 +326,7 @@ Deno.test("WazooSparqlEngine - property paths inside EXISTS evaluate like the ma
   );
   // Correlated: the outer binding of ?o is visible inside the path pattern's
   // subject, and the path binds both endpoints.
-  assertEquals(
+  assert.deepStrictEqual(
     await projected(
       "SELECT ?s ?o WHERE { ?s <http://example.org/p> ?o " +
         "FILTER EXISTS { ?s <http://example.org/p>+ ?x } }",

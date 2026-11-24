@@ -1,7 +1,8 @@
-import { assertEquals } from "@std/assert";
+import assert from "node:assert/strict";
+import { test } from "node:test";
 import { numberFromText } from "@/term/numeric.ts";
 
-Deno.test("numberFromText matches Number() for lexical forms", () => {
+test("numberFromText matches Number() for lexical forms", () => {
   const samples = [
     "0",
     "42",
@@ -28,7 +29,7 @@ Deno.test("numberFromText matches Number() for lexical forms", () => {
     "NaN",
   ];
   for (const sample of samples) {
-    assertEquals(
+    assert.deepStrictEqual(
       Object.is(numberFromText(sample), Number(sample)),
       true,
       `numberFromText(${JSON.stringify(sample)})`,

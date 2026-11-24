@@ -1,4 +1,5 @@
-import { assertEquals } from "@std/assert";
+import assert from "node:assert/strict";
+import { test } from "node:test";
 import type * as rdfjs from "@rdfjs/types";
 import { DataFactory } from "@/term/public.ts";
 import type { ScanEntry, TermBinding } from "@/evaluator/join.ts";
@@ -58,15 +59,15 @@ function estimateEntryCost(
   );
 }
 
-Deno.test("BaselineJoinCostEstimator - empty bindings cost zero", () => {
+test("BaselineJoinCostEstimator - empty bindings cost zero", () => {
   const cost = estimateEntryCost(
     entry(patternVar, constant, otherVar, candidateQuads(100)),
     [],
   );
-  assertEquals(cost, 0);
+  assert.deepStrictEqual(cost, 0);
 });
 
-Deno.test(
+test(
   "BaselineJoinCostEstimator - no bound pattern variable iterates every candidate",
   () => {
     // Both pattern variables are unbound in every binding.
@@ -75,11 +76,11 @@ Deno.test(
       entry(patternVar, constant, otherVar, candidateQuads(50)),
       bindings,
     );
-    assertEquals(cost, 50);
+    assert.deepStrictEqual(cost, 50);
   },
 );
 
-Deno.test(
+test(
   "BaselineJoinCostEstimator - bound variable costs bindings times the average bucket",
   () => {
     // One bound pattern variable with 2 distinct values across 4 bindings:
@@ -94,11 +95,11 @@ Deno.test(
       entry(patternVar, constant, otherVar, candidateQuads(100)),
       bindings,
     );
-    assertEquals(cost, 4 * 50);
+    assert.deepStrictEqual(cost, 4 * 50);
   },
 );
 
-Deno.test(
+test(
   "BaselineJoinCostEstimator - duplicate bound values widen the bucket",
   () => {
     // The same 4 bindings all carrying one distinct value: bucket = 100 / 1.
@@ -109,11 +110,11 @@ Deno.test(
       entry(patternVar, constant, otherVar, candidateQuads(100)),
       bindings,
     );
-    assertEquals(cost, 4 * 100);
+    assert.deepStrictEqual(cost, 4 * 100);
   },
 );
 
-Deno.test(
+test(
   "BaselineJoinCostEstimator - the fewest-distinct bound variable bounds the cost",
   () => {
     // Both pattern variables are bound; ?x has 2 distinct values, ?y has 4,
@@ -140,11 +141,11 @@ Deno.test(
       entry(patternVar, constant, otherVar, candidateQuads(100)),
       bindings,
     );
-    assertEquals(cost, 4 * 50);
+    assert.deepStrictEqual(cost, 4 * 50);
   },
 );
 
-Deno.test(
+test(
   "BaselineJoinCostEstimator - stats candidates and distinct counts drive the cost",
   () => {
     // With stats, the bucket divisor is the store's distinct count for the
@@ -165,13 +166,13 @@ Deno.test(
       candidates: 200,
       distinctByVar: { x: 4, y: 100 },
     });
-    assertEquals(withStats, 100);
+    assert.deepStrictEqual(withStats, 100);
     const withoutStats = estimateEntryCost(entry, bindings);
-    assertEquals(withoutStats, 400);
+    assert.deepStrictEqual(withoutStats, 400);
   },
 );
 
-Deno.test(
+test(
   "BaselineJoinCostEstimator - a variable's stats are ignored while it stays unbound",
   () => {
     // Only ?y is bound in the bindings; ?x's (very selective) store distinct
@@ -189,11 +190,11 @@ Deno.test(
     });
     // 1 binding x (200 / y's 100 distinct) = 2. Using ?x's 2 instead would
     // have produced 100.
-    assertEquals(cost, 2);
+    assert.deepStrictEqual(cost, 2);
   },
 );
 
-Deno.test(
+test(
   "BaselineJoinCostEstimator - fully bound constants never count as variables",
   () => {
     // Every pattern position is a constant: no bound pattern variable to
@@ -203,11 +204,11 @@ Deno.test(
       entry(constant, constant, constant, candidateQuads(7)),
       bindings,
     );
-    assertEquals(cost, 7);
+    assert.deepStrictEqual(cost, 7);
   },
 );
 
-Deno.test(
+test(
   "WazooSparqlEngine - injected estimator drives reordering without changing results",
   async () => {
     const store = new Store();
@@ -243,16 +244,16 @@ Deno.test(
     };
     const engine = new WazooSparqlEngine({ store, estimator });
     const result = await engine.execute({ query });
-    assertEquals(result.kind, "select");
+    assert.deepStrictEqual(result.kind, "select");
     // The greedy loop consults the estimator once per remaining pattern.
-    assertEquals(calls.length >= 2, true);
+    assert.deepStrictEqual(calls.length >= 2, true);
 
     const expected = await new WazooSparqlEngine({ store }).execute({ query });
-    assertEquals(result, expected);
+    assert.deepStrictEqual(result, expected);
   },
 );
 
-Deno.test(
+test(
   "WazooSparqlEngine - reorderPatterns:false never consults the estimator",
   async () => {
     const store = new Store();
@@ -284,7 +285,7 @@ Deno.test(
     const result = await engine.execute({
       query: "SELECT ?s ?o WHERE { ?s <http://example.org/p> ?o . ?s ?p ?o }",
     });
-    assertEquals(result.kind, "select");
-    assertEquals(calls, 0);
+    assert.deepStrictEqual(result.kind, "select");
+    assert.deepStrictEqual(calls, 0);
   },
 );

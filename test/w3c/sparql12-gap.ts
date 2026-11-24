@@ -17,6 +17,8 @@ import {
   recordsOf,
   srjValueToCanonical,
 } from "./sparql12-gap-canonical.ts";
+import process from "node:process";
+import { readFileSync } from "node:fs";
 
 /**
  * Sparql12 fixtures live in test/w3c/fixtures/sparql12/<category>/<file>.
@@ -46,7 +48,7 @@ interface Row {
 }
 
 function readFixture(file: string): string {
-  return Deno.readTextFileSync(`${FIXTURES_ROOT}${file}`);
+  return readFileSync(`${FIXTURES_ROOT}${file}`, "utf8");
 }
 
 function fixtureText(testCase: W3cTestCase, file: string): string {
@@ -318,7 +320,7 @@ if (pass < FLOOR || gap > 0 || error > 0) {
   console.error(
     `\nSPARQL 1.2 eval-triple-terms gap gate FAILED: ${pass}/${rows.length} pass is below floor of ${FLOOR}, with ${gap} gap(s) and ${error} error(s).`,
   );
-  Deno.exit(1);
+  process.exit(1);
 }
 console.log(
   `\nSPARQL 1.2 eval-triple-terms gap gate passed: ${pass}/${rows.length} pass (floor: ${FLOOR}).`,

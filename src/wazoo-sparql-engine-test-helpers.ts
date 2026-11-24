@@ -3,7 +3,7 @@ import type * as rdfjs from "@rdfjs/types";
 import { DataFactory } from "@/term/mod.ts";
 import { MemoryStore as Store } from "@/store/memory-store.ts";
 import { WazooSparqlEngine } from "@/wazoo-sparql-engine.ts";
-import { assertEquals } from "@std/assert";
+import assert from "node:assert/strict";
 
 const { blankNode, namedNode, literal, quad } = DataFactory;
 
@@ -27,7 +27,7 @@ export function aggregateEngine(): WazooSparqlEngine {
 
 export async function aggregateRows(engine: WazooSparqlEngine, query: string) {
   const result = await engine.execute({ query });
-  assertEquals(result.kind, "select");
+  assert.deepStrictEqual(result.kind, "select");
   if (result.kind !== "select") {
     return [];
   }
@@ -66,7 +66,7 @@ export function pathEngine(): WazooSparqlEngine {
 
 export async function pathBindings(engine: WazooSparqlEngine, query: string) {
   const result = await engine.execute({ query });
-  assertEquals(result.kind, "select");
+  assert.deepStrictEqual(result.kind, "select");
   if (result.kind !== "select") {
     return [];
   }

@@ -8,6 +8,8 @@ import { loadManifest } from "./manifest.ts";
 import type { W3cTestCase } from "./manifest.ts";
 import { WazooSparqlEngine } from "@/wazoo-sparql-engine.ts";
 import { isomorphicMultiset } from "./sparql12-canonical.ts";
+import process from "node:process";
+import { readFileSync } from "node:fs";
 
 const parserInstance = new SparqlParser({
   sparqlStar: true,
@@ -50,7 +52,7 @@ interface Row {
 }
 
 function readFixture(file: string): string {
-  return Deno.readTextFileSync(`${FIXTURES_ROOT}${file}`);
+  return readFileSync(`${FIXTURES_ROOT}${file}`, "utf8");
 }
 
 function fixtureText(testCase: W3cTestCase, file: string): string {
@@ -239,7 +241,7 @@ if (pass < THRESHOLD || error > 0) {
   console.error(
     `\nW3C SPARQL 1.2 gate FAILED: ${pass}/${rows.length} pass is below threshold of ${THRESHOLD}.`,
   );
-  Deno.exit(1);
+  process.exit(1);
 }
 console.log(
   `\nW3C SPARQL 1.2 gate passed: ${pass}/${rows.length} pass is at or above threshold (${THRESHOLD}).`,

@@ -7,6 +7,8 @@ import {
   quadSetsIsomorphicAsSets,
 } from "./rdf-harness.ts";
 import type { RdfSyntaxCase } from "./rdf-harness.ts";
+import process from "node:process";
+import { readFileSync } from "node:fs";
 
 /**
  * RDF 1.1 differential gate: the wazoo Turtle/TriG/N-Triples/N-Quads grammar
@@ -85,7 +87,7 @@ interface Row {
 }
 
 function readFixture(rel: string): string {
-  return Deno.readTextFileSync(`test/w3c/fixtures/${rel}`);
+  return readFileSync(`test/w3c/fixtures/${rel}`, "utf8");
 }
 
 function parseWazoo(testCase: RdfSyntaxCase): rdfjs.Quad[] {
@@ -254,7 +256,7 @@ if (import.meta.main) {
         `disagreement(s) with n3. Fix them, or — only for intentional superset ` +
         `acceptances — add the test to supersetDivergences.`,
     );
-    Deno.exit(1);
+    process.exit(1);
   }
   console.log(
     `\nRDF 1.1 differential gate passed: ${pass}/${rows.length} agree with n3 ` +

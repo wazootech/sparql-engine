@@ -8,19 +8,24 @@ import {
   reifiedStore,
   XSD,
 } from "@/wazoo-sparql-engine-test-helpers.ts";
-import { assertEquals, assertRejects } from "@std/assert";
+import assert from "node:assert/strict";
+import { test } from "node:test";
+import { rejected } from "../test/thrown.ts";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 const { namedNode, literal, quad } = DataFactory;
 
-Deno.test("WazooSparqlEngine - RAND, STRUUID, UUID, NOW have the right shape", async () => {
+test("WazooSparqlEngine - RAND, STRUUID, UUID, NOW have the right shape", async () => {
   const engine = emptyEngine();
   const rand = await bindValue(
     engine,
     `SELECT ?v WHERE { BIND(RAND() AS ?v) }`,
     "v",
   );
-  assertEquals(rand?.type, "literal");
-  assertEquals(rand?.datatype, `${XSD}double`);
+  assert.deepStrictEqual(rand?.type, "literal");
+  assert.deepStrictEqual(rand?.datatype, `${XSD}double`);
   if (rand !== null) {
     const value = Number(rand.value);
     if (!(value >= 0 && value < 1)) {
@@ -32,7 +37,7 @@ Deno.test("WazooSparqlEngine - RAND, STRUUID, UUID, NOW have the right shape", a
     `SELECT ?v WHERE { BIND(STRUUID() AS ?v) }`,
     "v",
   );
-  assertEquals(struuid?.type, "literal");
+  assert.deepStrictEqual(struuid?.type, "literal");
   if (struuid !== null) {
     if (
       !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(
@@ -47,7 +52,7 @@ Deno.test("WazooSparqlEngine - RAND, STRUUID, UUID, NOW have the right shape", a
     `SELECT ?v WHERE { BIND(UUID() AS ?v) }`,
     "v",
   );
-  assertEquals(uuid?.type, "uri");
+  assert.deepStrictEqual(uuid?.type, "uri");
   if (uuid !== null && !uuid.value.startsWith("urn:uuid:")) {
     throw new Error(`UUID not urn:uuid: ${uuid.value}`);
   }
@@ -56,11 +61,11 @@ Deno.test("WazooSparqlEngine - RAND, STRUUID, UUID, NOW have the right shape", a
     `SELECT ?v WHERE { BIND(NOW() AS ?v) }`,
     "v",
   );
-  assertEquals(now?.type, "literal");
-  assertEquals(now?.datatype, `${XSD}dateTime`);
+  assert.deepStrictEqual(now?.type, "literal");
+  assert.deepStrictEqual(now?.datatype, `${XSD}dateTime`);
 });
 
-Deno.test("WazooSparqlEngine - FROM scopes the default graph", async () => {
+test("WazooSparqlEngine - FROM scopes the default graph", async () => {
   const store = new Store();
   const ex = (s: string) => namedNode(`http://example.org/${s}`);
   store.addQuad(quad(ex("a"), ex("p"), literal("d")));
@@ -73,12 +78,12 @@ Deno.test("WazooSparqlEngine - FROM scopes the default graph", async () => {
     query: `SELECT ?s ?o FROM <http://example.org/g1> ` +
       `WHERE { ?s <http://example.org/p> ?o } ORDER BY ?s`,
   });
-  assertEquals(fromG1.kind, "select");
+  assert.deepStrictEqual(fromG1.kind, "select");
   if (fromG1.kind === "select") {
-    assertEquals(fromG1.data.results.bindings.length, 2);
+    assert.deepStrictEqual(fromG1.data.results.bindings.length, 2);
     // The store's default-graph quad is invisible under FROM.
     const objects = fromG1.data.results.bindings.map((b) => b.o.value);
-    assertEquals(objects, ["1", "2"]);
+    assert.deepStrictEqual(objects, ["1", "2"]);
   }
 
   const merged = await engine.execute({
@@ -86,31 +91,31 @@ Deno.test("WazooSparqlEngine - FROM scopes the default graph", async () => {
       `SELECT ?s ?o FROM <http://example.org/g1> FROM <http://example.org/g2> ` +
       `WHERE { ?s <http://example.org/p> ?o } ORDER BY ?s`,
   });
-  assertEquals(merged.kind, "select");
+  assert.deepStrictEqual(merged.kind, "select");
   if (merged.kind === "select") {
-    assertEquals(merged.data.results.bindings.length, 3);
+    assert.deepStrictEqual(merged.data.results.bindings.length, 3);
   }
 
   const missing = await engine.execute({
     query: `SELECT ?s ?o FROM <http://example.org/none> ` +
       `WHERE { ?s <http://example.org/p> ?o }`,
   });
-  assertEquals(missing.kind, "select");
+  assert.deepStrictEqual(missing.kind, "select");
   if (missing.kind === "select") {
-    assertEquals(missing.data.results.bindings.length, 0);
+    assert.deepStrictEqual(missing.data.results.bindings.length, 0);
   }
 
   const ask = await engine.execute({
     query:
       `ASK FROM <http://example.org/g1> WHERE { ?s <http://example.org/p> ?o }`,
   });
-  assertEquals(ask.kind, "ask");
+  assert.deepStrictEqual(ask.kind, "ask");
   if (ask.kind === "ask") {
-    assertEquals(ask.data.boolean, true);
+    assert.deepStrictEqual(ask.data.boolean, true);
   }
 });
 
-Deno.test("WazooSparqlEngine - FROM NAMED restricts GRAPH enumeration", async () => {
+test("WazooSparqlEngine - FROM NAMED restricts GRAPH enumeration", async () => {
   const store = new Store();
   const ex = (s: string) => namedNode(`http://example.org/${s}`);
   store.addQuad(quad(ex("a"), ex("p"), literal("1"), ex("g1")));
@@ -121,10 +126,10 @@ Deno.test("WazooSparqlEngine - FROM NAMED restricts GRAPH enumeration", async ()
     query: `SELECT ?g FROM NAMED <http://example.org/g1> ` +
       `WHERE { GRAPH ?g { ?s ?p ?o } }`,
   });
-  assertEquals(graphs.kind, "select");
+  assert.deepStrictEqual(graphs.kind, "select");
   if (graphs.kind === "select") {
     const names = graphs.data.results.bindings.map((b) => b.g.value);
-    assertEquals(names, ["http://example.org/g1"]);
+    assert.deepStrictEqual(names, ["http://example.org/g1"]);
   }
 
   // FROM without FROM NAMED leaves no named graphs.
@@ -132,13 +137,13 @@ Deno.test("WazooSparqlEngine - FROM NAMED restricts GRAPH enumeration", async ()
     query: `SELECT ?g FROM <http://example.org/g1> ` +
       `WHERE { GRAPH ?g { ?s ?p ?o } }`,
   });
-  assertEquals(none.kind, "select");
+  assert.deepStrictEqual(none.kind, "select");
   if (none.kind === "select") {
-    assertEquals(none.data.results.bindings.length, 0);
+    assert.deepStrictEqual(none.data.results.bindings.length, 0);
   }
 });
 
-Deno.test("WazooSparqlEngine - SERVICE pattern single-endpoint fallback", async () => {
+test("WazooSparqlEngine - SERVICE pattern single-endpoint fallback", async () => {
   const store = new Store();
   store.addQuad(
     quad(
@@ -154,92 +159,95 @@ Deno.test("WazooSparqlEngine - SERVICE pattern single-endpoint fallback", async 
       `SELECT ?name WHERE { SERVICE <http://example.org/sparql> { ?person <http://xmlns.com/foaf/0.1/name> ?name } }`,
   });
 
-  assertEquals(result.kind, "select");
+  assert.deepStrictEqual(result.kind, "select");
   if (result.kind === "select") {
-    assertEquals(result.data.results.bindings.length, 1);
-    assertEquals(result.data.results.bindings[0].name.value, "Ethan");
+    assert.deepStrictEqual(result.data.results.bindings.length, 1);
+    assert.deepStrictEqual(result.data.results.bindings[0].name.value, "Ethan");
   }
 });
 
-Deno.test("WazooSparqlEngine - reifier and annotation after an object match reified data", async () => {
+test("WazooSparqlEngine - reifier and annotation after an object match reified data", async () => {
   const engine = new WazooSparqlEngine({ store: reifiedStore() });
   const result = await engine.execute({
     query:
       "PREFIX : <http://example.com/ns#> SELECT * { :s :p ?o ~ :iri {| :r ?Z |} }",
   });
-  assertEquals(result.kind, "select");
+  assert.deepStrictEqual(result.kind, "select");
   if (result.kind === "select") {
-    assertEquals(result.data.results.bindings.length, 1);
+    assert.deepStrictEqual(result.data.results.bindings.length, 1);
     const b = result.data.results.bindings[0];
-    assertEquals(b.o.value, "http://example.com/ns#o");
-    assertEquals(b.Z.value, "http://example.com/ns#Z1");
+    assert.deepStrictEqual(b.o.value, "http://example.com/ns#o");
+    assert.deepStrictEqual(b.Z.value, "http://example.com/ns#Z1");
   }
 });
 
-Deno.test("WazooSparqlEngine - variable reifier binds the reifier term", async () => {
+test("WazooSparqlEngine - variable reifier binds the reifier term", async () => {
   const engine = new WazooSparqlEngine({ store: reifiedStore() });
   const result = await engine.execute({
     query:
       "PREFIX : <http://example.com/ns#> SELECT * { :s :p ?o ~ ?r {| :r ?Z |} }",
   });
-  assertEquals(result.kind, "select");
+  assert.deepStrictEqual(result.kind, "select");
   if (result.kind === "select") {
-    assertEquals(result.data.results.bindings.length, 2);
+    assert.deepStrictEqual(result.data.results.bindings.length, 2);
     const byO = new Map(
       result.data.results.bindings.map((b) => [b.o.value, b]),
     );
-    assertEquals(
+    assert.deepStrictEqual(
       byO.get("http://example.com/ns#o")!.r.value,
       "http://example.com/ns#iri",
     );
-    assertEquals(byO.get("http://example.com/ns#o2")!.r.type, "bnode");
+    assert.deepStrictEqual(
+      byO.get("http://example.com/ns#o2")!.r.type,
+      "bnode",
+    );
   }
 });
 
-Deno.test("WazooSparqlEngine - bare ~ matches any reifier of the triple", async () => {
+test("WazooSparqlEngine - bare ~ matches any reifier of the triple", async () => {
   const engine = new WazooSparqlEngine({ store: reifiedStore() });
   const result = await engine.execute({
     query:
       "PREFIX : <http://example.com/ns#> SELECT * { :s :p ?o ~ {| :r ?Z |} }",
   });
-  assertEquals(result.kind, "select");
+  assert.deepStrictEqual(result.kind, "select");
   if (result.kind === "select") {
-    assertEquals(result.data.results.bindings.length, 2);
+    assert.deepStrictEqual(result.data.results.bindings.length, 2);
   }
 });
 
-Deno.test("WazooSparqlEngine - request baseIri resolves relative IRI() when no BASE directive", async () => {
+test("WazooSparqlEngine - request baseIri resolves relative IRI() when no BASE directive", async () => {
   const engine = new WazooSparqlEngine({ store: new Store() });
   const result = await engine.execute({
     query: `SELECT ?iri WHERE { BIND(IRI("rel/path") AS ?iri) }`,
     baseIri: "http://example.org/root/",
   });
-  assertEquals(result.kind, "select");
+  assert.deepStrictEqual(result.kind, "select");
   if (result.kind === "select") {
-    assertEquals(
+    assert.deepStrictEqual(
       result.data.results.bindings[0].iri.value,
       "http://example.org/root/rel/path",
     );
   }
 });
 
-Deno.test("WazooSparqlEngine - the query's BASE directive wins over request baseIri", async () => {
+test("WazooSparqlEngine - the query's BASE directive wins over request baseIri", async () => {
   const engine = new WazooSparqlEngine({ store: new Store() });
   const result = await engine.execute({
     query: `BASE <http://directive.example/>
 SELECT ?iri WHERE { BIND(IRI("rel/path") AS ?iri) }`,
     baseIri: "http://request.example/",
   });
-  assertEquals(result.kind, "select");
+  assert.deepStrictEqual(result.kind, "select");
   if (result.kind === "select") {
-    assertEquals(
+    assert.deepStrictEqual(
       result.data.results.bindings[0].iri.value,
       "http://directive.example/rel/path",
     );
   }
 });
 
-Deno.test("WazooSparqlEngine - query cache distinguishes baseIri", async () => {
+test("WazooSparqlEngine - query cache distinguishes baseIri", async () => {
   // The parse depends on the base (query.base and prefix resolution), so the
   // same query string with different request bases must not share a cache
   // entry (issue #117).
@@ -253,24 +261,24 @@ Deno.test("WazooSparqlEngine - query cache distinguishes baseIri", async () => {
     query,
     baseIri: "http://second.example/",
   });
-  assertEquals(first.kind, "select");
-  assertEquals(second.kind, "select");
+  assert.deepStrictEqual(first.kind, "select");
+  assert.deepStrictEqual(second.kind, "select");
   if (first.kind === "select" && second.kind === "select") {
-    assertEquals(
+    assert.deepStrictEqual(
       first.data.results.bindings[0].iri.value,
       "http://first.example/rel/path",
     );
-    assertEquals(
+    assert.deepStrictEqual(
       second.data.results.bindings[0].iri.value,
       "http://second.example/rel/path",
     );
   }
 });
 
-Deno.test("WazooSparqlEngine - relative LOAD source resolves against request baseIri", async () => {
-  const dir = await Deno.makeTempDir();
+test("WazooSparqlEngine - relative LOAD source resolves against request baseIri", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "sparql-engine-"));
   const turtlePath = `${dir}/data.ttl`;
-  await Deno.writeTextFile(
+  await writeFile(
     turtlePath,
     "<http://example.org/s> <p> <http://example.org/o> .\n",
   );
@@ -280,16 +288,16 @@ Deno.test("WazooSparqlEngine - relative LOAD source resolves against request bas
     query: "LOAD <data.ttl>",
     baseIri: new URL(`file:///${dir.replace(/\\/g, "/")}/`).href,
   });
-  assertEquals(result.kind, "void");
+  assert.deepStrictEqual(result.kind, "void");
   const loaded = store.getQuads(null, null, null, null);
-  assertEquals(loaded.length, 1);
-  assertEquals(loaded[0].subject.value, "http://example.org/s");
-  await Deno.remove(dir, { recursive: true });
+  assert.deepStrictEqual(loaded.length, 1);
+  assert.deepStrictEqual(loaded[0].subject.value, "http://example.org/s");
+  await rm(dir, { recursive: true });
 });
 
-Deno.test("WazooSparqlEngine - timeoutMs rejects with Comunica's message", async () => {
+test("WazooSparqlEngine - timeoutMs rejects with Comunica's message", async () => {
   const engine = new WazooSparqlEngine({ store: hangingStore() });
-  await assertRejects(
+  await rejected(
     () =>
       engine.execute({
         query: "SELECT ?s WHERE { ?s ?p ?o }",
@@ -300,11 +308,11 @@ Deno.test("WazooSparqlEngine - timeoutMs rejects with Comunica's message", async
   );
 });
 
-Deno.test("WazooSparqlEngine - caller signal aborts a hanging request", async () => {
+test("WazooSparqlEngine - caller signal aborts a hanging request", async () => {
   const engine = new WazooSparqlEngine({ store: hangingStore() });
   const controller = new AbortController();
   setTimeout(() => controller.abort(new Error("caller cancelled")), 20);
-  await assertRejects(
+  await rejected(
     () =>
       engine.execute({
         query: "SELECT ?s WHERE { ?s ?p ?o }",

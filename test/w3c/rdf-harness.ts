@@ -2,6 +2,7 @@ import type * as rdfjs from "@rdfjs/types";
 import { DataFactory } from "@/term/mod.ts";
 import { MemoryStore } from "@/store/memory-store.ts";
 import { Parser as N3Parser } from "n3";
+import { readFileSync } from "node:fs";
 export { quadSetsIsomorphic } from "./rdf-isomorphism.ts";
 export { quadSetsIsomorphicAsSets } from "./rdf-isomorphism.ts";
 
@@ -133,7 +134,7 @@ export function loadRdfManifest(manifestRel: string): RdfManifestLoad {
   const loadInto = (rel: string): void => {
     let text: string;
     try {
-      text = Deno.readTextFileSync(`test/w3c/fixtures/${rel}`);
+      text = readFileSync(`test/w3c/fixtures/${rel}`, "utf8");
     } catch (error) {
       throw new Error(
         `failed to read RDF manifest ${rel}: ${

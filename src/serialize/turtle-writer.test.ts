@@ -1,4 +1,6 @@
-import { assertEquals, assertThrows } from "@std/assert";
+import assert from "node:assert/strict";
+import { test } from "node:test";
+import { thrown } from "../../test/thrown.ts";
 import type * as rdfjs from "@rdfjs/types";
 import type { RdfQuad } from "@/parser/rdf-terms.ts";
 import { DataFactory } from "@/term/public.ts";
@@ -17,7 +19,7 @@ function roundTrip(
 ) {
   const text = serializeTurtle(quads, options);
   const reparsed = parseTurtleQuads(text);
-  assertEquals(
+  assert.deepStrictEqual(
     quadSetsIsomorphicAsSets(reparsed, quads),
     true,
     `round-trip failed for:\n${text}`,
@@ -25,7 +27,7 @@ function roundTrip(
   return text;
 }
 
-Deno.test("turtle-writer: basic Turtle round-trip groups by subject/predicate", () => {
+test("turtle-writer: basic Turtle round-trip groups by subject/predicate", () => {
   const quads = [
     quad(ex("s"), ex("p"), literal("hello", "en")),
     quad(ex("s"), ex("p"), ex("o2")),
@@ -39,11 +41,11 @@ Deno.test("turtle-writer: basic Turtle round-trip groups by subject/predicate", 
   ];
   const text = roundTrip(quads);
   // Comma (object list) and semicolon (predicate list) shorthand is used.
-  assertEquals(text.includes(", "), true);
-  assertEquals(text.includes(";\n"), true);
+  assert.deepStrictEqual(text.includes(", "), true);
+  assert.deepStrictEqual(text.includes(";\n"), true);
 });
 
-Deno.test("turtle-writer: typed, language, and plain literals serialize distinctly", () => {
+test("turtle-writer: typed, language, and plain literals serialize distinctly", () => {
   const quads = [
     quad(ex("s"), ex("p"), literal("plain")),
     quad(ex("s"), ex("p"), literal("deutsch", "de")),
@@ -54,22 +56,22 @@ Deno.test("turtle-writer: typed, language, and plain literals serialize distinct
     ),
   ];
   const text = roundTrip(quads);
-  assertEquals(text.includes('"plain"'), true);
-  assertEquals(text.includes('"deutsch"@de'), true);
-  assertEquals(
+  assert.deepStrictEqual(text.includes('"plain"'), true);
+  assert.deepStrictEqual(text.includes('"deutsch"@de'), true);
+  assert.deepStrictEqual(
     text.includes('"42"^^<http://www.w3.org/2001/XMLSchema#integer>'),
     true,
   );
 });
 
-Deno.test("turtle-writer: RDF 1.2 triple terms round-trip", () => {
+test("turtle-writer: RDF 1.2 triple terms round-trip", () => {
   const quads = [
     quad(ex("s"), ex("p"), quad(ex("a"), ex("b"), ex("c"))),
   ];
   roundTrip(quads);
 });
 
-Deno.test("turtle-writer: directional language literals round-trip", () => {
+test("turtle-writer: directional language literals round-trip", () => {
   const quads = [
     quad(
       ex("s"),
@@ -78,42 +80,42 @@ Deno.test("turtle-writer: directional language literals round-trip", () => {
     ),
   ];
   const text = roundTrip(quads);
-  assertEquals(text.includes('"مرحبا"@ar--rtl'), true);
+  assert.deepStrictEqual(text.includes('"مرحبا"@ar--rtl'), true);
 });
 
-Deno.test("turtle-writer: named graphs emit TriG blocks and round-trip", () => {
+test("turtle-writer: named graphs emit TriG blocks and round-trip", () => {
   const quads = [
     quad(ex("s"), ex("p"), ex("o"), defaultGraph()),
     quad(ex("s2"), ex("p2"), ex("o2"), ex("g")),
     quad(ex("s3"), ex("p3"), ex("o3"), ex("g")),
   ];
   const text = roundTrip(quads);
-  assertEquals(text.includes("<http://example.org/g> {"), true);
+  assert.deepStrictEqual(text.includes("<http://example.org/g> {"), true);
 });
 
-Deno.test("turtle-writer: N-Quads round-trips graph labels", () => {
+test("turtle-writer: N-Quads round-trips graph labels", () => {
   const quads = [
     quad(ex("s"), ex("p"), ex("o"), defaultGraph()),
     quad(ex("s"), ex("p"), literal("x"), ex("g")),
   ];
   const text = roundTrip(quads, { format: "n-quads" });
-  assertEquals(
+  assert.deepStrictEqual(
     text,
     "<http://example.org/s> <http://example.org/p> <http://example.org/o> .\n" +
       '<http://example.org/s> <http://example.org/p> "x" <http://example.org/g> .\n',
   );
 });
 
-Deno.test("turtle-writer: N-Triples round-trips and rejects named graphs", () => {
+test("turtle-writer: N-Triples round-trips and rejects named graphs", () => {
   const quads = [
     quad(ex("s"), ex("p"), literal("v")),
   ];
   const text = roundTrip(quads, { format: "n-triples" });
-  assertEquals(
+  assert.deepStrictEqual(
     text,
     '<http://example.org/s> <http://example.org/p> "v" .\n',
   );
-  assertThrows(
+  thrown(
     () =>
       serializeTurtle([quad(ex("s"), ex("p"), ex("o"), ex("g"))], {
         format: "n-triples",
@@ -123,7 +125,7 @@ Deno.test("turtle-writer: N-Triples round-trips and rejects named graphs", () =>
   );
 });
 
-Deno.test("turtle-writer: literal escaping survives a round-trip", () => {
+test("turtle-writer: literal escaping survives a round-trip", () => {
   const quads = [
     quad(
       ex("s"),
@@ -132,49 +134,55 @@ Deno.test("turtle-writer: literal escaping survives a round-trip", () => {
     ),
   ];
   const text = roundTrip(quads);
-  assertEquals(text.includes("\\u0001"), true);
-  assertEquals(text.includes("\\n"), true);
+  assert.deepStrictEqual(text.includes("\\u0001"), true);
+  assert.deepStrictEqual(text.includes("\\n"), true);
 });
 
-Deno.test("turtle-writer: unicode IRIs round-trip as raw UTF-8", () => {
+test("turtle-writer: unicode IRIs round-trip as raw UTF-8", () => {
   const quads = [
     quad(namedNode("http://example.org/ünïcode/路径"), ex("p"), ex("o")),
   ];
   roundTrip(quads);
 });
 
-Deno.test("turtle-writer: forbidden IRI characters are UCHAR-escaped", () => {
+test("turtle-writer: forbidden IRI characters are UCHAR-escaped", () => {
   // The RDF spec forbids `<>"{}|^`\\` and control chars in IRIs entirely, so
   // the parser rejects them even escaped — the writer emits the UCHAR form
   // and the caller is responsible for supplying spec-legal IRIs.
   const text = serializeTurtle([
     quad(namedNode('http://example.org/a>b"c'), ex("p"), ex("o")),
   ]);
-  assertEquals(text.includes("<http://example.org/a\\u003eb\\u0022c>"), true);
+  assert.deepStrictEqual(
+    text.includes("<http://example.org/a\\u003eb\\u0022c>"),
+    true,
+  );
 });
 
-Deno.test("turtle-writer: prefixes compact IRIs and round-trip", () => {
+test("turtle-writer: prefixes compact IRIs and round-trip", () => {
   const quads = [
     quad(ex("s"), ex("p"), ex("o")),
     quad(namedNode("http://other.example/x"), ex("p"), ex("o")),
   ];
   const text = roundTrip(quads, { prefixes: { ex: "http://example.org/" } });
-  assertEquals(text.includes("@prefix ex: <http://example.org/> ."), true);
-  assertEquals(text.includes("ex:s ex:p ex:o"), true);
-  assertEquals(text.includes("<http://other.example/x>"), true);
+  assert.deepStrictEqual(
+    text.includes("@prefix ex: <http://example.org/> ."),
+    true,
+  );
+  assert.deepStrictEqual(text.includes("ex:s ex:p ex:o"), true);
+  assert.deepStrictEqual(text.includes("<http://other.example/x>"), true);
 });
 
-Deno.test("turtle-writer: empty input produces an empty document", () => {
-  assertEquals(serializeTurtle([]), "");
-  assertEquals(serializeTurtle([], { format: "n-quads" }), "");
+test("turtle-writer: empty input produces an empty document", () => {
+  assert.deepStrictEqual(serializeTurtle([]), "");
+  assert.deepStrictEqual(serializeTurtle([], { format: "n-quads" }), "");
 });
 
-Deno.test("turtle-writer: default graph term in a term position is rejected", () => {
+test("turtle-writer: default graph term in a term position is rejected", () => {
   const invalid = {
     ...quad(ex("s"), ex("p"), ex("o")),
     object: defaultGraph(),
   };
-  assertThrows(
+  thrown(
     () => serializeTurtle([invalid as unknown as RdfQuad]),
     Error,
     "Cannot serialize DefaultGraph",

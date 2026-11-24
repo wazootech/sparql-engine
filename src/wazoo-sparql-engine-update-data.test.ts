@@ -1,11 +1,13 @@
 import { DataFactory } from "@/term/mod.ts";
 import { MemoryStore as Store } from "@/store/memory-store.ts";
 import { WazooSparqlEngine } from "@/wazoo-sparql-engine.ts";
-import { assertEquals, assertRejects } from "@std/assert";
+import assert from "node:assert/strict";
+import { test } from "node:test";
+import { rejected } from "../test/thrown.ts";
 
 const { namedNode, literal, quad } = DataFactory;
 
-Deno.test("WazooSparqlEngine - INSERT DATA mints fresh blank nodes per execution", async () => {
+test("WazooSparqlEngine - INSERT DATA mints fresh blank nodes per execution", async () => {
   const store = new Store();
   const engine = new WazooSparqlEngine({ store });
 
@@ -24,10 +26,10 @@ Deno.test("WazooSparqlEngine - INSERT DATA mints fresh blank nodes per execution
   ) {
     subjects.add(q.subject.value);
   }
-  assertEquals(subjects.size, 2);
+  assert.deepStrictEqual(subjects.size, 2);
 });
 
-Deno.test("WazooSparqlEngine - INSERT DATA into a named graph", async () => {
+test("WazooSparqlEngine - INSERT DATA into a named graph", async () => {
   const store = new Store();
   const engine = new WazooSparqlEngine({ store });
 
@@ -42,10 +44,10 @@ Deno.test("WazooSparqlEngine - INSERT DATA into a named graph", async () => {
     null,
     namedNode("http://example.org/g"),
   );
-  assertEquals(graphQuads.length, 1);
+  assert.deepStrictEqual(graphQuads.length, 1);
 });
 
-Deno.test("WazooSparqlEngine - DELETE DATA removes matching quads", async () => {
+test("WazooSparqlEngine - DELETE DATA removes matching quads", async () => {
   const store = new Store();
   store.addQuad(
     quad(
@@ -61,11 +63,11 @@ Deno.test("WazooSparqlEngine - DELETE DATA removes matching quads", async () => 
       'DELETE DATA { <http://example.org/alice> <http://xmlns.com/foaf/0.1/name> "Ethan" }',
   });
 
-  assertEquals(result.kind, "void");
-  assertEquals(store.countQuads(null, null, null, null), 0);
+  assert.deepStrictEqual(result.kind, "void");
+  assert.deepStrictEqual(store.countQuads(null, null, null, null), 0);
 });
 
-Deno.test("WazooSparqlEngine - composite update runs all operations", async () => {
+test("WazooSparqlEngine - composite update runs all operations", async () => {
   const store = new Store();
   store.addQuad(
     quad(
@@ -82,8 +84,8 @@ Deno.test("WazooSparqlEngine - composite update runs all operations", async () =
       'DELETE DATA { <http://example.org/bob> <http://xmlns.com/foaf/0.1/name> "Gregory" }',
   });
 
-  assertEquals(store.countQuads(null, null, null, null), 1);
-  assertEquals(
+  assert.deepStrictEqual(store.countQuads(null, null, null, null), 1);
+  assert.deepStrictEqual(
     store.countQuads(
       namedNode("http://example.org/alice"),
       namedNode("http://xmlns.com/foaf/0.1/name"),
@@ -94,7 +96,7 @@ Deno.test("WazooSparqlEngine - composite update runs all operations", async () =
   );
 });
 
-Deno.test("WazooSparqlEngine - unsupported update operation is rejected", async () => {
+test("WazooSparqlEngine - unsupported update operation is rejected", async () => {
   const store = new Store();
   store.addQuad(
     quad(
@@ -104,7 +106,7 @@ Deno.test("WazooSparqlEngine - unsupported update operation is rejected", async 
     ),
   );
   const engine = new WazooSparqlEngine({ store });
-  await assertRejects(
+  await rejected(
     () =>
       (engine as unknown as {
         updateEvaluator: { executeUpdate: (u: unknown) => Promise<void> };
@@ -122,7 +124,7 @@ Deno.test("WazooSparqlEngine - unsupported update operation is rejected", async 
   );
 });
 
-Deno.test("WazooSparqlEngine - INSERT WHERE instantiates per solution", async () => {
+test("WazooSparqlEngine - INSERT WHERE instantiates per solution", async () => {
   const store = new Store();
   store.addQuad(
     quad(
@@ -151,14 +153,14 @@ Deno.test("WazooSparqlEngine - INSERT WHERE instantiates per solution", async ()
     null,
     null,
   ) as Array<{ object: { value: string } }>;
-  assertEquals(saw.length, 2);
-  assertEquals(
+  assert.deepStrictEqual(saw.length, 2);
+  assert.deepStrictEqual(
     saw.map((q) => q.object.value).sort(),
     ["Ethan", "Gregory"],
   );
 });
 
-Deno.test("WazooSparqlEngine - INSERT WHERE mints fresh blank nodes per solution", async () => {
+test("WazooSparqlEngine - INSERT WHERE mints fresh blank nodes per solution", async () => {
   const store = new Store();
   store.addQuad(
     quad(
@@ -192,10 +194,10 @@ Deno.test("WazooSparqlEngine - INSERT WHERE mints fresh blank nodes per solution
   ) {
     subjects.add(q.subject.value);
   }
-  assertEquals(subjects.size, 2);
+  assert.deepStrictEqual(subjects.size, 2);
 });
 
-Deno.test("WazooSparqlEngine - DELETE WHERE shorthand removes matches", async () => {
+test("WazooSparqlEngine - DELETE WHERE shorthand removes matches", async () => {
   const store = new Store();
   store.addQuad(
     quad(
@@ -218,8 +220,8 @@ Deno.test("WazooSparqlEngine - DELETE WHERE shorthand removes matches", async ()
       "DELETE WHERE { <http://example.org/alice> <http://xmlns.com/foaf/0.1/name> ?name }",
   });
 
-  assertEquals(store.countQuads(null, null, null, null), 1);
-  assertEquals(
+  assert.deepStrictEqual(store.countQuads(null, null, null, null), 1);
+  assert.deepStrictEqual(
     store.countQuads(
       namedNode("http://example.org/alice"),
       namedNode("http://xmlns.com/foaf/0.1/name"),
@@ -230,7 +232,7 @@ Deno.test("WazooSparqlEngine - DELETE WHERE shorthand removes matches", async ()
   );
 });
 
-Deno.test("WazooSparqlEngine - DELETE/INSERT moves quads", async () => {
+test("WazooSparqlEngine - DELETE/INSERT moves quads", async () => {
   const store = new Store();
   store.addQuad(
     quad(
@@ -254,17 +256,17 @@ Deno.test("WazooSparqlEngine - DELETE/INSERT moves quads", async () => {
       "WHERE { ?s <http://example.org/p> ?o }",
   });
 
-  assertEquals(
+  assert.deepStrictEqual(
     store.countQuads(null, namedNode("http://example.org/p"), null, null),
     0,
   );
-  assertEquals(
+  assert.deepStrictEqual(
     store.countQuads(null, namedNode("http://example.org/q"), null, null),
     2,
   );
 });
 
-Deno.test("WazooSparqlEngine - INSERT WHERE skips unbound template variables", async () => {
+test("WazooSparqlEngine - INSERT WHERE skips unbound template variables", async () => {
   const store = new Store();
   store.addQuad(
     quad(
@@ -281,7 +283,7 @@ Deno.test("WazooSparqlEngine - INSERT WHERE skips unbound template variables", a
       "WHERE { <http://example.org/alice> <http://xmlns.com/foaf/0.1/name> ?name }",
   });
 
-  assertEquals(
+  assert.deepStrictEqual(
     store.countQuads(
       namedNode("http://example.org/x"),
       namedNode("http://example.org/p"),

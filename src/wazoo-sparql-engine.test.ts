@@ -2,30 +2,32 @@ import { DataFactory } from "@/term/mod.ts";
 import { SparqlSyntaxError } from "@/parser/syntax-error.ts";
 import { MemoryStore as Store } from "@/store/memory-store.ts";
 import { WazooSparqlEngine } from "@/wazoo-sparql-engine.ts";
-import { assertEquals, assertRejects } from "@std/assert";
+import assert from "node:assert/strict";
+import { test } from "node:test";
+import { rejected } from "../test/thrown.ts";
 
 const { namedNode, literal, quad } = DataFactory;
 
-Deno.test("WazooSparqlEngine - malformed queries reject with a positioned SparqlSyntaxError", async () => {
+test("WazooSparqlEngine - malformed queries reject with a positioned SparqlSyntaxError", async () => {
   const engine = new WazooSparqlEngine({ store: new Store() });
-  const error = await assertRejects(
+  const error = await rejected(
     () =>
       engine.execute({
         query: "SELECT ?s WHERE { ?s <http://example.org/p> ?o } }",
       }),
     SparqlSyntaxError,
   );
-  assertEquals(error.line, 1);
-  assertEquals(error.column, 50);
-  assertEquals(error.token, "}");
-  assertEquals(error.expected.includes("'EOF'"), true);
-  assertEquals(
+  assert.deepStrictEqual(error.line, 1);
+  assert.deepStrictEqual(error.column, 50);
+  assert.deepStrictEqual(error.token, "}");
+  assert.deepStrictEqual(error.expected.includes("'EOF'"), true);
+  assert.deepStrictEqual(
     error.message.startsWith("Syntax error at line 1, column 50"),
     true,
   );
 });
 
-Deno.test("WazooSparqlEngine - SELECT query BGP evaluation", async () => {
+test("WazooSparqlEngine - SELECT query BGP evaluation", async () => {
   const store = new Store();
   store.addQuad(
     quad(
@@ -48,16 +50,16 @@ Deno.test("WazooSparqlEngine - SELECT query BGP evaluation", async () => {
       "SELECT ?person ?name WHERE { ?person <http://xmlns.com/foaf/0.1/name> ?name }",
   });
 
-  assertEquals(result.kind, "select");
+  assert.deepStrictEqual(result.kind, "select");
   if (result.kind === "select") {
-    assertEquals(result.data.head.vars, ["person", "name"]);
-    assertEquals(result.data.results.bindings.length, 2);
+    assert.deepStrictEqual(result.data.head.vars, ["person", "name"]);
+    assert.deepStrictEqual(result.data.results.bindings.length, 2);
     const names = result.data.results.bindings.map((b) => b.name.value).sort();
-    assertEquals(names, ["Ethan", "Gregory"]);
+    assert.deepStrictEqual(names, ["Ethan", "Gregory"]);
   }
 });
 
-Deno.test("WazooSparqlEngine - FILTER numeric comparison and arithmetic", async () => {
+test("WazooSparqlEngine - FILTER numeric comparison and arithmetic", async () => {
   const store = new Store();
   const age = (person: string, years: string) =>
     quad(
@@ -74,9 +76,9 @@ Deno.test("WazooSparqlEngine - FILTER numeric comparison and arithmetic", async 
     query:
       "SELECT ?person WHERE { ?person <http://xmlns.com/foaf/0.1/age> ?age FILTER(?age > 18) }",
   });
-  assertEquals(greater.kind, "select");
+  assert.deepStrictEqual(greater.kind, "select");
   if (greater.kind === "select") {
-    assertEquals(
+    assert.deepStrictEqual(
       greater.data.results.bindings.map((b) => b.person.value),
       ["http://example.org/alice", "http://example.org/carol"],
     );
@@ -86,9 +88,9 @@ Deno.test("WazooSparqlEngine - FILTER numeric comparison and arithmetic", async 
     query:
       "SELECT ?person WHERE { ?person <http://xmlns.com/foaf/0.1/age> ?age FILTER(?age / 2 > 10) }",
   });
-  assertEquals(arithmetic.kind, "select");
+  assert.deepStrictEqual(arithmetic.kind, "select");
   if (arithmetic.kind === "select") {
-    assertEquals(
+    assert.deepStrictEqual(
       arithmetic.data.results.bindings.map((b) => b.person.value),
       ["http://example.org/alice", "http://example.org/carol"],
     );
@@ -98,13 +100,13 @@ Deno.test("WazooSparqlEngine - FILTER numeric comparison and arithmetic", async 
     query:
       "SELECT ?person WHERE { ?person <http://xmlns.com/foaf/0.1/age> ?age FILTER(?age = 28.0) }",
   });
-  assertEquals(exact.kind, "select");
+  assert.deepStrictEqual(exact.kind, "select");
   if (exact.kind === "select") {
-    assertEquals(exact.data.results.bindings.length, 1);
+    assert.deepStrictEqual(exact.data.results.bindings.length, 1);
   }
 });
 
-Deno.test("WazooSparqlEngine - FILTER string, language, STR and STRLEN", async () => {
+test("WazooSparqlEngine - FILTER string, language, STR and STRLEN", async () => {
   const store = new Store();
   const name = (person: string, value: string, language?: string) =>
     quad(
@@ -121,10 +123,10 @@ Deno.test("WazooSparqlEngine - FILTER string, language, STR and STRLEN", async (
     query:
       'SELECT ?person WHERE { ?person <http://xmlns.com/foaf/0.1/name> ?name FILTER(?name = "Ethan") }',
   });
-  assertEquals(eq.kind, "select");
+  assert.deepStrictEqual(eq.kind, "select");
   if (eq.kind === "select") {
-    assertEquals(eq.data.results.bindings.length, 1);
-    assertEquals(
+    assert.deepStrictEqual(eq.data.results.bindings.length, 1);
+    assert.deepStrictEqual(
       eq.data.results.bindings[0].person.value,
       "http://example.org/alice",
     );
@@ -134,9 +136,9 @@ Deno.test("WazooSparqlEngine - FILTER string, language, STR and STRLEN", async (
     query:
       'SELECT ?person WHERE { ?person <http://xmlns.com/foaf/0.1/name> ?name FILTER(?name != "Carol"@en) }',
   });
-  assertEquals(lang.kind, "select");
+  assert.deepStrictEqual(lang.kind, "select");
   if (lang.kind === "select") {
-    assertEquals(
+    assert.deepStrictEqual(
       lang.data.results.bindings.map((b) => b.person.value),
       ["http://example.org/alice", "http://example.org/bob"],
     );
@@ -146,16 +148,16 @@ Deno.test("WazooSparqlEngine - FILTER string, language, STR and STRLEN", async (
     query:
       "SELECT ?person WHERE { ?person <http://xmlns.com/foaf/0.1/name> ?name FILTER(STRLEN(?name) > 5) }",
   });
-  assertEquals(strlen.kind, "select");
+  assert.deepStrictEqual(strlen.kind, "select");
   if (strlen.kind === "select") {
-    assertEquals(
+    assert.deepStrictEqual(
       strlen.data.results.bindings.map((b) => b.person.value),
       ["http://example.org/bob"],
     );
   }
 });
 
-Deno.test("WazooSparqlEngine - FILTER bound(), EBV, and error semantics", async () => {
+test("WazooSparqlEngine - FILTER bound(), EBV, and error semantics", async () => {
   const store = new Store();
   store.addQuad(
     quad(
@@ -178,9 +180,9 @@ Deno.test("WazooSparqlEngine - FILTER bound(), EBV, and error semantics", async 
     query:
       "SELECT ?person WHERE { ?person <http://xmlns.com/foaf/0.1/name> ?name FILTER(!BOUND(?missing)) }",
   });
-  assertEquals(bound.kind, "select");
+  assert.deepStrictEqual(bound.kind, "select");
   if (bound.kind === "select") {
-    assertEquals(bound.data.results.bindings.length, 2);
+    assert.deepStrictEqual(bound.data.results.bindings.length, 2);
   }
 
   // EBV of a lang-tagged literal is a type error: carol is dropped.
@@ -188,10 +190,10 @@ Deno.test("WazooSparqlEngine - FILTER bound(), EBV, and error semantics", async 
     query:
       "SELECT ?person WHERE { ?person <http://xmlns.com/foaf/0.1/name> ?name FILTER(?name) }",
   });
-  assertEquals(ebv.kind, "select");
+  assert.deepStrictEqual(ebv.kind, "select");
   if (ebv.kind === "select") {
-    assertEquals(ebv.data.results.bindings.length, 1);
-    assertEquals(
+    assert.deepStrictEqual(ebv.data.results.bindings.length, 1);
+    assert.deepStrictEqual(
       ebv.data.results.bindings[0].person.value,
       "http://example.org/alice",
     );
@@ -202,13 +204,13 @@ Deno.test("WazooSparqlEngine - FILTER bound(), EBV, and error semantics", async 
     query:
       'SELECT ?person WHERE { ?person <http://xmlns.com/foaf/0.1/name> ?name FILTER(?name < "Carol"@en) }',
   });
-  assertEquals(langError.kind, "select");
+  assert.deepStrictEqual(langError.kind, "select");
   if (langError.kind === "select") {
-    assertEquals(langError.data.results.bindings.length, 0);
+    assert.deepStrictEqual(langError.data.results.bindings.length, 0);
   }
 });
 
-Deno.test("WazooSparqlEngine - ORDER BY expression (STRLEN and STR)", async () => {
+test("WazooSparqlEngine - ORDER BY expression (STRLEN and STR)", async () => {
   const store = new Store();
   const name = (person: string, value: string, language?: string) =>
     quad(
@@ -225,9 +227,9 @@ Deno.test("WazooSparqlEngine - ORDER BY expression (STRLEN and STR)", async () =
     query:
       "SELECT ?person ?name WHERE { ?person <http://xmlns.com/foaf/0.1/name> ?name } ORDER BY DESC(STRLEN(?name))",
   });
-  assertEquals(byLen.kind, "select");
+  assert.deepStrictEqual(byLen.kind, "select");
   if (byLen.kind === "select") {
-    assertEquals(
+    assert.deepStrictEqual(
       byLen.data.results.bindings.map((b) => b.person.value),
       [
         "http://example.org/bob",
@@ -241,9 +243,9 @@ Deno.test("WazooSparqlEngine - ORDER BY expression (STRLEN and STR)", async () =
     query:
       "SELECT ?person ?name WHERE { ?person <http://xmlns.com/foaf/0.1/name> ?name } ORDER BY STR(?name)",
   });
-  assertEquals(byStr.kind, "select");
+  assert.deepStrictEqual(byStr.kind, "select");
   if (byStr.kind === "select") {
-    assertEquals(
+    assert.deepStrictEqual(
       byStr.data.results.bindings.map((b) => b.person.value),
       [
         "http://example.org/carol",
@@ -254,7 +256,7 @@ Deno.test("WazooSparqlEngine - ORDER BY expression (STRLEN and STR)", async () =
   }
 });
 
-Deno.test("WazooSparqlEngine - unsupported FILTER expression is rejected", async () => {
+test("WazooSparqlEngine - unsupported FILTER expression is rejected", async () => {
   const store = new Store();
   store.addQuad(
     quad(
@@ -266,7 +268,7 @@ Deno.test("WazooSparqlEngine - unsupported FILTER expression is rejected", async
   const engine = new WazooSparqlEngine({ store });
   // UNSUPPORTED_FUNC is not part of the ported surface, so it must still raise a
   // clear error rather than silently passing.
-  await assertRejects(
+  await rejected(
     () =>
       engine.execute({
         query:
@@ -277,7 +279,7 @@ Deno.test("WazooSparqlEngine - unsupported FILTER expression is rejected", async
   );
 });
 
-Deno.test("WazooSparqlEngine - ORDER BY sorts SELECT results by value", async () => {
+test("WazooSparqlEngine - ORDER BY sorts SELECT results by value", async () => {
   const store = new Store();
   store.addQuad(
     quad(
@@ -306,11 +308,11 @@ Deno.test("WazooSparqlEngine - ORDER BY sorts SELECT results by value", async ()
     query:
       "SELECT ?person ?name WHERE { ?person <http://xmlns.com/foaf/0.1/name> ?name } ORDER BY ?name",
   });
-  assertEquals(result.kind, "select");
+  assert.deepStrictEqual(result.kind, "select");
   if (result.kind === "select") {
     // The lang-tagged literal (rdf:langString) sorts before the plain
     // xsd:string literals by datatype IRI, then lexically.
-    assertEquals(
+    assert.deepStrictEqual(
       result.data.results.bindings.map((b) => b.name.value),
       ["Carol", "Ethan", "Gregory"],
     );

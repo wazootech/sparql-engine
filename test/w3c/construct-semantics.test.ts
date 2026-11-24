@@ -1,4 +1,5 @@
-import { assertEquals } from "@std/assert";
+import assert from "node:assert/strict";
+import { test } from "node:test";
 import type * as rdfjs from "@rdfjs/types";
 import { canonicalizeRdfTerm, DataFactory } from "@/term/public.ts";
 import type { CanonicalTerm } from "@/term/mod.ts";
@@ -33,12 +34,12 @@ function key(item: rdfjs.Quad): string {
   return JSON.stringify(rec(item));
 }
 
-Deno.test(
+test(
   "CONSTRUCT gate fails when wazoo emits a duplicate quad (issue #87 regression detector)",
   () => {
     const quad1 = q("s", "p", "o");
     // Wazoo emits the same quad twice; the reference holds it once.
-    assertEquals(
+    assert.deepStrictEqual(
       compareConstructRecords(
         [rec(quad1), rec(quad1)],
         [rec(quad1)],
@@ -49,13 +50,13 @@ Deno.test(
   },
 );
 
-Deno.test(
+test(
   "CONSTRUCT gate normalizes duplicate reference-stream quads",
   () => {
     const quad1 = q("s", "p", "o");
     // Wazoo emits once; Comunica's stream repeats the triple — the
     // reference side is normalized, so the graphs agree.
-    assertEquals(
+    assert.deepStrictEqual(
       compareConstructRecords(
         [rec(quad1)],
         [rec(quad1), rec(quad1)],
@@ -66,10 +67,10 @@ Deno.test(
   },
 );
 
-Deno.test("CONSTRUCT gate passes on agreeing results in any order", () => {
+test("CONSTRUCT gate passes on agreeing results in any order", () => {
   const quad1 = q("s", "p", "o");
   const quad2 = q("s", "q", "o2");
-  assertEquals(
+  assert.deepStrictEqual(
     compareConstructRecords(
       [rec(quad1), rec(quad2)],
       [rec(quad2), rec(quad1)],
@@ -79,10 +80,10 @@ Deno.test("CONSTRUCT gate passes on agreeing results in any order", () => {
   );
 });
 
-Deno.test("CONSTRUCT gate fails on missing quads", () => {
+test("CONSTRUCT gate fails on missing quads", () => {
   const quad1 = q("s", "p", "o");
   const quad2 = q("s", "q", "o2");
-  assertEquals(
+  assert.deepStrictEqual(
     compareConstructRecords(
       [rec(quad1)],
       [rec(quad1), rec(quad2)],
@@ -92,10 +93,13 @@ Deno.test("CONSTRUCT gate fails on missing quads", () => {
   );
 });
 
-Deno.test("dedupeRecords keeps first occurrence and preserves order", () => {
+test("dedupeRecords keeps first occurrence and preserves order", () => {
   const quad1 = q("s", "p", "o");
   const quad2 = q("s", "q", "o2");
   const records = [rec(quad1), rec(quad2), rec(quad1)];
   const keys = [key(quad1), key(quad2), key(quad1)];
-  assertEquals(dedupeRecords(records, keys), [rec(quad1), rec(quad2)]);
+  assert.deepStrictEqual(dedupeRecords(records, keys), [
+    rec(quad1),
+    rec(quad2),
+  ]);
 });

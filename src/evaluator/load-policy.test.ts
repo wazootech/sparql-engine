@@ -1,4 +1,6 @@
-import { assert, assertEquals, assertRejects } from "@std/assert";
+import assert from "node:assert/strict";
+import { test } from "node:test";
+import { rejected } from "../../test/thrown.ts";
 import { MemoryStore as Store } from "@/store/memory-store.ts";
 import { WazooSparqlEngine } from "@/wazoo-sparql-engine.ts";
 import type {
@@ -43,39 +45,39 @@ function run(
   return { calls, outcome, engine };
 }
 
-Deno.test("LOAD of a remote URL is denied without a policy", async () => {
+test("LOAD of a remote URL is denied without a policy", async () => {
   const { calls, outcome } = run(
     "https://data.example/a.ttl",
     undefined,
     () => reply(200, TURTLE),
   );
-  await assertRejects(() => outcome, Error, "not permitted by policy");
-  assertEquals(calls.length, 0);
+  await rejected(() => outcome, Error, "not permitted by policy");
+  assert.deepStrictEqual(calls.length, 0);
 });
 
-Deno.test("LOAD denies hosts outside the allowlist", async () => {
+test("LOAD denies hosts outside the allowlist", async () => {
   const { calls, outcome } = run(
     "https://other.example/a.ttl",
     { allowedHosts: ["data.example"] },
     () => reply(200, TURTLE),
   );
-  await assertRejects(() => outcome, Error, "not permitted by policy");
-  assertEquals(calls.length, 0);
+  await rejected(() => outcome, Error, "not permitted by policy");
+  assert.deepStrictEqual(calls.length, 0);
 });
 
-Deno.test("LOAD blocks internal IP literals even when allowlisted", async () => {
+test("LOAD blocks internal IP literals even when allowlisted", async () => {
   for (const host of ["127.0.0.1", "169.254.169.254", "10.0.0.5", "[::1]"]) {
     const { calls, outcome } = run(
       `https://${host}/a.ttl`,
       { allowedHosts: [host.replace(/^\[|\]$/g, "")] },
       () => reply(200, TURTLE),
     );
-    await assertRejects(() => outcome, Error, "blocked address");
-    assertEquals(calls.length, 0);
+    await rejected(() => outcome, Error, "blocked address");
+    assert.deepStrictEqual(calls.length, 0);
   }
 });
 
-Deno.test("LOAD blocks a host that resolves to an internal address", async () => {
+test("LOAD blocks a host that resolves to an internal address", async () => {
   const { calls, outcome } = run(
     "https://data.example/a.ttl",
     {
@@ -84,11 +86,11 @@ Deno.test("LOAD blocks a host that resolves to an internal address", async () =>
     },
     () => reply(200, TURTLE),
   );
-  await assertRejects(() => outcome, Error, "blocked address");
-  assertEquals(calls.length, 0);
+  await rejected(() => outcome, Error, "blocked address");
+  assert.deepStrictEqual(calls.length, 0);
 });
 
-Deno.test("LOAD blocks a redirect to an internal address", async () => {
+test("LOAD blocks a redirect to an internal address", async () => {
   const { calls, outcome } = run(
     "https://data.example/a.ttl",
     { allowedHosts: ["data.example", "169.254.169.254"] },
@@ -97,56 +99,56 @@ Deno.test("LOAD blocks a redirect to an internal address", async () => {
         ? reply(302, "", { location: "https://169.254.169.254/latest" })
         : reply(200, TURTLE),
   );
-  await assertRejects(() => outcome, Error, "blocked address");
-  assertEquals(calls, ["https://data.example/a.ttl"]);
+  await rejected(() => outcome, Error, "blocked address");
+  assert.deepStrictEqual(calls, ["https://data.example/a.ttl"]);
 });
 
-Deno.test("LOAD blocks a redirect to a host outside the allowlist", async () => {
+test("LOAD blocks a redirect to a host outside the allowlist", async () => {
   const { calls, outcome } = run(
     "https://data.example/a.ttl",
     { allowedHosts: ["data.example"] },
     () => reply(301, "", { location: "https://evil.example/x" }),
   );
-  await assertRejects(() => outcome, Error, "not permitted by policy");
-  assertEquals(calls.length, 1);
+  await rejected(() => outcome, Error, "not permitted by policy");
+  assert.deepStrictEqual(calls.length, 1);
 });
 
-Deno.test("LOAD refuses plain http unless allowHttp is set", async () => {
+test("LOAD refuses plain http unless allowHttp is set", async () => {
   const { outcome } = run(
     "http://data.example/a.ttl",
     { allowedHosts: ["data.example"] },
     () => reply(200, TURTLE),
   );
-  await assertRejects(() => outcome, Error, "requires https");
+  await rejected(() => outcome, Error, "requires https");
 });
 
-Deno.test("LOAD enforces the byte and quad limits", async () => {
+test("LOAD enforces the byte and quad limits", async () => {
   const big = run(
     "https://data.example/a.ttl",
     { allowedHosts: ["data.example"], maxBytes: 10 },
     () => reply(200, TURTLE),
   );
-  await assertRejects(() => big.outcome, Error, "size limit");
+  await rejected(() => big.outcome, Error, "size limit");
   const many = run(
     "https://data.example/a.ttl",
     { allowedHosts: ["data.example"], maxQuads: 0 },
     () => reply(200, TURTLE),
   );
-  await assertRejects(() => many.outcome, Error, "quad limit");
+  await rejected(() => many.outcome, Error, "quad limit");
 });
 
-Deno.test("LOAD does not echo a non-RDF body in the error", async () => {
+test("LOAD does not echo a non-RDF body in the error", async () => {
   const { outcome } = run(
     "https://data.example/a.ttl",
     { allowedHosts: ["data.example"] },
     () => reply(200, "SECRET-INTERNAL-PAYLOAD <<<"),
   );
   const error = await outcome.catch((caught: Error) => caught);
-  assert(error instanceof Error);
-  assert(!error.message.includes("SECRET"));
+  assert.ok(error instanceof Error);
+  assert.ok(!error.message.includes("SECRET"));
 });
 
-Deno.test("LOAD still works for an allowlisted https host and follows a safe redirect", async () => {
+test("LOAD still works for an allowlisted https host and follows a safe redirect", async () => {
   const { calls, outcome, engine } = run(
     "https://data.example/a.ttl",
     { allowedHosts: ["data.example", "cdn.example"] },
@@ -156,14 +158,14 @@ Deno.test("LOAD still works for an allowlisted https host and follows a safe red
         : reply(200, TURTLE),
   );
   await outcome;
-  assertEquals(calls.length, 2);
+  assert.deepStrictEqual(calls.length, 2);
   const result = await engine.execute({
     query: "ASK { <http://ex/s> <http://ex/p> <http://ex/o> }",
   });
-  assertEquals(result.kind === "ask" && result.data.boolean, true);
+  assert.deepStrictEqual(result.kind === "ask" && result.data.boolean, true);
 });
 
-Deno.test("isBlockedAddress covers private, mapped and public ranges", () => {
+test("isBlockedAddress covers private, mapped and public ranges", () => {
   for (
     const blocked of [
       "0.0.0.0",
@@ -175,9 +177,9 @@ Deno.test("isBlockedAddress covers private, mapped and public ranges", () => {
       "::ffff:a9fe:a9fe",
     ]
   ) {
-    assert(isBlockedAddress(blocked), blocked);
+    assert.ok(isBlockedAddress(blocked), blocked);
   }
   for (const open of ["8.8.8.8", "93.184.216.34", "2606:4700::1"]) {
-    assert(!isBlockedAddress(open), open);
+    assert.ok(!isBlockedAddress(open), open);
   }
 });

@@ -1,4 +1,6 @@
-import { assertEquals, assertThrows } from "@std/assert";
+import assert from "node:assert/strict";
+import { test } from "node:test";
+import { thrown } from "../../test/thrown.ts";
 import { serializeJsonResults } from "@/serialize/json-results.ts";
 import type { SparqlResponse, SparqlValue } from "@/sparql-engine-interface.ts";
 import { canonicalizeSparqlValue } from "@/term/mod.ts";
@@ -44,18 +46,18 @@ const selectResponse: SparqlResponse = {
   },
 };
 
-Deno.test(
+test(
   "serializeJsonResults - SELECT round-trips every SparqlValue variant",
   () => {
     const parsed = JSON.parse(serializeJsonResults(selectResponse)) as {
       head: { vars: string[] };
       results: { bindings: Array<Record<string, SparqlValue>> };
     };
-    assertEquals(parsed.head.vars, Object.keys(fullSpread));
-    assertEquals(parsed.results.bindings.length, 1);
+    assert.deepStrictEqual(parsed.head.vars, Object.keys(fullSpread));
+    assert.deepStrictEqual(parsed.results.bindings.length, 1);
     const row = parsed.results.bindings[0];
     for (const name of Object.keys(fullSpread)) {
-      assertEquals(
+      assert.deepStrictEqual(
         canonicalizeSparqlValue(row[name]),
         canonicalizeSparqlValue(fullSpread[name]),
         `round-trip ${name}`,
@@ -64,17 +66,17 @@ Deno.test(
   },
 );
 
-Deno.test("serializeJsonResults - ASK round-trips the boolean", () => {
+test("serializeJsonResults - ASK round-trips the boolean", () => {
   for (const boolean of [true, false]) {
     const parsed = JSON.parse(
       serializeJsonResults({ kind: "ask", data: { head: {}, boolean } }),
     ) as { head: unknown; boolean: boolean };
-    assertEquals(parsed.boolean, boolean);
-    assertEquals(parsed.head, {});
+    assert.deepStrictEqual(parsed.boolean, boolean);
+    assert.deepStrictEqual(parsed.head, {});
   }
 });
 
-Deno.test("serializeJsonResults - emits a deterministic .srj document", () => {
+test("serializeJsonResults - emits a deterministic .srj document", () => {
   const response: SparqlResponse = {
     kind: "select",
     data: {
@@ -97,26 +99,29 @@ Deno.test("serializeJsonResults - emits a deterministic .srj document", () => {
   const golden = '{"head":{"vars":["iri","lang"]},"results":{"bindings":[' +
     '{"iri":{"type":"uri","value":"http://example.org/s"},' +
     '"lang":{"type":"literal","value":"hola","xml:lang":"es","its:dir":"rtl"}}]}}';
-  assertEquals(serializeJsonResults(response), golden);
+  assert.deepStrictEqual(serializeJsonResults(response), golden);
   // Determinism: serializing the same response twice is byte-identical.
-  assertEquals(serializeJsonResults(response), serializeJsonResults(response));
+  assert.deepStrictEqual(
+    serializeJsonResults(response),
+    serializeJsonResults(response),
+  );
 });
 
-Deno.test("serializeJsonResults - passes head link through", () => {
+test("serializeJsonResults - passes head link through", () => {
   const parsed = JSON.parse(
     serializeJsonResults({
       kind: "ask",
       data: { head: { link: ["http://example.org/result"] }, boolean: true },
     }),
   ) as { head: { link?: string[] }; boolean: boolean };
-  assertEquals(parsed.head.link, ["http://example.org/result"]);
-  assertEquals(parsed.boolean, true);
+  assert.deepStrictEqual(parsed.head.link, ["http://example.org/result"]);
+  assert.deepStrictEqual(parsed.boolean, true);
 });
 
-Deno.test(
+test(
   "serializeJsonResults - rejects kinds the format does not cover",
   () => {
-    assertThrows(
+    thrown(
       () =>
         serializeJsonResults({
           kind: "construct",
@@ -125,7 +130,7 @@ Deno.test(
       Error,
       "SELECT and ASK",
     );
-    assertThrows(
+    thrown(
       () => serializeJsonResults({ kind: "void" }),
       Error,
       "SELECT and ASK",
@@ -133,7 +138,7 @@ Deno.test(
   },
 );
 
-Deno.test(
+test(
   "serializeJsonResults - JSON-escapes special characters in values",
   () => {
     const parsed = JSON.parse(
@@ -151,14 +156,14 @@ Deno.test(
     ) as { results: { bindings: Array<Record<string, SparqlValue>> } };
     // JSON.stringify escapes quotes, backslashes, and control characters;
     // the parsed value is byte-identical to the original literal text.
-    assertEquals(parsed.results.bindings[0].v, {
+    assert.deepStrictEqual(parsed.results.bindings[0].v, {
       type: "literal",
       value: 'a"b\\c\n\u0001d',
     });
   },
 );
 
-Deno.test(
+test(
   "serializeJsonResults - round-trips a directional literal end to end",
   async () => {
     // A real query through the engine: the RDF 1.2 directional literal
@@ -175,7 +180,7 @@ Deno.test(
       results: { bindings: Array<Record<string, SparqlValue>> };
     };
     const emitted = doc.results.bindings[0].v;
-    assertEquals(emitted, {
+    assert.deepStrictEqual(emitted, {
       type: "literal",
       value: "hola",
       "xml:lang": "es",

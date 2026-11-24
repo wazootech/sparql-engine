@@ -2,6 +2,7 @@ import { assertUpdateParity } from "./parity-harness.ts";
 import type { ParityUpdateCase } from "./parity-harness.ts";
 import { basicKnowledgeGraphQuads } from "./parity-fixtures.ts";
 import { DataFactory } from "@/term/public.ts";
+import { test } from "node:test";
 
 const { literal, namedNode, quad } = DataFactory;
 
@@ -177,7 +178,7 @@ const updateCases: ParityUpdateCase[] = [
 ];
 
 for (const testCase of updateCases) {
-  Deno.test(`parity - update - ${testCase.name}`, async () => {
+  test(`parity - update - ${testCase.name}`, async () => {
     await assertUpdateParity(testCase);
   });
 }

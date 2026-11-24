@@ -1,11 +1,12 @@
 import { DataFactory } from "@/term/mod.ts";
 import { MemoryStore as Store } from "@/store/memory-store.ts";
 import { WazooSparqlEngine } from "@/wazoo-sparql-engine.ts";
-import { assertEquals } from "@std/assert";
+import assert from "node:assert/strict";
+import { test } from "node:test";
 
 const { namedNode, literal, quad } = DataFactory;
 
-Deno.test("WazooSparqlEngine - OPTIONAL extends matches and keeps unmatched unbound", async () => {
+test("WazooSparqlEngine - OPTIONAL extends matches and keeps unmatched unbound", async () => {
   const store = new Store();
   const ex = (s: string) => namedNode(`http://example.org/${s}`);
   const foaf = (s: string) => namedNode(`http://xmlns.com/foaf/0.1/${s}`);
@@ -21,20 +22,20 @@ Deno.test("WazooSparqlEngine - OPTIONAL extends matches and keeps unmatched unbo
     query:
       "SELECT ?p ?o WHERE { ?p <http://xmlns.com/foaf/0.1/name> ?n OPTIONAL { ?p <http://xmlns.com/foaf/0.1/age> ?o } }",
   });
-  assertEquals(result.kind, "select");
+  assert.deepStrictEqual(result.kind, "select");
   if (result.kind === "select") {
     const byPerson = new Map(
       result.data.results.bindings.map((b) => [b.p.value, b.o?.value]),
     );
-    assertEquals(byPerson.get("http://example.org/alice"), "28");
-    assertEquals(byPerson.get("http://example.org/carol"), "30");
+    assert.deepStrictEqual(byPerson.get("http://example.org/alice"), "28");
+    assert.deepStrictEqual(byPerson.get("http://example.org/carol"), "30");
     // bob has no age: the solution survives with ?o unbound
-    assertEquals(byPerson.get("http://example.org/bob"), undefined);
-    assertEquals(byPerson.size, 3);
+    assert.deepStrictEqual(byPerson.get("http://example.org/bob"), undefined);
+    assert.deepStrictEqual(byPerson.size, 3);
   }
 });
 
-Deno.test("WazooSparqlEngine - OPTIONAL filter drops a join and keeps the solution unextended", async () => {
+test("WazooSparqlEngine - OPTIONAL filter drops a join and keeps the solution unextended", async () => {
   const store = new Store();
   const ex = (s: string) => namedNode(`http://example.org/${s}`);
   const foaf = (s: string) => namedNode(`http://xmlns.com/foaf/0.1/${s}`);
@@ -50,20 +51,20 @@ Deno.test("WazooSparqlEngine - OPTIONAL filter drops a join and keeps the soluti
     query:
       "SELECT ?p ?o WHERE { ?p <http://xmlns.com/foaf/0.1/name> ?n OPTIONAL { ?p <http://xmlns.com/foaf/0.1/age> ?o FILTER(?o > 28) } }",
   });
-  assertEquals(result.kind, "select");
+  assert.deepStrictEqual(result.kind, "select");
   if (result.kind === "select") {
     const byPerson = new Map(
       result.data.results.bindings.map((b) => [b.p.value, b.o?.value]),
     );
     // alice's join (28) fails the filter, so she is kept without ?o
-    assertEquals(byPerson.get("http://example.org/alice"), undefined);
-    assertEquals(byPerson.get("http://example.org/carol"), "30");
-    assertEquals(byPerson.get("http://example.org/bob"), undefined);
-    assertEquals(byPerson.size, 3);
+    assert.deepStrictEqual(byPerson.get("http://example.org/alice"), undefined);
+    assert.deepStrictEqual(byPerson.get("http://example.org/carol"), "30");
+    assert.deepStrictEqual(byPerson.get("http://example.org/bob"), undefined);
+    assert.deepStrictEqual(byPerson.size, 3);
   }
 });
 
-Deno.test("WazooSparqlEngine - OPTIONAL filter can reference an outer variable", async () => {
+test("WazooSparqlEngine - OPTIONAL filter can reference an outer variable", async () => {
   const store = new Store();
   const ex = (s: string) => namedNode(`http://example.org/${s}`);
   const foaf = (s: string) => namedNode(`http://xmlns.com/foaf/0.1/${s}`);
@@ -79,19 +80,19 @@ Deno.test("WazooSparqlEngine - OPTIONAL filter can reference an outer variable",
     query:
       "SELECT ?p ?o WHERE { ?p <http://xmlns.com/foaf/0.1/name> ?n OPTIONAL { ?p <http://xmlns.com/foaf/0.1/age> ?o FILTER(?p = <http://example.org/alice>) } }",
   });
-  assertEquals(result.kind, "select");
+  assert.deepStrictEqual(result.kind, "select");
   if (result.kind === "select") {
     const byPerson = new Map(
       result.data.results.bindings.map((b) => [b.p.value, b.o?.value]),
     );
-    assertEquals(byPerson.get("http://example.org/alice"), "28");
-    assertEquals(byPerson.get("http://example.org/carol"), undefined);
-    assertEquals(byPerson.get("http://example.org/bob"), undefined);
-    assertEquals(byPerson.size, 3);
+    assert.deepStrictEqual(byPerson.get("http://example.org/alice"), "28");
+    assert.deepStrictEqual(byPerson.get("http://example.org/carol"), undefined);
+    assert.deepStrictEqual(byPerson.get("http://example.org/bob"), undefined);
+    assert.deepStrictEqual(byPerson.size, 3);
   }
 });
 
-Deno.test("WazooSparqlEngine - OPTIONAL nests inside OPTIONAL", async () => {
+test("WazooSparqlEngine - OPTIONAL nests inside OPTIONAL", async () => {
   const store = new Store();
   const ex = (s: string) => namedNode(`http://example.org/${s}`);
   const foaf = (s: string) => namedNode(`http://xmlns.com/foaf/0.1/${s}`);
@@ -104,22 +105,22 @@ Deno.test("WazooSparqlEngine - OPTIONAL nests inside OPTIONAL", async () => {
     query:
       "SELECT ?p ?q WHERE { ?p <http://xmlns.com/foaf/0.1/name> ?n OPTIONAL { ?p <http://xmlns.com/foaf/0.1/knows> ?q OPTIONAL { ?q <http://xmlns.com/foaf/0.1/name> ?qn } } }",
   });
-  assertEquals(result.kind, "select");
+  assert.deepStrictEqual(result.kind, "select");
   if (result.kind === "select") {
     const byPerson = new Map(
       result.data.results.bindings.map((b) => [b.p.value, b.q?.value]),
     );
     // alice knows bob (and bob has a name, but ?qn is not projected)
-    assertEquals(
+    assert.deepStrictEqual(
       byPerson.get("http://example.org/alice"),
       "http://example.org/bob",
     );
     // bob knows nobody: ?q unbound
-    assertEquals(byPerson.get("http://example.org/bob"), undefined);
+    assert.deepStrictEqual(byPerson.get("http://example.org/bob"), undefined);
   }
 });
 
-Deno.test("WazooSparqlEngine - MINUS eliminates solutions sharing a bound variable", async () => {
+test("WazooSparqlEngine - MINUS eliminates solutions sharing a bound variable", async () => {
   const store = new Store();
   const ex = (s: string) => namedNode(`http://example.org/${s}`);
   const foaf = (s: string) => namedNode(`http://xmlns.com/foaf/0.1/${s}`);
@@ -135,16 +136,16 @@ Deno.test("WazooSparqlEngine - MINUS eliminates solutions sharing a bound variab
     query:
       "SELECT ?p WHERE { ?p <http://xmlns.com/foaf/0.1/name> ?n MINUS { ?p <http://xmlns.com/foaf/0.1/age> ?a } }",
   });
-  assertEquals(result.kind, "select");
+  assert.deepStrictEqual(result.kind, "select");
   if (result.kind === "select") {
-    assertEquals(
+    assert.deepStrictEqual(
       result.data.results.bindings.map((b) => b.p.value),
       ["http://example.org/bob"],
     );
   }
 });
 
-Deno.test("WazooSparqlEngine - MINUS with no shared variables keeps all solutions", async () => {
+test("WazooSparqlEngine - MINUS with no shared variables keeps all solutions", async () => {
   const store = new Store();
   const ex = (s: string) => namedNode(`http://example.org/${s}`);
   const foaf = (s: string) => namedNode(`http://xmlns.com/foaf/0.1/${s}`);
@@ -160,13 +161,13 @@ Deno.test("WazooSparqlEngine - MINUS with no shared variables keeps all solution
     query:
       "SELECT ?p WHERE { ?p <http://xmlns.com/foaf/0.1/name> ?n MINUS { ?x <http://xmlns.com/foaf/0.1/age> ?y } }",
   });
-  assertEquals(result.kind, "select");
+  assert.deepStrictEqual(result.kind, "select");
   if (result.kind === "select") {
-    assertEquals(result.data.results.bindings.length, 3);
+    assert.deepStrictEqual(result.data.results.bindings.length, 3);
   }
 });
 
-Deno.test("WazooSparqlEngine - MINUS applies its own FILTER inside the group", async () => {
+test("WazooSparqlEngine - MINUS applies its own FILTER inside the group", async () => {
   const store = new Store();
   const ex = (s: string) => namedNode(`http://example.org/${s}`);
   const foaf = (s: string) => namedNode(`http://xmlns.com/foaf/0.1/${s}`);
@@ -182,17 +183,17 @@ Deno.test("WazooSparqlEngine - MINUS applies its own FILTER inside the group", a
     query:
       "SELECT ?p WHERE { ?p <http://xmlns.com/foaf/0.1/name> ?n MINUS { ?p <http://xmlns.com/foaf/0.1/age> ?a FILTER(?a > 29) } }",
   });
-  assertEquals(result.kind, "select");
+  assert.deepStrictEqual(result.kind, "select");
   if (result.kind === "select") {
     // carol (30) passes the filter and is eliminated; alice (28) is not in the minus set
-    assertEquals(
+    assert.deepStrictEqual(
       result.data.results.bindings.map((b) => b.p.value).sort(),
       ["http://example.org/alice", "http://example.org/bob"],
     );
   }
 });
 
-Deno.test("WazooSparqlEngine - UNION combines branch solutions as a multiset", async () => {
+test("WazooSparqlEngine - UNION combines branch solutions as a multiset", async () => {
   const store = new Store();
   const ex = (s: string) => namedNode(`http://example.org/${s}`);
   const foaf = (s: string) => namedNode(`http://xmlns.com/foaf/0.1/${s}`);
@@ -208,11 +209,11 @@ Deno.test("WazooSparqlEngine - UNION combines branch solutions as a multiset", a
     query:
       "SELECT ?s WHERE { { ?s <http://xmlns.com/foaf/0.1/name> ?n } UNION { ?s <http://xmlns.com/foaf/0.1/age> ?a } }",
   });
-  assertEquals(result.kind, "select");
+  assert.deepStrictEqual(result.kind, "select");
   if (result.kind === "select") {
     const people = result.data.results.bindings.map((b) => b.s.value).sort();
     // alice and carol appear twice: once from each branch (multiset union)
-    assertEquals(people, [
+    assert.deepStrictEqual(people, [
       "http://example.org/alice",
       "http://example.org/alice",
       "http://example.org/bob",
@@ -222,7 +223,7 @@ Deno.test("WazooSparqlEngine - UNION combines branch solutions as a multiset", a
   }
 });
 
-Deno.test("WazooSparqlEngine - UNION branches can bind different variables", async () => {
+test("WazooSparqlEngine - UNION branches can bind different variables", async () => {
   const store = new Store();
   const ex = (s: string) => namedNode(`http://example.org/${s}`);
   const foaf = (s: string) => namedNode(`http://xmlns.com/foaf/0.1/${s}`);
@@ -235,18 +236,18 @@ Deno.test("WazooSparqlEngine - UNION branches can bind different variables", asy
     query:
       "SELECT ?n ?a WHERE { { ?s <http://xmlns.com/foaf/0.1/name> ?n } UNION { ?s <http://xmlns.com/foaf/0.1/age> ?a } }",
   });
-  assertEquals(result.kind, "select");
+  assert.deepStrictEqual(result.kind, "select");
   if (result.kind === "select") {
     const bindings = result.data.results.bindings;
-    assertEquals(bindings.length, 2);
-    assertEquals(bindings[0].n?.value, "Ethan");
-    assertEquals(bindings[0].a, undefined);
-    assertEquals(bindings[1].n, undefined);
-    assertEquals(bindings[1].a?.value, "28");
+    assert.deepStrictEqual(bindings.length, 2);
+    assert.deepStrictEqual(bindings[0].n?.value, "Ethan");
+    assert.deepStrictEqual(bindings[0].a, undefined);
+    assert.deepStrictEqual(bindings[1].n, undefined);
+    assert.deepStrictEqual(bindings[1].a?.value, "28");
   }
 });
 
-Deno.test("WazooSparqlEngine - UNION in a sequence joins with preceding patterns", async () => {
+test("WazooSparqlEngine - UNION in a sequence joins with preceding patterns", async () => {
   const store = new Store();
   const ex = (s: string) => namedNode(`http://example.org/${s}`);
   const foaf = (s: string) => namedNode(`http://xmlns.com/foaf/0.1/${s}`);
@@ -262,12 +263,12 @@ Deno.test("WazooSparqlEngine - UNION in a sequence joins with preceding patterns
     query:
       "SELECT ?s ?n ?a WHERE { ?s <http://xmlns.com/foaf/0.1/name> ?n . { ?s <http://xmlns.com/foaf/0.1/name> ?n2 } UNION { ?s <http://xmlns.com/foaf/0.1/age> ?a } }",
   });
-  assertEquals(result.kind, "select");
+  assert.deepStrictEqual(result.kind, "select");
   if (result.kind === "select") {
     const rows = result.data.results.bindings
       .map((b) => [b.s.value, b.n?.value, b.a?.value])
       .sort() as Array<Array<string | undefined>>;
-    assertEquals(rows, [
+    assert.deepStrictEqual(rows, [
       ["http://example.org/alice", "Ethan", undefined],
       ["http://example.org/alice", "Ethan", "28"],
       ["http://example.org/bob", "Gregory", undefined],
@@ -277,7 +278,7 @@ Deno.test("WazooSparqlEngine - UNION in a sequence joins with preceding patterns
   }
 });
 
-Deno.test("WazooSparqlEngine - GRAPH scopes patterns to a named graph", async () => {
+test("WazooSparqlEngine - GRAPH scopes patterns to a named graph", async () => {
   const store = new Store();
   const name = (s: string, o: string, graph?: string) =>
     store.addQuad(
@@ -300,10 +301,10 @@ Deno.test("WazooSparqlEngine - GRAPH scopes patterns to a named graph", async ()
     query: "SELECT ?s ?n WHERE { GRAPH <http://example.org/g1> { " +
       "?s <http://xmlns.com/foaf/0.1/name> ?n } } ORDER BY ?n",
   });
-  assertEquals(scoped.kind, "select");
+  assert.deepStrictEqual(scoped.kind, "select");
   if (scoped.kind === "select") {
     // Only g1's quads match; the default graph and g2 are excluded.
-    assertEquals(
+    assert.deepStrictEqual(
       scoped.data.results.bindings.map((b) => b.n.value),
       ["G1", "G1"],
     );

@@ -2,17 +2,21 @@ import type * as rdfjs from "@rdfjs/types";
 import { DataFactory } from "@/term/mod.ts";
 import { MemoryStore as Store } from "@/store/memory-store.ts";
 import { WazooSparqlEngine } from "@/wazoo-sparql-engine.ts";
-import { assertEquals, assertNotEquals } from "@std/assert";
+import assert from "node:assert/strict";
+import { test } from "node:test";
+import { mkdtemp, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 const { namedNode } = DataFactory;
 
-Deno.test("UpdateEvaluator - LOAD then reified patterns match grammar reifier output", async () => {
+test("UpdateEvaluator - LOAD then reified patterns match grammar reifier output", async () => {
   const store = new Store();
   const engine = new WazooSparqlEngine({ store });
 
-  const dir = await Deno.makeTempDir();
+  const dir = await mkdtemp(join(tmpdir(), "sparql-engine-"));
   const file = `${dir}/data.ttl`;
-  await Deno.writeTextFile(
+  await writeFile(
     file,
     `
     @prefix : <http://example.com/ns#> .
@@ -31,14 +35,14 @@ Deno.test("UpdateEvaluator - LOAD then reified patterns match grammar reifier ou
     query:
       "PREFIX : <http://example.com/ns#> SELECT * { :s :p ?o ~ :iri {| :r ?Z |} }",
   });
-  assertEquals(result.kind, "select");
+  assert.deepStrictEqual(result.kind, "select");
   if (result.kind === "select") {
-    assertEquals(result.data.results.bindings.length, 1);
-    assertEquals(
+    assert.deepStrictEqual(result.data.results.bindings.length, 1);
+    assert.deepStrictEqual(
       result.data.results.bindings[0].o.value,
       "http://example.com/ns#o",
     );
-    assertEquals(
+    assert.deepStrictEqual(
       result.data.results.bindings[0].Z.value,
       "http://example.com/ns#Z1",
     );
@@ -50,9 +54,9 @@ Deno.test("UpdateEvaluator - LOAD then reified patterns match grammar reifier ou
     query:
       "PREFIX : <http://example.com/ns#> SELECT * { :s :p ?o ~ ?r {| :r ?Z |} }",
   });
-  assertEquals(result.kind, "select");
+  assert.deepStrictEqual(result.kind, "select");
   if (result.kind === "select") {
-    assertEquals(result.data.results.bindings.length, 2);
+    assert.deepStrictEqual(result.data.results.bindings.length, 2);
   }
 
   // A data triple term (including a nested one) in object position matches
@@ -61,31 +65,28 @@ Deno.test("UpdateEvaluator - LOAD then reified patterns match grammar reifier ou
     query:
       "PREFIX : <http://example.com/ns#> SELECT ?r WHERE { ?r :reifies <<( :a :b <<( :d :e :f )>> )>> }",
   });
-  assertEquals(result.kind, "select");
+  assert.deepStrictEqual(result.kind, "select");
   if (result.kind === "select") {
-    assertEquals(result.data.results.bindings.length, 1);
-    assertEquals(
+    assert.deepStrictEqual(result.data.results.bindings.length, 1);
+    assert.deepStrictEqual(
       result.data.results.bindings[0].r.value,
       "http://example.com/ns#r1",
     );
   }
 });
 
-Deno.test("UpdateEvaluator - LOAD keeps blank nodes distinct across documents", async () => {
+test("UpdateEvaluator - LOAD keeps blank nodes distinct across documents", async () => {
   const store = new Store();
   const engine = new WazooSparqlEngine({ store });
 
-  const dir = await Deno.makeTempDir();
+  const dir = await mkdtemp(join(tmpdir(), "sparql-engine-"));
   const fileA = `${dir}/a.ttl`;
   const fileB = `${dir}/b.ttl`;
-  await Deno.writeTextFile(
+  await writeFile(
     fileA,
     '@prefix : <http://ex/> . _:b1 :name "Alice" . _:b1 :friend _:b2 .',
   );
-  await Deno.writeTextFile(
-    fileB,
-    '@prefix : <http://ex/> . _:b1 :name "Bob" .',
-  );
+  await writeFile(fileB, '@prefix : <http://ex/> . _:b1 :name "Bob" .');
 
   await engine.execute({ query: `LOAD <file://${fileA.replace(/\\/g, "/")}>` });
   await engine.execute({ query: `LOAD <file://${fileB.replace(/\\/g, "/")}>` });
@@ -95,24 +96,24 @@ Deno.test("UpdateEvaluator - LOAD keeps blank nodes distinct across documents", 
   const result = await engine.execute({
     query: "PREFIX : <http://ex/> SELECT * { ?x :name ?n }",
   });
-  assertEquals(result.kind, "select");
+  assert.deepStrictEqual(result.kind, "select");
   if (result.kind === "select") {
-    assertEquals(result.data.results.bindings.length, 2);
+    assert.deepStrictEqual(result.data.results.bindings.length, 2);
     const byName = new Map(
       result.data.results.bindings.map((b) => [b.n.value, b.x.value]),
     );
-    assertNotEquals(byName.get("Alice"), byName.get("Bob"));
+    assert.notDeepStrictEqual(byName.get("Alice"), byName.get("Bob"));
   }
-  assertEquals(store.countQuads(null, null, null, null), 3);
+  assert.deepStrictEqual(store.countQuads(null, null, null, null), 3);
 });
 
-Deno.test("UpdateEvaluator - LOAD preserves directional literals and keeps directions distinct", async () => {
+test("UpdateEvaluator - LOAD preserves directional literals and keeps directions distinct", async () => {
   const store = new Store();
   const engine = new WazooSparqlEngine({ store });
 
-  const dir = await Deno.makeTempDir();
+  const dir = await mkdtemp(join(tmpdir(), "sparql-engine-"));
   const file = `${dir}/data.ttl`;
-  await Deno.writeTextFile(
+  await writeFile(
     file,
     `@prefix : <http://ex/> .
      :a :label "same"@en--ltr, "same"@en--rtl, "same"@en .`,
@@ -126,12 +127,12 @@ Deno.test("UpdateEvaluator - LOAD preserves directional literals and keeps direc
     null,
     null,
   ).map((q) => q.object as rdfjs.Literal);
-  assertEquals(labels.length, 3);
+  assert.deepStrictEqual(labels.length, 3);
   const dirs = labels.map((l) => l.direction ?? "").sort();
-  assertEquals(dirs, ["", "ltr", "rtl"]);
+  assert.deepStrictEqual(dirs, ["", "ltr", "rtl"]);
   for (const l of labels) {
-    assertEquals(l.language, "en");
-    assertEquals(
+    assert.deepStrictEqual(l.language, "en");
+    assert.deepStrictEqual(
       l.datatype.value,
       l.direction
         ? "http://www.w3.org/1999/02/22-rdf-syntax-ns#dirLangString"

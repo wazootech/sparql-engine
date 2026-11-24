@@ -2,6 +2,7 @@ import * as oxigraph from "oxigraph";
 import { DataFactory } from "@/term/public.ts";
 import { MemoryStore as Store } from "@/store/memory-store.ts";
 import { WazooSparqlEngine } from "@/wazoo-sparql-engine.ts";
+import process from "node:process";
 
 /**
  * EXISTS surface cross-check: the wazoo engine must agree with Oxigraph on
@@ -257,7 +258,7 @@ if (failures > 0) {
       `case(s). Fix the EXISTS evaluator or the select pipeline before ` +
       `touching the queries.\n`,
   );
-  Deno.exit(1);
+  process.exit(1);
 }
 console.log(
   "\nCross-check passed: wazoo agrees with Oxigraph on every EXISTS case," +

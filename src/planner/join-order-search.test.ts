@@ -1,4 +1,5 @@
-import { assertEquals } from "@std/assert";
+import assert from "node:assert/strict";
+import { test } from "node:test";
 import { DataFactory } from "@/term/public.ts";
 import type { ScanEntry } from "@/evaluator/join.ts";
 import { MemoryStore as Store } from "@/store/memory-store.ts";
@@ -77,7 +78,7 @@ function planCost(
   return total;
 }
 
-Deno.test(
+test(
   "searchBestJoinOrder - DP beats greedy on the two-shared-variable shape",
   () => {
     // ?s knows ?o and ?s name ?o share both variables; ?z spouse ?w shares
@@ -95,40 +96,40 @@ Deno.test(
       dense(5_000, "z", "w"),
     ];
     const order = searchBestJoinOrder(entries, stats, EMPTY)!;
-    assertEquals(order, [0, 1, 2]);
+    assert.deepStrictEqual(order, [0, 1, 2]);
     // Greedy picks the cheapest first: spouse (5k) before either 10k
     // pattern, yielding the [2, 0, 1] order and double the work.
     const greedyOrder = [2, 0, 1];
-    assertEquals(
+    assert.deepStrictEqual(
       planCost(entries, stats, order),
       10_000 + 10_000 + 10_000 * 5_000,
     );
-    assertEquals(
+    assert.deepStrictEqual(
       planCost(entries, stats, greedyOrder),
       5_000 + 5_000 * 10_000 + 50_000_000,
     );
-    assertEquals(
+    assert.deepStrictEqual(
       planCost(entries, stats, order) < planCost(entries, stats, greedyOrder),
       true,
     );
   },
 );
 
-Deno.test("searchBestJoinOrder - returns null above the DP threshold", () => {
+test("searchBestJoinOrder - returns null above the DP threshold", () => {
   const entries: ScanEntry[] = [];
   const stats: PatternStats[] = [];
   for (let index = 0; index < DP_MAX_PATTERNS + 1; index++) {
     entries.push(entry(s, name, o));
     stats.push(dense(10, "s", "o"));
   }
-  assertEquals(searchBestJoinOrder(entries, stats, EMPTY), null);
+  assert.deepStrictEqual(searchBestJoinOrder(entries, stats, EMPTY), null);
 });
 
-Deno.test("searchBestJoinOrder - empty BGP yields an empty order", () => {
-  assertEquals(searchBestJoinOrder([], [], EMPTY), []);
+test("searchBestJoinOrder - empty BGP yields an empty order", () => {
+  assert.deepStrictEqual(searchBestJoinOrder([], [], EMPTY), []);
 });
 
-Deno.test(
+test(
   "searchBestJoinOrder - a pre-bound variable steers the plan to its pattern",
   () => {
     // ?s is already bound (card 1): joining the knows pattern probes its
@@ -138,16 +139,16 @@ Deno.test(
     const stats = [dense(10_000, "s", "o"), dense(5_000, "z", "w")];
     const bound = new Set(["s"]);
     const order = searchBestJoinOrder(entries, stats, { card: 1, bound })!;
-    assertEquals(order, [0, 1]);
-    assertEquals(
+    assert.deepStrictEqual(order, [0, 1]);
+    assert.deepStrictEqual(
       planCost(entries, stats, order, { card: 1, bound }),
       1 + 5_000,
     );
   },
 );
 
-Deno.test("estimatedJoinCost - unbound pattern variable scans all candidates", () => {
-  assertEquals(
+test("estimatedJoinCost - unbound pattern variable scans all candidates", () => {
+  assert.deepStrictEqual(
     estimatedJoinCost(entry(s, knows, o), dense(100, "s", "o"), {
       card: 7,
       bound: new Set(["z"]),
@@ -156,8 +157,8 @@ Deno.test("estimatedJoinCost - unbound pattern variable scans all candidates", (
   );
 });
 
-Deno.test("estimatedJoinCost - bound variable costs card times the bucket", () => {
-  assertEquals(
+test("estimatedJoinCost - bound variable costs card times the bucket", () => {
+  assert.deepStrictEqual(
     estimatedJoinCost(entry(s, knows, o), dense(100, "s", "o"), {
       card: 7,
       bound: new Set(["s"]),
@@ -166,11 +167,11 @@ Deno.test("estimatedJoinCost - bound variable costs card times the bucket", () =
   );
 });
 
-Deno.test("estimatedJoinCost - a variable without stats is never assumed", () => {
+test("estimatedJoinCost - a variable without stats is never assumed", () => {
   // The stats carry no distinct count for ?s: the variable contributes
   // nothing, so the join falls back to scanning all candidates.
   const stats: PatternStats = { candidates: 100, distinctByVar: { o: 100 } };
-  assertEquals(
+  assert.deepStrictEqual(
     estimatedJoinCost(entry(s, knows, o), stats, {
       card: 7,
       bound: new Set(["s"]),
@@ -179,8 +180,8 @@ Deno.test("estimatedJoinCost - a variable without stats is never assumed", () =>
   );
 });
 
-Deno.test("estimatedJoinCost - zero-cardinality state costs zero", () => {
-  assertEquals(
+test("estimatedJoinCost - zero-cardinality state costs zero", () => {
+  assert.deepStrictEqual(
     estimatedJoinCost(entry(s, knows, o), dense(100, "s", "o"), {
       card: 0,
       bound: new Set(["s"]),
@@ -189,7 +190,7 @@ Deno.test("estimatedJoinCost - zero-cardinality state costs zero", () => {
   );
 });
 
-Deno.test("boundVariables - collects the union of bound keys", () => {
+test("boundVariables - collects the union of bound keys", () => {
   const bound = boundVariables([
     {
       s: namedNode("http://example.org/a"),
@@ -197,10 +198,10 @@ Deno.test("boundVariables - collects the union of bound keys", () => {
     },
     { z: namedNode("http://example.org/c") },
   ]);
-  assertEquals([...bound].sort(), ["o", "s", "z"]);
+  assert.deepStrictEqual([...bound].sort(), ["o", "s", "z"]);
 });
 
-Deno.test(
+test(
   "WazooSparqlEngine - the DP order never changes the result multiset",
   async () => {
     // A small two-shared-variable shape: 50 people (knows + name each), 25
@@ -250,7 +251,7 @@ Deno.test(
       );
     const dpBindings = dpResult.data.results.bindings.map(key).sort();
     const writtenBindings = writtenResult.data.results.bindings.map(key).sort();
-    assertEquals(dpBindings, writtenBindings);
-    assertEquals(dpBindings.length, 50 * 25);
+    assert.deepStrictEqual(dpBindings, writtenBindings);
+    assert.deepStrictEqual(dpBindings.length, 50 * 25);
   },
 );

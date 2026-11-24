@@ -16,7 +16,7 @@ import {
   extractSelectVars,
 } from "./parity-canonical.ts";
 import { createQuadStore } from "./parity-fixtures.ts";
-import { fail } from "@std/assert";
+import assert from "node:assert/strict";
 export { canonicalizeComunicaTerm } from "./parity-canonical.ts";
 
 /**
@@ -262,7 +262,7 @@ export async function assertQueryParity(
     wazooResult,
   );
   if (mismatch !== null) {
-    fail(`${mismatch}\n\nQuery: ${testCase.query}`);
+    assert.fail(`${mismatch}\n\nQuery: ${testCase.query}`);
   }
 }
 
@@ -349,7 +349,7 @@ export async function assertUpdateParity(
 
   const wazooResult = await wazooEngine.execute({ query: testCase.update });
   if (wazooResult.kind !== "void") {
-    fail(
+    assert.fail(
       `${testCase.name}: wazoo engine returned ${wazooResult.kind} ` +
         `instead of void for update`,
     );
@@ -364,7 +364,7 @@ export async function assertUpdateParity(
     "final store quads",
   );
   if (mismatch !== null) {
-    fail(`${mismatch}
+    assert.fail(`${mismatch}
 
 Update: ${testCase.update}`);
   }

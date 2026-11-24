@@ -1,8 +1,10 @@
 import type { SparqlResponse } from "@/sparql-engine-interface.ts";
-import { assertEquals, assertThrows } from "@std/assert";
+import assert from "node:assert/strict";
+import { test } from "node:test";
+import { thrown } from "../../test/thrown.ts";
 import { serializeXmlResults } from "@/serialize/xml-results.ts";
 
-Deno.test("serializeXmlResults - emits a deterministic .srx document", () => {
+test("serializeXmlResults - emits a deterministic .srx document", () => {
   const response: SparqlResponse = {
     kind: "select",
     data: {
@@ -45,17 +47,17 @@ Deno.test("serializeXmlResults - emits a deterministic .srx document", () => {
     "    </result>\n" +
     "  </results>\n" +
     "</sparql>\n";
-  assertEquals(serializeXmlResults(response), golden);
-  assertEquals(
+  assert.deepStrictEqual(serializeXmlResults(response), golden);
+  assert.deepStrictEqual(
     serializeXmlResults(response),
     serializeXmlResults(response),
   );
 });
 
-Deno.test(
+test(
   "serializeXmlResults - rejects kinds the format does not cover",
   () => {
-    assertThrows(
+    thrown(
       () =>
         serializeXmlResults({
           kind: "construct",
@@ -64,7 +66,7 @@ Deno.test(
       Error,
       "SELECT and ASK",
     );
-    assertThrows(
+    thrown(
       () => serializeXmlResults({ kind: "void" }),
       Error,
       "SELECT and ASK",

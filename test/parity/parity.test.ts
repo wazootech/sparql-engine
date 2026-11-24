@@ -16,7 +16,8 @@ import {
   graphCases,
   wildcardCases,
 } from "./parity-cases-basic.ts";
-import { assertEquals, assertMatch } from "@std/assert";
+import assert from "node:assert/strict";
+import { test } from "node:test";
 import {
   basicKnowledgeGraphQuads,
   createQuadStore,
@@ -41,12 +42,12 @@ const allCases: ParityTestCase[] = [
 ];
 
 for (const testCase of allCases) {
-  Deno.test(`parity - ${testCase.name}`, async () => {
+  test(`parity - ${testCase.name}`, async () => {
     await assertQueryParity(testCase);
   });
 }
 
-Deno.test(
+test(
   "parity - known difference: Comunica prefixes blank node labels, Wazoo does not",
   async () => {
     const petQuery =
@@ -63,7 +64,7 @@ Deno.test(
     const wazooStore = createQuadStore(basicKnowledgeGraphQuads);
     const wazooEngine = new WazooSparqlEngine({ store: wazooStore });
     const wazooResult = await wazooEngine.execute({ query: petQuery });
-    assertEquals(wazooResult.kind, "select");
+    assert.deepStrictEqual(wazooResult.kind, "select");
     if (wazooResult.kind !== "select") {
       return;
     }
@@ -71,11 +72,14 @@ Deno.test(
     // Comunica skolemizes blank nodes from query sources into a per-source
     // prefixed label ("bc_<sourceId>_<label>"); the Wazoo engine deliberately
     // returns the store's own label instead.
-    assertMatch(comunicaBindings[0].pet.value, /^bc_\d+_pet-ethan$/);
-    assertEquals(wazooResult.data.results.bindings[0].pet.value, "pet-ethan");
+    assert.match(comunicaBindings[0].pet.value, /^bc_\d+_pet-ethan$/);
+    assert.deepStrictEqual(
+      wazooResult.data.results.bindings[0].pet.value,
+      "pet-ethan",
+    );
 
     // After stripping the cosmetic prefix, both normalize to the same term.
-    assertEquals(
+    assert.deepStrictEqual(
       JSON.stringify(canonicalizeComunicaTerm(comunicaBindings[0].pet)),
       JSON.stringify(
         canonicalizeSparqlValue(wazooResult.data.results.bindings[0].pet),
@@ -84,7 +88,7 @@ Deno.test(
   },
 );
 
-Deno.test(
+test(
   "parity - nondeterministic functions agree on shape (BNODE, UUID, STRUUID, RAND, NOW)",
   async () => {
     const comunicaEngine = getComunicaEngine();
@@ -106,7 +110,7 @@ Deno.test(
       );
       const comunicaTerm = comunicaBindings[0].v;
       const wazooResult = await wazooEngine.execute({ query });
-      assertEquals(wazooResult.kind, "select");
+      assert.deepStrictEqual(wazooResult.kind, "select");
       if (wazooResult.kind !== "select") {
         continue;
       }
@@ -117,38 +121,38 @@ Deno.test(
       switch (name) {
         case "bnode":
         case "bnodeLabel":
-          assertEquals(comunicaTerm.termType, "BlankNode");
-          assertEquals(wazooTerm.type, "bnode");
+          assert.deepStrictEqual(comunicaTerm.termType, "BlankNode");
+          assert.deepStrictEqual(wazooTerm.type, "bnode");
           break;
         case "struuid": {
-          assertEquals(comunicaTerm.termType, "Literal");
-          assertEquals(
+          assert.deepStrictEqual(comunicaTerm.termType, "Literal");
+          assert.deepStrictEqual(
             comunicaLiteral?.datatype?.value,
             "http://www.w3.org/2001/XMLSchema#string",
           );
-          assertEquals(wazooTerm.type, "literal");
+          assert.deepStrictEqual(wazooTerm.type, "literal");
           const wazooLiteral = wazooTerm as {
             type: "literal";
             value: string;
           };
-          assertMatch(
+          assert.match(
             wazooLiteral.value,
             /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
           );
           break;
         }
         case "uuid":
-          assertEquals(comunicaTerm.termType, "NamedNode");
-          assertMatch(comunicaTerm.value, /^urn:uuid:/);
-          assertEquals(wazooTerm.type, "uri");
-          assertMatch(
+          assert.deepStrictEqual(comunicaTerm.termType, "NamedNode");
+          assert.match(comunicaTerm.value, /^urn:uuid:/);
+          assert.deepStrictEqual(wazooTerm.type, "uri");
+          assert.match(
             (wazooTerm as { type: "uri"; value: string }).value,
             /^urn:uuid:/,
           );
           break;
         case "rand": {
-          assertEquals(comunicaTerm.termType, "Literal");
-          assertEquals(
+          assert.deepStrictEqual(comunicaTerm.termType, "Literal");
+          assert.deepStrictEqual(
             comunicaLiteral?.datatype?.value,
             "http://www.w3.org/2001/XMLSchema#double",
           );
@@ -157,8 +161,8 @@ Deno.test(
             value: string;
             datatype?: string;
           };
-          assertEquals(wazooLiteral.type, "literal");
-          assertEquals(
+          assert.deepStrictEqual(wazooLiteral.type, "literal");
+          assert.deepStrictEqual(
             wazooLiteral.datatype,
             "http://www.w3.org/2001/XMLSchema#double",
           );
@@ -169,8 +173,8 @@ Deno.test(
           break;
         }
         case "now": {
-          assertEquals(comunicaTerm.termType, "Literal");
-          assertEquals(
+          assert.deepStrictEqual(comunicaTerm.termType, "Literal");
+          assert.deepStrictEqual(
             comunicaLiteral?.datatype?.value,
             "http://www.w3.org/2001/XMLSchema#dateTime",
           );
@@ -179,8 +183,8 @@ Deno.test(
             value: string;
             datatype?: string;
           };
-          assertEquals(wazooLiteral.type, "literal");
-          assertEquals(
+          assert.deepStrictEqual(wazooLiteral.type, "literal");
+          assert.deepStrictEqual(
             wazooLiteral.datatype,
             "http://www.w3.org/2001/XMLSchema#dateTime",
           );
@@ -191,7 +195,7 @@ Deno.test(
   },
 );
 
-Deno.test(
+test(
   "parity - known difference: BNODE labels are opaque per engine",
   async () => {
     // Both engines mint a blank node for BNODE("x"), but the labels are
@@ -209,10 +213,13 @@ Deno.test(
       store: createQuadStore([]),
     });
     const wazooResult = await wazooEngine.execute({ query });
-    assertEquals(wazooResult.kind, "select");
+    assert.deepStrictEqual(wazooResult.kind, "select");
     if (wazooResult.kind === "select") {
-      assertEquals(comunicaBindings[0].v.termType, "BlankNode");
-      assertEquals(wazooResult.data.results.bindings[0].v.type, "bnode");
+      assert.deepStrictEqual(comunicaBindings[0].v.termType, "BlankNode");
+      assert.deepStrictEqual(
+        wazooResult.data.results.bindings[0].v.type,
+        "bnode",
+      );
     }
   },
 );

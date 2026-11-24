@@ -4,6 +4,8 @@ import { parseTurtleQuads } from "@/parser/turtle-parser.ts";
 import { loadRdfManifest } from "./rdf-harness.ts";
 import { supersetDivergences as rdf11Allowlist } from "./rdf-differential.ts";
 import { supersetDivergences as rdf12Allowlist } from "./rdf-classify.ts";
+import process from "node:process";
+import { readFileSync } from "node:fs";
 
 /**
  * Reference-engine cross-check for the RDF 1.1/1.2 allowlists.
@@ -52,7 +54,7 @@ const RDF11_ALLOWED = rdf11Allowlist;
 const RDF12_ALLOWED = rdf12Allowlist;
 
 function readFixture(rel: string): string {
-  return Deno.readTextFileSync(`test/w3c/fixtures/${rel}`);
+  return readFileSync(`test/w3c/fixtures/${rel}`, "utf8");
 }
 
 function supersetFormat(rel: string): string {
@@ -186,7 +188,7 @@ if (unendorsed.length > 0) {
       `candidates for unholding — tighten the grammar or remove them from the ` +
       `allowlist:\n  ${unendorsed.map((r) => r.id).join("\n  ")}`,
   );
-  Deno.exit(1);
+  process.exit(1);
 }
 console.log(
   "\nCross-check passed: every allowlisted divergence is endorsed by at least " +

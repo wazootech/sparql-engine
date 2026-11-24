@@ -2,6 +2,8 @@ import type * as rdfjs from "@rdfjs/types";
 import { parseTurtleQuads } from "@/parser/turtle-parser.ts";
 import { loadRdfManifest, quadSetsIsomorphicAsSets } from "./rdf-harness.ts";
 import type { RdfSyntaxCase } from "./rdf-harness.ts";
+import process from "node:process";
+import { readFileSync } from "node:fs";
 
 /**
  * RDF 1.2 manifest classifier: the wazoo grammar must (1) accept every
@@ -64,7 +66,7 @@ interface Row {
 }
 
 function readFixture(rel: string): string {
-  return Deno.readTextFileSync(`test/w3c/fixtures/${rel}`);
+  return readFileSync(`test/w3c/fixtures/${rel}`, "utf8");
 }
 
 function describe(err: unknown): string {
@@ -186,7 +188,7 @@ if (import.meta.main) {
         `the positive/negative/eval classification. Fix them, or — only for a ` +
         `documented divergence — add the test to the allowlist.`,
     );
-    Deno.exit(1);
+    process.exit(1);
   }
   console.log(
     `\nRDF 1.2 classifier gate passed: ${pass}/${rows.length} classified ` +

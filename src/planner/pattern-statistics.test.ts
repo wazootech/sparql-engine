@@ -1,4 +1,5 @@
-import { assertEquals } from "@std/assert";
+import assert from "node:assert/strict";
+import { test } from "node:test";
 import type * as rdfjs from "@rdfjs/types";
 import { DataFactory } from "@/term/public.ts";
 import type { ScanEntry } from "@/evaluator/join.ts";
@@ -63,19 +64,25 @@ function collectMatch(store: rdfjs.Source<rdfjs.Quad>): rdfjs.Quad[] {
   return quads;
 }
 
-Deno.test("patternSignature - distinguishes patterns by terms and shape", () => {
+test("patternSignature - distinguishes patterns by terms and shape", () => {
   const plain = entry([]);
   const reifies: ScanEntry = { ...plain, reifies: true };
   const tripleTerm: ScanEntry = { ...plain, tripleTermObject: true };
-  assertEquals(patternSignature(plain), "(?x|uri:http://example.org/p|?o)");
-  assertEquals(patternSignature(reifies), "R(?x|uri:http://example.org/p|?o)");
-  assertEquals(
+  assert.deepStrictEqual(
+    patternSignature(plain),
+    "(?x|uri:http://example.org/p|?o)",
+  );
+  assert.deepStrictEqual(
+    patternSignature(reifies),
+    "R(?x|uri:http://example.org/p|?o)",
+  );
+  assert.deepStrictEqual(
     patternSignature(tripleTerm),
     "T(?x|uri:http://example.org/p|?o)",
   );
 });
 
-Deno.test("PatternStatistics - hook supplies the stats and is cached", async () => {
+test("PatternStatistics - hook supplies the stats and is cached", async () => {
   const store = seedStore(10);
   let calls = 0;
   const hooked = statsStore(store, () => {
@@ -83,30 +90,33 @@ Deno.test("PatternStatistics - hook supplies the stats and is cached", async () 
     return { candidates: 10, distinctByVar: { x: 10, o: 10 } };
   });
   const source = new PatternStatistics(hooked);
-  assertEquals(source.hasHook, true);
+  assert.deepStrictEqual(source.hasHook, true);
 
   const first = await source.statsFor(hooked, entry(candidatesFor(hooked)));
-  assertEquals(first, { candidates: 10, distinctByVar: { x: 10, o: 10 } });
+  assert.deepStrictEqual(first, {
+    candidates: 10,
+    distinctByVar: { x: 10, o: 10 },
+  });
   const second = await source.statsFor(hooked, entry(candidatesFor(hooked)));
-  assertEquals(second, first);
+  assert.deepStrictEqual(second, first);
   // The cache absorbs the second request: the hook ran exactly once.
-  assertEquals(calls, 1);
+  assert.deepStrictEqual(calls, 1);
 });
 
-Deno.test("PatternStatistics - no hook falls back to the candidates scan", async () => {
+test("PatternStatistics - no hook falls back to the candidates scan", async () => {
   const store = seedStore(10);
   const source = new PatternStatistics(store);
-  assertEquals(source.hasHook, false);
+  assert.deepStrictEqual(source.hasHook, false);
 
   const stats = await source.statsFor(store, entry(candidatesFor(store)));
   // Exact distinct counts: 10 subjects, 1 predicate, 10 distinct objects.
-  assertEquals(stats, {
+  assert.deepStrictEqual(stats, {
     candidates: 10,
     distinctByVar: { x: 10, o: 10 },
   });
 });
 
-Deno.test(
+test(
   "PatternStatistics - fallback agrees with the hook on identical data",
   async () => {
     const plain = seedStore(10);
@@ -125,11 +135,11 @@ Deno.test(
       plain,
       entry(candidates),
     );
-    assertEquals(fromHook, fromFallback);
+    assert.deepStrictEqual(fromHook, fromFallback);
   },
 );
 
-Deno.test(
+test(
   "PatternStatistics - a hook returning undefined selects the fallback",
   async () => {
     const store = seedStore(10);
@@ -138,12 +148,12 @@ Deno.test(
       hooked,
       entry(candidatesFor(hooked)),
     );
-    assertEquals(stats.candidates, 10);
-    assertEquals(stats.distinctByVar.o, 10);
+    assert.deepStrictEqual(stats.candidates, 10);
+    assert.deepStrictEqual(stats.distinctByVar.o, 10);
   },
 );
 
-Deno.test(
+test(
   "PatternStatistics - named-graph scope never consults the hook",
   async () => {
     const store = seedStore(5);
@@ -161,11 +171,11 @@ Deno.test(
     );
     // The scoped candidates are empty (all data is in the default graph),
     // so the exact fallback reports zero candidates — never the hook.
-    assertEquals(stats, { candidates: 0, distinctByVar: {} });
+    assert.deepStrictEqual(stats, { candidates: 0, distinctByVar: {} });
   },
 );
 
-Deno.test(
+test(
   "PatternStatistics - default-graph scope sees through the GraphScopedStore view",
   async () => {
     const store = seedStore(5);
@@ -184,27 +194,30 @@ Deno.test(
         collectMatch(scoped as unknown as Parameters<typeof collectMatch>[0]),
       ),
     );
-    assertEquals(stats, { candidates: 5, distinctByVar: { x: 5, o: 5 } });
-    assertEquals(calls, 1);
+    assert.deepStrictEqual(stats, {
+      candidates: 5,
+      distinctByVar: { x: 5, o: 5 },
+    });
+    assert.deepStrictEqual(calls, 1);
   },
 );
 
-Deno.test("fallbackStats - bounded sample stays deterministic for large scans", () => {
+test("fallbackStats - bounded sample stays deterministic for large scans", () => {
   // 4x the cap: the stride samples every 4th candidate, so the distinct
   // counts are exact for uniform data (subjects/objects all unique).
   const count = DISTINCT_SAMPLE_CAP * 4;
   const stats = fallbackStats(entry(candidatesFor(seedStore(count))));
-  assertEquals(stats.candidates, count);
-  assertEquals(stats.distinctByVar.x, count);
-  assertEquals(stats.distinctByVar.o, count);
+  assert.deepStrictEqual(stats.candidates, count);
+  assert.deepStrictEqual(stats.distinctByVar.x, count);
+  assert.deepStrictEqual(stats.distinctByVar.o, count);
 });
 
-Deno.test("fallbackStats - zero candidates reports empty stats", () => {
+test("fallbackStats - zero candidates reports empty stats", () => {
   const stats = fallbackStats(entry([]));
-  assertEquals(stats, { candidates: 0, distinctByVar: {} });
+  assert.deepStrictEqual(stats, { candidates: 0, distinctByVar: {} });
 });
 
-Deno.test(
+test(
   "WazooSparqlEngine - a stats-providing store feeds the estimator without changing results",
   async () => {
     const store = seedStore(10);
@@ -219,7 +232,7 @@ Deno.test(
     const withoutHook = await new WazooSparqlEngine({
       store: seedStore(10),
     }).execute({ query });
-    assertEquals(withHook, withoutHook);
-    assertEquals(withHook.kind, "select");
+    assert.deepStrictEqual(withHook, withoutHook);
+    assert.deepStrictEqual(withHook.kind, "select");
   },
 );
