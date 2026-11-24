@@ -1,5 +1,6 @@
 import type * as rdfjs from "@rdfjs/types";
-import { assertEquals } from "@std/assert";
+import assert from "node:assert/strict";
+import { bench, runBenches } from "./bench.ts";
 import { DataFactory } from "@/term/public.ts";
 import { MemoryStore as Store } from "@/store/memory-store.ts";
 import {
@@ -23,6 +24,7 @@ import {
   XSD_INTEGER,
 } from "@/term/mod.ts";
 import type { CanonicalTerm } from "@/term/mod.ts";
+import process from "node:process";
 
 const { blankNode, literal, namedNode, quad } = DataFactory;
 
@@ -736,12 +738,12 @@ async function verifySelectEquality(
   ) as unknown as OxigraphBinding[];
   const oxigraphSet = oxigraphBindings.map(oxigraphBindingRecord).sort();
 
-  assertEquals(
+  assert.deepStrictEqual(
     wazooSet,
     comunicaSet,
     `${label}: wazoo and comunica disagree`,
   );
-  assertEquals(
+  assert.deepStrictEqual(
     wazooSet,
     oxigraphSet,
     `${label}: wazoo and oxigraph disagree`,
@@ -761,12 +763,12 @@ async function verifyAskEquality(query: string, label: string): Promise<void> {
   });
   const oxigraphBoolean = oxigraphStore.query(query) as boolean;
 
-  assertEquals(
+  assert.deepStrictEqual(
     wazooResult.data.boolean,
     comunicaBoolean,
     `${label}: wazoo and comunica disagree`,
   );
-  assertEquals(
+  assert.deepStrictEqual(
     wazooResult.data.boolean,
     oxigraphBoolean,
     `${label}: wazoo and oxigraph disagree`,
@@ -806,12 +808,12 @@ async function verifyConstructEquality(
     oxigraphQuads.map((item) => quadRecord(item, canonicalizeRdfTerm)),
   ).sort();
 
-  assertEquals(
+  assert.deepStrictEqual(
     wazooSet,
     comunicaSet,
     `${label}: wazoo and comunica disagree`,
   );
-  assertEquals(
+  assert.deepStrictEqual(
     wazooSet,
     oxigraphSet,
     `${label}: wazoo and oxigraph disagree`,
@@ -853,12 +855,12 @@ async function verifyConstructIsoEquality(
     quadRecords(oxigraphQuads, canonicalizeRdfTerm),
   );
 
-  assertEquals(
+  assert.deepStrictEqual(
     isomorphicMultiset(wazooRecords, comunicaRecords),
     true,
     `${label}: wazoo and comunica disagree up to blank-node isomorphism`,
   );
-  assertEquals(
+  assert.deepStrictEqual(
     isomorphicMultiset(wazooRecords, oxigraphRecords),
     true,
     `${label}: wazoo and oxigraph disagree up to blank-node isomorphism`,
@@ -911,12 +913,12 @@ async function verifyUpdateEquality(
     .map((item) => quadRecord(item, canonicalizeRdfTerm))
     .sort();
 
-  assertEquals(
+  assert.deepStrictEqual(
     wazooSet,
     comunicaSet,
     `${label}: wazoo and comunica disagree`,
   );
-  assertEquals(
+  assert.deepStrictEqual(
     wazooSet,
     oxigraphSet,
     `${label}: wazoo and oxigraph disagree`,
@@ -1012,7 +1014,7 @@ await verifyUpdateEquality(
   graphOpsDataset,
 );
 
-Deno.bench(
+bench(
   { name: "wazoo - scan", group: "scan", baseline: true },
   async () => {
     const result = await wazooEngine.execute({ query: scanQuery });
@@ -1022,7 +1024,7 @@ Deno.bench(
   },
 );
 
-Deno.bench({ name: "comunica - scan", group: "scan" }, async () => {
+bench({ name: "comunica - scan", group: "scan" }, async () => {
   const stream = await comunicaEngine.queryBindings(scanQuery, {
     sources: [memoryStore],
   });
@@ -1032,14 +1034,14 @@ Deno.bench({ name: "comunica - scan", group: "scan" }, async () => {
   }
 });
 
-Deno.bench({ name: "oxigraph - scan", group: "scan" }, () => {
+bench({ name: "oxigraph - scan", group: "scan" }, () => {
   const result = oxigraphStore.query(scanQuery) as unknown as OxigraphBinding[];
   if (result.length === 0) {
     throw new Error("oxigraph scan returned no bindings");
   }
 });
 
-Deno.bench(
+bench(
   { name: "wazoo - join", group: "join", baseline: true },
   async () => {
     const result = await wazooEngine.execute({ query: joinQuery });
@@ -1049,7 +1051,7 @@ Deno.bench(
   },
 );
 
-Deno.bench({ name: "comunica - join", group: "join" }, async () => {
+bench({ name: "comunica - join", group: "join" }, async () => {
   const stream = await comunicaEngine.queryBindings(joinQuery, {
     sources: [memoryStore],
   });
@@ -1059,14 +1061,14 @@ Deno.bench({ name: "comunica - join", group: "join" }, async () => {
   }
 });
 
-Deno.bench({ name: "oxigraph - join", group: "join" }, () => {
+bench({ name: "oxigraph - join", group: "join" }, () => {
   const result = oxigraphStore.query(joinQuery) as unknown as OxigraphBinding[];
   if (result.length === 0) {
     throw new Error("oxigraph join returned no bindings");
   }
 });
 
-Deno.bench(
+bench(
   { name: "wazoo - asym (reorder on)", group: "asym-join", baseline: true },
   async () => {
     const result = await wazooEngine.execute({ query: asymJoinQuery });
@@ -1076,7 +1078,7 @@ Deno.bench(
   },
 );
 
-Deno.bench(
+bench(
   { name: "wazoo - asym (reorder off)", group: "asym-join" },
   async () => {
     const result = await wazooEngineNoReorder.execute({
@@ -1088,7 +1090,7 @@ Deno.bench(
   },
 );
 
-Deno.bench({ name: "comunica - asym", group: "asym-join" }, async () => {
+bench({ name: "comunica - asym", group: "asym-join" }, async () => {
   const stream = await comunicaEngine.queryBindings(asymJoinQuery, {
     sources: [memoryStore],
   });
@@ -1098,7 +1100,7 @@ Deno.bench({ name: "comunica - asym", group: "asym-join" }, async () => {
   }
 });
 
-Deno.bench({ name: "oxigraph - asym", group: "asym-join" }, () => {
+bench({ name: "oxigraph - asym", group: "asym-join" }, () => {
   const result = oxigraphStore.query(
     asymJoinQuery,
   ) as unknown as OxigraphBinding[];
@@ -1107,7 +1109,7 @@ Deno.bench({ name: "oxigraph - asym", group: "asym-join" }, () => {
   }
 });
 
-Deno.bench(
+bench(
   {
     name: "wazoo - chain (reorder on)",
     group: "reorder-chain",
@@ -1121,7 +1123,7 @@ Deno.bench(
   },
 );
 
-Deno.bench(
+bench(
   { name: "wazoo - chain (reorder off)", group: "reorder-chain" },
   async () => {
     const result = await wazooEngineNoReorder.execute({ query: chainQuery });
@@ -1131,7 +1133,7 @@ Deno.bench(
   },
 );
 
-Deno.bench({ name: "comunica - chain", group: "reorder-chain" }, async () => {
+bench({ name: "comunica - chain", group: "reorder-chain" }, async () => {
   const stream = await comunicaEngine.queryBindings(chainQuery, {
     sources: [memoryStore],
   });
@@ -1141,7 +1143,7 @@ Deno.bench({ name: "comunica - chain", group: "reorder-chain" }, async () => {
   }
 });
 
-Deno.bench({ name: "oxigraph - chain", group: "reorder-chain" }, () => {
+bench({ name: "oxigraph - chain", group: "reorder-chain" }, () => {
   const result = oxigraphStore.query(
     chainQuery,
   ) as unknown as OxigraphBinding[];
@@ -1154,7 +1156,7 @@ Deno.bench({ name: "oxigraph - chain", group: "reorder-chain" }, () => {
 // planner on the two-shared-variable shape. Both wazoo rows must return the
 // full 80,000-row result; the greedy surrogate runs the identical baseline
 // cost formula with the DP path disabled, isolating the ordering win.
-Deno.bench(
+bench(
   {
     name: "wazoo - dp-join (DP plan)",
     group: "dp-join",
@@ -1171,7 +1173,7 @@ Deno.bench(
   },
 );
 
-Deno.bench(
+bench(
   {
     name: "wazoo - dp-join (greedy surrogate)",
     group: "dp-join",
@@ -1189,7 +1191,7 @@ Deno.bench(
   },
 );
 
-Deno.bench({ name: "comunica - dp-join", group: "dp-join" }, async () => {
+bench({ name: "comunica - dp-join", group: "dp-join" }, async () => {
   const stream = await comunicaEngine.queryBindings(dpJoinQuery, {
     sources: [memoryStore],
   });
@@ -1199,7 +1201,7 @@ Deno.bench({ name: "comunica - dp-join", group: "dp-join" }, async () => {
   }
 });
 
-Deno.bench({ name: "oxigraph - dp-join", group: "dp-join" }, () => {
+bench({ name: "oxigraph - dp-join", group: "dp-join" }, () => {
   const result = oxigraphStore.query(
     dpJoinQuery,
   ) as unknown as OxigraphBinding[];
@@ -1208,7 +1210,7 @@ Deno.bench({ name: "oxigraph - dp-join", group: "dp-join" }, () => {
   }
 });
 
-Deno.bench(
+bench(
   { name: "wazoo - ask", group: "ask", baseline: true },
   async () => {
     const result = await wazooEngine.execute({ query: askQuery });
@@ -1218,7 +1220,7 @@ Deno.bench(
   },
 );
 
-Deno.bench({ name: "comunica - ask", group: "ask" }, async () => {
+bench({ name: "comunica - ask", group: "ask" }, async () => {
   const result = await comunicaEngine.queryBoolean(askQuery, {
     sources: [memoryStore],
   });
@@ -1227,14 +1229,14 @@ Deno.bench({ name: "comunica - ask", group: "ask" }, async () => {
   }
 });
 
-Deno.bench({ name: "oxigraph - ask", group: "ask" }, () => {
+bench({ name: "oxigraph - ask", group: "ask" }, () => {
   const result = oxigraphStore.query(askQuery) as boolean;
   if (!result) {
     throw new Error("oxigraph ask returned an unexpected result");
   }
 });
 
-Deno.bench(
+bench(
   { name: "wazoo - construct", group: "construct", baseline: true },
   async () => {
     const result = await wazooEngine.execute({ query: constructQuery });
@@ -1244,7 +1246,7 @@ Deno.bench(
   },
 );
 
-Deno.bench({ name: "comunica - construct", group: "construct" }, async () => {
+bench({ name: "comunica - construct", group: "construct" }, async () => {
   const stream = await comunicaEngine.queryQuads(constructQuery, {
     sources: [memoryStore],
   });
@@ -1254,7 +1256,7 @@ Deno.bench({ name: "comunica - construct", group: "construct" }, async () => {
   }
 });
 
-Deno.bench({ name: "oxigraph - construct", group: "construct" }, () => {
+bench({ name: "oxigraph - construct", group: "construct" }, () => {
   const result = oxigraphStore.query(
     constructQuery,
   ) as unknown as rdfjs.Quad[];
@@ -1263,7 +1265,7 @@ Deno.bench({ name: "oxigraph - construct", group: "construct" }, () => {
   }
 });
 
-Deno.bench(
+bench(
   { name: "wazoo - update", group: "update", baseline: true },
   async () => {
     const result = await wazooEngine.execute({ query: rewriteUpdateQuery });
@@ -1273,13 +1275,13 @@ Deno.bench(
   },
 );
 
-Deno.bench({ name: "comunica - update", group: "update" }, async () => {
+bench({ name: "comunica - update", group: "update" }, async () => {
   await comunicaEngine.queryVoid(rewriteUpdateQuery, {
     sources: [memoryStore],
   });
 });
 
-Deno.bench({ name: "oxigraph - update", group: "update" }, async () => {
+bench({ name: "oxigraph - update", group: "update" }, async () => {
   await oxigraphStore.update(rewriteUpdateQuery);
 });
 
@@ -1294,7 +1296,7 @@ Deno.bench({ name: "oxigraph - update", group: "update" }, async () => {
  * snapshot without paying for full timing runs. Timings under this mode are
  * meaningless — only the registered (group, name, baseline) set is used.
  */
-const BENCH_INVENTORY = Deno.env.get("BENCH_INVENTORY") === "1";
+const BENCH_INVENTORY = process.env["BENCH_INVENTORY"] === "1";
 const INVENTORY_BENCH_OPTIONS = { warmup: 0, iterations: 1 } as const;
 
 function benchOptions(
@@ -1315,7 +1317,7 @@ function benchSelectTrio(
   trio: EngineTrio = mainTrio,
   options?: { warmup?: number; iterations?: number },
 ): void {
-  Deno.bench(
+  bench(
     {
       name: `wazoo - ${label}`,
       group,
@@ -1333,7 +1335,7 @@ function benchSelectTrio(
     },
   );
 
-  Deno.bench(
+  bench(
     { name: `comunica - ${label}`, group, ...benchOptions() },
     async () => {
       const stream = await comunicaEngine.queryBindings(query, {
@@ -1346,7 +1348,7 @@ function benchSelectTrio(
     },
   );
 
-  Deno.bench(
+  bench(
     { name: `oxigraph - ${label}`, group, ...benchOptions() },
     () => {
       const result = trio.oxigraph.query(query) as unknown as OxigraphBinding[];
@@ -1367,7 +1369,7 @@ function benchConstructTrio(
   query: string,
   label: string,
 ): void {
-  Deno.bench(
+  bench(
     { name: `wazoo - ${label}`, group, baseline: true, ...benchOptions() },
     async () => {
       const result = await wazooEngine.execute({ query });
@@ -1377,7 +1379,7 @@ function benchConstructTrio(
     },
   );
 
-  Deno.bench(
+  bench(
     { name: `comunica - ${label}`, group, ...benchOptions() },
     async () => {
       const stream = await comunicaEngine.queryQuads(query, {
@@ -1390,7 +1392,7 @@ function benchConstructTrio(
     },
   );
 
-  Deno.bench(
+  bench(
     { name: `oxigraph - ${label}`, group, ...benchOptions() },
     () => {
       const result = oxigraphStore.query(query) as unknown as rdfjs.Quad[];
@@ -1413,7 +1415,7 @@ function benchUpdateTrio(
   label: string,
   seed: rdfjs.Quad[],
 ): void {
-  Deno.bench(
+  bench(
     { name: `wazoo - ${label}`, group, baseline: true, ...benchOptions() },
     async () => {
       const store = seedStore(seed);
@@ -1425,7 +1427,7 @@ function benchUpdateTrio(
     },
   );
 
-  Deno.bench(
+  bench(
     { name: `comunica - ${label}`, group, ...benchOptions() },
     async () => {
       const store = seedStore(seed);
@@ -1433,7 +1435,7 @@ function benchUpdateTrio(
     },
   );
 
-  Deno.bench(
+  bench(
     { name: `oxigraph - ${label}`, group, ...benchOptions() },
     async () => {
       const store = seedOxigraphStore(seed);
@@ -1595,3 +1597,5 @@ benchUpdateTrio(
   "move-graph-silent",
   graphOpsDataset,
 );
+
+await runBenches();
