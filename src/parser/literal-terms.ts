@@ -18,9 +18,12 @@ function literalEquals(
   if (other === null || other === undefined || other.termType !== "Literal") {
     return false;
   }
-  return this.value === other.value && this.language === other.language &&
+  return (
+    this.value === other.value &&
+    this.language === other.language &&
     (this.direction ?? "") === (other.direction ?? "") &&
-    this.datatype.value === other.datatype.value;
+    this.datatype.value === other.datatype.value
+  );
 }
 
 function literalOf(

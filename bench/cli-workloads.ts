@@ -1,6 +1,6 @@
 // cli-workloads owns the CLI bench fixture and invocation table shared by
 // bench/cli-bench.ts (size, cold start, load, join, peak RSS) and
-// bench/cli-targets-bench.ts (Deno.bench comparison across builds), so both
+// bench/cli-targets-bench.ts (bench comparison across builds), so both
 // measure the same data with the same argv.
 
 /**
@@ -56,9 +56,9 @@ export const WORKLOADS: Workload[] = [
       dataPath,
       "--query",
       "PREFIX : <http://example.org/> " +
-      "SELECT ?city (COUNT(*) AS ?pairs) WHERE { " +
-      "?a :knows ?b . ?b :knows ?c . ?a :city ?city . ?c :city ?city " +
-      "} GROUP BY ?city ORDER BY ?city",
+        "SELECT ?city (COUNT(*) AS ?pairs) WHERE { " +
+        "?a :knows ?b . ?b :knows ?c . ?a :city ?city . ?c :city ?city " +
+        "} GROUP BY ?city ORDER BY ?city",
     ],
   },
 ];

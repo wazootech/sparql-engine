@@ -17,7 +17,7 @@ architecture, parsing, and execution live in
 | Package               | `@wazoo/sparql-engine` (JSR), version `0.4.1`, MIT                                                                  |
 | Runtime               | Deno 2.x (Node.js and browser via JSR; durable `node:sqlite` store lives in `@worlds/sqlite`, server-only)          |
 | Runtime dependencies  | **zero** — only type-only `@rdfjs/types`                                                                            |
-| Dev/test dependencies | `@comunica/query-sparql-rdfjs-lite`, `oxigraph` (WASM), `n3`, `@std/assert`, `@types/node`                          |
+| Dev/test dependencies | `@comunica/query-sparql-rdfjs-lite`, `oxigraph` (WASM), `n3`, `mitata`, `@types/node`                               |
 | Manifest              | `deno.json` (`exports["."] → ./src/mod.ts`, `@/` → `./src/`)                                                        |
 | CI                    | `.github/workflows/ci.yml` (`ci`, `w3c-parity`, `latency-snapshot`, `docs-drift`, `docs-links` jobs), `publish.yml` |
 
@@ -106,7 +106,7 @@ label identity.
   beyond that floor the engine should carry) is an open question.
 - **Pattern-evaluation hook** — the injected
   `evaluateExists(pattern,
-  solution) => boolean` seam binding the pure
+solution) => boolean` seam binding the pure
   expression layer to the graph scope and active dataset. Backed by a per-call
   [`ExistsSnapshot`](https://github.com/wazootech/sparql-engine/blob/main/src/evaluator/bgp-evaluator.ts)
   (issue [#72](https://github.com/wazootech/sparql-engine/issues/72)), so

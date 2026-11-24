@@ -1,4 +1,5 @@
-import { assertEquals } from "@std/assert";
+import assert from "node:assert/strict";
+import { test } from "node:test";
 import { DataFactory, termKey } from "@/term/public.ts";
 import {
   bindingsCompatible,
@@ -55,11 +56,13 @@ function leftJoinRef(
 }
 
 function minusRef(left: TermBinding[], right: TermBinding[]): TermBinding[] {
-  return left.filter((l) =>
-    !right.some((r) =>
-      Object.keys(l).some((k) => r[k] !== undefined) &&
-      bindingsCompatible(l, r)
-    )
+  return left.filter(
+    (l) =>
+      !right.some(
+        (r) =>
+          Object.keys(l).some((k) => r[k] !== undefined) &&
+          bindingsCompatible(l, r),
+      ),
   );
 }
 
@@ -70,7 +73,10 @@ function assertMultisetEqual(
   label: string,
 ): void {
   const canon = (b: TermBinding): string =>
-    Object.keys(b).sort().map((k) => `${k}=${termKey(b[k])}`).join("|");
+    Object.keys(b)
+      .sort()
+      .map((k) => `${k}=${termKey(b[k])}`)
+      .join("|");
   const counts = new Map<string, number>();
   for (const b of expected) {
     const key = canon(b);
@@ -88,53 +94,62 @@ function assertMultisetEqual(
       counts.set(key, n - 1);
     }
   }
-  assertEquals(
+  assert.deepStrictEqual(
     counts.size,
     0,
     `${label}: missing ${[...counts.keys()].join(", ")}`,
   );
 }
 
-Deno.test("innerJoin - homogeneous join on a shared variable", () => {
+test("innerJoin - homogeneous join on a shared variable", () => {
   const left = [0, 1, 2].map((n) => ({ s: p(n), a: lit(n) }));
   const right = [0, 1, 2].map((n) => ({ s: p(n), b: lit(n + 10) }));
   const result = [...innerJoin(left, right)];
-  assertEquals(result.length, 3);
+  assert.deepStrictEqual(result.length, 3);
   assertMultisetEqual(result, innerJoinRef(left, right), "innerJoin");
 });
 
-Deno.test("innerJoin - duplicates survive (multiset semantics)", () => {
-  const left = [{ s: p(0), a: lit(0) }, { s: p(0), a: lit(0) }];
-  const right = [{ s: p(0), b: lit(1) }, { s: p(0), b: lit(1) }];
+test("innerJoin - duplicates survive (multiset semantics)", () => {
+  const left = [
+    { s: p(0), a: lit(0) },
+    { s: p(0), a: lit(0) },
+  ];
+  const right = [
+    { s: p(0), b: lit(1) },
+    { s: p(0), b: lit(1) },
+  ];
   const result = [...innerJoin(left, right)];
-  assertEquals(result.length, 4);
+  assert.deepStrictEqual(result.length, 4);
   assertMultisetEqual(result, innerJoinRef(left, right), "innerJoin");
 });
 
-Deno.test("innerJoin - partial left binding is a wildcard on the shared variable", () => {
+test("innerJoin - partial left binding is a wildcard on the shared variable", () => {
   // The left binding {b: v0} does not bind ?s, so it is compatible with
   // every right binding (they cannot disagree on ?s).
   const left: TermBinding[] = [{ b: lit(0) }, { s: p(1), b: lit(1) }];
-  const right = [{ s: p(0), c: lit(0) }, { s: p(1), c: lit(1) }];
+  const right = [
+    { s: p(0), c: lit(0) },
+    { s: p(1), c: lit(1) },
+  ];
   const result = [...innerJoin(left, right)];
   assertMultisetEqual(result, innerJoinRef(left, right), "innerJoin");
 });
 
-Deno.test("leftJoin - unmatched bindings survive unextended", () => {
+test("leftJoin - unmatched bindings survive unextended", () => {
   const left = [0, 1, 2, 3].map((n) => ({ s: p(n) }));
   const right = [0, 2].map((n) => ({ s: p(n), b: lit(n) }));
   const result = [...leftJoin(left, right)];
-  assertEquals(result.length, 4);
+  assert.deepStrictEqual(result.length, 4);
   assertMultisetEqual(result, leftJoinRef(left, right), "leftJoin");
 });
 
-Deno.test("leftJoin - filters apply to the merged binding", () => {
+test("leftJoin - filters apply to the merged binding", () => {
   const left = [0, 1].map((n) => ({ s: p(n) }));
   const right = [0, 1].map((n) => ({ s: p(n), b: lit(n) }));
   const keepHigh = (b: TermBinding) => b.b !== undefined && b.b.value === "v1";
   const result = [...leftJoin(left, right, keepHigh)];
   // Only s1 matches the filter; s0 survives unextended.
-  assertEquals(result.length, 2);
+  assert.deepStrictEqual(result.length, 2);
   assertMultisetEqual(
     result,
     leftJoinRef(left, right, [keepHigh]),
@@ -142,7 +157,7 @@ Deno.test("leftJoin - filters apply to the merged binding", () => {
   );
 });
 
-Deno.test("leftJoin - heterogeneous left (chained OPTIONAL) probes wildcards", () => {
+test("leftJoin - heterogeneous left (chained OPTIONAL) probes wildcards", () => {
   // First OPTIONAL succeeded for s0 and s2, failed for s1 and s3.
   const left: TermBinding[] = [
     { s: p(0), a: lit(0), o1: lit(0) },
@@ -152,29 +167,35 @@ Deno.test("leftJoin - heterogeneous left (chained OPTIONAL) probes wildcards", (
   ];
   const right = [0, 2].map((n) => ({ s: p(n), o2: lit(n + 100) }));
   const result = [...leftJoin(left, right)];
-  assertEquals(result.length, 4);
+  assert.deepStrictEqual(result.length, 4);
   assertMultisetEqual(result, leftJoinRef(left, right), "leftJoin-chain");
 });
 
-Deno.test("minus - eliminates on shared-variable compatibility", () => {
+test("minus - eliminates on shared-variable compatibility", () => {
   const left = [0, 1, 2].map((n) => ({ s: p(n) }));
   const right = [0, 2].map((n) => ({ s: p(n), b: lit(n) }));
   const result = [...minus(left, right)];
-  assertEquals(result.length, 1);
-  assertEquals(result[0].s, p(1));
+  assert.deepStrictEqual(result.length, 1);
+  assert.deepStrictEqual(result[0].s, p(1));
 });
 
-Deno.test("minus - no shared variables means no elimination", () => {
+test("minus - no shared variables means no elimination", () => {
   const left = [0, 1].map((n) => ({ s: p(n) }));
-  const right = [{ t: p(0), b: lit(0) }, { t: p(1), b: lit(1) }];
+  const right = [
+    { t: p(0), b: lit(0) },
+    { t: p(1), b: lit(1) },
+  ];
   const result = [...minus(left, right)];
-  assertEquals(result.length, 2);
+  assert.deepStrictEqual(result.length, 2);
 });
 
-Deno.test("minus - partial left binding sharing nothing is not eliminated", () => {
+test("minus - partial left binding sharing nothing is not eliminated", () => {
   // The left binding {x: v0} shares no variable with any right binding.
   const left: TermBinding[] = [{ x: lit(0) }, { s: p(1), x: lit(1) }];
-  const right = [{ s: p(0), b: lit(0) }, { s: p(1), b: lit(1) }];
+  const right = [
+    { s: p(0), b: lit(0) },
+    { s: p(1), b: lit(1) },
+  ];
   const result = [...minus(left, right)];
   assertMultisetEqual(result, minusRef(left, right), "minus-partial");
 });
@@ -204,26 +225,22 @@ function largeRight(): TermBinding[] {
   return out;
 }
 
-Deno.test("hash join - large innerJoin matches the nested reference", () => {
+test("hash join - large innerJoin matches the nested reference", () => {
   const left = largeLeft();
   const right = largeRight();
   const result = [...innerJoin(left, right)];
   assertMultisetEqual(result, innerJoinRef(left, right), "hash-inner");
 });
 
-Deno.test("hash join - large leftJoin matches the nested reference", () => {
+test("hash join - large leftJoin matches the nested reference", () => {
   const left = largeLeft();
   const right = largeRight();
-  const filter = (b: TermBinding) => (b.c === undefined || b.c.value !== "v99");
+  const filter = (b: TermBinding) => b.c === undefined || b.c.value !== "v99";
   const result = [...leftJoin(left, right, filter)];
-  assertMultisetEqual(
-    result,
-    leftJoinRef(left, right, [filter]),
-    "hash-left",
-  );
+  assertMultisetEqual(result, leftJoinRef(left, right, [filter]), "hash-left");
 });
 
-Deno.test("hash join - large minus matches the nested reference", () => {
+test("hash join - large minus matches the nested reference", () => {
   const left = largeLeft();
   const right = largeRight();
   const result = [...minus(left, right)];

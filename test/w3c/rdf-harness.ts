@@ -2,6 +2,7 @@ import type * as rdfjs from "@rdfjs/types";
 import { DataFactory } from "@/term/mod.ts";
 import { MemoryStore } from "@/store/memory-store.ts";
 import { Parser as N3Parser } from "n3";
+import { readFileSync } from "node:fs";
 export { quadSetsIsomorphic } from "./rdf-isomorphism.ts";
 export { quadSetsIsomorphicAsSets } from "./rdf-isomorphism.ts";
 
@@ -71,14 +72,20 @@ const TYPE_MAP = new Map<string, TypeInfo>([
   [`${RDFT}TestTrigPositiveSyntax`, { kind: "positive", format: "TriG" }],
   [`${RDFT}TestTrigNegativeSyntax`, { kind: "negative", format: "TriG" }],
   // N-Triples.
-  [`${RDFT}TestNTriplesPositiveSyntax`, {
-    kind: "positive",
-    format: "N-Triples",
-  }],
-  [`${RDFT}TestNTriplesNegativeSyntax`, {
-    kind: "negative",
-    format: "N-Triples",
-  }],
+  [
+    `${RDFT}TestNTriplesPositiveSyntax`,
+    {
+      kind: "positive",
+      format: "N-Triples",
+    },
+  ],
+  [
+    `${RDFT}TestNTriplesNegativeSyntax`,
+    {
+      kind: "negative",
+      format: "N-Triples",
+    },
+  ],
   // N-Quads.
   [`${RDFT}TestNQuadsPositiveSyntax`, { kind: "positive", format: "N-Quads" }],
   [`${RDFT}TestNQuadsNegativeSyntax`, { kind: "negative", format: "N-Quads" }],
@@ -133,7 +140,7 @@ export function loadRdfManifest(manifestRel: string): RdfManifestLoad {
   const loadInto = (rel: string): void => {
     let text: string;
     try {
-      text = Deno.readTextFileSync(`test/w3c/fixtures/${rel}`);
+      text = readFileSync(`test/w3c/fixtures/${rel}`, "utf8");
     } catch (error) {
       throw new Error(
         `failed to read RDF manifest ${rel}: ${
@@ -149,12 +156,9 @@ export function loadRdfManifest(manifestRel: string): RdfManifestLoad {
   const cases: RdfSyntaxCase[] = [];
   let skipped = 0;
 
-  const manifestSubjects = store.getQuads(
-    null,
-    namedNode(RDF + "type"),
-    namedNode(MF + "Manifest"),
-    null,
-  ).map((q) => q.subject);
+  const manifestSubjects = store
+    .getQuads(null, namedNode(RDF + "type"), namedNode(MF + "Manifest"), null)
+    .map((q) => q.subject);
 
   const queue: rdfjs.Term[] = [...manifestSubjects];
   const seen = new Set<string>();
@@ -165,28 +169,24 @@ export function loadRdfManifest(manifestRel: string): RdfManifestLoad {
     if (seen.has(mkey)) continue;
     seen.add(mkey);
 
-    for (
-      const include of store.getQuads(
-        manifest,
-        namedNode(MF + "include"),
-        null,
-        null,
-      )
-    ) {
+    for (const include of store.getQuads(
+      manifest,
+      namedNode(MF + "include"),
+      null,
+      null,
+    )) {
       if (include.object.termType !== "NamedNode") continue;
       const includedRel = diskOf(include.object.value);
       loadInto(includedRel);
       queue.push(include.object);
     }
 
-    for (
-      const entries of store.getQuads(
-        manifest,
-        namedNode(MF + "entries"),
-        null,
-        null,
-      )
-    ) {
+    for (const entries of store.getQuads(
+      manifest,
+      namedNode(MF + "entries"),
+      null,
+      null,
+    )) {
       for (const entry of listTerms(store, entries.object)) {
         const info = classifyEntry(store, entry);
         if (!info) {
@@ -229,18 +229,19 @@ export function loadRdfManifest(manifestRel: string): RdfManifestLoad {
           null,
           null,
         )[0];
-        const approval = approvalQuad?.object.termType === "NamedNode"
-          ? approvalQuad.object.value.endsWith("Approved")
-            ? "Approved"
-            : approvalQuad.object.value.endsWith("Proposed")
-            ? "Proposed"
-            : "unknown"
-          : "unknown";
+        const approval =
+          approvalQuad?.object.termType === "NamedNode"
+            ? approvalQuad.object.value.endsWith("Approved")
+              ? "Approved"
+              : approvalQuad.object.value.endsWith("Proposed")
+                ? "Proposed"
+                : "unknown"
+            : "unknown";
 
         const match = manifestRel.match(
           /^rdf\/(rdf11|rdf12)\/(.+)\/manifest\.ttl$/,
         );
-        const suite = match ? match[1] as "rdf11" | "rdf12" : "rdf12";
+        const suite = match ? (match[1] as "rdf11" | "rdf12") : "rdf12";
         const category = match
           ? match[2]
           : manifestRel.replace(/\/manifest\.ttl$/, "");
@@ -262,13 +263,13 @@ export function loadRdfManifest(manifestRel: string): RdfManifestLoad {
   return { cases, skipped };
 }
 
-function classifyEntry(
-  store: MemoryStore,
-  entry: rdfjs.Term,
-): TypeInfo | null {
-  for (
-    const quad of store.getQuads(entry, namedNode(RDF + "type"), null, null)
-  ) {
+function classifyEntry(store: MemoryStore, entry: rdfjs.Term): TypeInfo | null {
+  for (const quad of store.getQuads(
+    entry,
+    namedNode(RDF + "type"),
+    null,
+    null,
+  )) {
     if (quad.object.termType !== "NamedNode") continue;
     const info = TYPE_MAP.get(quad.object.value);
     if (info) return info;

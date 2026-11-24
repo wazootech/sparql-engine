@@ -28,9 +28,12 @@ function namedNodeEquals(
   this: RdfNamedNode,
   other: RdfTerm | null | undefined,
 ): boolean {
-  return other !== null && other !== undefined &&
+  return (
+    other !== null &&
+    other !== undefined &&
     other.termType === "NamedNode" &&
-    other.value === this.value;
+    other.value === this.value
+  );
 }
 
 /** namedNodeTerm builds an IRI term. */
@@ -46,9 +49,12 @@ function blankNodeEquals(
   this: RdfBlankNode,
   other: RdfTerm | null | undefined,
 ): boolean {
-  return other !== null && other !== undefined &&
+  return (
+    other !== null &&
+    other !== undefined &&
     other.termType === "BlankNode" &&
-    other.value === this.value;
+    other.value === this.value
+  );
 }
 
 /** blankNodeTerm builds a blank node term. */
@@ -64,9 +70,12 @@ function variableEquals(
   this: RdfVariable,
   other: RdfTerm | null | undefined,
 ): boolean {
-  return other !== null && other !== undefined &&
+  return (
+    other !== null &&
+    other !== undefined &&
     other.termType === "Variable" &&
-    other.value === this.value;
+    other.value === this.value
+  );
 }
 
 /** variableTerm builds a query variable term. */
@@ -82,8 +91,9 @@ function defaultGraphEquals(
   this: RdfDefaultGraph,
   other: RdfTerm | null | undefined,
 ): boolean {
-  return other !== null && other !== undefined &&
-    other.termType === "DefaultGraph";
+  return (
+    other !== null && other !== undefined && other.termType === "DefaultGraph"
+  );
 }
 
 const DEFAULT_GRAPH: RdfDefaultGraph = {

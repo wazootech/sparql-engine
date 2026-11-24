@@ -4,6 +4,8 @@ import { parseTurtleQuads } from "@/parser/turtle-parser.ts";
 import { loadRdfManifest } from "./rdf-harness.ts";
 import { supersetDivergences as rdf11Allowlist } from "./rdf-differential.ts";
 import { supersetDivergences as rdf12Allowlist } from "./rdf-classify.ts";
+import process from "node:process";
+import { readFileSync } from "node:fs";
 
 /**
  * Reference-engine cross-check for the RDF 1.1/1.2 allowlists.
@@ -52,7 +54,7 @@ const RDF11_ALLOWED = rdf11Allowlist;
 const RDF12_ALLOWED = rdf12Allowlist;
 
 function readFixture(rel: string): string {
-  return Deno.readTextFileSync(`test/w3c/fixtures/${rel}`);
+  return readFileSync(`test/w3c/fixtures/${rel}`, "utf8");
 }
 
 function supersetFormat(rel: string): string {
@@ -66,10 +68,12 @@ function strictFormat(rel: string): string {
   return "text/turtle";
 }
 
-type Verdict = { kind: "accept"; quads: number } | {
-  kind: "reject";
-  why: string;
-};
+type Verdict =
+  | { kind: "accept"; quads: number }
+  | {
+      kind: "reject";
+      why: string;
+    };
 
 function verdictOf(run: () => unknown[]): Verdict {
   try {
@@ -92,17 +96,21 @@ function n3(
   baseIRI: string,
   star: boolean,
 ): Verdict {
-  return verdictOf(() =>
-    new N3Parser({ format: `${mediaType}${star ? "*" : ""}`, baseIRI } as never)
-      .parse(text) as unknown[]
+  return verdictOf(
+    () =>
+      new N3Parser({
+        format: `${mediaType}${star ? "*" : ""}`,
+        baseIRI,
+      } as never).parse(text) as unknown[],
   );
 }
 
 /** Strip trailing N-Quads graph names (` <g>.`) so TriG can express the content. */
 function stripGraphNames(text: string): string {
-  return text.split("\n").map((line) =>
-    line.replace(/^(.*?) <([^<>]*)> \.$/, "$1 .")
-  ).join("\n");
+  return text
+    .split("\n")
+    .map((line) => line.replace(/^(.*?) <([^<>]*)> \.$/, "$1 ."))
+    .join("\n");
 }
 
 interface Row {
@@ -128,7 +136,8 @@ for (const manifest of MANIFESTS) {
     const wazoo = verdictOf(() => parseTurtleQuads(text, c.actionUrl));
     const oxiSup = oxi(text, supersetFormat(c.action), c.actionUrl);
     const n3Len = n3(text, strictFormat(c.action), c.actionUrl, true);
-    let endorsed = wazoo.kind === "accept" &&
+    let endorsed =
+      wazoo.kind === "accept" &&
       (n3Len.kind === "accept" || oxiSup.kind === "accept");
     if (!endorsed && c.action.endsWith(".nq")) {
       const stripped = oxi(stripGraphNames(text), "text/turtle", c.actionUrl);
@@ -149,7 +158,8 @@ for (const manifest of MANIFESTS) {
   }
 }
 
-const fmt = (v: Verdict): string => v.kind === "accept" ? `A(${v.quads})` : `R`;
+const fmt = (v: Verdict): string =>
+  v.kind === "accept" ? `A(${v.quads})` : `R`;
 
 console.log(
   "case | wazoo | oxi-superset | oxi-strict | n3-lenient | n3-strict | endorsed",
@@ -163,8 +173,8 @@ for (const r of rows) {
 }
 
 const unendorsed = rows.filter((r) => !r.endorsed);
-const n3Crashed = rows.filter((r) =>
-  r.n3Len.kind === "reject" && r.n3Len.why.includes("termType")
+const n3Crashed = rows.filter(
+  (r) => r.n3Len.kind === "reject" && r.n3Len.why.includes("termType"),
 );
 
 console.log(`\n${rows.length} allowlisted case(s) cross-checked.`);
@@ -186,7 +196,7 @@ if (unendorsed.length > 0) {
       `candidates for unholding — tighten the grammar or remove them from the ` +
       `allowlist:\n  ${unendorsed.map((r) => r.id).join("\n  ")}`,
   );
-  Deno.exit(1);
+  process.exit(1);
 }
 console.log(
   "\nCross-check passed: every allowlisted divergence is endorsed by at least " +

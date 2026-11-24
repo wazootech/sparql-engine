@@ -1,6 +1,6 @@
 /**
  * parse-profile attributes the cost of the CLI load path (read, parse, index)
- * to its stages, in-process under Deno/V8, on the text `buildPeopleTurtle`
+ * to its stages, in-process under the running runtime (Deno/V8 or Bun/JavaScriptCore), on the text `buildPeopleTurtle`
  * generates. It is the profiling step of issue #251: it changes no engine or
  * parser source. Stages are timed in interleaved rounds after warm-up, and
  * adjacent stages are subtracted to attribute cost:
@@ -25,6 +25,11 @@ import { MemoryStore } from "@/store/memory-store.ts";
 import { termKey } from "@/term/mod.ts";
 import { buildPeopleTurtle } from "./cli-workloads.ts";
 import { quantile, summarize } from "./cli-bench-stats.ts";
+import process from "node:process";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { readFileSync } from "node:fs";
 
 type ParseMode = "normal" | "lex-only" | "noop-actions";
 
@@ -36,7 +41,9 @@ LrParser.prototype.parse = function (
   lexer: LrLexer,
 ): void {
   if (parseMode === "lex-only") {
-    while (lexer.lex() !== LR_EOF) { /* drain tokens */ }
+    while (lexer.lex() !== LR_EOF) {
+      /* drain tokens */
+    }
     return;
   }
   if (parseMode === "noop-actions") {
@@ -55,8 +62,8 @@ function runWithMode(mode: ParseMode, text: string): void {
 }
 
 function argValue(name: string, fallback: string): string {
-  const index = Deno.args.indexOf(name);
-  return index >= 0 ? Deno.args[index + 1]! : fallback;
+  const index = process.argv.slice(2).indexOf(name);
+  return index >= 0 ? process.argv.slice(2)[index + 1]! : fallback;
 }
 
 function milliseconds(run: () => void): number {
@@ -75,8 +82,11 @@ function keyWork(quads: RdfQuad[]): number {
       termKey(quad.object),
       termKey(quad.graph),
     ].join("|").length;
-    total += termKey(quad.subject).length + termKey(quad.predicate).length +
-      termKey(quad.object).length + termKey(quad.graph).length;
+    total +=
+      termKey(quad.subject).length +
+      termKey(quad.predicate).length +
+      termKey(quad.object).length +
+      termKey(quad.graph).length;
   }
   return total;
 }
@@ -115,20 +125,25 @@ function countLexing(text: string): {
 const peopleList = argValue("--people", "2000,10000").split(",").map(Number);
 const rounds = Number(argValue("--rounds", "11"));
 const warmups = 3;
-const tempPath = await Deno.makeTempFile({ suffix: ".ttl" });
+const runtimeLabel =
+  process.versions.bun !== undefined
+    ? `Bun ${process.versions.bun}`
+    : `Deno ${process.versions.deno} / V8 ${process.versions.v8}`;
+const tempDirectory = await mkdtemp(join(tmpdir(), "parse-profile-"));
+const tempPath = join(tempDirectory, "people.ttl");
 
 console.log(
-  `# parse-profile: Deno ${Deno.version.deno} / V8 ${Deno.version.v8}, ` +
-    `${Deno.build.os}-${Deno.build.arch}, ${rounds} rounds, ${warmups} warm-ups`,
+  `# parse-profile: ${runtimeLabel}, ` +
+    `${process.platform}-${process.arch}, ${rounds} rounds, ${warmups} warm-ups`,
 );
 console.log("# machine-specific numbers; compare ratios, not absolutes\n");
 
 for (const people of peopleList) {
   const text = buildPeopleTurtle(people);
-  await Deno.writeTextFile(tempPath, text);
+  await writeFile(tempPath, text);
   const preParsed = parseTurtleQuads(text);
   const stages: Record<string, () => void> = {
-    read: () => void Deno.readTextFileSync(tempPath),
+    read: () => void readFileSync(tempPath, "utf8"),
     lex: () => runWithMode("lex-only", text),
     lexparse: () => runWithMode("noop-actions", text),
     full: () => runWithMode("normal", text),
@@ -154,8 +169,15 @@ for (const people of peopleList) {
     return {
       min: summary.minimum,
       median: summary.median,
-      iqr: quantile([...samples[name]!].sort((a, b) => a - b), 0.75) -
-        quantile([...samples[name]!].sort((a, b) => a - b), 0.25),
+      iqr:
+        quantile(
+          [...samples[name]!].sort((a, b) => a - b),
+          0.75,
+        ) -
+        quantile(
+          [...samples[name]!].sort((a, b) => a - b),
+          0.25,
+        ),
     };
   };
   const counts = countLexing(text);
@@ -198,4 +220,4 @@ for (const people of peopleList) {
       `${(counts.execCalls / counts.tokens).toFixed(1)} per token\n`,
   );
 }
-await Deno.remove(tempPath);
+await rm(tempDirectory, { recursive: true });

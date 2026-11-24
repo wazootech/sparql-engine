@@ -327,8 +327,8 @@ export function resolveIRI(token: string): string {
   }
   if (resolvedBase !== base) {
     resolvedBase = base;
-    resolvedBasePath = base.replace(/[^\/:]*$/, "");
-    const rootMatch = /^(?:[a-z]+:\/*)?[^\/]*/.exec(base);
+    resolvedBasePath = base.replace(/[^/:]*$/, "");
+    const rootMatch = /^(?:[a-z]+:\/*)?[^/]*/.exec(base);
     resolvedBaseRoot = rootMatch === null ? "" : rootMatch[0];
   }
   if (iri.length === 0) {
@@ -563,13 +563,13 @@ function translateEscapes(body: string): string {
       result += String.fromCharCode(parseInt(unicode4, 16));
     } else if (unicode8) {
       let charCode = parseInt(unicode8, 16);
-      if (charCode < 0xFFFF) {
+      if (charCode < 0xffff) {
         result += String.fromCharCode(charCode);
       } else {
         charCode -= 0x10000;
         result += String.fromCharCode(
-          0xD800 + (charCode >> 10),
-          0xDC00 + (charCode & 0x3FF),
+          0xd800 + (charCode >> 10),
+          0xdc00 + (charCode & 0x3ff),
         );
       }
     } else {
@@ -720,9 +720,7 @@ export function reifiedTriplePattern(quad: QuadTerm): Triple[] {
   // Build a fresh quad for the triple term (the marker properties of the
   // quoted triple must not carry over).
   const quoted = nestedTriple(quad.subject, quad.predicate, quad.object);
-  return asTriples([
-    triple(reifier, namedNodeOf(RDF_REIFIES), quoted),
-  ]);
+  return asTriples([triple(reifier, namedNodeOf(RDF_REIFIES), quoted)]);
 }
 
 /** requireSparqlStar throws unless SPARQL-star syntax is enabled. */
@@ -763,17 +761,20 @@ function applyAnnotationTriples(
     // If the annotation already has a subject then just push the annotation
     // to the upper scope as it is a blank node introduced from a pattern like
     // :s :p :o {| :p1 [ :p2 :o2; :p3 :o3 ] |}
-    output.push(triple(
-      annotation.subject !== undefined ? annotation.subject : subject,
-      annotation.predicate,
-      annotation.object,
-    ));
+    output.push(
+      triple(
+        annotation.subject !== undefined ? annotation.subject : subject,
+        annotation.predicate,
+        annotation.object,
+      ),
+    );
 
     if (annotation.annotations) {
       const predicate = annotation.predicate;
       const object = annotation.object;
       if (
-        predicate === undefined || object === undefined ||
+        predicate === undefined ||
+        object === undefined ||
         !("termType" in predicate)
       ) {
         throw new Error("Nested triples cannot contain paths");
@@ -830,7 +831,8 @@ export function applyAnnotations(triples: ParsedTriple[]): Triple[] {
     const predicate = t.predicate;
     const object = t.object;
     if (
-      subject === undefined || predicate === undefined ||
+      subject === undefined ||
+      predicate === undefined ||
       object === undefined ||
       !("termType" in predicate)
     ) {
@@ -840,9 +842,10 @@ export function applyAnnotations(triples: ParsedTriple[]): Triple[] {
     // The reified triple term the annotation(s) attach to. A named reifier
     // (`~ r`) travels on the quad so the evaluator binds it; otherwise the
     // evaluator mints a fresh reifier at evaluation time.
-    const quoted = hasReifier && reifierTerm
-      ? reifiedTriple(subject, predicate, object, reifierTerm)
-      : nestedTriple(subject, predicate, object);
+    const quoted =
+      hasReifier && reifierTerm
+        ? reifiedTriple(subject, predicate, object, reifierTerm)
+        : nestedTriple(subject, predicate, object);
 
     if (hasReifier) {
       // `s p o ~ r` / `s p o ~` - emit the `reifier rdf:reifies <<( s p o )>>`
@@ -1382,9 +1385,7 @@ export function datasetFragment(clauses: DatasetEntry[]): QueryFragment {
 }
 
 /** groupDatasets groups dataset clauses by default and named. */
-export function groupDatasets(
-  clauses: DatasetEntry[],
-): FromClause | undefined {
+export function groupDatasets(clauses: DatasetEntry[]): FromClause | undefined {
   if (clauses.length === 0) {
     return undefined;
   }
@@ -1459,7 +1460,8 @@ export function selectVariables(
   if (duplicates.length > 0) {
     throw Error(
       "Two or more of the resulting columns have the same name (?" +
-        duplicates[0] + ")",
+        duplicates[0] +
+        ")",
     );
   }
   return mergeFragments(base, { variables: items });
@@ -1577,8 +1579,9 @@ function selectionExpression(
 
 // COUNT(*) holds the wildcard in place of an expression.
 function isWildcardExpression(expression: Expression | Wildcard): boolean {
-  return "termType" in expression &&
-    (expression.termType as string) === "Wildcard";
+  return (
+    "termType" in expression && (expression.termType as string) === "Wildcard"
+  );
 }
 
 // Checks the projection of a grouped (or aggregating) query.
@@ -1588,9 +1591,9 @@ function checkProjection(
 ): undefined {
   let counts = false;
   for (const item of variables) {
-    for (
-      const aggregation of getAggregatesOfExpression(selectionExpression(item))
-    ) {
+    for (const aggregation of getAggregatesOfExpression(
+      selectionExpression(item),
+    )) {
       if (
         aggregation.aggregation === "count" &&
         !isWildcardExpression(aggregation.expression)
@@ -1618,7 +1621,8 @@ function checkProjection(
           if (!groups || !isGroupedBy(groups, usedVar.value)) {
             throw Error(
               "Use of ungrouped variable in projection of operation (?" +
-                usedVar.value + ")",
+                usedVar.value +
+                ")",
             );
           }
         }
@@ -1654,8 +1658,7 @@ function checkSubqueryAliases(
   for (const selectedVarId of selectedVarIds) {
     if (subqueryIds.indexOf(selectedVarId) >= 0) {
       throw Error(
-        "Target id of 'AS' (?" + selectedVarId +
-          ") already used in subquery",
+        "Target id of 'AS' (?" + selectedVarId + ") already used in subquery",
       );
     }
   }
@@ -1687,12 +1690,7 @@ export function constructQuery(
 ): QueryFragment {
   const fragment: QueryFragment = { queryType: "CONSTRUCT" };
   fragment.template = template;
-  return mergeFragments(
-    fragment,
-    datasetFragment(datasets),
-    where,
-    modifiers,
-  );
+  return mergeFragments(fragment, datasetFragment(datasets), where, modifiers);
 }
 
 /** constructWhereQuery builds the short form `CONSTRUCT WHERE { ... }`. */
@@ -2038,7 +2036,8 @@ export function groupGraphPattern(patterns: Pattern[]): GroupPattern {
     // If binding with a non-free variable, throw error
     if (boundVars.has(binding.variable.value)) {
       throw Error(
-        "Variable used to bind is already bound (?" + binding.variable.value +
+        "Variable used to bind is already bound (?" +
+          binding.variable.value +
           ")",
       );
     }
@@ -2353,11 +2352,7 @@ export function quadsGraphBlock(
 
 /** ParsedStatement is what the entry rule's alternatives produce. */
 export type ParsedStatement =
-  | Query
-  | UpdateQuery
-  | PropertyPath
-  | NamedNodeTerm
-  | undefined;
+  Query | UpdateQuery | PropertyPath | NamedNodeTerm | undefined;
 
 // Throws when an INSERT DATA clause reuses a blank node of an earlier one.
 function checkInsertDataBlankNodes(update: UpdateQuery): undefined {

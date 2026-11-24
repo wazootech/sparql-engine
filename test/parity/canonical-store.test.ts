@@ -1,4 +1,5 @@
-import { assertEquals, assertNotEquals } from "@std/assert";
+import assert from "node:assert/strict";
+import { test } from "node:test";
 import { DataFactory } from "@/term/public.ts";
 import { MemoryStore as Store } from "@/store/memory-store.ts";
 import { canonicalStoreQuads } from "./parity-harness.ts";
@@ -16,21 +17,21 @@ function storeWith(...quads: ReturnType<typeof quad>[]): Store {
   return store;
 }
 
-Deno.test("canonicalStoreQuads - repeated blank node in one quad is fully substituted", () => {
+test("canonicalStoreQuads - repeated blank node in one quad is fully substituted", () => {
   // The same blank node bound as subject and object renders the same
   // placeholder twice; every occurrence must get the canonical id.
   const a = storeWith(quad(blankNode("x"), p, blankNode("x")));
   const b = storeWith(quad(blankNode("y"), p, blankNode("y")));
-  assertEquals(canonicalStoreQuads(a), canonicalStoreQuads(b));
+  assert.deepStrictEqual(canonicalStoreQuads(a), canonicalStoreQuads(b));
 });
 
-Deno.test("canonicalStoreQuads - distinct nodes in one quad stay distinct", () => {
+test("canonicalStoreQuads - distinct nodes in one quad stay distinct", () => {
   const a = storeWith(quad(blankNode("x"), p, blankNode("x")));
   const b = storeWith(quad(blankNode("x"), p, blankNode("y")));
-  assertNotEquals(canonicalStoreQuads(a), canonicalStoreQuads(b));
+  assert.notDeepStrictEqual(canonicalStoreQuads(a), canonicalStoreQuads(b));
 });
 
-Deno.test("canonicalStoreQuads - isomorphic multi-quad stores with relabeled blanks agree", () => {
+test("canonicalStoreQuads - isomorphic multi-quad stores with relabeled blanks agree", () => {
   const a = storeWith(
     quad(blankNode("x"), p, blankNode("x")),
     quad(blankNode("x"), q, o),
@@ -39,10 +40,10 @@ Deno.test("canonicalStoreQuads - isomorphic multi-quad stores with relabeled bla
     quad(blankNode("zz"), p, blankNode("zz")),
     quad(blankNode("zz"), q, o),
   );
-  assertEquals(canonicalStoreQuads(a), canonicalStoreQuads(b));
+  assert.deepStrictEqual(canonicalStoreQuads(a), canonicalStoreQuads(b));
 });
 
-Deno.test("canonicalStoreQuads - shared blank node across quads canonicalizes consistently", () => {
+test("canonicalStoreQuads - shared blank node across quads canonicalizes consistently", () => {
   const a = storeWith(
     quad(blankNode("x"), p, o),
     quad(blankNode("x"), q, blankNode("x")),
@@ -51,5 +52,5 @@ Deno.test("canonicalStoreQuads - shared blank node across quads canonicalizes co
     quad(blankNode("u"), p, o),
     quad(blankNode("u"), q, blankNode("u")),
   );
-  assertEquals(canonicalStoreQuads(a), canonicalStoreQuads(b));
+  assert.deepStrictEqual(canonicalStoreQuads(a), canonicalStoreQuads(b));
 });

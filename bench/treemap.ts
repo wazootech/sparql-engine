@@ -10,8 +10,10 @@
 //   docs/assets/treemap-submodules.svg
 //
 // Run: deno run --allow-read --allow-write bench/treemap.ts
-import { join } from "@std/path";
 
+import process from "node:process";
+import { readFileSync, statSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 interface Sized {
   name: string;
   bytes: number;
@@ -143,24 +145,20 @@ function fmtBytes(bytes: number): string {
 }
 
 function esc(text: string): string {
-  return text.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(
-    ">",
-    "&gt;",
-  );
+  return text
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
 }
 
-function renderNode(
-  node: Placed,
-  depth: number,
-  parts: string[],
-): void {
+function renderNode(node: Placed, depth: number, parts: string[]): void {
   const { x, y, w, h } = node.rect;
   if (node.panel !== undefined) {
     parts.push(
       `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" ` +
-        `height="${
-          h.toFixed(1)
-        }" fill="#f1f3f5" stroke="#dee2e6" stroke-width="1"/>`,
+        `height="${h.toFixed(
+          1,
+        )}" fill="#f1f3f5" stroke="#dee2e6" stroke-width="1"/>`,
     );
     parts.push(
       `<text x="${(x + 6).toFixed(1)}" y="${(y + 16).toFixed(1)}" ` +
@@ -174,9 +172,9 @@ function renderNode(
   }
   parts.push(
     `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" ` +
-      `height="${
-        h.toFixed(1)
-      }" fill="${node.color}" stroke="#ffffff" stroke-width="1"/>`,
+      `height="${h.toFixed(
+        1,
+      )}" fill="${node.color}" stroke="#ffffff" stroke-width="1"/>`,
   );
   const label = `${node.name} (${node.valueText})`;
   const fits = w > label.length * 5.5 && h > 12;
@@ -235,7 +233,7 @@ function treemapSvg(
  * blue, comunica orange), never sort position. */
 function sizeChart(): void {
   const data = JSON.parse(
-    Deno.readTextFileSync(join(Deno.cwd(), "bench", "size-data.json")),
+    readFileSync(join(process.cwd(), "bench", "size-data.json"), "utf8"),
   ) as { engines: Sized[] };
   const total = data.engines.reduce((s, e) => s + e.bytes, 0);
   const entries = [...data.engines]
@@ -274,14 +272,14 @@ function sizeChart(): void {
     parts.push(
       `<text x="${padL + barW}" y="${(y + barH / 2 + 3).toFixed(1)}" ` +
         `text-anchor="end" font-family="sans-serif" font-size="10" fill="#212529">` +
-        `${esc(entry.label)} — ${
-          fmtBytes(entry.bytes)
-        } (${share}% of total)</text>`,
+        `${esc(entry.label)} — ${fmtBytes(
+          entry.bytes,
+        )} (${share}% of total)</text>`,
     );
   });
   parts.push("</svg>");
-  Deno.writeTextFileSync(
-    join(Deno.cwd(), "docs", "assets", "chart-library-size.svg"),
+  writeFileSync(
+    join(process.cwd(), "docs", "assets", "chart-library-size.svg"),
     parts.join("\n"),
   );
   console.log("wrote docs/assets/chart-library-size.svg");
@@ -289,7 +287,7 @@ function sizeChart(): void {
 
 function memoryTree(): Placed[] {
   const data = JSON.parse(
-    Deno.readTextFileSync(join(Deno.cwd(), "bench", "memory-data.json")),
+    readFileSync(join(process.cwd(), "bench", "memory-data.json"), "utf8"),
   ) as {
     engines: Record<
       string,
@@ -347,13 +345,13 @@ function memoryTree(): Placed[] {
  * bench/closures-data.json). Each tile is what a partial consumer avoids by
  * importing a subpath instead of the full engine. */
 function submoduleTree(): Placed[] {
-  const dataPath = join(Deno.cwd(), "bench", "closures-data.json");
+  const dataPath = join(process.cwd(), "bench", "closures-data.json");
   try {
-    Deno.statSync(dataPath);
+    statSync(dataPath);
   } catch {
     return [];
   }
-  const data = JSON.parse(Deno.readTextFileSync(dataPath)) as {
+  const data = JSON.parse(readFileSync(dataPath, "utf8")) as {
     entries: { name: string; bytes: number; files: string[] }[];
   };
   const full = data.entries.find((e) => e.name === ".");
@@ -373,7 +371,7 @@ function submoduleTree(): Placed[] {
     // src/<module>/... is a module dir; src/<file>.ts is an entrypoint file.
     const top = parts.length > 2 ? parts[1] : "entrypoints";
     const cur = byTop.get(top) ?? { bytes: 0, files: 0 };
-    cur.bytes += Deno.statSync(file).size;
+    cur.bytes += statSync(file).size;
     cur.files += 1;
     byTop.set(top, cur);
   }
@@ -411,14 +409,16 @@ function submoduleTree(): Placed[] {
       valueText: fmtBytes(item.bytes),
     };
   });
-  return [{
-    name: `Full engine — ${fmtBytes(full.bytes)}`,
-    rect: outer,
-    color: "#f1f3f5",
-    valueText: "",
-    panel: `@wazoo/sparql-engine (full) — ${fmtBytes(full.bytes)}`,
-    children,
-  }];
+  return [
+    {
+      name: `Full engine — ${fmtBytes(full.bytes)}`,
+      rect: outer,
+      color: "#f1f3f5",
+      valueText: "",
+      panel: `@wazoo/sparql-engine (full) — ${fmtBytes(full.bytes)}`,
+      children,
+    },
+  ];
 }
 
 /* ------------------------------------------------------------------ */
@@ -429,13 +429,13 @@ function submoduleTree(): Placed[] {
  * value-import closures from bench/closures-data.json (measure-closures.ts).
  * Returns true when the data file exists and the SVG was written. */
 function closuresChart(): boolean {
-  const dataPath = join(Deno.cwd(), "bench", "closures-data.json");
+  const dataPath = join(process.cwd(), "bench", "closures-data.json");
   try {
-    Deno.statSync(dataPath);
+    statSync(dataPath);
   } catch {
     return false;
   }
-  const data = JSON.parse(Deno.readTextFileSync(dataPath)) as {
+  const data = JSON.parse(readFileSync(dataPath, "utf8")) as {
     entries: { name: string; bytes: number; files: string[] }[];
   };
   const SUBPATH_LABEL: Record<string, string> = {
@@ -479,14 +479,14 @@ function closuresChart(): boolean {
     parts.push(
       `<text x="${padL + barW}" y="${(y + barH / 2 + 3).toFixed(1)}" ` +
         `text-anchor="end" font-family="sans-serif" font-size="10" fill="#212529">` +
-        `${esc(entry.label)} — ${
-          fmtBytes(entry.bytes)
-        } (${entry.files.length} files)</text>`,
+        `${esc(entry.label)} — ${fmtBytes(
+          entry.bytes,
+        )} (${entry.files.length} files)</text>`,
     );
   });
   parts.push("</svg>");
-  Deno.writeTextFileSync(
-    join(Deno.cwd(), "docs", "assets", "chart-closures.svg"),
+  writeFileSync(
+    join(process.cwd(), "docs", "assets", "chart-closures.svg"),
     parts.join("\n"),
   );
   console.log("wrote docs/assets/chart-closures.svg");
@@ -499,13 +499,13 @@ sizeChart();
 
 const memSvg = treemapSvg(
   "Peak heap during execution (10k-person graph)",
-  "Isolated Deno subprocess per engine; peak Deno.memoryUsage().heapUsed over 5 runs; ~62 MiB runtime baseline excluded from comparison by symmetry",
+  "Isolated Deno subprocess per engine; peak process.memoryUsage().heapUsed over 5 runs; ~62 MiB runtime baseline excluded from comparison by symmetry",
   memoryTree(),
   720,
   300,
 );
-Deno.writeTextFileSync(
-  join(Deno.cwd(), "docs", "assets", "treemap-memory.svg"),
+writeFileSync(
+  join(process.cwd(), "docs", "assets", "treemap-memory.svg"),
   memSvg,
 );
 
@@ -518,8 +518,8 @@ const submoduleSvg = treemapSvg(
   720,
   300,
 );
-Deno.writeTextFileSync(
-  join(Deno.cwd(), "docs", "assets", "treemap-submodules.svg"),
+writeFileSync(
+  join(process.cwd(), "docs", "assets", "treemap-submodules.svg"),
   submoduleSvg,
 );
 

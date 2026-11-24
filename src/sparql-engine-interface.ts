@@ -81,21 +81,21 @@ export type SparqlValue =
   | { type: "uri"; value: string }
   | { type: "bnode"; value: string }
   | {
-    type: "literal";
-    value: string;
-    "xml:lang"?: string;
-    /** Base direction ("ltr"/"rtl") of an RDF 1.2 directional language-tagged literal, per the SPARQL 1.2 results JSON/XML formats. */
-    "its:dir"?: "ltr" | "rtl";
-    datatype?: string;
-  }
+      type: "literal";
+      value: string;
+      "xml:lang"?: string;
+      /** Base direction ("ltr"/"rtl") of an RDF 1.2 directional language-tagged literal, per the SPARQL 1.2 results JSON/XML formats. */
+      "its:dir"?: "ltr" | "rtl";
+      datatype?: string;
+    }
   | {
-    type: "triple";
-    value: {
-      subject: SparqlValue;
-      predicate: SparqlValue;
-      object: SparqlValue;
+      type: "triple";
+      value: {
+        subject: SparqlValue;
+        predicate: SparqlValue;
+        object: SparqlValue;
+      };
     };
-  };
 
 /**
  * SparqlBinding is a map associating specific variable identifiers to resolved values.

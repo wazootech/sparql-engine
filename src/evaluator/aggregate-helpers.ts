@@ -52,9 +52,7 @@ export const WILDCARD_MARKER: RdfTerm = DataFactory.namedNode(
  * isAggregateWildcard detects the COUNT(*) form, which sparqljs represents
  * as an empty object (a Wildcard) rather than an expression.
  */
-export function isAggregateWildcard(
-  aggregate: AggregateExpression,
-): boolean {
+export function isAggregateWildcard(aggregate: AggregateExpression): boolean {
   return aggregate.wildcard === true;
 }
 

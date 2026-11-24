@@ -7,13 +7,15 @@ import {
   RDF_REIFIES,
   s,
 } from "@/parser/turtle-parser-test-helpers.ts";
-import { assertEquals, assertNotEquals, assertThrows } from "@std/assert";
+import assert from "node:assert/strict";
+import { test } from "node:test";
+import { thrown } from "../../test/thrown.ts";
 import { parseTurtleQuads } from "@/parser/turtle-parser.ts";
 
 const { namedNode, literal, quad, blankNode, defaultGraph } = DataFactory;
 
 function assertSameQuad(actual: rdfjs.Quad, expected: rdfjs.Quad): void {
-  assertEquals(actual.equals(expected), true);
+  assert.deepStrictEqual(actual.equals(expected), true);
 }
 /**
  * Regression guard for the tokenizer: a stray empty alternative in the token
@@ -21,7 +23,7 @@ function assertSameQuad(actual: rdfjs.Quad, expected: rdfjs.Quad): void {
  * parseTurtleQuads spun forever on any line after its last real token
  * (e.g. ":s :p :o ." never returned). These inputs used to hang.
  */
-Deno.test("turtle-parser: parses multi-statement Turtle without hanging", () => {
+test("turtle-parser: parses multi-statement Turtle without hanging", () => {
   const quads = parseTurtleQuads(`
     @prefix : <http://example.org/> .
     @base <http://example.org/base/> .
@@ -30,7 +32,7 @@ Deno.test("turtle-parser: parses multi-statement Turtle without hanging", () => 
        <http://example.org/r> _:b1 .
     _:b1 :name "Bob" .
   `);
-  assertEquals(quads.length, 5);
+  assert.deepStrictEqual(quads.length, 5);
   assertSameQuad(quads[0], quad(s, p, o, defaultGraph()));
   assertSameQuad(
     quads[1],
@@ -52,18 +54,25 @@ Deno.test("turtle-parser: parses multi-statement Turtle without hanging", () => 
   );
 });
 
-Deno.test("turtle-parser: resolves relative IRIs against the base IRI", () => {
+test("turtle-parser: resolves relative IRIs against the base IRI", () => {
   const quads = parseTurtleQuads("<s> <p> <o> .", "http://example.org/doc/");
-  assertEquals(quads[0].subject, namedNode("http://example.org/doc/s"));
-  assertEquals(quads[0].predicate, namedNode("http://example.org/doc/p"));
-  assertEquals(quads[0].object, namedNode("http://example.org/doc/o"));
+  assert.deepStrictEqual(
+    quads[0].subject,
+    namedNode("http://example.org/doc/s"),
+  );
+  assert.deepStrictEqual(
+    quads[0].predicate,
+    namedNode("http://example.org/doc/p"),
+  );
+  assert.deepStrictEqual(
+    quads[0].object,
+    namedNode("http://example.org/doc/o"),
+  );
 });
 
-Deno.test("turtle-parser: N-Triples input", () => {
-  const quads = parseTurtleQuads(
-    "<http://a> <http://b> <http://c> .",
-  );
-  assertEquals(quads.length, 1);
+test("turtle-parser: N-Triples input", () => {
+  const quads = parseTurtleQuads("<http://a> <http://b> <http://c> .");
+  assert.deepStrictEqual(quads.length, 1);
   assertSameQuad(
     quads[0],
     quad(
@@ -75,114 +84,125 @@ Deno.test("turtle-parser: N-Triples input", () => {
   );
 });
 
-Deno.test("turtle-parser: keyword a and typed literals", () => {
+test("turtle-parser: keyword a and typed literals", () => {
   const quads = parseTurtleQuads(
     "@prefix : <http://example.org/> . :s a :Type ; :flag true .",
   );
-  assertEquals(
+  assert.deepStrictEqual(
     quads[0].predicate,
     namedNode("http://www.w3.org/1999/02/22-rdf-syntax-ns#type"),
   );
-  assertEquals(
+  assert.deepStrictEqual(
     quads[1].object,
     literal("true", namedNode("http://www.w3.org/2001/XMLSchema#boolean")),
   );
 });
 
-Deno.test("turtle-parser: line comments are ignored", () => {
+test("turtle-parser: line comments are ignored", () => {
   const quads = parseTurtleQuads(
     "# leading comment\n<s> <p> <o> . # trailing comment",
   );
-  assertEquals(quads.length, 1);
+  assert.deepStrictEqual(quads.length, 1);
 });
 
-Deno.test("turtle-parser: empty anonymous blank nodes", () => {
+test("turtle-parser: empty anonymous blank nodes", () => {
   const quads = parseTurtleQuads("<s> <p> [] .");
-  assertEquals(quads.length, 1);
-  assertEquals(quads[0].object.termType, "BlankNode");
+  assert.deepStrictEqual(quads.length, 1);
+  assert.deepStrictEqual(quads[0].object.termType, "BlankNode");
 });
 
-Deno.test("turtle-parser: RDF 1.2 triple terms in object position", () => {
+test("turtle-parser: RDF 1.2 triple terms in object position", () => {
   const quads = parseTurtleQuads(
     "@prefix : <http://ex/> . :s :p <<( :a :b :c )>> .",
   );
-  assertEquals(quads.length, 1);
-  assertEquals(quads[0].object.termType, "Quad");
+  assert.deepStrictEqual(quads.length, 1);
+  assert.deepStrictEqual(quads[0].object.termType, "Quad");
   const tt = quads[0].object as rdfjs.Quad;
-  assertEquals(tt.subject.value, "http://ex/a");
-  assertEquals(tt.predicate.value, "http://ex/b");
-  assertEquals(tt.object.value, "http://ex/c");
+  assert.deepStrictEqual(tt.subject.value, "http://ex/a");
+  assert.deepStrictEqual(tt.predicate.value, "http://ex/b");
+  assert.deepStrictEqual(tt.object.value, "http://ex/c");
 });
 
-Deno.test("turtle-parser: reified triple emits rdf:reifies with its reifier", () => {
+test("turtle-parser: reified triple emits rdf:reifies with its reifier", () => {
   const quads = parseTurtleQuads(
     "@prefix : <http://ex/> . << :a :b :c ~ :r >> :q :v .",
   );
   // r rdf:reifies <<( a b c )>>  and  r :q :v
-  assertEquals(quads.length, 2);
-  const reifies = quads.find((q) =>
-    q.predicate.value === "http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies"
+  assert.deepStrictEqual(quads.length, 2);
+  const reifies = quads.find(
+    (q) =>
+      q.predicate.value ===
+      "http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies",
   );
-  assertEquals(reifies!.subject.value, "http://ex/r");
-  assertEquals(reifies!.object.termType, "Quad");
+  assert.deepStrictEqual(reifies!.subject.value, "http://ex/r");
+  assert.deepStrictEqual(reifies!.object.termType, "Quad");
   const qv = quads.find((q) => q.predicate.value === "http://ex/q");
-  assertEquals(qv!.subject.value, "http://ex/r");
-  assertEquals(qv!.object.value, "http://ex/v");
+  assert.deepStrictEqual(qv!.subject.value, "http://ex/r");
+  assert.deepStrictEqual(qv!.object.value, "http://ex/v");
 });
 
-Deno.test("turtle-parser: annotation block reifies and annotates", () => {
+test("turtle-parser: annotation block reifies and annotates", () => {
   const quads = parseTurtleQuads(
     "@prefix : <http://ex/> . :s :p :o {| :q :v |} .",
   );
-  assertEquals(quads.length, 3);
-  assertEquals(quads[0].subject.value, "http://ex/s");
+  assert.deepStrictEqual(quads.length, 3);
+  assert.deepStrictEqual(quads[0].subject.value, "http://ex/s");
   const reifies = quads[1];
-  assertEquals(
+  assert.deepStrictEqual(
     reifies.predicate.value,
     "http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies",
   );
-  assertEquals(reifies.subject.termType, "BlankNode");
-  assertEquals(reifies.object.termType, "Quad");
-  assertEquals(quads[2].subject.value, reifies.subject.value);
-  assertEquals(quads[2].predicate.value, "http://ex/q");
+  assert.deepStrictEqual(reifies.subject.termType, "BlankNode");
+  assert.deepStrictEqual(reifies.object.termType, "Quad");
+  assert.deepStrictEqual(quads[2].subject.value, reifies.subject.value);
+  assert.deepStrictEqual(quads[2].predicate.value, "http://ex/q");
 });
 
-Deno.test("turtle-parser: TriG graph blocks keep their graph labels", () => {
+test("turtle-parser: TriG graph blocks keep their graph labels", () => {
   const quads = parseTurtleQuads(
     "@prefix : <http://ex/> . :g1 { :s :p :o . } GRAPH :g2 { :s2 :p :o2 . }",
   );
-  assertEquals(quads.length, 2);
-  assertEquals(quads[0].graph.value, "http://ex/g1");
-  assertEquals(quads[1].graph.value, "http://ex/g2");
+  assert.deepStrictEqual(quads.length, 2);
+  assert.deepStrictEqual(quads[0].graph.value, "http://ex/g1");
+  assert.deepStrictEqual(quads[1].graph.value, "http://ex/g2");
 });
 
-Deno.test("turtle-parser: graph block statement separators", () => {
+test("turtle-parser: graph block statement separators", () => {
   const prefix = "@prefix : <http://ex/> . ";
-  assertEquals(parseTurtleQuads(prefix + ":g { }").length, 0);
-  assertEquals(parseTurtleQuads(prefix + ":g { :s :p :o }").length, 1);
-  assertEquals(parseTurtleQuads(prefix + ":g { :s :p :o . }").length, 1);
+  assert.deepStrictEqual(parseTurtleQuads(prefix + ":g { }").length, 0);
+  assert.deepStrictEqual(
+    parseTurtleQuads(prefix + ":g { :s :p :o }").length,
+    1,
+  );
+  assert.deepStrictEqual(
+    parseTurtleQuads(prefix + ":g { :s :p :o . }").length,
+    1,
+  );
   const quads = parseTurtleQuads(prefix + ":g { :a :p :o . :b :p :o }");
-  assertEquals(quads.map((quad) => quad.subject.value), [
-    "http://ex/a",
-    "http://ex/b",
-  ]);
-  assertEquals(quads[1].graph.value, "http://ex/g");
-  assertThrows(() => parseTurtleQuads(prefix + ":g { :s :p :o . . }"));
-  assertThrows(() => parseTurtleQuads(prefix + ":g { . }"));
+  assert.deepStrictEqual(
+    quads.map((quad) => quad.subject.value),
+    ["http://ex/a", "http://ex/b"],
+  );
+  assert.deepStrictEqual(quads[1].graph.value, "http://ex/g");
+  thrown(() => parseTurtleQuads(prefix + ":g { :s :p :o . . }"));
+  thrown(() => parseTurtleQuads(prefix + ":g { . }"));
 });
 
 // Regression for #175: a large named-graph block parsed in quadratic time
 // (8,000 quads took ~19 s, versus ~0.1 s in the default graph). Compare the
 // two layouts of the same statements so the bound does not depend on the
 // machine's absolute speed.
-Deno.test("turtle-parser: named-graph blocks parse in linear time", () => {
+test("turtle-parser: named-graph blocks parse in linear time", () => {
   const statements = Array.from(
     { length: 10_000 },
     (_, index) => `<https://ex/p${index}> <https://ex/name> "P${index}" .`,
   );
   const timeParse = (document: string) => {
     const start = performance.now();
-    assertEquals(parseTurtleQuads(document).length, statements.length);
+    assert.deepStrictEqual(
+      parseTurtleQuads(document).length,
+      statements.length,
+    );
     return performance.now() - start;
   };
   const defaultGraphDocument = statements.join("\n");
@@ -198,44 +218,44 @@ Deno.test("turtle-parser: named-graph blocks parse in linear time", () => {
   }
 });
 
-Deno.test("turtle-parser: N-Quads graph labels on top-level statements", () => {
+test("turtle-parser: N-Quads graph labels on top-level statements", () => {
   const quads = parseTurtleQuads("<s> <p> <o> <g> .");
-  assertEquals(quads.length, 1);
-  assertEquals(quads[0].graph.value, "g");
+  assert.deepStrictEqual(quads.length, 1);
+  assert.deepStrictEqual(quads[0].graph.value, "g");
 });
 
-Deno.test("turtle-parser: malformed input fails loudly instead of hanging", () => {
+test("turtle-parser: malformed input fails loudly instead of hanging", () => {
   // A missing object can never parse; it must reject, never hang.
-  assertThrows(() => parseTurtleQuads(":s :p ."));
-  assertThrows(() => parseTurtleQuads("<<( :a :b"));
+  thrown(() => parseTurtleQuads(":s :p ."));
+  thrown(() => parseTurtleQuads("<<( :a :b"));
 });
 
-Deno.test("turtle-parser: triple term in object position keeps the outer predicate", () => {
+test("turtle-parser: triple term in object position keeps the outer predicate", () => {
   // Regression: the triple term's inner `verb` used to clobber the enclosing
   // statement's predicate, so `rdf:reifies <<( a b c )>>` emitted `b` as the
   // predicate instead of rdf:reifies.
   const quads = parseTurtleQuads(
     "@prefix : <http://ex/> . :s <" + RDF_REIFIES + "> <<( :a :b :c )>> .",
   );
-  assertEquals(quads.length, 1);
-  assertEquals(quads[0].predicate, namedNode(RDF_REIFIES));
-  assertEquals(quads[0].object.termType, "Quad");
+  assert.deepStrictEqual(quads.length, 1);
+  assert.deepStrictEqual(quads[0].predicate, namedNode(RDF_REIFIES));
+  assert.deepStrictEqual(quads[0].object.termType, "Quad");
 });
 
-Deno.test("turtle-parser: sibling annotation blocks each reify the base triple", () => {
+test("turtle-parser: sibling annotation blocks each reify the base triple", () => {
   // Regression: the first block's inner object clobbered the shared tripleTerm,
   // so the second block reified `<<( reifier r1 z1 )>>` instead of `<<( s p o )>>`.
   const quads = parseTurtleQuads(
     "@prefix : <http://ex/> . :s :p :o {| :r1 :z1 |} {| :r2 :z2 |} .",
   );
-  assertEquals(quads.length, 5);
+  assert.deepStrictEqual(quads.length, 5);
   const reifies = quads.filter((q) => q.predicate.value === RDF_REIFIES);
-  assertEquals(reifies.length, 2);
+  assert.deepStrictEqual(reifies.length, 2);
   for (const q of reifies) {
     const tt = q.object as rdfjs.Quad;
-    assertEquals(tt.subject.value, "http://ex/s");
-    assertEquals(tt.predicate.value, "http://ex/p");
-    assertEquals(tt.object.value, "http://ex/o");
+    assert.deepStrictEqual(tt.subject.value, "http://ex/s");
+    assert.deepStrictEqual(tt.predicate.value, "http://ex/p");
+    assert.deepStrictEqual(tt.object.value, "http://ex/o");
   }
-  assertNotEquals(reifies[0].subject.value, reifies[1].subject.value);
+  assert.notDeepStrictEqual(reifies[0].subject.value, reifies[1].subject.value);
 });

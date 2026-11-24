@@ -13,9 +13,11 @@
 // straightforward import forms (barrels included).
 //
 // Run: deno run --allow-read --allow-write bench/measure-closures.ts
-import { dirname, join, resolve } from "@std/path";
 
-const CWD = Deno.cwd();
+import process from "node:process";
+import { readFileSync, statSync, writeFileSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
+const CWD = process.cwd();
 
 // The ./sqlite entry moved out with the store (2026-08-17) — the durable
 // `node:sqlite` store now lives in @worlds/sqlite, so the engine's own
@@ -38,10 +40,7 @@ const VALUE_EXPORT_RE = /\bexport\s+(?!type\b)[^;]*?\bfrom\s*["']([^"']+)["']/g;
 const SIDE_EFFECT_RE = /\bimport\s*["']([^"']+)["']/g;
 const DYNAMIC_IMPORT_RE = /import\(\s*["']([^"']+)["']\s*\)/g;
 
-function resolveSpecifier(
-  specifier: string,
-  importer: string,
-): string | null {
+function resolveSpecifier(specifier: string, importer: string): string | null {
   if (specifier.startsWith("@/")) {
     return join(CWD, "src", specifier.slice(2));
   }
@@ -53,21 +52,21 @@ function resolveSpecifier(
 
 function completePath(path: string): string | null {
   try {
-    Deno.statSync(path);
+    statSync(path);
     return path;
   } catch {
     // fall through to extension completion
   }
   if (!path.endsWith(".ts")) {
     try {
-      Deno.statSync(path + ".ts");
+      statSync(path + ".ts");
       return path + ".ts";
     } catch {
       // fall through to /mod.ts completion
     }
   }
   try {
-    Deno.statSync(join(path, "mod.ts"));
+    statSync(join(path, "mod.ts"));
     return join(path, "mod.ts");
   } catch {
     return null;
@@ -83,15 +82,13 @@ function closureOf(entry: string): { files: string[]; bytes: number } {
       continue;
     }
     visited.add(file);
-    const text = Deno.readTextFileSync(file);
-    for (
-      const re of [
-        VALUE_IMPORT_RE,
-        VALUE_EXPORT_RE,
-        SIDE_EFFECT_RE,
-        DYNAMIC_IMPORT_RE,
-      ]
-    ) {
+    const text = readFileSync(file, "utf8");
+    for (const re of [
+      VALUE_IMPORT_RE,
+      VALUE_EXPORT_RE,
+      SIDE_EFFECT_RE,
+      DYNAMIC_IMPORT_RE,
+    ]) {
       re.lastIndex = 0;
       let match: RegExpExecArray | null;
       while ((match = re.exec(text)) !== null) {
@@ -107,12 +104,10 @@ function closureOf(entry: string): { files: string[]; bytes: number } {
     }
   }
   const bytes = [...visited].reduce(
-    (sum, file) => sum + Deno.statSync(file).size,
+    (sum, file) => sum + statSync(file).size,
     0,
   );
-  const files = [...visited]
-    .map((file) => file.slice(CWD.length + 1))
-    .sort();
+  const files = [...visited].map((file) => file.slice(CWD.length + 1)).sort();
   return { files, bytes };
 }
 
@@ -124,8 +119,8 @@ const entries = ENTRIES.map((entry) => ({
 const result = { generatedAt: new Date().toISOString(), entries };
 // Write the machine-readable snapshot for bench/treemap.ts (the closures
 // bar chart), then print the human summary.
-Deno.writeTextFileSync(
-  join(Deno.cwd(), "bench", "closures-data.json"),
+writeFileSync(
+  join(process.cwd(), "bench", "closures-data.json"),
   JSON.stringify(result, null, 2) + "\n",
 );
 

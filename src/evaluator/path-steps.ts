@@ -49,9 +49,12 @@ export async function pathSteps(
         for (const item of path.items) {
           const next: RdfTerm[] = [];
           for (const node of current) {
-            for (
-              const target of await pathSteps(store, item, "forward", node)
-            ) {
+            for (const target of await pathSteps(
+              store,
+              item,
+              "forward",
+              node,
+            )) {
               next.push(target);
             }
           }
@@ -67,9 +70,12 @@ export async function pathSteps(
           const item = path.items[i];
           const next: RdfTerm[] = [];
           for (const node of current) {
-            for (
-              const source of await pathSteps(store, item, "backward", node)
-            ) {
+            for (const source of await pathSteps(
+              store,
+              item,
+              "backward",
+              node,
+            )) {
               next.push(source);
             }
           }
@@ -96,14 +102,12 @@ export async function pathSteps(
     case "?": {
       // Zero-or-one: the anchor itself plus the inner path's targets.
       const results: RdfTerm[] = [term];
-      for (
-        const target of await pathSteps(
-          store,
-          path.items[0],
-          direction,
-          term,
-        )
-      ) {
+      for (const target of await pathSteps(
+        store,
+        path.items[0],
+        direction,
+        term,
+      )) {
         if (!sameRdfTerm(target, term)) {
           results.push(target);
         }
@@ -117,14 +121,12 @@ export async function pathSteps(
       const queue: RdfTerm[] = [term];
       while (queue.length > 0) {
         const current = queue.shift()!;
-        for (
-          const target of await pathSteps(
-            store,
-            path.items[0],
-            direction,
-            current,
-          )
-        ) {
+        for (const target of await pathSteps(
+          store,
+          path.items[0],
+          direction,
+          current,
+        )) {
           const key = termKey(target);
           if (!visited.has(key)) {
             visited.add(key);
@@ -147,14 +149,12 @@ export async function pathSteps(
       let startEmitted = false;
       while (queue.length > 0) {
         const current = queue.shift()!;
-        for (
-          const target of await pathSteps(
-            store,
-            path.items[0],
-            direction,
-            current,
-          )
-        ) {
+        for (const target of await pathSteps(
+          store,
+          path.items[0],
+          direction,
+          current,
+        )) {
           const key = termKey(target);
           if (key === startKey) {
             if (!startEmitted) {

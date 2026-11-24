@@ -70,6 +70,5 @@ export function sha1Hex(input: string): string {
   }
 
   const wordHex = (word: number): string => word.toString(16).padStart(8, "0");
-  return wordHex(h0) + wordHex(h1) + wordHex(h2) + wordHex(h3) +
-    wordHex(h4);
+  return wordHex(h0) + wordHex(h1) + wordHex(h2) + wordHex(h3) + wordHex(h4);
 }

@@ -1,8 +1,7 @@
 // Bench snapshot staleness check for CI.
 //
-// Compares the committed bench/latency-data.json (a `deno bench --json`
-// snapshot from bench/engine_bench.ts) against a fresh `deno bench --json`
-// run piped to stdin. Only the deterministic parts of the inventory are
+// Compares the committed bench/latency-data.json (a `--json` snapshot from
+// bench/engine_bench.ts) against a fresh `--json` run piped to stdin. Only the deterministic parts of the inventory are
 // compared — the (group, name, baseline) set — because timing values are
 // machine-specific and legitimately differ between runs. Exits 1 when the
 // snapshot is stale: benches were added, renamed, or removed without
@@ -10,8 +9,10 @@
 //
 // Run: deno bench --allow-all --json bench/engine_bench.ts \
 //        | deno run --allow-read bench/latency-check.ts
-import { join } from "@std/path";
 
+import process from "node:process";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 interface BenchEntry {
   group: string;
   name: string;
@@ -24,6 +25,15 @@ interface LatencyData {
   benches: BenchEntry[];
 }
 
+/** readStdin reads all of stdin as UTF-8 text. */
+async function readStdin(): Promise<string> {
+  const chunks: Buffer[] = [];
+  for await (const chunk of process.stdin) {
+    chunks.push(chunk as Buffer);
+  }
+  return Buffer.concat(chunks).toString("utf8");
+}
+
 function inventory(data: LatencyData): Map<string, boolean> {
   const map = new Map<string, boolean>();
   for (const b of data.benches) {
@@ -33,11 +43,9 @@ function inventory(data: LatencyData): Map<string, boolean> {
 }
 
 const committed = JSON.parse(
-  Deno.readTextFileSync(join(Deno.cwd(), "bench", "latency-data.json")),
+  readFileSync(join(process.cwd(), "bench", "latency-data.json"), "utf8"),
 ) as LatencyData;
-const fresh = JSON.parse(
-  await new Response(Deno.stdin.readable).text(),
-) as LatencyData;
+const fresh = JSON.parse(await readStdin()) as LatencyData;
 
 const committedInv = inventory(committed);
 const freshInv = inventory(fresh);
@@ -70,7 +78,7 @@ if (
   baselineMismatch.length === 0
 ) {
   console.log("snapshot is current — bench inventory matches a fresh run.");
-  Deno.exit(0);
+  process.exit(0);
 }
 
 if (missingFromSnapshot.length > 0) {
@@ -103,4 +111,4 @@ if (baselineMismatch.length > 0) {
 console.log(
   "\nFix: run `deno task bench:latency` (full timing run) and commit the refreshed bench/latency-data.json.",
 );
-Deno.exit(1);
+process.exit(1);

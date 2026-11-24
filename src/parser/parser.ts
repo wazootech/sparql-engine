@@ -7,9 +7,9 @@ import type {
   ArgListValue,
   DatasetEntry,
   EntityNode,
+  Grouping,
   GraphOrDefaultValue,
   GraphReference,
-  Grouping,
   InlineDataValue,
   InsertDeleteParts,
   NamedNodeTerm,
@@ -81,6 +81,7 @@ import {
   expressionList,
   filterPattern,
   finishParse,
+  optionalTriples,
   flattenTripleLists,
   functionCall,
   graphOrDefaultDefault,
@@ -114,13 +115,12 @@ import {
   operation,
   operatorTail,
   optionalPattern,
-  optionalTriples,
   orderingFrom,
   pathNodeSubjectTriples,
   pathOf,
   pathPropertyListTriples,
-  pathVerbObjects,
   pathVerbObjectTriples,
+  pathVerbObjects,
   patternWithTriples,
   plainNode,
   prefixedNameLocal,
@@ -150,9 +150,9 @@ import {
   solutionModifierNoGroup,
   sparqlStarTerm,
   starOperation,
-  subjectTriples,
   subSelect,
   subSelectGroup,
+  subjectTriples,
   tripleTerm,
   typedLiteral,
   typedLiteralOf,
@@ -17719,11 +17719,7 @@ class SparqlLrParser extends LrParser<SparqlValue> {
       case 1: {
         return finishParse(
           values[top - 1] as
-            | Query
-            | undefined
-            | UpdateQuery
-            | NamedNodeTerm
-            | PropertyPath,
+            Query | undefined | UpdateQuery | NamedNodeTerm | PropertyPath,
         );
       }
       case 2: {
@@ -18071,7 +18067,7 @@ class SparqlLrParser extends LrParser<SparqlValue> {
         return nestedInlineData(values[top - 0] as ValuePatternRow[]);
       }
       case 44: {
-        return (values[top - 1] as Array<Term | undefined>);
+        return values[top - 1] as Array<Term | undefined>;
       }
       case 45: {
         return updateRequest(
@@ -18126,7 +18122,7 @@ class SparqlLrParser extends LrParser<SparqlValue> {
       }
       case 54:
       case 242: {
-        return (values[top - 0] as Term);
+        return values[top - 0] as Term;
       }
       case 55: {
         return deleteInsertParts(
@@ -18138,7 +18134,7 @@ class SparqlLrParser extends LrParser<SparqlValue> {
         return insertOnlyParts(values[top - 0] as QuadBlock[]);
       }
       case 57: {
-        return (values[top - 0] as QuadBlock[]);
+        return values[top - 0] as QuadBlock[];
       }
       case 59: {
         return withClause(values[top - 0] as NamedNodeTerm);
@@ -18152,7 +18148,7 @@ class SparqlLrParser extends LrParser<SparqlValue> {
       case 62:
       case 241:
       case 261: {
-        return (values[top - 0] as NamedNodeTerm);
+        return values[top - 0] as NamedNodeTerm;
       }
       case 63: {
         return graphReferenceNamed(values[top - 0] as Term);
@@ -18161,7 +18157,7 @@ class SparqlLrParser extends LrParser<SparqlValue> {
         return graphReferenceKeyword(values[top - 0] as string);
       }
       case 65: {
-        return (values[top - 1] as QuadBlock[]);
+        return values[top - 1] as QuadBlock[];
       }
       case 66: {
         return quadsOf(
@@ -18320,7 +18316,7 @@ class SparqlLrParser extends LrParser<SparqlValue> {
         );
       }
       case 101: {
-        return (values[top - 1] as undefined | Triple[]);
+        return values[top - 1] as undefined | Triple[];
       }
       case 102: {
         return flattenTripleLists(
@@ -18339,7 +18335,7 @@ class SparqlLrParser extends LrParser<SparqlValue> {
         return nodeSubjectTriples(
           values[top - 1] as EntityNode,
           values[top - 0] as ParsedTriple[] | undefined,
-        ) /* the subject is a blank node, possibly with more triples */;
+        ); /* the subject is a blank node, possibly with more triples */
       }
       case 105: {
         return quotedSubjectTriples(
@@ -18435,13 +18431,11 @@ class SparqlLrParser extends LrParser<SparqlValue> {
         return negatedPath(
           values[top - 1] as string,
           values[top - 0] as
-            | NamedNodeTerm
-            | PropertyPath
-            | Array<NamedNodeTerm | PropertyPath>,
+            NamedNodeTerm | PropertyPath | Array<NamedNodeTerm | PropertyPath>,
         );
       }
       case 129: {
-        return (values[top - 1] as NamedNodeTerm | PropertyPath);
+        return values[top - 1] as NamedNodeTerm | PropertyPath;
       }
       case 131:
       case 436:
@@ -18536,10 +18530,10 @@ class SparqlLrParser extends LrParser<SparqlValue> {
         return unaryOperation("UMINUS", values[top - 0] as Expression);
       }
       case 172: {
-        return (values[top - 0] as Expression);
+        return values[top - 0] as Expression;
       }
       case 181: {
-        return (values[top - 1] as Expression);
+        return values[top - 1] as Expression;
       }
       case 183: {
         return operation(lowercase(values[top - 1] as string), []);
@@ -18624,7 +18618,7 @@ class SparqlLrParser extends LrParser<SparqlValue> {
         );
       }
       case 200: {
-        return (values[top - 0] as string);
+        return values[top - 0] as string;
       }
       case 201: {
         return typedLiteral(values[top - 0] as string);

@@ -118,14 +118,14 @@ for removed files, and confirm every path the wiki references resolves.
   grep -rnE "\b(ms/iter|MiB)\b" docs --include="*.md" || true
   ```
 
-- Validate: `deno fmt --check docs/`, nav/front-matter/link checks (all
+- Validate: `bun fmt --check docs/`, nav/front-matter/link checks (all
   `_data/navigation.yml` targets resolve, every page has front matter),
   `deno task docs:link-check` (external link rot — 404/410 fails), and a
   `pandoc -f gfm -t html` render of each touched page.
 - Bump `docs/.sync-base` to the new `origin/main` HEAD.
 - Land from a fresh worktree off `origin/main`
   (`git worktree add
-  "$PWD/worktrees/sparql-engine/docs-sync" -b docs/sync origin/main`),
+"$PWD/worktrees/sparql-engine/docs-sync" -b docs/sync origin/main`),
   commit only `docs/`, open a PR, merge, and confirm the Pages build reports
   `built` with no error before declaring done.
 

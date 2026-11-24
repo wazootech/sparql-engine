@@ -9,8 +9,16 @@ export function escapeIri(value: string): string {
   for (const ch of value) {
     const code = ch.codePointAt(0)!;
     if (
-      ch === "\\" || ch === ">" || ch === "<" || ch === '"' || ch === "{" ||
-      ch === "}" || ch === "|" || ch === "^" || ch === "`" || code <= 0x20
+      ch === "\\" ||
+      ch === ">" ||
+      ch === "<" ||
+      ch === '"' ||
+      ch === "{" ||
+      ch === "}" ||
+      ch === "|" ||
+      ch === "^" ||
+      ch === "`" ||
+      code <= 0x20
     ) {
       out += `\\u${code.toString(16).padStart(4, "0")}`;
     } else {

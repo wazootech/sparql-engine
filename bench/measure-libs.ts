@@ -12,8 +12,12 @@
 // Prints one JSON document to stdout; bench/treemap.ts consumes it.
 //
 // Run: deno run --allow-read bench/measure-libs.ts > bench/size-data.json
-import { join } from "@std/path";
+// (or `bun bench/measure-libs.ts > bench/size-data.json`)
 
+import process from "node:process";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 interface Sized {
   name: string;
   bytes: number;
@@ -22,27 +26,57 @@ interface Sized {
 
 function dirBytes(dir: string): number {
   let total = 0;
-  for (const entry of Deno.readDirSync(dir)) {
-    if (entry.isDirectory) {
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    if (entry.isDirectory()) {
       total += dirBytes(join(dir, entry.name));
     } else {
-      total += Deno.statSync(join(dir, entry.name)).size;
+      total += statSync(join(dir, entry.name)).size;
     }
   }
   return total;
 }
 
 /* ------------------------------------------------------------------ */
-/* npm resolution through node_modules/.deno                          */
+/* npm resolution through node_modules (.deno under Deno, flat on Bun) */
 /* ------------------------------------------------------------------ */
 
-const DENO_DIR = join(Deno.cwd(), "node_modules", ".deno");
+const NODE_MODULES = join(process.cwd(), "node_modules");
+const DENO_DIR = join(NODE_MODULES, ".deno");
 
-/** name -> highest installed version dir, from a scan of .deno. */
+/** name -> highest installed version dir, from a scan of node_modules. */
 const installed = new Map<string, string>();
 
+/**
+ * scanHoisted indexes a flat node_modules (the Bun/npm layout): every
+ * top-level package, scoped ones one level down, is the installed copy.
+ */
+function scanHoisted(): void {
+  for (const entry of readdirSync(NODE_MODULES, { withFileTypes: true })) {
+    if (!entry.isDirectory() || entry.name.startsWith(".")) {
+      continue;
+    }
+    if (!entry.name.startsWith("@")) {
+      installed.set(entry.name, join(NODE_MODULES, entry.name));
+      continue;
+    }
+    for (const scoped of readdirSync(join(NODE_MODULES, entry.name), {
+      withFileTypes: true,
+    })) {
+      installed.set(
+        `${entry.name}/${scoped.name}`,
+        join(NODE_MODULES, entry.name, scoped.name),
+      );
+    }
+  }
+}
+
+/** scanInstalled indexes Deno's node_modules/.deno when present, else the hoisted layout. */
 function scanInstalled(): void {
-  for (const entry of Deno.readDirSync(DENO_DIR)) {
+  if (!existsSync(DENO_DIR)) {
+    scanHoisted();
+    return;
+  }
+  for (const entry of readdirSync(DENO_DIR, { withFileTypes: true })) {
     // Key shape: `name@version` with scoped names flattened as `@scope+name`.
     const at = entry.name.lastIndexOf("@");
     if (at <= 0) {
@@ -50,9 +84,8 @@ function scanInstalled(): void {
     }
     const key = entry.name.slice(0, at);
     const version = entry.name.slice(at + 1);
-    const name = key.includes("+") && key.startsWith("@")
-      ? key.replace("+", "/")
-      : key;
+    const name =
+      key.includes("+") && key.startsWith("@") ? key.replace("+", "/") : key;
     const dir = join(DENO_DIR, entry.name, "node_modules", name);
     if (!dir.startsWith(DENO_DIR)) {
       continue;
@@ -64,30 +97,16 @@ function scanInstalled(): void {
   }
 }
 
-function measure(name: string): number {
-  const dir = installed.get(name);
-  if (dir === undefined) {
-    return 0;
-  }
-  const pkg = JSON.parse(Deno.readTextFileSync(join(dir, "package.json"))) as {
-    dependencies?: Record<string, string>;
-    optionalDependencies?: Record<string, string>;
-  };
-  const deps = [
-    ...Object.keys(pkg.dependencies ?? {}),
-    ...Object.keys(pkg.optionalDependencies ?? {}),
-  ];
-  return dirBytes(dir) + deps.reduce((sum, dep) => sum + measure(dep), 0);
-}
-
 function comunicaArtifact(): Sized {
   const rootName = "@comunica/query-sparql-rdfjs-lite";
   const rootDir = installed.get(rootName);
   if (rootDir === undefined) {
-    throw new Error(`comunica not installed; run deno cache first`);
+    throw new Error(
+      `comunica not installed; run deno install (or bun install) first`,
+    );
   }
   const rootPkg = JSON.parse(
-    Deno.readTextFileSync(join(rootDir, "package.json")),
+    readFileSync(join(rootDir, "package.json"), "utf8"),
   ) as {
     dependencies?: Record<string, string>;
     optionalDependencies?: Record<string, string>;
@@ -110,18 +129,14 @@ function comunicaArtifact(): Sized {
       return;
     }
     self.set(name, dirBytes(dir));
-    const pkg = JSON.parse(
-      Deno.readTextFileSync(join(dir, "package.json")),
-    ) as {
+    const pkg = JSON.parse(readFileSync(join(dir, "package.json"), "utf8")) as {
       dependencies?: Record<string, string>;
       optionalDependencies?: Record<string, string>;
     };
-    for (
-      const dep of [
-        ...Object.keys(pkg.dependencies ?? {}),
-        ...Object.keys(pkg.optionalDependencies ?? {}),
-      ]
-    ) {
+    for (const dep of [
+      ...Object.keys(pkg.dependencies ?? {}),
+      ...Object.keys(pkg.optionalDependencies ?? {}),
+    ]) {
       collect(dep);
     }
   };
@@ -142,9 +157,7 @@ function comunicaArtifact(): Sized {
     if (dir === undefined) {
       continue;
     }
-    const pkg = JSON.parse(
-      Deno.readTextFileSync(join(dir, "package.json")),
-    ) as {
+    const pkg = JSON.parse(readFileSync(join(dir, "package.json"), "utf8")) as {
       dependencies?: Record<string, string>;
       optionalDependencies?: Record<string, string>;
     };
@@ -188,9 +201,7 @@ function comunicaArtifact(): Sized {
  * deno.json) — build-time grammar sources and unreachable Node-only code.
  * Paths are relative to src/ (the walk below starts at src/). */
 const ARTIFACT_EXCLUDED_SUFFIXES = [".test.ts", ".jison"];
-const ARTIFACT_EXCLUDED_FILES = [
-  "parser/generate-parser.ts",
-];
+const ARTIFACT_EXCLUDED_FILES = ["parser/generate-parser.ts"];
 
 function isExcluded(relPath: string): boolean {
   if (ARTIFACT_EXCLUDED_FILES.includes(relPath)) {
@@ -204,19 +215,19 @@ function isExcluded(relPath: string): boolean {
 function artifactFiles(): string[] {
   const files: string[] = [];
   const walk = (dir: string, rel: string): void => {
-    for (const entry of Deno.readDirSync(dir)) {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
       const path = join(dir, entry.name);
       const relPath = rel === "" ? entry.name : `${rel}/${entry.name}`;
-      if (entry.isDirectory) {
+      if (entry.isDirectory()) {
         walk(path, relPath);
       } else if (!isExcluded(relPath)) {
         files.push(path);
       }
     }
   };
-  walk(join(Deno.cwd(), "src"), "");
-  files.push(join(Deno.cwd(), "README.md"));
-  files.push(join(Deno.cwd(), "LICENSE"));
+  walk(join(process.cwd(), "src"), "");
+  files.push(join(process.cwd(), "README.md"));
+  files.push(join(process.cwd(), "LICENSE"));
   return files;
 }
 
@@ -237,7 +248,7 @@ async function gzipBytesOf(files: string[]): Promise<number> {
     }
   })();
   for (const file of files) {
-    await writer.write(await Deno.readFile(file));
+    await writer.write(await readFile(file));
   }
   await writer.close();
   await drain;
@@ -245,7 +256,7 @@ async function gzipBytesOf(files: string[]): Promise<number> {
 }
 
 function wazooArtifact(): Sized {
-  const root = join(Deno.cwd());
+  const root = join(process.cwd());
   const files = artifactFiles();
   // Per-file children with POSIX-style names, so the treemap breaks the
   // artifact into its largest files identically on every platform (the
@@ -253,7 +264,7 @@ function wazooArtifact(): Sized {
   const children = files
     .map((file) => ({
       name: file.slice(root.length + 1).replaceAll("\\", "/"),
-      bytes: Deno.statSync(file).size,
+      bytes: statSync(file).size,
     }))
     .sort((a, b) => b.bytes - a.bytes);
   return {
@@ -266,17 +277,19 @@ function wazooArtifact(): Sized {
 function oxigraphArtifact(): Sized {
   const dir = installed.get("oxigraph");
   if (dir === undefined) {
-    throw new Error(`oxigraph not installed; run deno cache first`);
+    throw new Error(
+      `oxigraph not installed; run deno install (or bun install) first`,
+    );
   }
   let wasm = 0;
   let glue = 0;
   const walk = (d: string): void => {
-    for (const entry of Deno.readDirSync(d)) {
+    for (const entry of readdirSync(d, { withFileTypes: true })) {
       const path = join(d, entry.name);
-      if (entry.isDirectory) {
+      if (entry.isDirectory()) {
         walk(path);
       } else {
-        const size = Deno.statSync(path).size;
+        const size = statSync(path).size;
         if (entry.name.endsWith(".wasm")) {
           wasm += size;
         } else {

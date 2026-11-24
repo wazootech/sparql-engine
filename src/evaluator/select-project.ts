@@ -59,9 +59,10 @@ export function projectSolutionToTermBinding(
     ...(context ?? {}),
     bnodeMap: new Map<string, RdfBlankNode>(),
   };
-  const resolver = solution.group === null
-    ? undefined
-    : aggregateResolver(solution, expressionEvaluator, solutionContext);
+  const resolver =
+    solution.group === null
+      ? undefined
+      : aggregateResolver(solution, expressionEvaluator, solutionContext);
   for (const varName of vars) {
     const bound = readBoundTerm(binding, varName);
     if (bound) {
@@ -70,18 +71,19 @@ export function projectSolutionToTermBinding(
     const projection = projections.get(varName);
     if (projection !== undefined && !(varName in result)) {
       const mergedBinding = { ...binding, ...result };
-      const value = resolver === undefined
-        ? expressionEvaluator.evaluate(
-          projection,
-          mergedBinding,
-          solutionContext,
-        )
-        : expressionEvaluator.evaluateWithAggregates(
-          projection,
-          mergedBinding,
-          resolver,
-          solutionContext,
-        );
+      const value =
+        resolver === undefined
+          ? expressionEvaluator.evaluate(
+              projection,
+              mergedBinding,
+              solutionContext,
+            )
+          : expressionEvaluator.evaluateWithAggregates(
+              projection,
+              mergedBinding,
+              resolver,
+              solutionContext,
+            );
       if (value !== undefined) {
         writeBoundTerm(result, varName, value);
       }

@@ -55,10 +55,7 @@ export function rdfTermToSparqlValue(term: RdfTerm): SparqlValue {
         if (term.direction) {
           result["its:dir"] = term.direction as "ltr" | "rtl";
         }
-      } else if (
-        term.datatype &&
-        term.datatype.value !== XSD_STRING
-      ) {
+      } else if (term.datatype && term.datatype.value !== XSD_STRING) {
         result.datatype = term.datatype.value;
       }
       return result;

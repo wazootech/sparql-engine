@@ -1,11 +1,12 @@
 // cli-targets-bench compares one CLI invocation across the builds a host can
-// produce: `deno run` on the runtime-agnostic entry, the `deno compile` binary,
-// and the scriptc native binary. Deno.bench supplies the warmup and the
-// statistics, and `deno-compile` is the baseline so scriptc reports a relative
-// multiplier instead of two numbers a reader has to divide.
+// produce: the running runtime on the runtime-agnostic entry, its compiled
+// binary (`deno compile`), and the scriptc native binary. The shared bench
+// helper (mitata) supplies the warmup and the statistics, and the compiled
+// binary is the baseline so scriptc reports a relative multiplier instead of
+// two numbers a reader has to divide.
 //
 //   deno task bench:cli:targets
-//   deno bench --allow-all bench/cli-targets-bench.ts --json
+//   deno run -A bench/cli-targets-bench.ts --json
 //
 // This measures time only. Output equality is asserted by
 // cli/run-cli.test.ts: a bench must not fold an assertion into the timed
@@ -13,8 +14,15 @@
 //
 // Numbers are machine-specific: report them in PRs/issues with the machine,
 // never commit them (README.md owns committed numbers).
-import { dirname, fromFileUrl, join, resolve } from "@std/path";
+import { bench, runBenches } from "./bench.ts";
 import { buildPeopleTurtle, WORKLOADS } from "./cli-workloads.ts";
+import { runProcess, runtimeName, scriptCommand } from "../test/run-process.ts";
+import process from "node:process";
+import { rmSync, statSync } from "node:fs";
+import { mkdtemp, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 /**
  * CliTarget is one way to invoke the CLI, expressed as an argv prefix. A built
@@ -31,8 +39,8 @@ interface CliTarget {
   baseline: boolean;
 }
 
-const REPOSITORY_ROOT = resolve(dirname(fromFileUrl(import.meta.url)), "..");
-const EXECUTABLE_SUFFIX = Deno.build.os === "windows" ? ".exe" : "";
+const REPOSITORY_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const EXECUTABLE_SUFFIX = process.platform === "win32" ? ".exe" : "";
 const PEOPLE = 200;
 
 /** builtBinary resolves one build artifact produced by a `dist/` target. */
@@ -43,20 +51,20 @@ function builtBinary(name: string): string {
 /** binaryExists reports whether a built host is on disk. */
 function binaryExists(path: string): boolean {
   try {
-    Deno.statSync(path);
+    statSync(path);
     return true;
   } catch {
     return false;
   }
 }
 
-const dataDirectory = await Deno.makeTempDir({ prefix: "sparql-cli-targets-" });
+const dataDirectory = await mkdtemp(join(tmpdir(), "sparql-cli-targets-"));
 const dataPath = join(dataDirectory, "people.ttl");
-await Deno.writeTextFile(dataPath, buildPeopleTurtle(PEOPLE));
+await writeFile(dataPath, buildPeopleTurtle(PEOPLE));
 
-addEventListener("unload", () => {
+process.on("exit", () => {
   try {
-    Deno.removeSync(dataDirectory, { recursive: true });
+    rmSync(dataDirectory, { recursive: true });
   } catch {
     // A leftover temp directory is not worth failing a bench run over.
   }
@@ -67,15 +75,15 @@ const scriptc = builtBinary("sparql-node");
 
 const TARGETS: CliTarget[] = [
   {
-    name: "deno-run",
-    command: [Deno.execPath(), "run", "--allow-read", "cli/deno-main.ts"],
+    name: `${runtimeName}-run`,
+    command: scriptCommand("cli/main.ts"),
     baseline: !binaryExists(denoCompile),
   },
 ];
 
 if (binaryExists(denoCompile)) {
   TARGETS.push({
-    name: "deno-compile",
+    name: `${runtimeName}-compile`,
     command: [denoCompile],
     baseline: true,
   });
@@ -92,27 +100,26 @@ if (binaryExists(scriptc)) {
 
 for (const workload of WORKLOADS) {
   for (const target of TARGETS) {
-    Deno.bench({
-      name: target.name,
-      group: `${workload.name} (${PEOPLE} people)`,
-      baseline: target.baseline,
-      async fn() {
-        const result = await new Deno.Command(target.command[0], {
-          args: [
-            ...target.command.slice(1),
-            ...workload.args(dataPath),
-          ],
-          cwd: REPOSITORY_ROOT,
-          stdout: "piped",
-          stderr: "piped",
-        }).output();
+    bench(
+      {
+        name: target.name,
+        group: `${workload.name} (${PEOPLE} people)`,
+        baseline: target.baseline,
+      },
+      async () => {
+        const result = await runProcess(
+          target.command[0],
+          [...target.command.slice(1), ...workload.args(dataPath)],
+          { cwd: REPOSITORY_ROOT },
+        );
         if (result.code !== 0) {
           throw new Error(
-            `${target.name} exited ${result.code}: ` +
-              new TextDecoder().decode(result.stderr),
+            `${target.name} exited ${result.code}: ${result.stderr}`,
           );
         }
       },
-    });
+    );
   }
 }
+
+await runBenches();

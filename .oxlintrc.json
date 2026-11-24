@@ -1,0 +1,35 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "unicorn", "oxc"],
+  "categories": {
+    "correctness": "error"
+  },
+  "rules": {
+    "typescript/no-explicit-any": "error",
+    "typescript/ban-ts-comment": [
+      "error",
+      {
+        "ts-expect-error": "allow-with-description",
+        "ts-ignore": true
+      }
+    ],
+    "unicorn/no-new-array": "off",
+    "unicorn/no-useless-spread": "off",
+    "unicorn/no-useless-fallback-in-spread": "off"
+  },
+  "ignorePatterns": [
+    "node_modules",
+    "dist",
+    "playground/app.js",
+    "src/parser/parser*.ts",
+    "src/parser/turtle-generated.ts"
+  ],
+  "overrides": [
+    {
+      "files": ["src/parser/turtle-context.ts"],
+      "rules": {
+        "no-control-regex": "off"
+      }
+    }
+  ]
+}

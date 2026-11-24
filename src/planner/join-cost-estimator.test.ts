@@ -1,4 +1,5 @@
-import { assertEquals } from "@std/assert";
+import assert from "node:assert/strict";
+import { test } from "node:test";
 import type * as rdfjs from "@rdfjs/types";
 import { DataFactory } from "@/term/public.ts";
 import type { ScanEntry, TermBinding } from "@/evaluator/join.ts";
@@ -58,233 +59,206 @@ function estimateEntryCost(
   );
 }
 
-Deno.test("BaselineJoinCostEstimator - empty bindings cost zero", () => {
+test("BaselineJoinCostEstimator - empty bindings cost zero", () => {
   const cost = estimateEntryCost(
     entry(patternVar, constant, otherVar, candidateQuads(100)),
     [],
   );
-  assertEquals(cost, 0);
+  assert.deepStrictEqual(cost, 0);
 });
 
-Deno.test(
-  "BaselineJoinCostEstimator - no bound pattern variable iterates every candidate",
-  () => {
-    // Both pattern variables are unbound in every binding.
-    const bindings: TermBinding[] = [{ a: namedNode("http://example.org/a") }];
-    const cost = estimateEntryCost(
-      entry(patternVar, constant, otherVar, candidateQuads(50)),
-      bindings,
-    );
-    assertEquals(cost, 50);
-  },
-);
+test("BaselineJoinCostEstimator - no bound pattern variable iterates every candidate", () => {
+  // Both pattern variables are unbound in every binding.
+  const bindings: TermBinding[] = [{ a: namedNode("http://example.org/a") }];
+  const cost = estimateEntryCost(
+    entry(patternVar, constant, otherVar, candidateQuads(50)),
+    bindings,
+  );
+  assert.deepStrictEqual(cost, 50);
+});
 
-Deno.test(
-  "BaselineJoinCostEstimator - bound variable costs bindings times the average bucket",
-  () => {
-    // One bound pattern variable with 2 distinct values across 4 bindings:
-    // bucket = candidates / distinct = 100 / 2 = 50.
-    const bindings: TermBinding[] = [
-      { x: namedNode("http://example.org/v1") },
-      { x: namedNode("http://example.org/v2") },
-      { x: namedNode("http://example.org/v1") },
-      { x: namedNode("http://example.org/v2") },
-    ];
-    const cost = estimateEntryCost(
-      entry(patternVar, constant, otherVar, candidateQuads(100)),
-      bindings,
-    );
-    assertEquals(cost, 4 * 50);
-  },
-);
+test("BaselineJoinCostEstimator - bound variable costs bindings times the average bucket", () => {
+  // One bound pattern variable with 2 distinct values across 4 bindings:
+  // bucket = candidates / distinct = 100 / 2 = 50.
+  const bindings: TermBinding[] = [
+    { x: namedNode("http://example.org/v1") },
+    { x: namedNode("http://example.org/v2") },
+    { x: namedNode("http://example.org/v1") },
+    { x: namedNode("http://example.org/v2") },
+  ];
+  const cost = estimateEntryCost(
+    entry(patternVar, constant, otherVar, candidateQuads(100)),
+    bindings,
+  );
+  assert.deepStrictEqual(cost, 4 * 50);
+});
 
-Deno.test(
-  "BaselineJoinCostEstimator - duplicate bound values widen the bucket",
-  () => {
-    // The same 4 bindings all carrying one distinct value: bucket = 100 / 1.
-    const bindings: TermBinding[] = Array.from({ length: 4 }, () => ({
-      x: namedNode("http://example.org/v1"),
-    }));
-    const cost = estimateEntryCost(
-      entry(patternVar, constant, otherVar, candidateQuads(100)),
-      bindings,
-    );
-    assertEquals(cost, 4 * 100);
-  },
-);
+test("BaselineJoinCostEstimator - duplicate bound values widen the bucket", () => {
+  // The same 4 bindings all carrying one distinct value: bucket = 100 / 1.
+  const bindings: TermBinding[] = Array.from({ length: 4 }, () => ({
+    x: namedNode("http://example.org/v1"),
+  }));
+  const cost = estimateEntryCost(
+    entry(patternVar, constant, otherVar, candidateQuads(100)),
+    bindings,
+  );
+  assert.deepStrictEqual(cost, 4 * 100);
+});
 
-Deno.test(
-  "BaselineJoinCostEstimator - the fewest-distinct bound variable bounds the cost",
-  () => {
-    // Both pattern variables are bound; ?x has 2 distinct values, ?y has 4,
-    // so ?x (fewer distinct, wider bucket) bounds the estimate.
-    const bindings: TermBinding[] = [
-      {
-        x: namedNode("http://example.org/x1"),
-        y: namedNode("http://example.org/y1"),
-      },
-      {
-        x: namedNode("http://example.org/x2"),
-        y: namedNode("http://example.org/y2"),
-      },
-      {
-        x: namedNode("http://example.org/x1"),
-        y: namedNode("http://example.org/y3"),
-      },
-      {
-        x: namedNode("http://example.org/x2"),
-        y: namedNode("http://example.org/y4"),
-      },
-    ];
-    const cost = estimateEntryCost(
-      entry(patternVar, constant, otherVar, candidateQuads(100)),
-      bindings,
-    );
-    assertEquals(cost, 4 * 50);
-  },
-);
+test("BaselineJoinCostEstimator - the fewest-distinct bound variable bounds the cost", () => {
+  // Both pattern variables are bound; ?x has 2 distinct values, ?y has 4,
+  // so ?x (fewer distinct, wider bucket) bounds the estimate.
+  const bindings: TermBinding[] = [
+    {
+      x: namedNode("http://example.org/x1"),
+      y: namedNode("http://example.org/y1"),
+    },
+    {
+      x: namedNode("http://example.org/x2"),
+      y: namedNode("http://example.org/y2"),
+    },
+    {
+      x: namedNode("http://example.org/x1"),
+      y: namedNode("http://example.org/y3"),
+    },
+    {
+      x: namedNode("http://example.org/x2"),
+      y: namedNode("http://example.org/y4"),
+    },
+  ];
+  const cost = estimateEntryCost(
+    entry(patternVar, constant, otherVar, candidateQuads(100)),
+    bindings,
+  );
+  assert.deepStrictEqual(cost, 4 * 50);
+});
 
-Deno.test(
-  "BaselineJoinCostEstimator - stats candidates and distinct counts drive the cost",
-  () => {
-    // With stats, the bucket divisor is the store's distinct count for the
-    // bound variable (4), not the 1 distinct value the bindings happen to
-    // carry: cost = 2 bindings x (200 / 4) = 100. Without stats the same
-    // bindings cost 2 x (200 / 1) = 400 (the piece-1 binding-derived bound).
-    const bindings: TermBinding[] = [
-      { x: namedNode("http://example.org/v1") },
-      { x: namedNode("http://example.org/v1") },
-    ];
-    const entry = {
-      subject: patternVar,
-      predicate: constant,
-      object: otherVar,
-      candidates: candidateQuads(200),
-    };
-    const withStats = estimateEntryCost(entry, bindings, {
-      candidates: 200,
-      distinctByVar: { x: 4, y: 100 },
-    });
-    assertEquals(withStats, 100);
-    const withoutStats = estimateEntryCost(entry, bindings);
-    assertEquals(withoutStats, 400);
-  },
-);
+test("BaselineJoinCostEstimator - stats candidates and distinct counts drive the cost", () => {
+  // With stats, the bucket divisor is the store's distinct count for the
+  // bound variable (4), not the 1 distinct value the bindings happen to
+  // carry: cost = 2 bindings x (200 / 4) = 100. Without stats the same
+  // bindings cost 2 x (200 / 1) = 400 (the piece-1 binding-derived bound).
+  const bindings: TermBinding[] = [
+    { x: namedNode("http://example.org/v1") },
+    { x: namedNode("http://example.org/v1") },
+  ];
+  const entry = {
+    subject: patternVar,
+    predicate: constant,
+    object: otherVar,
+    candidates: candidateQuads(200),
+  };
+  const withStats = estimateEntryCost(entry, bindings, {
+    candidates: 200,
+    distinctByVar: { x: 4, y: 100 },
+  });
+  assert.deepStrictEqual(withStats, 100);
+  const withoutStats = estimateEntryCost(entry, bindings);
+  assert.deepStrictEqual(withoutStats, 400);
+});
 
-Deno.test(
-  "BaselineJoinCostEstimator - a variable's stats are ignored while it stays unbound",
-  () => {
-    // Only ?y is bound in the bindings; ?x's (very selective) store distinct
-    // count must not be used — the join cannot probe by an unbound variable.
-    const bindings: TermBinding[] = [{ y: namedNode("http://example.org/v1") }];
-    const entry = {
-      subject: patternVar,
-      predicate: constant,
-      object: otherVar,
-      candidates: candidateQuads(200),
-    };
-    const cost = estimateEntryCost(entry, bindings, {
-      candidates: 200,
-      distinctByVar: { x: 2, y: 100 },
-    });
-    // 1 binding x (200 / y's 100 distinct) = 2. Using ?x's 2 instead would
-    // have produced 100.
-    assertEquals(cost, 2);
-  },
-);
+test("BaselineJoinCostEstimator - a variable's stats are ignored while it stays unbound", () => {
+  // Only ?y is bound in the bindings; ?x's (very selective) store distinct
+  // count must not be used — the join cannot probe by an unbound variable.
+  const bindings: TermBinding[] = [{ y: namedNode("http://example.org/v1") }];
+  const entry = {
+    subject: patternVar,
+    predicate: constant,
+    object: otherVar,
+    candidates: candidateQuads(200),
+  };
+  const cost = estimateEntryCost(entry, bindings, {
+    candidates: 200,
+    distinctByVar: { x: 2, y: 100 },
+  });
+  // 1 binding x (200 / y's 100 distinct) = 2. Using ?x's 2 instead would
+  // have produced 100.
+  assert.deepStrictEqual(cost, 2);
+});
 
-Deno.test(
-  "BaselineJoinCostEstimator - fully bound constants never count as variables",
-  () => {
-    // Every pattern position is a constant: no bound pattern variable to
-    // probe, so every binding iterates all candidates.
-    const bindings: TermBinding[] = [{ a: namedNode("http://example.org/a") }];
-    const cost = estimateEntryCost(
-      entry(constant, constant, constant, candidateQuads(7)),
-      bindings,
-    );
-    assertEquals(cost, 7);
-  },
-);
+test("BaselineJoinCostEstimator - fully bound constants never count as variables", () => {
+  // Every pattern position is a constant: no bound pattern variable to
+  // probe, so every binding iterates all candidates.
+  const bindings: TermBinding[] = [{ a: namedNode("http://example.org/a") }];
+  const cost = estimateEntryCost(
+    entry(constant, constant, constant, candidateQuads(7)),
+    bindings,
+  );
+  assert.deepStrictEqual(cost, 7);
+});
 
-Deno.test(
-  "WazooSparqlEngine - injected estimator drives reordering without changing results",
-  async () => {
-    const store = new Store();
-    store.addQuad(
-      quad(
-        namedNode("http://example.org/s1"),
-        namedNode("http://example.org/p"),
-        namedNode("http://example.org/o1"),
-      ),
-    );
-    store.addQuad(
-      quad(
-        namedNode("http://example.org/s2"),
-        namedNode("http://example.org/p"),
-        namedNode("http://example.org/o2"),
-      ),
-    );
-    const query =
-      "SELECT ?s ?o WHERE { ?s <http://example.org/p> ?o . ?s ?p ?o }";
+test("WazooSparqlEngine - injected estimator drives reordering without changing results", async () => {
+  const store = new Store();
+  store.addQuad(
+    quad(
+      namedNode("http://example.org/s1"),
+      namedNode("http://example.org/p"),
+      namedNode("http://example.org/o1"),
+    ),
+  );
+  store.addQuad(
+    quad(
+      namedNode("http://example.org/s2"),
+      namedNode("http://example.org/p"),
+      namedNode("http://example.org/o2"),
+    ),
+  );
+  const query =
+    "SELECT ?s ?o WHERE { ?s <http://example.org/p> ?o . ?s ?p ?o }";
 
-    const calls: number[] = [];
-    const estimator: JoinCostEstimator = {
-      estimateJoinCost(
-        _subjectVar,
-        _predicateVar,
-        _objectVar,
-        candidateCount,
-        bindingCount,
-      ): number {
-        calls.push(bindingCount);
-        return candidateCount;
-      },
-    };
-    const engine = new WazooSparqlEngine({ store, estimator });
-    const result = await engine.execute({ query });
-    assertEquals(result.kind, "select");
-    // The greedy loop consults the estimator once per remaining pattern.
-    assertEquals(calls.length >= 2, true);
+  const calls: number[] = [];
+  const estimator: JoinCostEstimator = {
+    estimateJoinCost(
+      _subjectVar,
+      _predicateVar,
+      _objectVar,
+      candidateCount,
+      bindingCount,
+    ): number {
+      calls.push(bindingCount);
+      return candidateCount;
+    },
+  };
+  const engine = new WazooSparqlEngine({ store, estimator });
+  const result = await engine.execute({ query });
+  assert.deepStrictEqual(result.kind, "select");
+  // The greedy loop consults the estimator once per remaining pattern.
+  assert.deepStrictEqual(calls.length >= 2, true);
 
-    const expected = await new WazooSparqlEngine({ store }).execute({ query });
-    assertEquals(result, expected);
-  },
-);
+  const expected = await new WazooSparqlEngine({ store }).execute({ query });
+  assert.deepStrictEqual(result, expected);
+});
 
-Deno.test(
-  "WazooSparqlEngine - reorderPatterns:false never consults the estimator",
-  async () => {
-    const store = new Store();
-    store.addQuad(
-      quad(
-        namedNode("http://example.org/s1"),
-        namedNode("http://example.org/p"),
-        namedNode("http://example.org/o1"),
-      ),
-    );
-    let calls = 0;
-    const estimator: JoinCostEstimator = {
-      estimateJoinCost(
-        _subjectVar,
-        _predicateVar,
-        _objectVar,
-        _candidateCount,
-        _bindingCount,
-      ): number {
-        calls += 1;
-        return 0;
-      },
-    };
-    const engine = new WazooSparqlEngine({
-      store,
-      estimator,
-      reorderPatterns: false,
-    });
-    const result = await engine.execute({
-      query: "SELECT ?s ?o WHERE { ?s <http://example.org/p> ?o . ?s ?p ?o }",
-    });
-    assertEquals(result.kind, "select");
-    assertEquals(calls, 0);
-  },
-);
+test("WazooSparqlEngine - reorderPatterns:false never consults the estimator", async () => {
+  const store = new Store();
+  store.addQuad(
+    quad(
+      namedNode("http://example.org/s1"),
+      namedNode("http://example.org/p"),
+      namedNode("http://example.org/o1"),
+    ),
+  );
+  let calls = 0;
+  const estimator: JoinCostEstimator = {
+    estimateJoinCost(
+      _subjectVar,
+      _predicateVar,
+      _objectVar,
+      _candidateCount,
+      _bindingCount,
+    ): number {
+      calls += 1;
+      return 0;
+    },
+  };
+  const engine = new WazooSparqlEngine({
+    store,
+    estimator,
+    reorderPatterns: false,
+  });
+  const result = await engine.execute({
+    query: "SELECT ?s ?o WHERE { ?s <http://example.org/p> ?o . ?s ?p ?o }",
+  });
+  assert.deepStrictEqual(result.kind, "select");
+  assert.deepStrictEqual(calls, 0);
+});

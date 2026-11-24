@@ -139,9 +139,10 @@ export function estimateBaselineJoinCost(
       continue;
     }
     const storeDistinct = stats?.distinctByVar[name];
-    const distinct = storeDistinct !== undefined && storeDistinct > 0
-      ? storeDistinct
-      : boundDistinct.size;
+    const distinct =
+      storeDistinct !== undefined && storeDistinct > 0
+        ? storeDistinct
+        : boundDistinct.size;
     if (distinct < mostSelectiveDistinct) {
       mostSelectiveDistinct = distinct;
     }
@@ -170,8 +171,9 @@ export function scanEntryJoinCost(
 }
 
 /** patternVariableName returns a pattern variable's name when the term is a variable. */
-export function patternVariableName(
-  term: { termType: string; value: string },
-): string | undefined {
+export function patternVariableName(term: {
+  termType: string;
+  value: string;
+}): string | undefined {
   return term.termType === "Variable" ? term.value : undefined;
 }

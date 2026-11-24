@@ -17,8 +17,12 @@ export function listTerms(store: MemoryStore, head: rdfjs.Term): rdfjs.Term[] {
       break;
     }
     seen.add(key);
-    const first =
-      store.getQuads(node, rdfjsNamedNode(RDF_FIRST), null, null)[0];
+    const first = store.getQuads(
+      node,
+      rdfjsNamedNode(RDF_FIRST),
+      null,
+      null,
+    )[0];
     if (!first) {
       break;
     }
@@ -43,13 +47,16 @@ export function collectValues(
   predicate: string,
 ): rdfjs.Term[] {
   const values: rdfjs.Term[] = [];
-  for (
-    const quad of store.getQuads(subject, rdfjsNamedNode(predicate), null, null)
-  ) {
+  for (const quad of store.getQuads(
+    subject,
+    rdfjsNamedNode(predicate),
+    null,
+    null,
+  )) {
     if (
       quad.object.termType === "BlankNode" &&
       store.getQuads(quad.object, rdfjsNamedNode(RDF_FIRST), null, null)
-          .length > 0
+        .length > 0
     ) {
       values.push(...listTerms(store, quad.object));
     } else {
@@ -79,18 +86,29 @@ export function collectGraphData(
   filePredicate: string,
 ): W3cGraphData[] {
   const entries: W3cGraphData[] = [];
-  for (
-    const quad of store.getQuads(subject, rdfjsNamedNode(predicate), null, null)
-  ) {
+  for (const quad of store.getQuads(
+    subject,
+    rdfjsNamedNode(predicate),
+    null,
+    null,
+  )) {
     const node = quad.object;
     if (node.termType === "NamedNode") {
       entries.push({ file: filePath(node), graph: null });
       continue;
     }
-    const graphQuad =
-      store.getQuads(node, rdfjsNamedNode(filePredicate), null, null)[0];
-    const labelQuad =
-      store.getQuads(node, rdfjsNamedNode(RDFS + "label"), null, null)[0];
+    const graphQuad = store.getQuads(
+      node,
+      rdfjsNamedNode(filePredicate),
+      null,
+      null,
+    )[0];
+    const labelQuad = store.getQuads(
+      node,
+      rdfjsNamedNode(RDFS + "label"),
+      null,
+      null,
+    )[0];
     const file = graphQuad ? filePath(graphQuad.object) : null;
     if (file === null) {
       continue;

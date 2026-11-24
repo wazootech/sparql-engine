@@ -1,14 +1,16 @@
 // Latency bar-chart SVG generator for the README's three-engine latency
 // comparison.
 //
-// Reads bench/latency-data.json (raw `deno bench --json` output from
+// Reads bench/latency-data.json (`--json` output from
 // bench/engine_bench.ts) and writes:
 //
 //   docs/assets/chart-latency.svg
 //
 // Run: deno run --allow-read --allow-write bench/latency-chart.ts
-import { join } from "@std/path";
 
+import { readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import process from "node:process";
 interface BenchOk {
   ok: {
     n: number;
@@ -200,10 +202,10 @@ const SECTIONS: Section[] = [
 ];
 
 function esc(text: string): string {
-  return text.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(
-    ">",
-    "&gt;",
-  );
+  return text
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
 }
 
 function fmtMs(ms: number): string {
@@ -254,11 +256,15 @@ function chartSvg(data: LatencyData): string {
   const legendH = 22;
   const headingH = 20;
   const captionH = 30;
-  const totalH = titleH + legendH + headingH +
+  const totalH =
+    titleH +
+    legendH +
+    headingH +
     present.reduce(
       (h, r) => h + (r.ms.every((v) => v === undefined) ? 0 : rowH),
       headingH * (SECTIONS.length - 1), // section headings between
-    ) + captionH;
+    ) +
+    captionH;
 
   const out: string[] = [];
   out.push(
@@ -286,24 +292,22 @@ function chartSvg(data: LatencyData): string {
 
   let y = titleH + legendH;
   for (const section of SECTIONS) {
-    const sectionRows = present.filter(
-      (r) => section.rows.includes(r.row),
-    );
+    const sectionRows = present.filter((r) => section.rows.includes(r.row));
     if (sectionRows.length === 0) continue;
     out.push(
       `<text x="12" y="${
         y + 14
-      }" font-size="11" font-weight="600" fill="#868e96">${
-        esc(section.heading)
-      }</text>`,
+      }" font-size="11" font-weight="600" fill="#868e96">${esc(
+        section.heading,
+      )}</text>`,
     );
     y += headingH;
     for (const { row, ms } of sectionRows) {
       const max = Math.max(...ms.filter((v): v is number => v !== undefined));
       out.push(
-        `<text x="12" y="${y + 15}" font-size="10" fill="#343a40">${
-          esc(row.title)
-        }</text>`,
+        `<text x="12" y="${y + 15}" font-size="10" fill="#343a40">${esc(
+          row.title,
+        )}</text>`,
       );
       ENGINES.forEach((engine, i) => {
         const v = ms[i];
@@ -311,9 +315,10 @@ function chartSvg(data: LatencyData): string {
         const w = (v / max) * plotW;
         const barY = y + 6 + i * barGap;
         out.push(
-          `<rect x="${labelX}" y="${barY}" width="${
-            Math.max(w, 1)
-          }" height="${barH}" rx="1.5" fill="${ENGINE_COLORS[engine]}"/>`,
+          `<rect x="${labelX}" y="${barY}" width="${Math.max(
+            w,
+            1,
+          )}" height="${barH}" rx="1.5" fill="${ENGINE_COLORS[engine]}"/>`,
         );
         out.push(
           `<text x="${valueX}" y="${
@@ -332,19 +337,19 @@ function chartSvg(data: LatencyData): string {
     }" font-size="9" fill="#868e96">Average ms per iteration, lower is better — each row normalized to its slowest engine; bars are not to scale across rows.</text>`,
   );
   out.push(
-    `<text x="12" y="${totalH - 18}" font-size="9" fill="#adb5bd">Snapshot: ${
-      esc(data.runtime)
-    } — regenerate with \`deno task bench:latency\`.</text>`,
+    `<text x="12" y="${totalH - 18}" font-size="9" fill="#adb5bd">Snapshot: ${esc(
+      data.runtime,
+    )} — regenerate with \`deno task bench:latency\`.</text>`,
   );
   out.push(`</svg>`);
   return out.join("\n");
 }
 
 const data = JSON.parse(
-  Deno.readTextFileSync(join(Deno.cwd(), "bench", "latency-data.json")),
+  readFileSync(join(process.cwd(), "bench", "latency-data.json"), "utf8"),
 ) as LatencyData;
-Deno.writeTextFileSync(
-  join(Deno.cwd(), "docs", "assets", "chart-latency.svg"),
+writeFileSync(
+  join(process.cwd(), "docs", "assets", "chart-latency.svg"),
   chartSvg(data),
 );
 console.log("wrote docs/assets/chart-latency.svg");

@@ -13,10 +13,13 @@
 // scriptc reads cli/tsconfig.json, whose `paths` maps the `@/` imports, so
 // the source needs no rewriting. The version is pinned: coverage output is
 // the yardstick for the parser refactor and must not drift between steps.
-import { dirname, fromFileUrl, relative, resolve } from "@std/path";
 
+import process from "node:process";
+import { dirname, relative, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { runProcess } from "../test/run-process.ts";
 const SCRIPTC_VERSION = "0.4.5";
-const REPO_ROOT = resolve(dirname(fromFileUrl(import.meta.url)), "..");
+const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
 interface DiagnosticGroup {
   code: string;
@@ -39,33 +42,26 @@ interface DiagnosticsEnvelope {
   groups: DiagnosticGroup[];
 }
 
-const isWindows = Deno.build.os === "windows";
-const { stdout, stderr } = await new Deno.Command(
+const isWindows = process.platform === "win32";
+const { stdout: text, stderr } = await runProcess(
   isWindows ? "npx.cmd" : "npx",
-  {
-    args: [
-      "--yes",
-      `scriptc@${SCRIPTC_VERSION}`,
-      "coverage",
-      "cli/node-main.ts",
-      "--print",
-      "diagnostics",
-    ],
-    cwd: REPO_ROOT,
-    stdout: "piped",
-    stderr: "piped",
-  },
-).output();
-const text = new TextDecoder().decode(stdout);
+  [
+    "--yes",
+    `scriptc@${SCRIPTC_VERSION}`,
+    "coverage",
+    "cli/node-main.ts",
+    "--print",
+    "diagnostics",
+  ],
+  { cwd: REPO_ROOT },
+);
 if (!text.trimStart().startsWith("{")) {
-  throw new Error(
-    `scriptc printed no diagnostics:\n${new TextDecoder().decode(stderr)}`,
-  );
+  throw new Error(`scriptc printed no diagnostics:\n${stderr}`);
 }
 
-if (Deno.args.includes("--json")) {
+if (process.argv.slice(2).includes("--json")) {
   console.log(text);
-  Deno.exit(0);
+  process.exit(0);
 }
 
 const envelope = JSON.parse(text) as DiagnosticsEnvelope;
@@ -128,5 +124,5 @@ if (failures.length > 0) {
   console.error(
     `\nnative gate: ${failures.length} group(s) must be fixed before building`,
   );
-  Deno.exit(1);
+  process.exit(1);
 }

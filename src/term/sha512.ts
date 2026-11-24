@@ -10,10 +10,7 @@ const rotateRight64 = (value: bigint, bits: bigint): bigint =>
  * initial hash values, returning the 8 state words (or a prefix of them for
  * SHA-384).
  */
-function sha512Words(
-  input: string,
-  initial: bigint[],
-): bigint[] {
+function sha512Words(input: string, initial: bigint[]): bigint[] {
   const bytes = new TextEncoder().encode(input);
   const bitLength = BigInt(bytes.length * 8);
   const paddedLength = (((bytes.length + 16) >> 7) + 1) << 7;
@@ -40,10 +37,8 @@ function sha512Words(
       const w2 = w[index - 2] ?? 0n;
       const w16 = w[index - 16] ?? 0n;
       const w7 = w[index - 7] ?? 0n;
-      const s0 = rotateRight64(w15, 1n) ^
-        rotateRight64(w15, 8n) ^ (w15 >> 7n);
-      const s1 = rotateRight64(w2, 19n) ^
-        rotateRight64(w2, 61n) ^ (w2 >> 6n);
+      const s0 = rotateRight64(w15, 1n) ^ rotateRight64(w15, 8n) ^ (w15 >> 7n);
+      const s1 = rotateRight64(w2, 19n) ^ rotateRight64(w2, 61n) ^ (w2 >> 6n);
       w[index] = (w16 + s0 + w7 + s1) & MASK64;
     }
     // The state words come out of indexed locals rather than a destructuring
@@ -58,14 +53,14 @@ function sha512Words(
     let g = state[6] ?? 0n;
     let h = state[7] ?? 0n;
     for (let index = 0; index < 80; index++) {
-      const s1 = rotateRight64(e, 14n) ^ rotateRight64(e, 18n) ^
-        rotateRight64(e, 41n);
+      const s1 =
+        rotateRight64(e, 14n) ^ rotateRight64(e, 18n) ^ rotateRight64(e, 41n);
       const ch = (e & f) ^ (~e & g);
       const k = SHA512_K[index] ?? 0n;
       const wi = w[index] ?? 0n;
       const temp1 = (h + s1 + ch + k + wi) & MASK64;
-      const s0 = rotateRight64(a, 28n) ^ rotateRight64(a, 34n) ^
-        rotateRight64(a, 39n);
+      const s0 =
+        rotateRight64(a, 28n) ^ rotateRight64(a, 34n) ^ rotateRight64(a, 39n);
       const maj = (a & b) ^ (a & c) ^ (b & c);
       const temp2 = (s0 + maj) & MASK64;
       h = g;

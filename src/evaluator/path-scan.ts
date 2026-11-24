@@ -75,9 +75,7 @@ export async function scanPathEntry(
  * in the store — the node set the reflexive path forms (? and *) are defined
  * over (per SPARQL 1.1 §9.1, matching Comunica, literals count as nodes).
  */
-async function graphNodes(
-  store: RdfSource<RdfQuad>,
-): Promise<RdfTerm[]> {
+async function graphNodes(store: RdfSource<RdfQuad>): Promise<RdfTerm[]> {
   const quads = await matchQuads(store, null, null, null);
   const nodes = new Map<string, RdfTerm>();
   for (const quad of quads) {

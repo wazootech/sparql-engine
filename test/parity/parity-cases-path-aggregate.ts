@@ -81,7 +81,8 @@ export const pathCases: ParityTestCase[] = [
   {
     name: "path - joins with a preceding pattern",
     kind: "select",
-    query: `SELECT ?x ?y WHERE { ${path("a")} ${pPred} ?z . ` +
+    query:
+      `SELECT ?x ?y WHERE { ${path("a")} ${pPred} ?z . ` +
       `?x ${pPred}+ ?y . FILTER(?x = ?z) }`,
     quads: pathGraphQuads,
   },
@@ -98,7 +99,8 @@ export const aggregateCases: ParityTestCase[] = [
   {
     name: "aggregate - GROUP BY counts with SUM and AVG",
     kind: "select",
-    query: `SELECT ?s (COUNT(?o) AS ?c) (SUM(?o) AS ?su) (AVG(?o) AS ?a) ` +
+    query:
+      `SELECT ?s (COUNT(?o) AS ?c) (SUM(?o) AS ?su) (AVG(?o) AS ?a) ` +
       `WHERE { ?s ${pPred} ?o } GROUP BY ?s ORDER BY ?s`,
     quads: aggregateQuads,
     orderSensitive: true,
@@ -106,21 +108,24 @@ export const aggregateCases: ParityTestCase[] = [
   {
     name: "aggregate - no GROUP BY aggregates the whole result",
     kind: "select",
-    query: `SELECT (COUNT(*) AS ?c) (MIN(?o) AS ?mn) (MAX(?o) AS ?mx) ` +
+    query:
+      `SELECT (COUNT(*) AS ?c) (MIN(?o) AS ?mn) (MAX(?o) AS ?mx) ` +
       `WHERE { ?s ${pPred} ?o }`,
     quads: aggregateQuads,
   },
   {
     name: "aggregate - COUNT(DISTINCT) and SUM(DISTINCT)",
     kind: "select",
-    query: `SELECT (COUNT(DISTINCT ?o) AS ?c) (SUM(DISTINCT ?o) AS ?su) ` +
+    query:
+      `SELECT (COUNT(DISTINCT ?o) AS ?c) (SUM(DISTINCT ?o) AS ?su) ` +
       `WHERE { ?s ${pPred} ?o }`,
     quads: aggregateQuads,
   },
   {
     name: "aggregate - HAVING filters groups by aggregate",
     kind: "select",
-    query: `SELECT ?s (COUNT(?o) AS ?c) WHERE { ?s ${pPred} ?o } ` +
+    query:
+      `SELECT ?s (COUNT(?o) AS ?c) WHERE { ?s ${pPred} ?o } ` +
       `GROUP BY ?s HAVING (COUNT(?o) > 2) ORDER BY ?s`,
     quads: aggregateQuads,
     orderSensitive: true,
@@ -128,7 +133,8 @@ export const aggregateCases: ParityTestCase[] = [
   {
     name: "aggregate - ORDER BY an aggregate expression",
     kind: "select",
-    query: `SELECT ?s (COUNT(?o) AS ?c) WHERE { ?s ${pPred} ?o } ` +
+    query:
+      `SELECT ?s (COUNT(?o) AS ?c) WHERE { ?s ${pPred} ?o } ` +
       `GROUP BY ?s ORDER BY DESC(COUNT(?o)) ?s`,
     quads: aggregateQuads,
     orderSensitive: true,
@@ -136,14 +142,16 @@ export const aggregateCases: ParityTestCase[] = [
   {
     name: "aggregate - SUM and AVG numeric promotion",
     kind: "select",
-    query: `SELECT (SUM(?o) AS ?su) (AVG(?o) AS ?a) ` +
+    query:
+      `SELECT (SUM(?o) AS ?su) (AVG(?o) AS ?a) ` +
       `WHERE { VALUES ?o { 1 2 3 } }`,
     quads: [],
   },
   {
     name: "aggregate - SUM and AVG of doubles canonicalize",
     kind: "select",
-    query: `SELECT (SUM(?o) AS ?su) (AVG(?o) AS ?a) ` +
+    query:
+      `SELECT (SUM(?o) AS ?su) (AVG(?o) AS ?a) ` +
       `WHERE { VALUES ?o { 1.0e0 2.0e0 } }`,
     quads: [],
   },
@@ -156,7 +164,8 @@ export const aggregateCases: ParityTestCase[] = [
   {
     name: "aggregate - empty result keeps COUNT/SUM/AVG at zero and GC empty",
     kind: "select",
-    query: `SELECT (COUNT(?o) AS ?c) (SUM(?o) AS ?su) (AVG(?o) AS ?a) ` +
+    query:
+      `SELECT (COUNT(?o) AS ?c) (SUM(?o) AS ?su) (AVG(?o) AS ?a) ` +
       `(GROUP_CONCAT(?o) AS ?gc) WHERE { ?s <http://example.org/none> ?o }`,
     quads: aggregateQuads,
   },
@@ -169,7 +178,8 @@ export const aggregateCases: ParityTestCase[] = [
   {
     name: "aggregate - GROUP_CONCAT separator over a VALUES sequence",
     kind: "select",
-    query: `SELECT (GROUP_CONCAT(?o; SEPARATOR = "--") AS ?gc) ` +
+    query:
+      `SELECT (GROUP_CONCAT(?o; SEPARATOR = "--") AS ?gc) ` +
       `WHERE { VALUES ?o { 1 2 3 } }`,
     quads: [],
   },
@@ -197,7 +207,7 @@ export const aggregateCases: ParityTestCase[] = [
           String(value),
           namedNode("http://www.w3.org/2001/XMLSchema#decimal"),
         ),
-      )
+      ),
     ),
   },
   {

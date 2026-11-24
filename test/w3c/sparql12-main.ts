@@ -8,6 +8,8 @@ import { loadManifest } from "./manifest.ts";
 import type { W3cTestCase } from "./manifest.ts";
 import { WazooSparqlEngine } from "@/wazoo-sparql-engine.ts";
 import { isomorphicMultiset } from "./sparql12-canonical.ts";
+import process from "node:process";
+import { readFileSync } from "node:fs";
 
 const parserInstance = new SparqlParser({
   sparqlStar: true,
@@ -50,7 +52,7 @@ interface Row {
 }
 
 function readFixture(file: string): string {
-  return Deno.readTextFileSync(`${FIXTURES_ROOT}${file}`);
+  return readFileSync(`${FIXTURES_ROOT}${file}`, "utf8");
 }
 
 function fixtureText(testCase: W3cTestCase, file: string): string {
@@ -96,9 +98,10 @@ function loadStore(testCase: W3cTestCase): MemoryStore {
 
 function queryText(testCase: W3cTestCase): string {
   const raw = fixtureText(testCase, testCase.queryFile);
-  return `BASE <${
-    canonicalUrl(testCase.category, testCase.queryFile)
-  }>\n${raw}`;
+  return `BASE <${canonicalUrl(
+    testCase.category,
+    testCase.queryFile,
+  )}>\n${raw}`;
 }
 
 async function evaluate(testCase: W3cTestCase): Promise<Verdict> {
@@ -121,8 +124,10 @@ async function evaluate(testCase: W3cTestCase): Promise<Verdict> {
     !testCase.resultFile &&
     (testCase.category.includes("syntax") ||
       testCase.category === "codepoint-escapes" ||
-      testCase.category === "version" || testCase.category === "grouping" ||
-      testCase.category === "lang-basedir" || testCase.category === "rdf11")
+      testCase.category === "version" ||
+      testCase.category === "grouping" ||
+      testCase.category === "lang-basedir" ||
+      testCase.category === "rdf11")
   ) {
     try {
       parseQuery(query);
@@ -160,25 +165,22 @@ async function evaluate(testCase: W3cTestCase): Promise<Verdict> {
       const expectedQuads = parser.parse(
         fixtureText(testCase, testCase.resultFile),
       );
-      const expectedRecords = expectedQuads.map(
-        (q: rdfjs.Quad) => [
-          canonicalizeRdfTerm(q.subject),
-          canonicalizeRdfTerm(q.predicate),
-          canonicalizeRdfTerm(q.object),
-        ],
-      );
-      const actualQuads = wazooResult.kind === "construct"
-        ? wazooResult.data.quads
-        : (wazooResult.kind === "void"
-          ? store.getQuads(null, null, null, null)
-          : []);
-      const actualRecords = actualQuads.map(
-        (q: rdfjs.Quad) => [
-          canonicalizeRdfTerm(q.subject),
-          canonicalizeRdfTerm(q.predicate),
-          canonicalizeRdfTerm(q.object),
-        ],
-      );
+      const expectedRecords = expectedQuads.map((q: rdfjs.Quad) => [
+        canonicalizeRdfTerm(q.subject),
+        canonicalizeRdfTerm(q.predicate),
+        canonicalizeRdfTerm(q.object),
+      ]);
+      const actualQuads =
+        wazooResult.kind === "construct"
+          ? wazooResult.data.quads
+          : wazooResult.kind === "void"
+            ? store.getQuads(null, null, null, null)
+            : [];
+      const actualRecords = actualQuads.map((q: rdfjs.Quad) => [
+        canonicalizeRdfTerm(q.subject),
+        canonicalizeRdfTerm(q.predicate),
+        canonicalizeRdfTerm(q.object),
+      ]);
       if (isomorphicMultiset(actualRecords, expectedRecords)) {
         return { status: "pass" };
       }
@@ -239,7 +241,7 @@ if (pass < THRESHOLD || error > 0) {
   console.error(
     `\nW3C SPARQL 1.2 gate FAILED: ${pass}/${rows.length} pass is below threshold of ${THRESHOLD}.`,
   );
-  Deno.exit(1);
+  process.exit(1);
 }
 console.log(
   `\nW3C SPARQL 1.2 gate passed: ${pass}/${rows.length} pass is at or above threshold (${THRESHOLD}).`,

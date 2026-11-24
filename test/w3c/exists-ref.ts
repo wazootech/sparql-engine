@@ -2,6 +2,7 @@ import * as oxigraph from "oxigraph";
 import { DataFactory } from "@/term/public.ts";
 import { MemoryStore as Store } from "@/store/memory-store.ts";
 import { WazooSparqlEngine } from "@/wazoo-sparql-engine.ts";
+import process from "node:process";
 
 /**
  * EXISTS surface cross-check: the wazoo engine must agree with Oxigraph on
@@ -59,29 +60,34 @@ interface Case {
 const CASES: Case[] = [
   {
     name: "basic",
-    query: "SELECT ?s WHERE { ?s <http://example.org/p> ?v " +
+    query:
+      "SELECT ?s WHERE { ?s <http://example.org/p> ?v " +
       "FILTER EXISTS { SELECT ?x WHERE { ?x <http://example.org/q> ?w } } }",
   },
   {
     name: "not-exists",
-    query: "SELECT ?s WHERE { ?s <http://example.org/p> ?v " +
+    query:
+      "SELECT ?s WHERE { ?s <http://example.org/p> ?v " +
       "FILTER NOT EXISTS { SELECT ?x WHERE { ?x <http://example.org/q> ?w . " +
       "?x <http://example.org/z> ?zz } } }",
   },
   {
     name: "aggregate-having",
-    query: "SELECT ?s WHERE { ?s <http://example.org/p> ?v " +
+    query:
+      "SELECT ?s WHERE { ?s <http://example.org/p> ?v " +
       "FILTER EXISTS { SELECT (COUNT(?x) AS ?c) WHERE { ?x <http://example.org/q> ?w } " +
       "HAVING (COUNT(?x) >= 2) } }",
   },
   {
     name: "distinct",
-    query: "SELECT ?s WHERE { ?s <http://example.org/p> ?v " +
+    query:
+      "SELECT ?s WHERE { ?s <http://example.org/p> ?v " +
       "FILTER EXISTS { SELECT DISTINCT ?x WHERE { ?x <http://example.org/q> ?w } } }",
   },
   {
     name: "projection-expr",
-    query: "SELECT ?s WHERE { ?s <http://example.org/p> ?v " +
+    query:
+      "SELECT ?s WHERE { ?s <http://example.org/p> ?v " +
       "FILTER EXISTS { SELECT (UCASE(?w) AS ?u) WHERE { ?x <http://example.org/q> ?w " +
       'FILTER (UCASE(?w) = "X") } } }',
   },
@@ -89,25 +95,29 @@ const CASES: Case[] = [
     // SPARQL 1.1 §18.2.4: subqueries evaluate independently, so the inner
     // FILTER referencing the outer ?s is unbound and the EXISTS is false.
     name: "non-correlation",
-    query: "SELECT ?s WHERE { ?s <http://example.org/p> ?v " +
+    query:
+      "SELECT ?s WHERE { ?s <http://example.org/p> ?v " +
       "FILTER EXISTS { SELECT ?x WHERE { ?x <http://example.org/q> ?w . " +
       "FILTER(?x = ?s) } } }",
   },
   {
     name: "order-limit",
-    query: "SELECT ?s WHERE { ?s <http://example.org/p> ?v " +
+    query:
+      "SELECT ?s WHERE { ?s <http://example.org/p> ?v " +
       "FILTER EXISTS { SELECT ?x WHERE { ?x <http://example.org/q> ?w } " +
       "ORDER BY DESC(?w) LIMIT 1 } }",
   },
   {
     name: "union-in-subquery",
-    query: "SELECT ?s WHERE { ?s <http://example.org/p> ?v " +
+    query:
+      "SELECT ?s WHERE { ?s <http://example.org/p> ?v " +
       "FILTER EXISTS { SELECT ?x WHERE { { ?x <http://example.org/q> ?w } " +
       "UNION { ?x <http://example.org/p> ?w } } } }",
   },
   {
     name: "group-by",
-    query: "SELECT ?s WHERE { ?s <http://example.org/p> ?v " +
+    query:
+      "SELECT ?s WHERE { ?s <http://example.org/p> ?v " +
       "FILTER EXISTS { SELECT ?x (COUNT(?w) AS ?c) WHERE { ?x <http://example.org/q> ?w } " +
       "GROUP BY ?x } }",
   },
@@ -118,7 +128,8 @@ const CASES: Case[] = [
     // if a change stops evaluating the nested NOT EXISTS, the count becomes
     // 2, the EXISTS turns false, and every outer row diverges.
     name: "not-exists-inside-exists",
-    query: "SELECT ?s WHERE { ?s <http://example.org/p> ?v " +
+    query:
+      "SELECT ?s WHERE { ?s <http://example.org/p> ?v " +
       "FILTER EXISTS { SELECT (COUNT(?x) AS ?c) WHERE { " +
       "?x <http://example.org/q> ?w . " +
       "FILTER NOT EXISTS { ?x <http://example.org/r> ?z } } " +
@@ -130,7 +141,8 @@ const CASES: Case[] = [
     // the count to 1. Treating the nested EXISTS as always true yields count
     // 2 and an empty EXISTS, failing every outer row.
     name: "nested-exists",
-    query: "SELECT ?s WHERE { ?s <http://example.org/p> ?v " +
+    query:
+      "SELECT ?s WHERE { ?s <http://example.org/p> ?v " +
       "FILTER EXISTS { SELECT (COUNT(?x) AS ?c) WHERE { " +
       "?x <http://example.org/q> ?w . " +
       "FILTER EXISTS { ?x <http://example.org/r> ?z } } " +
@@ -141,7 +153,8 @@ const CASES: Case[] = [
     // is true only for ex:s, which has an r edge. A change that stops
     // evaluating projection-position EXISTS drops or mis-flags rows.
     name: "projection-expr-exists",
-    query: "SELECT ?s (EXISTS { ?s <http://example.org/r> ?o } AS ?flag) " +
+    query:
+      "SELECT ?s (EXISTS { ?s <http://example.org/r> ?o } AS ?flag) " +
       "WHERE { ?s <http://example.org/q> ?w }",
   },
   {
@@ -149,7 +162,8 @@ const CASES: Case[] = [
     // sibling of the subquery form the other cases use. Only ex:s has an r
     // edge, so only it survives.
     name: "filter-exists-plain",
-    query: "SELECT ?s WHERE { ?s <http://example.org/q> ?w " +
+    query:
+      "SELECT ?s WHERE { ?s <http://example.org/q> ?w " +
       "FILTER EXISTS { ?s <http://example.org/r> ?z } }",
   },
   {
@@ -157,7 +171,8 @@ const CASES: Case[] = [
     // leak default-graph quads (ex:s ex:r ex:z) into GRAPH <h>, so the
     // EXISTS is false and the result is empty. Leaking would return s, t, u.
     name: "named-graph-fixed",
-    query: "SELECT ?s WHERE { ?s <http://example.org/q> ?w " +
+    query:
+      "SELECT ?s WHERE { ?s <http://example.org/q> ?w " +
       "FILTER EXISTS { GRAPH <http://example.org/h> { " +
       "?x <http://example.org/r> ?z } } }",
   },
@@ -166,7 +181,8 @@ const CASES: Case[] = [
     // t have r edges in ex:g, so (s, g) and (t, g) pass; u does not. Leaking
     // into the default graph would admit only s (the sole default r edge).
     name: "named-graph-correlated",
-    query: "SELECT ?s WHERE { ?s <http://example.org/q> ?w " +
+    query:
+      "SELECT ?s WHERE { ?s <http://example.org/q> ?w " +
       ". ?s <http://example.org/inG> ?g " +
       "FILTER EXISTS { GRAPH ?g { ?s <http://example.org/r> ?z } } }",
   },
@@ -212,9 +228,9 @@ async function wazooProjected(
   if (result.kind !== "select") {
     throw new Error(`expected select, got ${result.kind}`);
   }
-  return result.data.results.bindings.map((b) =>
-    String((b[variable] as { value: string }).value)
-  ).sort();
+  return result.data.results.bindings
+    .map((b) => String((b[variable] as { value: string }).value))
+    .sort();
 }
 
 /** Oxigraph: query a fresh store loaded from the shared Turtle text. */
@@ -257,7 +273,7 @@ if (failures > 0) {
       `case(s). Fix the EXISTS evaluator or the select pipeline before ` +
       `touching the queries.\n`,
   );
-  Deno.exit(1);
+  process.exit(1);
 }
 console.log(
   "\nCross-check passed: wazoo agrees with Oxigraph on every EXISTS case," +

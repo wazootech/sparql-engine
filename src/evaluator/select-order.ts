@@ -35,17 +35,18 @@ export function orderBindings(
     solution: SelectSolution,
     alias: Expression,
   ): RdfTerm | undefined => {
-    const resolver = solution.group === null
-      ? undefined
-      : aggregateResolver(solution, expressionEvaluator, context);
+    const resolver =
+      solution.group === null
+        ? undefined
+        : aggregateResolver(solution, expressionEvaluator, context);
     return resolver === undefined
       ? expressionEvaluator.evaluate(alias, solution.binding, context)
       : expressionEvaluator.evaluateWithAggregates(
-        alias,
-        solution.binding,
-        resolver,
-        context,
-      );
+          alias,
+          solution.binding,
+          resolver,
+          context,
+        );
   };
   const comparators = order.map((clause) => ({
     descending: clause.descending === true,
@@ -59,21 +60,22 @@ export function orderBindings(
           return aliasValue(solution, alias);
         }
       }
-      const resolver = solution.group === null
-        ? undefined
-        : aggregateResolver(solution, expressionEvaluator, context);
+      const resolver =
+        solution.group === null
+          ? undefined
+          : aggregateResolver(solution, expressionEvaluator, context);
       return resolver === undefined
         ? expressionEvaluator.evaluate(
-          clause.expression,
-          solution.binding,
-          context,
-        )
+            clause.expression,
+            solution.binding,
+            context,
+          )
         : expressionEvaluator.evaluateWithAggregates(
-          clause.expression,
-          solution.binding,
-          resolver,
-          context,
-        );
+            clause.expression,
+            solution.binding,
+            resolver,
+            context,
+          );
     },
   }));
   return [...solutions].sort((a, b) => {

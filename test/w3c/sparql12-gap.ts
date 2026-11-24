@@ -17,6 +17,8 @@ import {
   recordsOf,
   srjValueToCanonical,
 } from "./sparql12-gap-canonical.ts";
+import process from "node:process";
+import { readFileSync } from "node:fs";
 
 /**
  * Sparql12 fixtures live in test/w3c/fixtures/sparql12/<category>/<file>.
@@ -46,7 +48,7 @@ interface Row {
 }
 
 function readFixture(file: string): string {
-  return Deno.readTextFileSync(`${FIXTURES_ROOT}${file}`);
+  return readFileSync(`${FIXTURES_ROOT}${file}`, "utf8");
 }
 
 function fixtureText(testCase: W3cTestCase, file: string): string {
@@ -116,8 +118,8 @@ function parseGraphReference(
   const quads: rdfjs.Quad[] = parser.parse(fixtureText(testCase, file));
   return quads.map((quad) =>
     [quad.subject, quad.predicate, quad.object, quad.graph].map((term) =>
-      canonicalizeRdfTerm(term)
-    )
+      canonicalizeRdfTerm(term),
+    ),
   );
 }
 
@@ -128,15 +130,17 @@ function wazooSelectRecords(result: SparqlResponse): CanonicalTerm[][] {
     for (const name of Object.keys(binding)) {
       record[name] = canonicalizeSparqlValue(binding[name]);
     }
-    return Object.keys(record).sort().map((name) => record[name]);
+    return Object.keys(record)
+      .sort()
+      .map((name) => record[name]);
   });
 }
 
 function wazooQuadRecords(quads: rdfjs.Quad[]): CanonicalTerm[][] {
   return quads.map((quad) =>
     [quad.subject, quad.predicate, quad.object, quad.graph].map((term) =>
-      canonicalizeRdfTerm(term)
-    )
+      canonicalizeRdfTerm(term),
+    ),
   );
 }
 
@@ -194,9 +198,8 @@ async function evaluate(testCase: W3cTestCase): Promise<Verdict> {
   // SPARQL XML results (.srx) and their JSON siblings (.srj) encode the same
   // expected bindings — the W3C suite ships both serializations for one
   // test — so route XML results through the JSON reader.
-  const compareFile = kind === "srx"
-    ? resultFile?.replace(/\.srx$/, ".srj")
-    : resultFile;
+  const compareFile =
+    kind === "srx" ? resultFile?.replace(/\.srx$/, ".srj") : resultFile;
   const compareKind = kind === "srx" ? "srj" : kind;
 
   if (!compareFile) {
@@ -262,8 +265,7 @@ async function evaluate(testCase: W3cTestCase): Promise<Verdict> {
   }
   return {
     status: "error",
-    detail:
-      `unexpected wazoo result kind ${wazoo.result.kind} for ${kind} result`,
+    detail: `unexpected wazoo result kind ${wazoo.result.kind} for ${kind} result`,
   };
 }
 
@@ -318,7 +320,7 @@ if (pass < FLOOR || gap > 0 || error > 0) {
   console.error(
     `\nSPARQL 1.2 eval-triple-terms gap gate FAILED: ${pass}/${rows.length} pass is below floor of ${FLOOR}, with ${gap} gap(s) and ${error} error(s).`,
   );
-  Deno.exit(1);
+  process.exit(1);
 }
 console.log(
   `\nSPARQL 1.2 eval-triple-terms gap gate passed: ${pass}/${rows.length} pass (floor: ${FLOOR}).`,

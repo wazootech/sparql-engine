@@ -1,7 +1,14 @@
-import { assertEquals, assertStringIncludes } from "@std/assert";
-import { dirname, fromFileUrl, join, resolve } from "@std/path";
+import assert from "node:assert/strict";
+import { test } from "node:test";
 import { runCli } from "./run-cli.ts";
 import type { CliHost, CliResult } from "./run-cli.ts";
+import process from "node:process";
+import { statSync } from "node:fs";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { runProcess } from "../test/run-process.ts";
 
 const files: Record<string, string> = {
   "people.ttl": `
@@ -20,27 +27,30 @@ const host: CliHost = {
       : Promise.reject(new Error(`no such file: ${path}`)),
 };
 
-Deno.test("runCli - SELECT prints SPARQL results JSON", async () => {
+test("runCli - SELECT prints SPARQL results JSON", async () => {
   const result = await runCli(
     ["--data", "people.ttl", "--query-file", "select.rq"],
     host,
   );
-  assertEquals(result.exitCode, 0);
+  assert.deepStrictEqual(result.exitCode, 0);
   const parsed = JSON.parse(result.stdout);
-  assertEquals(parsed.head.vars, ["who"]);
-  assertEquals(parsed.results.bindings[0].who.value, "http://example.org/bob");
+  assert.deepStrictEqual(parsed.head.vars, ["who"]);
+  assert.deepStrictEqual(
+    parsed.results.bindings[0].who.value,
+    "http://example.org/bob",
+  );
 });
 
-Deno.test("runCli - ASK prints a boolean result", async () => {
+test("runCli - ASK prints a boolean result", async () => {
   const result = await runCli(
     ["--data", "people.ttl", "--query", "ASK { ?s ?p ?o }"],
     host,
   );
-  assertEquals(result.exitCode, 0);
-  assertEquals(JSON.parse(result.stdout).boolean, true);
+  assert.deepStrictEqual(result.exitCode, 0);
+  assert.deepStrictEqual(JSON.parse(result.stdout).boolean, true);
 });
 
-Deno.test("runCli - CONSTRUCT prints N-Quads", async () => {
+test("runCli - CONSTRUCT prints N-Quads", async () => {
   const result = await runCli(
     [
       "--data",
@@ -50,29 +60,31 @@ Deno.test("runCli - CONSTRUCT prints N-Quads", async () => {
     ],
     host,
   );
-  assertEquals(result.exitCode, 0);
-  assertStringIncludes(
+  assert.deepStrictEqual(result.exitCode, 0);
+  assert.ok(
+    result.stdout.includes(
+      "<http://example.org/bob> <http://example.org/knows> <http://example.org/alice> .",
+    ),
     result.stdout,
-    "<http://example.org/bob> <http://example.org/knows> <http://example.org/alice> .",
   );
 });
 
-Deno.test("runCli - usage errors exit 2", async () => {
-  assertEquals((await runCli([], host)).exitCode, 2);
-  assertEquals((await runCli(["--query"], host)).exitCode, 2);
-  assertEquals((await runCli(["--bogus", "x"], host)).exitCode, 2);
-  assertEquals((await runCli(["--help"], host)).exitCode, 0);
+test("runCli - usage errors exit 2", async () => {
+  assert.deepStrictEqual((await runCli([], host)).exitCode, 2);
+  assert.deepStrictEqual((await runCli(["--query"], host)).exitCode, 2);
+  assert.deepStrictEqual((await runCli(["--bogus", "x"], host)).exitCode, 2);
+  assert.deepStrictEqual((await runCli(["--help"], host)).exitCode, 0);
 });
 
-Deno.test("runCli - query and load failures exit 1", async () => {
+test("runCli - query and load failures exit 1", async () => {
   const syntax = await runCli(["--query", "SELEKT"], host);
-  assertEquals(syntax.exitCode, 1);
+  assert.deepStrictEqual(syntax.exitCode, 1);
   const missing = await runCli(
     ["--data", "missing.ttl", "--query", "ASK {}"],
     host,
   );
-  assertEquals(missing.exitCode, 1);
-  assertStringIncludes(missing.stderr, "missing.ttl");
+  assert.deepStrictEqual(missing.exitCode, 1);
+  assert.match(missing.stderr, /missing.ttl/);
 });
 
 /**
@@ -107,8 +119,8 @@ interface CliCase {
   stderrIncludes?: string;
 }
 
-const REPOSITORY_ROOT = resolve(dirname(fromFileUrl(import.meta.url)), "..");
-const EXECUTABLE_SUFFIX = Deno.build.os === "windows" ? ".exe" : "";
+const REPOSITORY_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const EXECUTABLE_SUFFIX = process.platform === "win32" ? ".exe" : "";
 
 const CLI_TARGETS: CliTarget[] = [
   {
@@ -178,22 +190,14 @@ async function runTarget(
   target: CliTarget,
   args: string[],
 ): Promise<CliResult> {
-  const { code, stdout, stderr } = await new Deno.Command(target.path, {
-    args,
-    stdout: "piped",
-    stderr: "piped",
-  }).output();
-  return {
-    exitCode: code,
-    stdout: new TextDecoder().decode(stdout),
-    stderr: new TextDecoder().decode(stderr),
-  };
+  const { code, stdout, stderr } = await runProcess(target.path, args);
+  return { exitCode: code, stdout, stderr };
 }
 
 /** cliTargetExists reports whether a built host is on disk. */
 function cliTargetExists(target: CliTarget): boolean {
   try {
-    Deno.statSync(target.path);
+    statSync(target.path);
     return true;
   } catch {
     return false;
@@ -201,44 +205,48 @@ function cliTargetExists(target: CliTarget): boolean {
 }
 
 const IN_PROCESS_HOST: CliHost = {
-  readTextFile: (path) => Deno.readTextFile(path),
+  readTextFile: (path) => readFile(path, "utf8"),
 };
 
 for (const target of CLI_TARGETS) {
-  Deno.test({
-    name:
-      `runCli cross-target - ${target.name} host matches the in-process core`,
-    ignore: !cliTargetExists(target),
-    async fn() {
-      const directory = await Deno.makeTempDir({ prefix: "sparql-cli-" });
+  test(
+    `runCli cross-target - ${target.name} host matches the in-process core`,
+    { skip: !cliTargetExists(target) },
+    async () => {
+      const directory = await mkdtemp(join(tmpdir(), "sparql-cli-"));
       try {
-        await Deno.writeTextFile(
-          join(directory, "people.ttl"),
-          files["people.ttl"],
-        );
-        await Deno.writeTextFile(
-          join(directory, "select.rq"),
-          files["select.rq"],
-        );
+        await writeFile(join(directory, "people.ttl"), files["people.ttl"]);
+        await writeFile(join(directory, "select.rq"), files["select.rq"]);
         for (const testCase of cliCases(directory)) {
           const expected = await runCli(testCase.args, IN_PROCESS_HOST);
           const actual = await runTarget(target, testCase.args);
           const label = `${target.name} - ${testCase.name}`;
-          assertEquals(
+          assert.deepStrictEqual(
             actual.exitCode,
             expected.exitCode,
             `${label}: exit code`,
           );
-          assertEquals(actual.stdout, expected.stdout, `${label}: stdout`);
+          assert.deepStrictEqual(
+            actual.stdout,
+            expected.stdout,
+            `${label}: stdout`,
+          );
           if (testCase.stderrIncludes === undefined) {
-            assertEquals(actual.stderr, expected.stderr, `${label}: stderr`);
+            assert.deepStrictEqual(
+              actual.stderr,
+              expected.stderr,
+              `${label}: stderr`,
+            );
           } else {
-            assertStringIncludes(actual.stderr, testCase.stderrIncludes);
+            assert.ok(
+              actual.stderr.includes(testCase.stderrIncludes),
+              `${label}: stderr includes ${testCase.stderrIncludes}: ${actual.stderr}`,
+            );
           }
         }
       } finally {
-        await Deno.remove(directory, { recursive: true });
+        await rm(directory, { recursive: true });
       }
     },
-  });
+  );
 }

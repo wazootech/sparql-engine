@@ -19,13 +19,11 @@ export function fallbackStats(entry: ScanEntry): PatternStats {
   // like the hook's contract. Blank-node pattern positions act as query
   // variables named `_:label` (matching getQueryVarName in join.ts).
   const positions: { name: string; index: 0 | 1 | 2 }[] = [];
-  for (
-    const [term, index] of [
-      [entry.subject, 0],
-      [entry.predicate, 1],
-      [entry.object, 2],
-    ] as const
-  ) {
+  for (const [term, index] of [
+    [entry.subject, 0],
+    [entry.predicate, 1],
+    [entry.object, 2],
+  ] as const) {
     if (term.termType === "Variable" || term.termType === "BlankNode") {
       positions.push({
         name: term.termType === "BlankNode" ? `_:${term.value}` : term.value,

@@ -1,8 +1,10 @@
 import type { SparqlResponse } from "@/sparql-engine-interface.ts";
-import { assertEquals, assertThrows } from "@std/assert";
+import assert from "node:assert/strict";
+import { test } from "node:test";
+import { thrown } from "../../test/thrown.ts";
 import { serializeXmlResults } from "@/serialize/xml-results.ts";
 
-Deno.test("serializeXmlResults - emits a deterministic .srx document", () => {
+test("serializeXmlResults - emits a deterministic .srx document", () => {
   const response: SparqlResponse = {
     kind: "select",
     data: {
@@ -23,7 +25,8 @@ Deno.test("serializeXmlResults - emits a deterministic .srx document", () => {
       },
     },
   };
-  const golden = '<?xml version="1.0" encoding="UTF-8"?>\n' +
+  const golden =
+    '<?xml version="1.0" encoding="UTF-8"?>\n' +
     '<sparql xmlns="http://www.w3.org/2005/sparql-results#" ' +
     'xmlns:its="http://www.w3.org/2005/11/its" its:version="2.0">\n' +
     "  <head>\n" +
@@ -45,29 +48,22 @@ Deno.test("serializeXmlResults - emits a deterministic .srx document", () => {
     "    </result>\n" +
     "  </results>\n" +
     "</sparql>\n";
-  assertEquals(serializeXmlResults(response), golden);
-  assertEquals(
+  assert.deepStrictEqual(serializeXmlResults(response), golden);
+  assert.deepStrictEqual(
     serializeXmlResults(response),
     serializeXmlResults(response),
   );
 });
 
-Deno.test(
-  "serializeXmlResults - rejects kinds the format does not cover",
-  () => {
-    assertThrows(
-      () =>
-        serializeXmlResults({
-          kind: "construct",
-          data: { quads: [] },
-        }),
-      Error,
-      "SELECT and ASK",
-    );
-    assertThrows(
-      () => serializeXmlResults({ kind: "void" }),
-      Error,
-      "SELECT and ASK",
-    );
-  },
-);
+test("serializeXmlResults - rejects kinds the format does not cover", () => {
+  thrown(
+    () =>
+      serializeXmlResults({
+        kind: "construct",
+        data: { quads: [] },
+      }),
+    Error,
+    "SELECT and ASK",
+  );
+  thrown(() => serializeXmlResults({ kind: "void" }), Error, "SELECT and ASK");
+});

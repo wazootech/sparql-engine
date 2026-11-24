@@ -138,14 +138,10 @@ export class MemoryStore implements RdfStore<RdfQuad> {
     object?: RdfTerm,
     graph?: RdfTerm,
   ): this {
-    const quad = predicate !== undefined && object !== undefined
-      ? DataFactory.quad(
-        quadOrSubject as RdfTerm,
-        predicate,
-        object,
-        graph,
-      )
-      : quadOrSubject as RdfQuad;
+    const quad =
+      predicate !== undefined && object !== undefined
+        ? DataFactory.quad(quadOrSubject as RdfTerm, predicate, object, graph)
+        : (quadOrSubject as RdfQuad);
     const subjectKey = termKey(quad.subject);
     const predicateKey = termKey(quad.predicate);
     const objectKey = termKey(quad.object);
@@ -231,11 +227,12 @@ export class MemoryStore implements RdfStore<RdfQuad> {
         bucket = candidate;
       }
     }
-    return bucket.filter((quad) =>
-      (subject == null || sameRdfTerm(quad.subject, subject)) &&
-      (predicate == null || sameRdfTerm(quad.predicate, predicate)) &&
-      (object == null || sameRdfTerm(quad.object, object)) &&
-      (graph == null || sameRdfTerm(quad.graph, graph))
+    return bucket.filter(
+      (quad) =>
+        (subject == null || sameRdfTerm(quad.subject, subject)) &&
+        (predicate == null || sameRdfTerm(quad.predicate, predicate)) &&
+        (object == null || sameRdfTerm(quad.object, object)) &&
+        (graph == null || sameRdfTerm(quad.graph, graph)),
     );
   }
 
@@ -262,9 +259,8 @@ export class MemoryStore implements RdfStore<RdfQuad> {
   }
 
   public deleteGraph(graph: RdfQuadGraph | string): MemoryStream {
-    const graphTerm = typeof graph === "string"
-      ? DataFactory.namedNode(graph)
-      : graph;
+    const graphTerm =
+      typeof graph === "string" ? DataFactory.namedNode(graph) : graph;
     return this.removeMatches(null, null, null, graphTerm);
   }
 

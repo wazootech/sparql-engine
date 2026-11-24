@@ -77,16 +77,20 @@ export function* joinTriplePatternLazy(
       quadIndex = buildQuadIndex(candidateQuads);
     }
 
-    const matchingQuads = quadIndex === null ? candidateQuads : probeQuadIndex(
-      quadIndex,
-      candidateQuads,
-      resolvedSubject,
-      resolvedPredicate,
-      resolvedObject,
-    );
-    const scopedQuads = graphScope === undefined || graphScope === null
-      ? matchingQuads
-      : matchingQuads.filter((item) => sameRdfTerm(item.graph, graphScope));
+    const matchingQuads =
+      quadIndex === null
+        ? candidateQuads
+        : probeQuadIndex(
+            quadIndex,
+            candidateQuads,
+            resolvedSubject,
+            resolvedPredicate,
+            resolvedObject,
+          );
+    const scopedQuads =
+      graphScope === undefined || graphScope === null
+        ? matchingQuads
+        : matchingQuads.filter((item) => sameRdfTerm(item.graph, graphScope));
 
     for (const matchQuad of scopedQuads) {
       const newBinding = { ...binding };
@@ -95,10 +99,7 @@ export function* joinTriplePatternLazy(
       if (subjectIsVariable) {
         const varName = getQueryVarName(subject);
         const val = matchQuad.subject;
-        if (
-          newBinding[varName] &&
-          !sameRdfTerm(newBinding[varName], val)
-        ) {
+        if (newBinding[varName] && !sameRdfTerm(newBinding[varName], val)) {
           valid = false;
         } else {
           newBinding[varName] = val;
@@ -108,10 +109,7 @@ export function* joinTriplePatternLazy(
       if (valid && predicateIsVariable) {
         const varName = getQueryVarName(predicate);
         const val = matchQuad.predicate;
-        if (
-          newBinding[varName] &&
-          !sameRdfTerm(newBinding[varName], val)
-        ) {
+        if (newBinding[varName] && !sameRdfTerm(newBinding[varName], val)) {
           valid = false;
         } else {
           newBinding[varName] = val;
@@ -121,10 +119,7 @@ export function* joinTriplePatternLazy(
       if (valid && objectIsVariable) {
         const varName = getQueryVarName(object);
         const val = matchQuad.object;
-        if (
-          newBinding[varName] &&
-          !sameRdfTerm(newBinding[varName], val)
-        ) {
+        if (newBinding[varName] && !sameRdfTerm(newBinding[varName], val)) {
           valid = false;
         } else {
           newBinding[varName] = val;

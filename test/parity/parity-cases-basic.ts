@@ -31,7 +31,8 @@ export const askCases: ParityTestCase[] = [
   {
     name: "ASK - join across two triple patterns",
     kind: "ask",
-    query: `ASK WHERE { ${exampleAlice} ${foafKnows} ?friend . ` +
+    query:
+      `ASK WHERE { ${exampleAlice} ${foafKnows} ?friend . ` +
       `?friend ${foafName} ?name }`,
     quads: basicKnowledgeGraphQuads,
   },
@@ -47,14 +48,16 @@ export const constructCases: ParityTestCase[] = [
   {
     name: "CONSTRUCT - template over variable bindings",
     kind: "construct",
-    query: `CONSTRUCT { ?person <http://example.org/displayName> ?name } ` +
+    query:
+      `CONSTRUCT { ?person <http://example.org/displayName> ?name } ` +
       `WHERE { ?person ${foafName} ?name }`,
     quads: basicKnowledgeGraphQuads,
   },
   {
     name: "CONSTRUCT - constant template",
     kind: "construct",
-    query: `CONSTRUCT { ${exampleAlice} <http://example.org/type> ` +
+    query:
+      `CONSTRUCT { ${exampleAlice} <http://example.org/type> ` +
       `<http://example.org/Person> } WHERE { ${exampleAlice} ${foafName} ?name }`,
     quads: basicKnowledgeGraphQuads,
   },
@@ -69,7 +72,8 @@ export const constructCases: ParityTestCase[] = [
   {
     name: "CONSTRUCT - empty result",
     kind: "construct",
-    query: `CONSTRUCT { ?person <http://example.org/type> ` +
+    query:
+      `CONSTRUCT { ?person <http://example.org/type> ` +
       `<http://example.org/Person> } WHERE { ${exampleNobody} ${foafName} ?name }`,
     quads: basicKnowledgeGraphQuads,
   },
@@ -97,8 +101,7 @@ export const describeCases: ParityTestCase[] = [
   {
     name: "DESCRIBE - IRI with WHERE describes only the IRI",
     kind: "describe",
-    query:
-      `DESCRIBE ${exampleAlice} WHERE { ${exampleNobody} ${foafName} ?name }`,
+    query: `DESCRIBE ${exampleAlice} WHERE { ${exampleNobody} ${foafName} ?name }`,
     quads: basicKnowledgeGraphQuads,
   },
   {
@@ -124,14 +127,16 @@ export const wildcardCases: ParityTestCase[] = [
   {
     name: "SELECT - VALUES block with duplicates and UNDEF",
     kind: "select",
-    query: `SELECT ?s ?n WHERE { VALUES (?s ?n) ` +
+    query:
+      `SELECT ?s ?n WHERE { VALUES (?s ?n) ` +
       `{ (${exampleAlice} 1) (${exampleAlice} 1) (UNDEF 2) } }`,
     quads: basicKnowledgeGraphQuads,
   },
   {
     name: "SELECT - VALUES block constrains a preceding BGP",
     kind: "select",
-    query: `SELECT ?s ?n WHERE { ?s ${foafName} ?name . ` +
+    query:
+      `SELECT ?s ?n WHERE { ?s ${foafName} ?name . ` +
       `VALUES (?s ?n) { (${exampleAlice} 1) (${exampleCarol} 2) } }`,
     quads: basicKnowledgeGraphQuads,
   },
@@ -174,7 +179,8 @@ export const graphCases: ParityTestCase[] = [
   {
     name: "GRAPH - scopes patterns to a named graph",
     kind: "select",
-    query: `SELECT ?s ?o WHERE { GRAPH <http://example.org/g1> { ` +
+    query:
+      `SELECT ?s ?o WHERE { GRAPH <http://example.org/g1> { ` +
       `?s ${pPred} ?o } } ORDER BY ?o`,
     quads: namedGraphQuads,
     orderSensitive: true,
@@ -189,14 +195,16 @@ export const graphCases: ParityTestCase[] = [
   {
     name: "GRAPH - missing graph returns nothing",
     kind: "select",
-    query: `SELECT ?s ?o WHERE { GRAPH <http://example.org/zz> { ` +
+    query:
+      `SELECT ?s ?o WHERE { GRAPH <http://example.org/zz> { ` +
       `?s ${pPred} ?o } }`,
     quads: namedGraphQuads,
   },
   {
     name: "GRAPH - joins with a preceding pattern",
     kind: "select",
-    query: `SELECT ?s ?o WHERE { ?s ${pPred} ?o1 . ` +
+    query:
+      `SELECT ?s ?o WHERE { ?s ${pPred} ?o1 . ` +
       `GRAPH <http://example.org/g1> { ?s ${pPred} ?o } } ORDER BY ?s`,
     quads: namedGraphQuads,
     orderSensitive: true,
@@ -207,7 +215,8 @@ export const fromCases: ParityTestCase[] = [
   {
     name: "FROM - scopes the default graph to one named graph",
     kind: "select",
-    query: `SELECT ?s ?o FROM <http://example.org/g1> WHERE { ?s ` +
+    query:
+      `SELECT ?s ?o FROM <http://example.org/g1> WHERE { ?s ` +
       `<http://example.org/p> ?o } ORDER BY ?s`,
     quads: fromDatasetQuads,
     orderSensitive: true,
@@ -215,7 +224,8 @@ export const fromCases: ParityTestCase[] = [
   {
     name: "FROM - a missing graph yields an empty result",
     kind: "select",
-    query: `SELECT ?s ?o FROM <http://example.org/none> WHERE { ?s ` +
+    query:
+      `SELECT ?s ?o FROM <http://example.org/none> WHERE { ?s ` +
       `<http://example.org/p> ?o }`,
     quads: fromDatasetQuads,
   },
@@ -229,8 +239,7 @@ export const fromCases: ParityTestCase[] = [
     orderSensitive: true,
   },
   {
-    name:
-      "FROM - FROM with FROM NAMED keeps the default graph as the FROM graphs",
+    name: "FROM - FROM with FROM NAMED keeps the default graph as the FROM graphs",
     kind: "select",
     query:
       `SELECT ?s ?o FROM <http://example.org/g1> FROM NAMED <http://example.org/g2> ` +
@@ -249,15 +258,13 @@ export const fromCases: ParityTestCase[] = [
   {
     name: "FROM - ASK over a FROM graph",
     kind: "ask",
-    query:
-      `ASK FROM <http://example.org/g1> WHERE { ?s <http://example.org/p> ?o }`,
+    query: `ASK FROM <http://example.org/g1> WHERE { ?s <http://example.org/p> ?o }`,
     quads: fromDatasetQuads,
   },
   {
     name: "FROM - ASK over a missing graph",
     kind: "ask",
-    query:
-      `ASK FROM <http://example.org/none> WHERE { ?s <http://example.org/p> ?o }`,
+    query: `ASK FROM <http://example.org/none> WHERE { ?s <http://example.org/p> ?o }`,
     quads: fromDatasetQuads,
   },
 ];

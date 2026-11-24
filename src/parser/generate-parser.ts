@@ -12,13 +12,22 @@
  * `lr-runtime.ts`, with no `@ts-nocheck`.
  * @see Aho, Sethi & Ullman, "Compilers: Principles, Techniques, and Tools," Addison-Wesley, 1986, ch. 4 (syntax analysis, LR parsing)
  *
- * The emitted modules are formatted with `deno fmt`, so the checked-in
- * artifacts are fmt-stable and regenerating reproduces them byte-for-byte.
+ * The emitted modules are formatted by the running runtime's own formatter
+ * (`<runtime> fmt <file>`: `deno fmt` under Deno, `bun fmt` under Bun), so the
+ * checked-in artifacts are fmt-stable for the toolchain that generated them
+ * and regenerating reproduces them byte-for-byte. The repository's formatter
+ * is Deno's until the Bun cutover, so `--check` is authoritative under Deno.
  *
- * Run via `deno task parser:generate`. With `--check`, it verifies instead of
- * writing: it exits non-zero when a checked-in artifact has drifted from its
- * grammar (used by `deno task parser:check` in CI).
+ * Run via `deno task parser:generate` (or `deno run -A` / `bun` on this file).
+ * With `--check`, it verifies instead of writing: it exits non-zero when a
+ * checked-in artifact has drifted from its grammar (used by
+ * `deno task parser:check` in CI).
  */
+import { spawnSync } from "node:child_process";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import process from "node:process";
 import jison from "jison";
 import { parse as parseGrammar } from "ebnf-parser";
 
@@ -351,10 +360,7 @@ class ActionEmitter {
   private readonly nonterminals: Set<string>;
   private readonly config: TypedParserConfig;
 
-  public constructor(
-    state: JisonGeneratorState,
-    config: TypedParserConfig,
-  ) {
+  public constructor(state: JisonGeneratorState, config: TypedParserConfig) {
     this.productions = state.productions;
     this.nonterminals = new Set(Object.keys(state.nonterminals));
     this.config = config;
@@ -389,17 +395,19 @@ class ActionEmitter {
       return declared;
     }
     if (/_repetition(_plus)?\d+$/.test(symbol)) {
-      return this.config.listType ??
-        `Array<${this.repetitionElementType(symbol)}>`;
+      return (
+        this.config.listType ?? `Array<${this.repetitionElementType(symbol)}>`
+      );
     }
     if (HELPER_NONTERMINAL.test(symbol)) {
       const alternatives: string[] = [];
       for (const production of this.productions) {
         if (production.symbol !== symbol) continue;
         const first = production.handle[0];
-        const type = first === undefined || first === ""
-          ? "undefined"
-          : this.valueTypeOf(first);
+        const type =
+          first === undefined || first === ""
+            ? "undefined"
+            : this.valueTypeOf(first);
         if (!alternatives.includes(type)) alternatives.push(type);
       }
       return alternatives.join(" | ");
@@ -418,8 +426,8 @@ class ActionEmitter {
       const element = plus
         ? handle[0]
         : handle[0] === symbol
-        ? handle[1]
-        : undefined;
+          ? handle[1]
+          : undefined;
       if (element !== undefined && element !== symbol) {
         return this.valueTypeOf(element);
       }
@@ -452,9 +460,8 @@ class ActionEmitter {
     action: string | undefined,
   ): string {
     const length = this.lengthOf(production);
-    const defaultValue = length === 0
-      ? "undefined"
-      : `values[top - ${length - 1}]`;
+    const defaultValue =
+      length === 0 ? "undefined" : `values[top - ${length - 1}]`;
     const text = (action ?? "").trim();
     if (text === "") {
       return `return ${defaultValue};`;
@@ -469,15 +476,13 @@ class ActionEmitter {
           "Only `$$ = expression;` and statements that leave the default `$1` value are supported.",
       );
     }
-    return `${
-      this.rewriteReferences(production, text)
-    }\nreturn ${defaultValue};`;
+    return `${this.rewriteReferences(
+      production,
+      text,
+    )}\nreturn ${defaultValue};`;
   }
 
-  private rewriteReferences(
-    production: JisonProduction,
-    code: string,
-  ): string {
+  private rewriteReferences(production: JisonProduction, code: string): string {
     const length = this.lengthOf(production);
     const rewritten = code.replace(/\$(\d+)/g, (_match, digits: string) => {
       const position = Number(digits);
@@ -555,9 +560,8 @@ function collectActions(
   const actions: Array<string | undefined> = [undefined]; // $accept
   for (const symbol of Object.keys(grammar.bnf)) {
     const entry = grammar.bnf[symbol]!;
-    const alternatives = typeof entry === "string"
-      ? entry.split(/\s*\|\s*/g)
-      : entry;
+    const alternatives =
+      typeof entry === "string" ? entry.split(/\s*\|\s*/g) : entry;
     for (const alternative of alternatives) {
       actions.push(
         typeof alternative === "string" ? undefined : alternative[1],
@@ -622,7 +626,8 @@ function collectLexerRules(
       }
       rules.push({ pattern: state.lexer.rules[index]!, token, name });
     } else if (
-      trimmed === "console.log(yytext);" && seenPatterns.includes(pattern)
+      trimmed === "console.log(yytext);" &&
+      seenPatterns.includes(pattern)
     ) {
       // jison-lex appends a debugging echo rule after the grammar's own
       // catch-all `.`; under longest-match-first-wins it can never match, so
@@ -671,7 +676,9 @@ export function generateTypedParserSource(
   for (const row of generator.table) {
     const actionEntries: Array<[number, string]> = [];
     const gotoEntries: Array<[number, string]> = [];
-    for (const key of Object.keys(row).map(Number).sort((a, b) => a - b)) {
+    for (const key of Object.keys(row)
+      .map(Number)
+      .sort((a, b) => a - b)) {
       const cell = row[key]!;
       if (typeof cell === "number") {
         gotoEntries.push([key, String(cell)]);
@@ -687,7 +694,9 @@ export function generateTypedParserSource(
     gotoRows.push(objectLiteral(gotoEntries));
   }
   const defaultActions = objectLiteral(
-    Object.keys(generator.defaultActions).map(Number).sort((a, b) => a - b)
+    Object.keys(generator.defaultActions)
+      .map(Number)
+      .sort((a, b) => a - b)
       .map((stateId): [number, string] => [
         stateId,
         actionCellLiteral(generator.defaultActions[stateId]!),
@@ -699,22 +708,22 @@ export function generateTypedParserSource(
       .sort((a, b) => a[0] - b[0]),
   );
   const productionSymbols = generator.productions_.map((entry) =>
-    typeof entry === "number" ? entry : entry[0]
+    typeof entry === "number" ? entry : entry[0],
   );
   const productionLengths = generator.productions_.map((entry) =>
-    typeof entry === "number" ? 0 : entry[1]
+    typeof entry === "number" ? 0 : entry[1],
   );
   const productionSymbolCells = objectLiteral(
-    productionSymbols.map((
-      symbol,
+    productionSymbols.map((symbol, id): [number, string] => [
       id,
-    ): [number, string] => [id, String(symbol)]),
+      String(symbol),
+    ]),
   );
   const productionLengthCells = objectLiteral(
-    productionLengths.map((
-      length,
+    productionLengths.map((length, id): [number, string] => [
       id,
-    ): [number, string] => [id, String(length)]),
+      String(length),
+    ]),
   );
 
   // Productions whose action bodies are identical share one `case`.
@@ -728,8 +737,9 @@ export function generateTypedParserSource(
   });
   const caseSource = [...caseBodies.entries()]
     .sort((a, b) => a[1][0]! - b[1][0]!)
-    .map(([body, ids]) =>
-      `${ids.map((id) => `case ${id}:`).join(" ")} {\n${body}\n}`
+    .map(
+      ([body, ids]) =>
+        `${ids.map((id) => `case ${id}:`).join(" ")} {\n${body}\n}`,
     )
     .join("\n");
 
@@ -743,9 +753,9 @@ export function generateTypedParserSource(
     .sort((a, b) => a[1][0]! - b[1][0]!)
     .map(([token, ids]) => {
       const names = [...new Set(ids.map((id) => rules[id]!.name))].join(", ");
-      return `${
-        ids.map((id) => `case ${id}:`).join(" ")
-      } // ${names}\nreturn ${token};`;
+      return `${ids
+        .map((id) => `case ${id}:`)
+        .join(" ")} // ${names}\nreturn ${token};`;
     })
     .join("\n");
 
@@ -834,55 +844,50 @@ export function ${config.entryFunctionName}(input: string): void {
 }
 
 /**
- * formatWithDenoFmt formats a source string with the project's `deno fmt`
- * rules (via a throwaway temp file), so the checked-in artifacts are
- * fmt-stable and regeneration reproduces them byte-for-byte.
+ * formatGenerated formats a source string with the running runtime's
+ * formatter (via a throwaway temp file), so the checked-in artifacts are
+ * fmt-stable and regeneration reproduces them byte-for-byte. The runtime
+ * binary is `process.execPath`, which is `deno` or `bun` depending on who
+ * runs this script; both accept `<runtime> fmt <file>`.
  */
-async function formatWithDenoFmt(source: string): Promise<string> {
+async function formatGenerated(source: string): Promise<string> {
   // The temp file lives in the OS temp dir (not the repo, where a crashed run
-  // would leak it into fmt:check and git status), and fileURLToPath is unused:
-  // Deno.makeTempFile already returns a platform-native path (URL.pathname is
-  // a POSIX-style `/C:/...` string that the Windows CLI mangles).
-  const tempPath = await Deno.makeTempFile({
-    prefix: "parser-fmt-",
-    suffix: ".ts",
-  });
-  await Deno.writeTextFile(tempPath, source);
+  // would leak it into fmt:check and git status), and mkdtemp returns a
+  // platform-native path (URL.pathname is a POSIX-style `/C:/...` string
+  // that the Windows CLI mangles).
+  const directory = await mkdtemp(join(tmpdir(), "parser-fmt-"));
+  const tempPath = join(directory, "generated.ts");
+  await writeFile(tempPath, source);
   try {
-    const cmd = new Deno.Command(Deno.execPath(), {
-      args: ["fmt", tempPath],
+    const { status, stderr } = spawnSync(process.execPath, ["fmt", tempPath], {
+      encoding: "utf8",
     });
-    const { code, stderr } = await cmd.output();
-    if (code !== 0) {
-      throw new Error(
-        `deno fmt failed: ${new TextDecoder().decode(stderr)}`,
-      );
+    if (status !== 0) {
+      throw new Error(`${process.execPath} fmt failed: ${stderr}`);
     }
-    return await Deno.readTextFile(tempPath);
+    return await readFile(tempPath, "utf8");
   } finally {
-    await Deno.remove(tempPath);
+    await rm(directory, { recursive: true, force: true });
   }
 }
 
 async function main(): Promise<void> {
-  const checkOnly = Deno.args.includes("--check");
+  const checkOnly = process.argv.slice(2).includes("--check");
   let allOk = true;
 
   for (const target of TARGETS) {
-    const rawGrammar = await Deno.readTextFile(target.grammarPath);
-    const formatted = await formatWithDenoFmt(
+    const rawGrammar = await readFile(target.grammarPath, "utf8");
+    const formatted = await formatGenerated(
       generateTypedParserSource(rawGrammar, target.typed),
     );
 
     if (checkOnly) {
-      const current = await Deno.readTextFile(target.outputPath);
+      const current = await readFile(target.outputPath, "utf8");
       if (current !== formatted) {
         console.error(
-          `${target.label} is out of date with ${
-            target.grammarPath.pathname
-              .split("/")
-              .pop()
-          }. ` +
+          `${target.label} is out of date with ${target.grammarPath.pathname
+            .split("/")
+            .pop()}. ` +
             "Run `deno task parser:generate` and commit the result.",
         );
         allOk = false;
@@ -890,13 +895,13 @@ async function main(): Promise<void> {
         console.log(`${target.label} is up to date with its grammar.`);
       }
     } else {
-      await Deno.writeTextFile(target.outputPath, formatted);
+      await writeFile(target.outputPath, formatted);
       console.log(`Generated ${target.label} (${formatted.length} bytes)`);
     }
   }
 
   if (checkOnly && !allOk) {
-    Deno.exit(1);
+    process.exit(1);
   }
 }
 

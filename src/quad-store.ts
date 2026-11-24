@@ -93,9 +93,10 @@ export function probeQuadIndex(
   }
   options.sort((a, b) => a.length - b.length);
   const bucket = options[0];
-  return bucket.filter((item) =>
-    (subject === null || sameRdfTerm(item.subject, subject)) &&
-    (predicate === null || sameRdfTerm(item.predicate, predicate)) &&
-    (object === null || sameRdfTerm(item.object, object))
+  return bucket.filter(
+    (item) =>
+      (subject === null || sameRdfTerm(item.subject, subject)) &&
+      (predicate === null || sameRdfTerm(item.predicate, predicate)) &&
+      (object === null || sameRdfTerm(item.object, object)),
   );
 }

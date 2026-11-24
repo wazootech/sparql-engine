@@ -210,14 +210,14 @@ export class SparqlEvaluator {
     const existsContext: ExpressionEvaluationContext = needsPipelineExists
       ? evaluator.pipelineExistsContext(pipelineSnapshot!)
       : {
-        evaluateExists: (pattern: Pattern, solution: TermBinding) =>
-          evaluator.evaluateExists(
-            pattern,
-            solution,
-            undefined,
-            effectiveBase,
-          ),
-      };
+          evaluateExists: (pattern: Pattern, solution: TermBinding) =>
+            evaluator.evaluateExists(
+              pattern,
+              solution,
+              undefined,
+              effectiveBase,
+            ),
+        };
     // Assigned after construction: scriptc has no layout for a two-arm
     // conditional spread (one arm must be empty).
     existsContext.baseIri = effectiveBase;
@@ -260,8 +260,8 @@ export class SparqlEvaluator {
       head: {
         vars: wildcard
           ? Array.from(
-            new Set(projected.flatMap((binding) => Object.keys(binding))),
-          )
+              new Set(projected.flatMap((binding) => Object.keys(binding))),
+            )
           : vars,
       },
       results: { bindings: projected },
@@ -302,11 +302,8 @@ export class SparqlEvaluator {
       return () => undefined;
     }
     return (aggregate) =>
-      aggregateValue(
-        aggregate,
-        group,
-        (expression, binding) =>
-          this.expressionEvaluator.evaluate(expression, binding, context),
+      aggregateValue(aggregate, group, (expression, binding) =>
+        this.expressionEvaluator.evaluate(expression, binding, context),
       );
   }
 
@@ -337,9 +334,10 @@ export class SparqlEvaluator {
       ...(context ?? {}),
       bnodeMap: new Map<string, RdfBlankNode>(),
     };
-    const resolver = solution.group === null
-      ? undefined
-      : this.aggregateResolver(solution, solutionContext);
+    const resolver =
+      solution.group === null
+        ? undefined
+        : this.aggregateResolver(solution, solutionContext);
     for (const varName of vars) {
       const bound = binding[varName];
       if (bound) {
@@ -348,18 +346,19 @@ export class SparqlEvaluator {
       const projection = projections.get(varName);
       if (projection !== undefined && !(varName in result)) {
         const mergedBinding = { ...binding, ...result };
-        const value = resolver === undefined
-          ? this.expressionEvaluator.evaluate(
-            projection,
-            mergedBinding,
-            solutionContext,
-          )
-          : this.expressionEvaluator.evaluateWithAggregates(
-            projection,
-            mergedBinding,
-            resolver,
-            solutionContext,
-          );
+        const value =
+          resolver === undefined
+            ? this.expressionEvaluator.evaluate(
+                projection,
+                mergedBinding,
+                solutionContext,
+              )
+            : this.expressionEvaluator.evaluateWithAggregates(
+                projection,
+                mergedBinding,
+                resolver,
+                solutionContext,
+              );
         if (value !== undefined) {
           result[varName] = value;
         }
@@ -372,8 +371,9 @@ export class SparqlEvaluator {
     query: AskQuery,
     signal?: AbortSignal,
   ): Promise<SparqlAskResults> {
-    const bindings = await (await this.bgpEvaluatorFor(query.from))
-      .evaluateBgp(query.where || [], query.base, signal);
+    const bindings = await (
+      await this.bgpEvaluatorFor(query.from)
+    ).evaluateBgp(query.where || [], query.base, signal);
     return {
       head: { link: null },
       boolean: bindings.length > 0,
@@ -416,11 +416,9 @@ export class SparqlEvaluator {
     signal?: AbortSignal,
   ): Promise<SparqlConstructResults> {
     const bindings = query.where?.length
-      ? await (await this.bgpEvaluatorFor(query.from)).evaluateBgp(
-        query.where,
-        query.base,
-        signal,
-      )
+      ? await (
+          await this.bgpEvaluatorFor(query.from)
+        ).evaluateBgp(query.where, query.base, signal)
       : [];
 
     const resources = new Set<RdfTerm>();
@@ -476,8 +474,9 @@ export class SparqlEvaluator {
     if (!query.template) {
       return { quads: [] };
     }
-    const bindings = await (await this.bgpEvaluatorFor(query.from))
-      .evaluateBgp(query.where || [], query.base, signal);
+    const bindings = await (
+      await this.bgpEvaluatorFor(query.from)
+    ).evaluateBgp(query.where || [], query.base, signal);
 
     // Reified-triple templates (`<< s p o >>`, annotation `{| ... |}`)
     // expand into a reifier blank node joined to its `rdf:reifies` triple
@@ -587,36 +586,4 @@ function writeWireValue(
   value: SparqlValue,
 ): void {
   wire[variableName] = value;
-}
-
-/**
- * expressionContainsAggregate reports whether an expression tree contains an
- * aggregate node (COUNT, SUM, ...) anywhere inside it.
- */
-function expressionContainsAggregate(
-  expression: Expression | Expression[] | Pattern,
-): boolean {
-  if (Array.isArray(expression) || "termType" in expression) {
-    return false;
-  }
-  if (!("type" in expression)) {
-    return false;
-  }
-  if (expression.type === "aggregate") {
-    return true;
-  }
-  if (expression.type === "exists") {
-    return false;
-  }
-  if (expression.type === "membership") {
-    return expressionContainsAggregate(expression.subject) ||
-      expression.candidates.some(expressionContainsAggregate);
-  }
-  if (expression.type === "operation") {
-    return expression.args.some(expressionContainsAggregate);
-  }
-  if (expression.type === "functionCall") {
-    return expression.args.some(expressionContainsAggregate);
-  }
-  return false;
 }

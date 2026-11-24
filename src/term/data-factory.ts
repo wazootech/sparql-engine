@@ -93,8 +93,10 @@ function newQuad(
   const objectArm = narrowQuadObject(object);
   const graphArm = narrowQuadGraph(graphTerm);
   if (
-    subjectArm === undefined || predicateArm === undefined ||
-    objectArm === undefined || graphArm === undefined
+    subjectArm === undefined ||
+    predicateArm === undefined ||
+    objectArm === undefined ||
+    graphArm === undefined
   ) {
     throw new Error("Invalid quad term for one or more positions");
   }

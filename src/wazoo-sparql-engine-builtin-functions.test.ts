@@ -3,22 +3,23 @@ import {
   emptyEngine,
   XSD,
 } from "@/wazoo-sparql-engine-test-helpers.ts";
-import { assertEquals } from "@std/assert";
+import assert from "node:assert/strict";
+import { test } from "node:test";
 
-Deno.test("WazooSparqlEngine - COALESCE, IF, IN, NOT IN, SAMETERM", async () => {
+test("WazooSparqlEngine - COALESCE, IF, IN, NOT IN, SAMETERM", async () => {
   const engine = emptyEngine();
   const coalesce = await bindValue(
     engine,
     `SELECT ?v WHERE { BIND(COALESCE(?missing, 1/0, "x") AS ?v) }`,
     "v",
   );
-  assertEquals(coalesce, { type: "literal", value: "x" });
+  assert.deepStrictEqual(coalesce, { type: "literal", value: "x" });
   const ifFalse = await bindValue(
     engine,
     `SELECT ?v WHERE { BIND(IF(false, 1, 2) AS ?v) }`,
     "v",
   );
-  assertEquals(ifFalse, {
+  assert.deepStrictEqual(ifFalse, {
     type: "literal",
     value: "2",
     datatype: `${XSD}integer`,
@@ -28,13 +29,13 @@ Deno.test("WazooSparqlEngine - COALESCE, IF, IN, NOT IN, SAMETERM", async () => 
     `SELECT ?v WHERE { BIND(1 IN (2, ?missing) AS ?v) }`,
     "v",
   );
-  assertEquals(inErr, null);
+  assert.deepStrictEqual(inErr, null);
   const inErrHit = await bindValue(
     engine,
     `SELECT ?v WHERE { BIND(1 IN (1, ?missing) AS ?v) }`,
     "v",
   );
-  assertEquals(inErrHit, {
+  assert.deepStrictEqual(inErrHit, {
     type: "literal",
     value: "true",
     datatype: `${XSD}boolean`,
@@ -44,7 +45,7 @@ Deno.test("WazooSparqlEngine - COALESCE, IF, IN, NOT IN, SAMETERM", async () => 
     `SELECT ?v WHERE { BIND(1 NOT IN () AS ?v) }`,
     "v",
   );
-  assertEquals(notin, {
+  assert.deepStrictEqual(notin, {
     type: "literal",
     value: "true",
     datatype: `${XSD}boolean`,
@@ -54,14 +55,14 @@ Deno.test("WazooSparqlEngine - COALESCE, IF, IN, NOT IN, SAMETERM", async () => 
     `SELECT ?v WHERE { BIND(SAMETERM(1, "1") AS ?v) }`,
     "v",
   );
-  assertEquals(same, {
+  assert.deepStrictEqual(same, {
     type: "literal",
     value: "false",
     datatype: `${XSD}boolean`,
   });
 });
 
-Deno.test("WazooSparqlEngine - BNODE mints fresh and labeled blank nodes", async () => {
+test("WazooSparqlEngine - BNODE mints fresh and labeled blank nodes", async () => {
   const engine = emptyEngine();
   const fresh = await bindValue(
     engine,
@@ -73,8 +74,8 @@ Deno.test("WazooSparqlEngine - BNODE mints fresh and labeled blank nodes", async
     `SELECT ?a ?b WHERE { BIND(BNODE() AS ?a) BIND(BNODE() AS ?b) }`,
     "b",
   );
-  assertEquals(fresh?.type, "bnode");
-  assertEquals(freshB?.type, "bnode");
+  assert.deepStrictEqual(fresh?.type, "bnode");
+  assert.deepStrictEqual(freshB?.type, "bnode");
   // Zero-argument BNODE mints a fresh node per call.
   if (fresh !== null && freshB !== null) {
     if (fresh.value === freshB.value) {
@@ -92,18 +93,18 @@ Deno.test("WazooSparqlEngine - BNODE mints fresh and labeled blank nodes", async
     `SELECT ?a ?b WHERE { BIND(BNODE("x") AS ?a) BIND(BNODE("x") AS ?b) }`,
     "b",
   );
-  assertEquals(labeled?.type, "bnode");
-  assertEquals(labeled?.value, labeledB?.value);
+  assert.deepStrictEqual(labeled?.type, "bnode");
+  assert.deepStrictEqual(labeled?.value, labeledB?.value);
 });
 
-Deno.test("WazooSparqlEngine - ABS, CEIL, FLOOR, ROUND preserve the datatype", async () => {
+test("WazooSparqlEngine - ABS, CEIL, FLOOR, ROUND preserve the datatype", async () => {
   const engine = emptyEngine();
   const absInt = await bindValue(
     engine,
     `SELECT ?v WHERE { BIND(ABS(-2) AS ?v) }`,
     "v",
   );
-  assertEquals(absInt, {
+  assert.deepStrictEqual(absInt, {
     type: "literal",
     value: "2",
     datatype: `${XSD}integer`,
@@ -113,7 +114,7 @@ Deno.test("WazooSparqlEngine - ABS, CEIL, FLOOR, ROUND preserve the datatype", a
     `SELECT ?v WHERE { BIND(ABS(-2.5) AS ?v) }`,
     "v",
   );
-  assertEquals(absDec, {
+  assert.deepStrictEqual(absDec, {
     type: "literal",
     value: "2.5",
     datatype: `${XSD}decimal`,
@@ -123,7 +124,7 @@ Deno.test("WazooSparqlEngine - ABS, CEIL, FLOOR, ROUND preserve the datatype", a
     `SELECT ?v WHERE { BIND(CEIL(2.5) AS ?v) }`,
     "v",
   );
-  assertEquals(ceil, {
+  assert.deepStrictEqual(ceil, {
     type: "literal",
     value: "3",
     datatype: `${XSD}decimal`,
@@ -133,7 +134,7 @@ Deno.test("WazooSparqlEngine - ABS, CEIL, FLOOR, ROUND preserve the datatype", a
     `SELECT ?v WHERE { BIND(ROUND(-2.5) AS ?v) }`,
     "v",
   );
-  assertEquals(roundNeg, {
+  assert.deepStrictEqual(roundNeg, {
     type: "literal",
     value: "-2",
     datatype: `${XSD}decimal`,
@@ -143,14 +144,14 @@ Deno.test("WazooSparqlEngine - ABS, CEIL, FLOOR, ROUND preserve the datatype", a
     `SELECT ?v WHERE { BIND(ROUND(2.5e0) AS ?v) }`,
     "v",
   );
-  assertEquals(roundDouble, {
+  assert.deepStrictEqual(roundDouble, {
     type: "literal",
     value: "3.0E0",
     datatype: `${XSD}double`,
   });
 });
 
-Deno.test("WazooSparqlEngine - date functions over xsd:dateTime", async () => {
+test("WazooSparqlEngine - date functions over xsd:dateTime", async () => {
   const engine = emptyEngine();
   const dt = `"2011-01-10T14:45:13.815-05:00"^^<${XSD}dateTime>`;
   const year = await bindValue(
@@ -158,7 +159,7 @@ Deno.test("WazooSparqlEngine - date functions over xsd:dateTime", async () => {
     `SELECT ?v WHERE { BIND(YEAR(${dt}) AS ?v) }`,
     "v",
   );
-  assertEquals(year, {
+  assert.deepStrictEqual(year, {
     type: "literal",
     value: "2011",
     datatype: `${XSD}integer`,
@@ -168,7 +169,7 @@ Deno.test("WazooSparqlEngine - date functions over xsd:dateTime", async () => {
     `SELECT ?v WHERE { BIND(SECONDS(${dt}) AS ?v) }`,
     "v",
   );
-  assertEquals(seconds, {
+  assert.deepStrictEqual(seconds, {
     type: "literal",
     value: "13.815",
     datatype: `${XSD}decimal`,
@@ -178,7 +179,7 @@ Deno.test("WazooSparqlEngine - date functions over xsd:dateTime", async () => {
     `SELECT ?v WHERE { BIND(TIMEZONE(${dt}) AS ?v) }`,
     "v",
   );
-  assertEquals(tz, {
+  assert.deepStrictEqual(tz, {
     type: "literal",
     value: "-PT5H",
     datatype: `${XSD}dayTimeDuration`,
@@ -189,17 +190,17 @@ Deno.test("WazooSparqlEngine - date functions over xsd:dateTime", async () => {
     `SELECT ?v WHERE { BIND(TIMEZONE("2011-01-10T14:45:13"^^<${XSD}dateTime>) AS ?v) }`,
     "v",
   );
-  assertEquals(none, null);
+  assert.deepStrictEqual(none, null);
   // A plain string is not an xsd:dateTime.
   const plain = await bindValue(
     engine,
     `SELECT ?v WHERE { BIND(YEAR("2011-01-10T14:45:13") AS ?v) }`,
     "v",
   );
-  assertEquals(plain, null);
+  assert.deepStrictEqual(plain, null);
 });
 
-Deno.test("WazooSparqlEngine - MD5 and SHA digests", async () => {
+test("WazooSparqlEngine - MD5 and SHA digests", async () => {
   const engine = emptyEngine();
   const checks: Array<[string, string]> = [
     ["MD5", "900150983cd24fb0d6963f7d28e17f72"],
@@ -223,36 +224,36 @@ Deno.test("WazooSparqlEngine - MD5 and SHA digests", async () => {
       `SELECT ?v WHERE { BIND(${fn}("abc") AS ?v) }`,
       "v",
     );
-    assertEquals(value, { type: "literal", value: digest });
+    assert.deepStrictEqual(value, { type: "literal", value: digest });
   }
 });
 
-Deno.test("WazooSparqlEngine - RDF-star expression functions", async () => {
+test("WazooSparqlEngine - RDF-star expression functions", async () => {
   const engine = emptyEngine();
   const triple = await bindValue(
     engine,
     `SELECT ?t WHERE { BIND(TRIPLE(<http://s>, <http://p>, "o") AS ?t) }`,
     "t",
   );
-  assertEquals(triple?.type, "triple");
+  assert.deepStrictEqual(triple?.type, "triple");
   const subject = await bindValue(
     engine,
     `SELECT ?v WHERE { BIND(SUBJECT(TRIPLE(<http://s>, <http://p>, "o")) AS ?v) }`,
     "v",
   );
-  assertEquals(subject, { type: "uri", value: "http://s" });
+  assert.deepStrictEqual(subject, { type: "uri", value: "http://s" });
   const object = await bindValue(
     engine,
     `SELECT ?v WHERE { BIND(OBJECT(TRIPLE(<http://s>, <http://p>, "o")) AS ?v) }`,
     "v",
   );
-  assertEquals(object, { type: "literal", value: "o" });
+  assert.deepStrictEqual(object, { type: "literal", value: "o" });
   const isTriple = await bindValue(
     engine,
     `SELECT ?v WHERE { BIND(isTRIPLE(TRIPLE(<http://s>, <http://p>, "o")) AS ?v) }`,
     "v",
   );
-  assertEquals(isTriple, {
+  assert.deepStrictEqual(isTriple, {
     type: "literal",
     value: "true",
     datatype: `${XSD}boolean`,
@@ -262,7 +263,7 @@ Deno.test("WazooSparqlEngine - RDF-star expression functions", async () => {
     `SELECT ?v WHERE { BIND(isTRIPLE("x") AS ?v) }`,
     "v",
   );
-  assertEquals(notTriple, {
+  assert.deepStrictEqual(notTriple, {
     type: "literal",
     value: "false",
     datatype: `${XSD}boolean`,
@@ -272,5 +273,5 @@ Deno.test("WazooSparqlEngine - RDF-star expression functions", async () => {
     `SELECT ?v WHERE { BIND(SUBJECT("x") AS ?v) }`,
     "v",
   );
-  assertEquals(err, null);
+  assert.deepStrictEqual(err, null);
 });

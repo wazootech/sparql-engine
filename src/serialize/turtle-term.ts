@@ -21,9 +21,10 @@ export function term(
     case "Literal":
       return literalTerm(t, prefixes);
     case "Quad":
-      return `<<( ${term(t.subject, prefixes)} ${term(t.predicate, prefixes)} ${
-        term(t.object, prefixes)
-      } )>>`;
+      return `<<( ${term(t.subject, prefixes)} ${term(t.predicate, prefixes)} ${term(
+        t.object,
+        prefixes,
+      )} )>>`;
     default:
       throw new Error(
         `Cannot serialize ${t.termType} term in Turtle: ${t.value}`,
@@ -32,13 +33,12 @@ export function term(
 }
 
 /** iriTerm renders an IRI as a prefixed name when a registered namespace matches. */
-function iriTerm(
-  value: string,
-  prefixes: Record<string, string>,
-): string {
+function iriTerm(value: string, prefixes: Record<string, string>): string {
   for (const [prefix, namespace] of Object.entries(prefixes)) {
     if (
-      prefix.length > 0 && namespace.length > 0 && value.startsWith(namespace)
+      prefix.length > 0 &&
+      namespace.length > 0 &&
+      value.startsWith(namespace)
     ) {
       const local = value.slice(namespace.length);
       // Only use the compact form when the local name is a plain PN_LOCAL,

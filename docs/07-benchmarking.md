@@ -21,23 +21,23 @@ version, hardware, run-to-run noise) that go stale without telling a reader
 anything structural. Run `deno task bench`, `deno task bench:size`, or
 `deno task bench:memory` for your own numbers.
 
-| Tool                         | Task                            | Measures                                                                              | Gate |
-| ---------------------------- | ------------------------------- | ------------------------------------------------------------------------------------- | ---- |
-| `bench/engine_bench.ts`      | `deno task bench`               | Query/update latency vs [Comunica](https://comunica.dev/) + Oxigraph                  | no   |
-| `bench/budget.ts`            | `deno task bench:check`         | Query latency regression gate (per-row budgets; rows recorded to the CI job summary)  | CI   |
-| `bench/concurrency-probe.ts` | (manual)                        | EXISTS snapshot isolation under concurrency                                           | no   |
-| `bench/measure-libs.ts`      | `deno task bench:size`          | On-disk footprint of each engine                                                      | no   |
-| `bench/measure-closures.ts`  | `deno task bench:size:closures` | Per-entrypoint import closure (what each subpath loads)                               | no   |
-| `bench/collect-memory.ts`    | `deno task bench:memory`        | Peak heap during execution                                                            | no   |
-| `bench/latency-chart.ts`     | `deno task bench:latency`       | Renders the `deno bench --json` latency snapshot into `docs/assets/chart-latency.svg` | no   |
-| `bench/latency-check.ts`     | `deno task bench:latency:check` | Fails when the committed snapshot's bench inventory is stale vs a fresh run           | CI   |
+| Tool                         | Task                            | Measures                                                                             | Gate |
+| ---------------------------- | ------------------------------- | ------------------------------------------------------------------------------------ | ---- |
+| `bench/engine_bench.ts`      | `deno task bench`               | Query/update latency vs [Comunica](https://comunica.dev/) + Oxigraph                 | no   |
+| `bench/budget.ts`            | `deno task bench:check`         | Query latency regression gate (per-row budgets; rows recorded to the CI job summary) | CI   |
+| `bench/concurrency-probe.ts` | (manual)                        | EXISTS snapshot isolation under concurrency                                          | no   |
+| `bench/measure-libs.ts`      | `deno task bench:size`          | On-disk footprint of each engine                                                     | no   |
+| `bench/measure-closures.ts`  | `deno task bench:size:closures` | Per-entrypoint import closure (what each subpath loads)                              | no   |
+| `bench/collect-memory.ts`    | `deno task bench:memory`        | Peak heap during execution                                                           | no   |
+| `bench/latency-chart.ts`     | `deno task bench:latency`       | Renders the `--json` latency snapshot into `docs/assets/chart-latency.svg`           | no   |
+| `bench/latency-check.ts`     | `deno task bench:latency:check` | Fails when the committed snapshot's bench inventory is stale vs a fresh run          | CI   |
 
 ## `deno task bench` — three-engine latency comparison
 
 `bench/engine_bench.ts` runs the wazoo engine against
 `@comunica/query-sparql-rdfjs-lite` and **Oxigraph (WASM)** over identical
-generated graphs. Deno's built-in bench runner times each group, with the wazoo
-engine as the per-group baseline.
+generated graphs. The shared mitata harness (`bench/bench.ts`, Deno and Bun)
+times each group, with the wazoo engine as the per-group baseline.
 
 ### Why the timings are trustworthy
 
@@ -148,7 +148,7 @@ in `src/wazoo-sparql-engine.test.ts`.
 - `bench:memory` — `bench/collect-memory.ts` spawns `bench/memory-probe.ts` per
   engine × workload in an **isolated Deno subprocess** (so only the target
   engine is loaded), executing each workload 5× and reporting peak
-  `Deno.memoryUsage()` (`heapUsed` + `rss` + `external`) on a 10,000-person
+  `process.memoryUsage()` (`heapUsed` + `rss` + `external`) on a 10,000-person
   graph (~55,000 quads) → `bench/memory-data.json`.
 - `bench/treemap.ts` renders the JSON snapshots into
   `docs/assets/chart-library-size.svg` (bar chart),
@@ -210,5 +210,5 @@ regenerate `bench:size`, `bench:memory`, or `bench:latency`, commit the updated
 `bench/*-data.json` **and** the `docs/assets/*.svg` together — the tasks format
 the SVGs, so a committed SVG should always be byte-identical to what `deno fmt`
 produces. `bench:latency:check` compares only the bench **inventory**
-(group/name/baseline) against a fresh `deno bench --json` run — timing values
-are machine-specific and never compared.
+(group/name/baseline) against a fresh `engine_bench.ts --json` run — timing
+values are machine-specific and never compared.

@@ -210,11 +210,12 @@ export class LrLexer {
     let best: RegExpMatchArray | null = null;
     let bestRule = -1;
     const dispatch = this.dispatch;
-    const candidates = this.offset >= this.input.length
-      ? dispatch.end
-      : this.input.charCodeAt(this.offset) < 128
-      ? dispatch.ascii[this.input.charCodeAt(this.offset)]!
-      : dispatch.high;
+    const candidates =
+      this.offset >= this.input.length
+        ? dispatch.end
+        : this.input.charCodeAt(this.offset) < 128
+          ? dispatch.ascii[this.input.charCodeAt(this.offset)]!
+          : dispatch.high;
     for (let index = 0; index < candidates.length; index++) {
       const rule = candidates[index]!;
       const pattern = this.rules[rule]!;
@@ -235,8 +236,10 @@ export class LrLexer {
       return LR_EOF;
     }
     throw new LrParseError(
-      "Lexical error on line " + (this.yylineno + 1) +
-        ". Unrecognized text.\n" + this.showPosition(),
+      "Lexical error on line " +
+        (this.yylineno + 1) +
+        ". Unrecognized text.\n" +
+        this.showPosition(),
       { text: "", token: null, line: this.yylineno, loc: null, expected: [] },
     );
   }
@@ -254,8 +257,8 @@ export class LrLexer {
     if (lines !== null) {
       const lastLine = lines[lines.length - 1]!;
       const lineBreak = lastLine.match(/\r?\n?/);
-      lastColumn = lastLine.length -
-        (lineBreak === null ? 0 : lineBreak[0].length);
+      lastColumn =
+        lastLine.length - (lineBreak === null ? 0 : lineBreak[0].length);
     }
     this.yylloc = {
       firstLine: previous.lastLine,
@@ -272,8 +275,7 @@ export class LrLexer {
   /** pastInput returns up to 20 characters consumed before the current token. */
   pastInput(): string {
     const past = this.input.slice(0, this.offset - this.match.length);
-    return (past.length > 20 ? "..." : "") +
-      past.slice(-20).replace(/\n/g, "");
+    return (past.length > 20 ? "..." : "") + past.slice(-20).replace(/\n/g, "");
   }
 
   /** upcomingInput returns up to 20 characters from the current token on. */
@@ -282,19 +284,20 @@ export class LrLexer {
     if (upcoming.length < 20) {
       upcoming += this.input.slice(
         this.offset,
-        this.offset + 20 -
-          upcoming.length,
+        this.offset + 20 - upcoming.length,
       );
     }
-    return (upcoming.slice(0, 20) + (upcoming.length > 20 ? "..." : ""))
-      .replace(/\n/g, "");
+    return (
+      upcoming.slice(0, 20) + (upcoming.length > 20 ? "..." : "")
+    ).replace(/\n/g, "");
   }
 
   /** showPosition renders the input around the error with a caret line. */
   showPosition(): string {
     const before = this.pastInput();
-    return before + this.upcomingInput() + "\n" + "-".repeat(before.length) +
-      "^";
+    return (
+      before + this.upcomingInput() + "\n" + "-".repeat(before.length) + "^"
+    );
   }
 }
 
@@ -319,8 +322,11 @@ export class LrParser<Value> {
   /** performAction runs the semantic action of a reduced production. */
   performAction(production: number, values: Value[]): Value {
     throw new Error(
-      "LrParser.performAction is not implemented for production " + production +
-        " (" + values.length + " values)",
+      "LrParser.performAction is not implemented for production " +
+        production +
+        " (" +
+        values.length +
+        " values)",
     );
   }
 
@@ -404,9 +410,15 @@ export class LrParser<Value> {
     }
     const tokenName = names[symbol] ?? String(symbol);
     return new LrParseError(
-      "Parse error on line " + (lineNumber + 1) + ":\n" +
-        lexer.showPosition() + "\nExpecting " + expected.join(", ") +
-        ", got '" + tokenName + "'",
+      "Parse error on line " +
+        (lineNumber + 1) +
+        ":\n" +
+        lexer.showPosition() +
+        "\nExpecting " +
+        expected.join(", ") +
+        ", got '" +
+        tokenName +
+        "'",
       {
         text: lexer.match,
         token: tokenName,

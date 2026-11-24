@@ -1,8 +1,10 @@
-import { assert, assertEquals } from "@std/assert";
-import { join } from "@std/path";
+import assert from "node:assert/strict";
+import { test } from "node:test";
 import { buildPeopleTurtle } from "../../bench/cli-workloads.ts";
 import { LR_EOF, LrLexer } from "@/parser/lr-runtime.ts";
 import { buildLexerDispatch } from "@/parser/lexer-dispatch.ts";
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 
 /** RuleLexer reports the matched rule index as the token id, ignoring nothing. */
 class RuleLexer extends LrLexer {
@@ -13,10 +15,10 @@ class RuleLexer extends LrLexer {
 
 /** loadRules reads a generated parser's LEXER_RULES array literal. */
 function loadRules(path: string): RegExp[] {
-  const source = Deno.readTextFileSync(path);
+  const source = readFileSync(path, "utf8");
   const start = source.indexOf("const LEXER_RULES: RegExp[] = [");
   const end = source.indexOf("\n];", start);
-  assert(start >= 0 && end > start, `no LEXER_RULES in ${path}`);
+  assert.ok(start >= 0 && end > start, `no LEXER_RULES in ${path}`);
   const literal = source.slice(source.indexOf("[", start), end + 2);
   return new Function(`return ${literal};`)() as RegExp[];
 }
@@ -48,7 +50,7 @@ function tokenize(
 }
 
 function assertEquivalent(name: string, input: string, rules: RegExp[]): void {
-  assertEquals(
+  assert.deepStrictEqual(
     tokenize(input, rules, false),
     tokenize(input, rules, true),
     name,
@@ -57,9 +59,9 @@ function assertEquivalent(name: string, input: string, rules: RegExp[]): void {
 
 function filesWithExtensions(root: string, extensions: string[]): string[] {
   const found: string[] = [];
-  for (const entry of Deno.readDirSync(root)) {
+  for (const entry of readdirSync(root, { withFileTypes: true })) {
     const path = join(root, entry.name);
-    if (entry.isDirectory) {
+    if (entry.isDirectory()) {
       found.push(...filesWithExtensions(path, extensions));
     } else if (extensions.some((extension) => entry.name.endsWith(extension))) {
       found.push(path);
@@ -97,39 +99,39 @@ const SPARQL_SNIPPETS = [
   ``,
 ];
 
-Deno.test("dispatch is equivalent to exhaustive on Turtle snippets", () => {
+test("dispatch is equivalent to exhaustive on Turtle snippets", () => {
   TURTLE_SNIPPETS.forEach((snippet, index) =>
-    assertEquivalent(`turtle snippet ${index}`, snippet, turtleRules)
+    assertEquivalent(`turtle snippet ${index}`, snippet, turtleRules),
   );
 });
 
-Deno.test("dispatch is equivalent to exhaustive on SPARQL snippets", () => {
+test("dispatch is equivalent to exhaustive on SPARQL snippets", () => {
   SPARQL_SNIPPETS.forEach((snippet, index) =>
-    assertEquivalent(`sparql snippet ${index}`, snippet, sparqlRules)
+    assertEquivalent(`sparql snippet ${index}`, snippet, sparqlRules),
   );
 });
 
-Deno.test("dispatch is equivalent to exhaustive on generated people Turtle", () => {
+test("dispatch is equivalent to exhaustive on generated people Turtle", () => {
   assertEquivalent("people", buildPeopleTurtle(300), turtleRules);
 });
 
-Deno.test("dispatch is equivalent to exhaustive on every W3C Turtle/TriG fixture", () => {
+test("dispatch is equivalent to exhaustive on every W3C Turtle/TriG fixture", () => {
   const paths = filesWithExtensions("test/w3c/fixtures", [".ttl", ".trig"]);
-  assert(paths.length > 100);
+  assert.ok(paths.length > 100);
   for (const path of paths) {
-    assertEquivalent(path, Deno.readTextFileSync(path), turtleRules);
+    assertEquivalent(path, readFileSync(path, "utf8"), turtleRules);
   }
 });
 
-Deno.test("dispatch is equivalent to exhaustive on every W3C SPARQL fixture", () => {
+test("dispatch is equivalent to exhaustive on every W3C SPARQL fixture", () => {
   const paths = filesWithExtensions("test/w3c/fixtures", [".rq", ".ru"]);
-  assert(paths.length > 100);
+  assert.ok(paths.length > 100);
   for (const path of paths) {
-    assertEquivalent(path, Deno.readTextFileSync(path), sparqlRules);
+    assertEquivalent(path, readFileSync(path, "utf8"), sparqlRules);
   }
 });
 
-Deno.test("dispatch is equivalent to exhaustive for every single character", () => {
+test("dispatch is equivalent to exhaustive for every single character", () => {
   for (let code = 0; code < 0x250; code++) {
     const character = String.fromCharCode(code);
     for (const input of [character, character + " ", "a" + character]) {
@@ -139,25 +141,28 @@ Deno.test("dispatch is equivalent to exhaustive for every single character", () 
   }
 });
 
-Deno.test("dispatch narrows the candidates for punctuation and keeps order", () => {
+test("dispatch narrows the candidates for punctuation and keeps order", () => {
   const dispatch = buildLexerDispatch(turtleRules.map(toSticky), false);
   const exhaustive = buildLexerDispatch(turtleRules.map(toSticky), true);
-  assert(dispatch.ascii[";".charCodeAt(0)]!.length < 10);
-  assertEquals(exhaustive.ascii[0]!.length, turtleRules.length);
+  assert.ok(dispatch.ascii[";".charCodeAt(0)]!.length < 10);
+  assert.deepStrictEqual(exhaustive.ascii[0]!.length, turtleRules.length);
   for (const candidates of dispatch.ascii) {
-    assertEquals(candidates, [...candidates].sort((a, b) => a - b));
+    assert.deepStrictEqual(
+      candidates,
+      [...candidates].sort((a, b) => a - b),
+    );
   }
 });
 
-Deno.test("rules with an undeterminable first character fall back to all chars", () => {
+test("rules with an undeterminable first character fall back to all chars", () => {
   const rules = [/(?=a)a/y, /a*/y, /\bb/y, /c$/y, /d/y, /(?:e|f)g/y, /[^h]/y];
   const dispatch = buildLexerDispatch(rules, false);
   const e = "e".charCodeAt(0);
-  assertEquals(dispatch.ascii["a".charCodeAt(0)], [0, 1, 2, 3, 6]);
-  assertEquals(dispatch.ascii["d".charCodeAt(0)], [0, 1, 2, 3, 4, 6]);
-  assertEquals(dispatch.ascii[e], [0, 1, 2, 3, 5, 6]);
-  assertEquals(dispatch.end, [0, 1, 2, 3]);
-  assertEquals(dispatch.high, [0, 1, 2, 3, 6]);
+  assert.deepStrictEqual(dispatch.ascii["a".charCodeAt(0)], [0, 1, 2, 3, 6]);
+  assert.deepStrictEqual(dispatch.ascii["d".charCodeAt(0)], [0, 1, 2, 3, 4, 6]);
+  assert.deepStrictEqual(dispatch.ascii[e], [0, 1, 2, 3, 5, 6]);
+  assert.deepStrictEqual(dispatch.end, [0, 1, 2, 3]);
+  assert.deepStrictEqual(dispatch.high, [0, 1, 2, 3, 6]);
 });
 
 function toSticky(rule: RegExp): RegExp {

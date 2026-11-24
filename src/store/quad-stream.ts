@@ -28,8 +28,10 @@ type Listener = (...args: unknown[]) => void;
  * interface without depending on Node's `events` module, keeping the engine
  * runtime dependency-free and browser-friendly.
  */
-export class MemoryStream extends MiniEventEmitter
-  implements RdfStream<RdfQuad> {
+export class MemoryStream
+  extends MiniEventEmitter
+  implements RdfStream<RdfQuad>
+{
   private _ended = false;
   private _flowing = false;
   private _readStarted = false;
@@ -68,7 +70,8 @@ export class MemoryStream extends MiniEventEmitter
     if (eventName === "readable" && !this._ended && this.quads.length > 0) {
       queueMicrotask(() => {
         if (
-          !this._ended && this.quads.length > 0 &&
+          !this._ended &&
+          this.quads.length > 0 &&
           this.listenerCount("readable") > 0
         ) {
           this.emit("readable");
@@ -78,7 +81,9 @@ export class MemoryStream extends MiniEventEmitter
     if (eventName === "end" && !this._ended) {
       queueMicrotask(() => {
         if (
-          !this._ended && !this._flowing && !this._readStarted &&
+          !this._ended &&
+          !this._flowing &&
+          !this._readStarted &&
           this.listenerCount("data") === 0 &&
           this.listenerCount("readable") === 0
         ) {

@@ -33,10 +33,14 @@ export function sha256Hex(input: string): string {
       w[index] = view.getUint32(offset + index * 4, false);
     }
     for (let index = 16; index < 64; index++) {
-      const s0 = rotateRight(w[index - 15], 7) ^
-        rotateRight(w[index - 15], 18) ^ (w[index - 15] >>> 3);
-      const s1 = rotateRight(w[index - 2], 17) ^
-        rotateRight(w[index - 2], 19) ^ (w[index - 2] >>> 10);
+      const s0 =
+        rotateRight(w[index - 15], 7) ^
+        rotateRight(w[index - 15], 18) ^
+        (w[index - 15] >>> 3);
+      const s1 =
+        rotateRight(w[index - 2], 17) ^
+        rotateRight(w[index - 2], 19) ^
+        (w[index - 2] >>> 10);
       w[index] = (w[index - 16] + s0 + w[index - 7] + s1) >>> 0;
     }
     let a = h0;
@@ -48,12 +52,10 @@ export function sha256Hex(input: string): string {
     let g = h6;
     let h = h7;
     for (let index = 0; index < 64; index++) {
-      const s1 = rotateRight(e, 6) ^ rotateRight(e, 11) ^
-        rotateRight(e, 25);
+      const s1 = rotateRight(e, 6) ^ rotateRight(e, 11) ^ rotateRight(e, 25);
       const ch = (e & f) ^ (~e & g);
       const temp1 = (h + s1 + ch + SHA256_K[index] + w[index]) >>> 0;
-      const s0 = rotateRight(a, 2) ^ rotateRight(a, 13) ^
-        rotateRight(a, 22);
+      const s0 = rotateRight(a, 2) ^ rotateRight(a, 13) ^ rotateRight(a, 22);
       const maj = (a & b) ^ (a & c) ^ (b & c);
       const temp2 = (s0 + maj) >>> 0;
       h = g;
@@ -76,6 +78,14 @@ export function sha256Hex(input: string): string {
   }
 
   const wordHex = (word: number): string => word.toString(16).padStart(8, "0");
-  return wordHex(h0) + wordHex(h1) + wordHex(h2) + wordHex(h3) +
-    wordHex(h4) + wordHex(h5) + wordHex(h6) + wordHex(h7);
+  return (
+    wordHex(h0) +
+    wordHex(h1) +
+    wordHex(h2) +
+    wordHex(h3) +
+    wordHex(h4) +
+    wordHex(h5) +
+    wordHex(h6) +
+    wordHex(h7)
+  );
 }

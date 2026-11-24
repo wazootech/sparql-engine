@@ -3,11 +3,13 @@ import { SparqlEvaluator } from "@/evaluator/sparql-evaluator.ts";
 import { SparqlParser } from "@/parser/sparql-parser.ts";
 import { MemoryStore as Store } from "@/store/memory-store.ts";
 import { WazooSparqlEngine } from "@/wazoo-sparql-engine.ts";
-import { assertEquals, assertRejects } from "@std/assert";
+import assert from "node:assert/strict";
+import { test } from "node:test";
+import { rejected } from "../test/thrown.ts";
 
 const { namedNode, literal, quad } = DataFactory;
 
-Deno.test("WazooSparqlEngine - pre-aborted signal rejects immediately", async () => {
+test("WazooSparqlEngine - pre-aborted signal rejects immediately", async () => {
   const store = new Store();
   store.addQuad(
     quad(
@@ -19,7 +21,7 @@ Deno.test("WazooSparqlEngine - pre-aborted signal rejects immediately", async ()
   const engine = new WazooSparqlEngine({ store });
   const controller = new AbortController();
   controller.abort(new Error("aborted before start"));
-  await assertRejects(
+  await rejected(
     () =>
       engine.execute({
         query: "SELECT ?s WHERE { ?s ?p ?o }",
@@ -30,11 +32,11 @@ Deno.test("WazooSparqlEngine - pre-aborted signal rejects immediately", async ()
   );
 });
 
-Deno.test("WazooSparqlEngine - pre-aborted signal rejects updates too", async () => {
+test("WazooSparqlEngine - pre-aborted signal rejects updates too", async () => {
   const engine = new WazooSparqlEngine({ store: new Store() });
   const controller = new AbortController();
   controller.abort(new Error("aborted update"));
-  await assertRejects(
+  await rejected(
     () =>
       engine.execute({
         query:
@@ -46,7 +48,7 @@ Deno.test("WazooSparqlEngine - pre-aborted signal rejects updates too", async ()
   );
 });
 
-Deno.test("WazooSparqlEngine - boundary check aborts evaluation without the race", async () => {
+test("WazooSparqlEngine - boundary check aborts evaluation without the race", async () => {
   // No execute() race here: the rejection can only come from the per-boundary
   // checkAborted at evaluateBgp entry (the signal is threaded through the
   // evaluator, issue #122 scope 2).
@@ -54,14 +56,14 @@ Deno.test("WazooSparqlEngine - boundary check aborts evaluation without the race
   const query = new SparqlParser().parse("SELECT ?s WHERE { ?s ?p ?o }");
   const controller = new AbortController();
   controller.abort(new Error("stop at boundary"));
-  await assertRejects(
+  await rejected(
     () => evaluator.evaluateQuery(query, controller.signal),
     Error,
     "stop at boundary",
   );
 });
 
-Deno.test("WazooSparqlEngine - timeoutMs on a fast query still succeeds", async () => {
+test("WazooSparqlEngine - timeoutMs on a fast query still succeeds", async () => {
   const store = new Store();
   store.addQuad(
     quad(
@@ -75,8 +77,8 @@ Deno.test("WazooSparqlEngine - timeoutMs on a fast query still succeeds", async 
     query: "SELECT ?s WHERE { ?s ?p ?o }",
     timeoutMs: 5_000,
   });
-  assertEquals(result.kind, "select");
+  assert.deepStrictEqual(result.kind, "select");
   if (result.kind === "select") {
-    assertEquals(result.data.results.bindings.length, 1);
+    assert.deepStrictEqual(result.data.results.bindings.length, 1);
   }
 });

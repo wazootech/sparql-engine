@@ -18,10 +18,12 @@
 //
 // Run locally: `deno task docs:link-check`.
 
+import process from "node:process";
+import { readdirSync, readFileSync } from "node:fs";
 const FILES = [
   "README.md",
-  ...Deno.readDirSync("docs")
-    .filter((e) => e.isFile && e.name.endsWith(".md"))
+  ...readdirSync("docs", { withFileTypes: true })
+    .filter((e) => e.isFile() && e.name.endsWith(".md"))
     .map((e) => `docs/${e.name}`),
 ].sort();
 
@@ -73,7 +75,7 @@ async function checkUrl(url: string): Promise<Result> {
 const byFile = new Map<string, string[]>();
 const all = new Set<string>();
 for (const f of FILES) {
-  const links = extractLinks(Deno.readTextFileSync(f));
+  const links = extractLinks(readFileSync(f, "utf8"));
   for (const u of links) {
     all.add(u);
     byFile.set(u, [...(byFile.get(u) ?? []), f]);
@@ -120,5 +122,5 @@ if (broken > 0) {
   console.error(
     "Broken wiki links detected. Fix the target or update the docs (see docs/08-maintenance.md).",
   );
-  Deno.exit(1);
+  process.exit(1);
 }

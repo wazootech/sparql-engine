@@ -1,9 +1,14 @@
 /**
  * cli-bench-build compiles each bench target and reads the run's flags: the
- * deno-compile step every target shares and the options parser.
+ * compile step every target shares and the options parser.
  */
 import type { Options } from "./cli-bench-types.ts";
 import { COMPILED_PATH, IS_WINDOWS, REPO_ROOT } from "./cli-bench-env.ts";
+import {
+  compileCommand,
+  runProcess,
+  runtimeName,
+} from "../test/run-process.ts";
 
 export function parseOptions(args: string[]): Options {
   const options: Options = {
@@ -49,33 +54,18 @@ export function parseOptions(args: string[]): Options {
 }
 
 export async function compileCli(): Promise<void> {
-  const { code, stderr } = await new Deno.Command(Deno.execPath(), {
-    args: [
-      "compile",
-      "--allow-read",
-      "--output",
-      COMPILED_PATH,
-      "cli/deno-main.ts",
-    ],
-    cwd: REPO_ROOT,
-    stdout: "null",
-    stderr: "piped",
-  }).output();
+  const [program, ...args] = compileCommand("cli/main.ts", COMPILED_PATH);
+  const { code, stderr } = await runProcess(program, args, { cwd: REPO_ROOT });
   if (code !== 0) {
-    throw new Error(
-      `deno compile failed:\n${new TextDecoder().decode(stderr)}`,
-    );
+    throw new Error(`${runtimeName} compile failed:
+${stderr}`);
   }
 }
 
 export async function hasGnuTime(): Promise<boolean> {
   if (IS_WINDOWS) return false;
   try {
-    const { code } = await new Deno.Command("/usr/bin/time", {
-      args: ["-f", "%M", "true"],
-      stdout: "null",
-      stderr: "null",
-    }).output();
+    const { code } = await runProcess("/usr/bin/time", ["-f", "%M", "true"]);
     return code === 0;
   } catch {
     return false;

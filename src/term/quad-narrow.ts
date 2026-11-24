@@ -18,7 +18,9 @@ function narrowNestedQuad(term: RdfBaseQuad): RdfQuad | undefined {
   const object = narrowQuadObject(term.object);
   const graph = narrowQuadGraph(term.graph);
   if (
-    subject === undefined || predicate === undefined || object === undefined ||
+    subject === undefined ||
+    predicate === undefined ||
+    object === undefined ||
     graph === undefined
   ) {
     return undefined;
@@ -114,6 +116,8 @@ export function requireQuadGraph(term: RdfTerm): RdfQuadGraph {
 
 /** quadDedupKey is a stable key for deduplicating quads in dataset construction. */
 export function quadDedupKey(quad: RdfQuad): string {
-  return `${termKey(quad.subject)}\u0000${termKey(quad.predicate)}\u0000` +
-    `${termKey(quad.object)}\u0000${termKey(quad.graph)}`;
+  return (
+    `${termKey(quad.subject)}\u0000${termKey(quad.predicate)}\u0000` +
+    `${termKey(quad.object)}\u0000${termKey(quad.graph)}`
+  );
 }

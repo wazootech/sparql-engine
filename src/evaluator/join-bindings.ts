@@ -45,10 +45,7 @@ export type BindingFilter = (binding: TermBinding) => boolean;
  * every variable bound in both must resolve to the same RDF term (compared
  * structurally, so RDF-star triple terms match by subject/predicate/object).
  */
-export function bindingsCompatible(
-  a: TermBinding,
-  b: TermBinding,
-): boolean {
+export function bindingsCompatible(a: TermBinding, b: TermBinding): boolean {
   for (const key of Object.keys(a)) {
     const bValue = b[key];
     if (bValue !== undefined && !sameRdfTerm(a[key], bValue)) {
@@ -120,14 +117,13 @@ export function sharedVars(
  * the term keys of the values it binds, with null for unbound positions.
  * JSON.stringify keeps the tuple collision-free for any term content.
  */
-export function joinKey(
-  binding: TermBinding,
-  joinVars: string[],
-): string {
-  return JSON.stringify(joinVars.map((v) => {
-    const t = binding[v];
-    return t === undefined ? null : termKey(t);
-  }));
+export function joinKey(binding: TermBinding, joinVars: string[]): string {
+  return JSON.stringify(
+    joinVars.map((v) => {
+      const t = binding[v];
+      return t === undefined ? null : termKey(t);
+    }),
+  );
 }
 
 /**

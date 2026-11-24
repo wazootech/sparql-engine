@@ -3,21 +3,23 @@
  * invocation per workload per round, with parsed stage timings and peak RSS
  * where `/usr/bin/time` provides it.
  */
-import { join } from "@std/path";
 import type { Options, Sample, SizeMeasurement } from "./cli-bench-types.ts";
 import { buildPeopleTurtle, WORKLOADS } from "./cli-workloads.ts";
 import { runOnce } from "./cli-bench-run.ts";
 import { rotate } from "./cli-bench-stats.ts";
 import { aggregateSamples } from "./cli-bench-aggregate.ts";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 export async function measureSize(
   people: number,
   options: Options,
   measureRss: boolean,
 ): Promise<SizeMeasurement> {
-  const directory = await Deno.makeTempDir({ prefix: "sparql-cli-bench-" });
+  const directory = await mkdtemp(join(tmpdir(), "sparql-cli-bench-"));
   const dataPath = join(directory, "people.ttl");
-  await Deno.writeTextFile(dataPath, buildPeopleTurtle(people));
+  await writeFile(dataPath, buildPeopleTurtle(people));
   const samples: Sample[] = [];
   const peakRssKiB: Record<string, number> = {};
   try {
@@ -59,7 +61,7 @@ export async function measureSize(
       }
     }
   } finally {
-    await Deno.remove(directory, { recursive: true });
+    await rm(directory, { recursive: true });
   }
 
   const { raw, operations, ratios } = aggregateSamples(samples, options);

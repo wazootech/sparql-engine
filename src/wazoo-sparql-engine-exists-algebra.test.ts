@@ -1,11 +1,12 @@
 import { DataFactory } from "@/term/mod.ts";
 import { MemoryStore as Store } from "@/store/memory-store.ts";
 import { WazooSparqlEngine } from "@/wazoo-sparql-engine.ts";
-import { assertEquals } from "@std/assert";
+import assert from "node:assert/strict";
+import { test } from "node:test";
 
 const { namedNode, literal, quad } = DataFactory;
 
-Deno.test("WazooSparqlEngine - OPTIONAL, MINUS, UNION inside EXISTS reuse the join algebra", async () => {
+test("WazooSparqlEngine - OPTIONAL, MINUS, UNION inside EXISTS reuse the join algebra", async () => {
   // Default graph: a -p-> b -q-> c -q-> d, b -r-> c, and a -p-> e (e has no q
   // or r edges). Named graph g1: a -p-> b -q-> c; g2: a -p-> b (no q).
   const store = new Store();
@@ -27,14 +28,14 @@ Deno.test("WazooSparqlEngine - OPTIONAL, MINUS, UNION inside EXISTS reuse the jo
     if (result.kind !== "select") {
       throw new Error(`expected select, got ${result.kind}`);
     }
-    return result.data.results.bindings.map((b) =>
-      String((b[variable] as { value: string }).value)
-    ).sort();
+    return result.data.results.bindings
+      .map((b) => String((b[variable] as { value: string }).value))
+      .sort();
   }
 
   // MINUS: for o=b, z=c is excluded only when the minus side matches c
   // (c -r-> ?w exists); excluding r keeps c, so a passes.
-  assertEquals(
+  assert.deepStrictEqual(
     await projected(
       "SELECT ?s WHERE { ?s <http://example.org/p> ?o " +
         "FILTER EXISTS { ?o <http://example.org/q> ?z MINUS { ?z <http://example.org/r> ?w } } }",
@@ -43,7 +44,7 @@ Deno.test("WazooSparqlEngine - OPTIONAL, MINUS, UNION inside EXISTS reuse the jo
     ["http://example.org/a"],
   );
   // MINUS excluding q removes z=c entirely, so no o satisfies the EXISTS.
-  assertEquals(
+  assert.deepStrictEqual(
     await projected(
       "SELECT ?s WHERE { ?s <http://example.org/p> ?o " +
         "FILTER EXISTS { ?o <http://example.org/q> ?z MINUS { ?z <http://example.org/q> ?w } } }",
@@ -53,7 +54,7 @@ Deno.test("WazooSparqlEngine - OPTIONAL, MINUS, UNION inside EXISTS reuse the jo
   );
   // UNION: b connects via q and r, so the union matches; e connects via
   // neither, so only a passes.
-  assertEquals(
+  assert.deepStrictEqual(
     await projected(
       "SELECT ?s WHERE { ?s <http://example.org/p> ?o " +
         "FILTER EXISTS { { ?o <http://example.org/q> ?z } UNION { ?o <http://example.org/r> ?z } } }",
@@ -63,14 +64,15 @@ Deno.test("WazooSparqlEngine - OPTIONAL, MINUS, UNION inside EXISTS reuse the jo
   );
   // A UNION branch may reference the outer solution's variables directly.
   const both = await engine.execute({
-    query: "SELECT ?s WHERE { ?s <http://example.org/p> ?o " +
+    query:
+      "SELECT ?s WHERE { ?s <http://example.org/p> ?o " +
       "FILTER EXISTS { { ?o <http://example.org/q> ?z } UNION { ?s <http://example.org/p> ?x } } }",
   });
   if (both.kind !== "select") throw new Error("expected select");
-  assertEquals(both.data.results.bindings.length, 2);
+  assert.deepStrictEqual(both.data.results.bindings.length, 2);
   // OPTIONAL: the hoisted group filter (?w = d) is evaluated against the
   // merged binding, so the group still yields z=c and EXISTS holds.
-  assertEquals(
+  assert.deepStrictEqual(
     await projected(
       "SELECT ?s WHERE { ?s <http://example.org/p> ?o " +
         "FILTER EXISTS { ?o <http://example.org/q> ?z OPTIONAL { ?z <http://example.org/q> ?w FILTER(?w = <http://example.org/d>) } } }",
@@ -81,7 +83,7 @@ Deno.test("WazooSparqlEngine - OPTIONAL, MINUS, UNION inside EXISTS reuse the jo
   // NOT EXISTS + OPTIONAL: the optional never empties the group, so b fails
   // the negation (its q edge makes the group non-empty), while the leaf e —
   // whose q pattern matches nothing — survives it. a passes via e.
-  assertEquals(
+  assert.deepStrictEqual(
     await projected(
       "SELECT ?s WHERE { ?s <http://example.org/p> ?o " +
         "FILTER NOT EXISTS { ?o <http://example.org/q> ?z OPTIONAL { ?z <http://example.org/q> ?w } } }",
@@ -90,7 +92,7 @@ Deno.test("WazooSparqlEngine - OPTIONAL, MINUS, UNION inside EXISTS reuse the jo
     ["http://example.org/a"],
   );
   // Nested groups recurse: { { q } UNION { r } } inside the EXISTS body.
-  assertEquals(
+  assert.deepStrictEqual(
     await projected(
       "SELECT ?s WHERE { ?s <http://example.org/p> ?o " +
         "FILTER EXISTS { ?o <http://example.org/q> ?z { { ?z <http://example.org/q> ?w } UNION { ?z <http://example.org/r> ?w } } } }",
@@ -100,7 +102,7 @@ Deno.test("WazooSparqlEngine - OPTIONAL, MINUS, UNION inside EXISTS reuse the jo
   );
   // GRAPH scope: in g1 the MINUS-excluding-r form still passes (b -q-> c and
   // c has no r edge in g1), and the UNION matches; in g2 (no q) neither does.
-  assertEquals(
+  assert.deepStrictEqual(
     await projected(
       "SELECT ?s WHERE { GRAPH <http://example.org/g1> { ?s <http://example.org/p> ?o " +
         "FILTER EXISTS { ?o <http://example.org/q> ?z MINUS { ?z <http://example.org/r> ?w } } } }",
@@ -108,7 +110,7 @@ Deno.test("WazooSparqlEngine - OPTIONAL, MINUS, UNION inside EXISTS reuse the jo
     ),
     ["http://example.org/a"],
   );
-  assertEquals(
+  assert.deepStrictEqual(
     await projected(
       "SELECT ?s WHERE { GRAPH <http://example.org/g2> { ?s <http://example.org/p> ?o " +
         "FILTER EXISTS { { ?o <http://example.org/q> ?z } UNION { ?o <http://example.org/r> ?z } } } }",
@@ -117,7 +119,7 @@ Deno.test("WazooSparqlEngine - OPTIONAL, MINUS, UNION inside EXISTS reuse the jo
     [],
   );
   // GRAPH ?g enumerates named graphs; only g1 satisfies the UNION.
-  assertEquals(
+  assert.deepStrictEqual(
     await projected(
       "SELECT ?s WHERE { GRAPH ?g { ?s <http://example.org/p> ?o " +
         "FILTER EXISTS { { ?o <http://example.org/q> ?z } UNION { ?o <http://example.org/r> ?z } } } }",
@@ -127,7 +129,7 @@ Deno.test("WazooSparqlEngine - OPTIONAL, MINUS, UNION inside EXISTS reuse the jo
   );
 });
 
-Deno.test("WazooSparqlEngine - subqueries inside EXISTS evaluate over the graph-scoped snapshot", async () => {
+test("WazooSparqlEngine - subqueries inside EXISTS evaluate over the graph-scoped snapshot", async () => {
   // Default graph: s -p-> a, t -p-> b, u -p-> c; s and t also have q edges,
   // u does not. This mirrors the cross-engine validation dataset.
   const store = new Store();
@@ -146,14 +148,14 @@ Deno.test("WazooSparqlEngine - subqueries inside EXISTS evaluate over the graph-
     if (result.kind !== "select") {
       throw new Error(`expected select, got ${result.kind}`);
     }
-    return result.data.results.bindings.map((b) =>
-      String((b[variable] as { value: string }).value)
-    ).sort();
+    return result.data.results.bindings
+      .map((b) => String((b[variable] as { value: string }).value))
+      .sort();
   }
 
   // Basic subquery: EXISTS holds whenever the subquery has any result, so
   // all three subjects pass.
-  assertEquals(
+  assert.deepStrictEqual(
     await projected(
       "SELECT ?s WHERE { ?s <http://example.org/p> ?v " +
         "FILTER EXISTS { SELECT ?x WHERE { ?x <http://example.org/q> ?w } } }",
@@ -163,7 +165,7 @@ Deno.test("WazooSparqlEngine - subqueries inside EXISTS evaluate over the graph-
   );
   // NOT EXISTS: the subquery's WHERE matches nothing, so the negation holds
   // for every subject.
-  assertEquals(
+  assert.deepStrictEqual(
     await projected(
       "SELECT ?s WHERE { ?s <http://example.org/p> ?v " +
         "FILTER NOT EXISTS { SELECT ?x WHERE { ?x <http://example.org/q> ?w . " +
@@ -174,7 +176,7 @@ Deno.test("WazooSparqlEngine - subqueries inside EXISTS evaluate over the graph-
   );
   // Aggregates and HAVING run inside the subquery: COUNT = 2 passes the
   // HAVING, so EXISTS holds.
-  assertEquals(
+  assert.deepStrictEqual(
     await projected(
       "SELECT ?s WHERE { ?s <http://example.org/p> ?v " +
         "FILTER EXISTS { SELECT (COUNT(?x) AS ?c) WHERE { ?x <http://example.org/q> ?w } " +
@@ -184,7 +186,7 @@ Deno.test("WazooSparqlEngine - subqueries inside EXISTS evaluate over the graph-
     ["http://example.org/s", "http://example.org/t", "http://example.org/u"],
   );
   // DISTINCT dedups the subquery's projection.
-  assertEquals(
+  assert.deepStrictEqual(
     await projected(
       "SELECT ?s WHERE { ?s <http://example.org/p> ?v " +
         "FILTER EXISTS { SELECT DISTINCT ?x WHERE { ?x <http://example.org/q> ?w } } }",
@@ -193,7 +195,7 @@ Deno.test("WazooSparqlEngine - subqueries inside EXISTS evaluate over the graph-
     ["http://example.org/s", "http://example.org/t", "http://example.org/u"],
   );
   // Projection expressions evaluate inside the subquery.
-  assertEquals(
+  assert.deepStrictEqual(
     await projected(
       "SELECT ?s WHERE { ?s <http://example.org/p> ?v " +
         "FILTER EXISTS { SELECT (UCASE(?w) AS ?u) WHERE { ?x <http://example.org/q> ?w " +
@@ -205,7 +207,7 @@ Deno.test("WazooSparqlEngine - subqueries inside EXISTS evaluate over the graph-
   // Subqueries evaluate independently of the enclosing solution (SPARQL 1.1
   // §18.2.4): the inner FILTER referencing the outer ?s is unbound inside
   // the subquery, so the subquery yields nothing and EXISTS is false.
-  assertEquals(
+  assert.deepStrictEqual(
     await projected(
       "SELECT ?s WHERE { ?s <http://example.org/p> ?v " +
         "FILTER EXISTS { SELECT ?x WHERE { ?x <http://example.org/q> ?w . " +
@@ -216,7 +218,7 @@ Deno.test("WazooSparqlEngine - subqueries inside EXISTS evaluate over the graph-
   );
   // ORDER BY and LIMIT run inside the subquery; the single result keeps
   // EXISTS true.
-  assertEquals(
+  assert.deepStrictEqual(
     await projected(
       "SELECT ?s WHERE { ?s <http://example.org/p> ?v " +
         "FILTER EXISTS { SELECT ?x WHERE { ?x <http://example.org/q> ?w } " +
@@ -227,7 +229,7 @@ Deno.test("WazooSparqlEngine - subqueries inside EXISTS evaluate over the graph-
   );
 });
 
-Deno.test("WazooSparqlEngine - NOT EXISTS and EXISTS nest inside EXISTS subqueries", async () => {
+test("WazooSparqlEngine - NOT EXISTS and EXISTS nest inside EXISTS subqueries", async () => {
   // Same dataset as the cross-engine gate: s -p-> a, t -p-> b, u -p-> c;
   // s and t have q edges, and s alone has an r edge (ex:s ex:r ex:z).
   const store = new Store();
@@ -247,9 +249,9 @@ Deno.test("WazooSparqlEngine - NOT EXISTS and EXISTS nest inside EXISTS subqueri
     if (result.kind !== "select") {
       throw new Error(`expected select, got ${result.kind}`);
     }
-    return result.data.results.bindings.map((b) =>
-      String((b[variable] as { value: string }).value)
-    ).sort();
+    return result.data.results.bindings
+      .map((b) => String((b[variable] as { value: string }).value))
+      .sort();
   }
 
   // NOT EXISTS inside the EXISTS subquery correlates with the subquery's own
@@ -257,7 +259,7 @@ Deno.test("WazooSparqlEngine - NOT EXISTS and EXISTS nest inside EXISTS subqueri
   // surviving count to 1, so EXISTS holds and all three subjects pass. If
   // the nested NOT EXISTS stopped filtering, the count would become 2 and
   // the EXISTS would turn false.
-  assertEquals(
+  assert.deepStrictEqual(
     await projected(
       "SELECT ?s WHERE { ?s <http://example.org/p> ?v " +
         "FILTER EXISTS { SELECT (COUNT(?x) AS ?c) WHERE { " +
@@ -271,7 +273,7 @@ Deno.test("WazooSparqlEngine - NOT EXISTS and EXISTS nest inside EXISTS subqueri
   // EXISTS inside the EXISTS subquery requires an r edge, so only s
   // survives; the HAVING pin keeps EXISTS true. Treating the nested EXISTS
   // as always true would yield count 2 and fail every outer row.
-  assertEquals(
+  assert.deepStrictEqual(
     await projected(
       "SELECT ?s WHERE { ?s <http://example.org/p> ?v " +
         "FILTER EXISTS { SELECT (COUNT(?x) AS ?c) WHERE { " +
@@ -284,7 +286,7 @@ Deno.test("WazooSparqlEngine - NOT EXISTS and EXISTS nest inside EXISTS subqueri
   );
 });
 
-Deno.test("WazooSparqlEngine - EXISTS snapshot cache sees store mutations between queries", async () => {
+test("WazooSparqlEngine - EXISTS snapshot cache sees store mutations between queries", async () => {
   // The EXISTS synchronous snapshot is cached across queries and must be
   // invalidated when the store changes: a query, then a mutation, then the
   // same query again must observe the new data.
@@ -297,26 +299,27 @@ Deno.test("WazooSparqlEngine - EXISTS snapshot cache sees store mutations betwee
 
   async function projected(variable: string): Promise<string[]> {
     const result = await engine.execute({
-      query: "SELECT ?s WHERE { ?s <http://example.org/p> ?o " +
+      query:
+        "SELECT ?s WHERE { ?s <http://example.org/p> ?o " +
         "FILTER EXISTS { ?s <http://example.org/q> ?z } }",
     });
     if (result.kind !== "select") {
       throw new Error(`expected select, got ${result.kind}`);
     }
-    return result.data.results.bindings.map((b) =>
-      String((b[variable] as { value: string }).value)
-    ).sort();
+    return result.data.results.bindings
+      .map((b) => String((b[variable] as { value: string }).value))
+      .sort();
   }
 
   // Only a has a q edge: EXISTS keeps a. A second identical query (cache
   // hit) must return the same result.
-  assertEquals(await projected("s"), ["http://example.org/a"]);
-  assertEquals(await projected("s"), ["http://example.org/a"]);
+  assert.deepStrictEqual(await projected("s"), ["http://example.org/a"]);
+  assert.deepStrictEqual(await projected("s"), ["http://example.org/a"]);
   // Mutate the store, then re-run: the cached snapshot must be rebuilt, so
   // b now passes the EXISTS filter too.
   store.addQuad(quad(ex("b"), ex("q"), literal("2")));
-  assertEquals(
-    await projected("s"),
-    ["http://example.org/a", "http://example.org/b"],
-  );
+  assert.deepStrictEqual(await projected("s"), [
+    "http://example.org/a",
+    "http://example.org/b",
+  ]);
 });

@@ -9,6 +9,7 @@
 import type * as rdfjs from "@rdfjs/types";
 import { DataFactory } from "@/term/public.ts";
 import { MemoryStore as Store } from "@/store/memory-store.ts";
+import process from "node:process";
 
 const { blankNode, literal, namedNode, quad } = DataFactory;
 
@@ -49,8 +50,8 @@ const NESTED_EXISTS_QUERY =
   "FILTER EXISTS { ?s <http://example.org/spouse> ?spouse . " +
   "FILTER EXISTS { ?spouse <http://xmlns.com/foaf/0.1/name> ?n2 } } }";
 
-const engine = Deno.args[0];
-const workload = Deno.args[1];
+const engine = process.argv.slice(2)[0];
+const workload = process.argv.slice(2)[1];
 if (engine !== "wazoo" && engine !== "comunica" && engine !== "oxigraph") {
   throw new Error(`unknown engine: ${engine}`);
 }
@@ -61,13 +62,13 @@ const query = workload === "scan" ? SCAN_QUERY : NESTED_EXISTS_QUERY;
 const RUNS = 5;
 
 const dataset = buildPeopleDataset(PERSON_COUNT);
-const baseline = Deno.memoryUsage();
+const baseline = process.memoryUsage();
 
 let peakHeap = baseline.heapUsed;
 let peakRss = baseline.rss;
 let peakExternal = baseline.external;
 const observe = (): void => {
-  const m = Deno.memoryUsage();
+  const m = process.memoryUsage();
   peakHeap = Math.max(peakHeap, m.heapUsed);
   peakRss = Math.max(peakRss, m.rss);
   peakExternal = Math.max(peakExternal, m.external);
@@ -95,9 +96,7 @@ async function runWorkload(): Promise<void> {
     for (const q of dataset) {
       store.addQuad(q);
     }
-    const { QueryEngine } = await import(
-      "@comunica/query-sparql-rdfjs-lite"
-    );
+    const { QueryEngine } = await import("@comunica/query-sparql-rdfjs-lite");
     const comunicaEngine = new QueryEngine();
     for (let i = 0; i < RUNS; i++) {
       const stream = await comunicaEngine.queryBindings(query, {

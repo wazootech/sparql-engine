@@ -12,11 +12,7 @@
     "./serialize": "./src/serialize/mod.ts"
   },
   "publish": {
-    "include": [
-      "src/",
-      "README.md",
-      "LICENSE"
-    ],
+    "include": ["src/", "README.md", "LICENSE"],
     "exclude": [
       "src/**/*.test.ts",
       "src/**/*.jison",
@@ -45,24 +41,22 @@
   },
   "tasks": {
     "bundle": "deno bundle --minify playground/bundle-entry.ts -o playground/app.js",
-    "bench": "deno bench --allow-all",
+    "bench": "deno run --allow-all bench/engine_bench.ts && deno run --allow-all bench/cli-targets-bench.ts",
     "bench:check": "deno run --allow-all bench/budget.ts",
     "bench:size": "deno run --allow-read bench/measure-libs.ts > bench/size-data.json && deno run --allow-read --allow-write bench/treemap.ts && deno fmt docs/assets/chart-*.svg docs/assets/treemap-*.svg",
     "bench:size:closures": "deno run --allow-read --allow-write bench/measure-closures.ts && deno run --allow-read --allow-write bench/treemap.ts && deno fmt docs/assets/chart-*.svg docs/assets/treemap-*.svg",
     "bench:memory": "deno run --allow-all bench/collect-memory.ts && deno run --allow-read --allow-write bench/treemap.ts && deno fmt docs/assets/chart-*.svg docs/assets/treemap-*.svg",
-    "bench:latency": "deno bench --allow-all --json bench/engine_bench.ts > bench/latency-data.json && deno run --allow-read --allow-write bench/latency-chart.ts && deno fmt docs/assets/chart-latency.svg",
-    "bench:latency:check": "BENCH_INVENTORY=1 deno bench --allow-all --json bench/engine_bench.ts | deno run --allow-read bench/latency-check.ts",
+    "bench:latency": "deno run --allow-all bench/engine_bench.ts --json > bench/latency-data.json && deno run --allow-read --allow-write bench/latency-chart.ts && deno fmt docs/assets/chart-latency.svg",
+    "bench:latency:check": "BENCH_INVENTORY=1 deno run --allow-all bench/engine_bench.ts --json | deno run --allow-read bench/latency-check.ts",
     "bench:profile": "deno run --allow-all bench/parse-profile.ts",
     "bench:cli": "deno run --allow-all bench/cli-bench.ts",
-    "bench:cli:targets": "deno bench --allow-all bench/cli-targets-bench.ts",
+    "bench:cli:targets": "deno run --allow-all bench/cli-targets-bench.ts",
     "check": "deno check",
-    "compile": "deno compile --allow-read --output dist/sparql cli/deno-main.ts",
+    "compile": "deno compile --allow-read --output dist/sparql cli/main.ts",
     "docs:link-check": "deno run --allow-read --allow-net docs/link-check.ts",
     "ci": {
-      "description": "Formats, lints, checks, and tests the code",
+      "description": "Lints, checks, and tests the code (formatting and parser checks run under Bun)",
       "dependencies": [
-        "parser:check",
-        "fmt:check",
         "lint",
         "check",
         "test",
@@ -75,14 +69,10 @@
         "test:rdf12"
       ]
     },
-    "fmt": "deno fmt",
-    "fmt:check": "deno fmt --check",
     "lint": "deno lint",
     "native:coverage": "deno run --allow-read --allow-run --allow-env cli/native-coverage.ts",
     "native:build": "deno run --allow-read --allow-run --allow-env --allow-write cli/native-build.ts",
     "native:gate": "deno run --allow-read --allow-run --allow-env --allow-write cli/native-gate.ts",
-    "parser:generate": "deno run --allow-all src/parser/generate-parser.ts",
-    "parser:check": "deno run --allow-all src/parser/generate-parser.ts --check",
     "publish:dry": "deno publish --dry-run --allow-dirty",
     "publish:check": "deno run --allow-read --allow-run test/publish-graph-check.ts",
     "test": "deno test --allow-all",

@@ -116,9 +116,11 @@ export function compareRdfTerms(
       // object (recursively), ignoring the graph component.
       const qa = a as RdfBaseQuad;
       const qb = b as RdfBaseQuad;
-      return compareRdfTerms(qa.subject, qb.subject) ||
+      return (
+        compareRdfTerms(qa.subject, qb.subject) ||
         compareRdfTerms(qa.predicate, qb.predicate) ||
-        compareRdfTerms(qa.object, qb.object);
+        compareRdfTerms(qa.object, qb.object)
+      );
     }
     default:
       return compareStrings(termKey(a), termKey(b));

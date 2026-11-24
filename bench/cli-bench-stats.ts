@@ -39,8 +39,10 @@ export const NOISY_SPREAD_FRACTION = 0.1;
  */
 export function isNoisy(summary: Summary): boolean {
   if (!Number.isFinite(summary.median) || summary.median <= 0) return true;
-  return (summary.upperQuartile - summary.lowerQuartile) / summary.median >
-    NOISY_SPREAD_FRACTION;
+  return (
+    (summary.upperQuartile - summary.lowerQuartile) / summary.median >
+    NOISY_SPREAD_FRACTION
+  );
 }
 
 /** linearFit returns the least-squares slope and intercept of points. */
@@ -66,9 +68,9 @@ export function linearFit(points: { x: number; y: number }[]): {
  * the spread is wide enough that the median should not be trusted.
  */
 export function formatSummary(summary: Summary): string {
-  const text = `${summary.median.toFixed(1)} (${
-    summary.lowerQuartile.toFixed(0)
-  }–${summary.upperQuartile.toFixed(0)}) min ${summary.minimum.toFixed(1)}`;
+  const text = `${summary.median.toFixed(1)} (${summary.lowerQuartile.toFixed(
+    0,
+  )}–${summary.upperQuartile.toFixed(0)}) min ${summary.minimum.toFixed(1)}`;
   return isNoisy(summary) ? `${text} ⚠` : text;
 }
 

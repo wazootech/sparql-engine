@@ -18,13 +18,12 @@
 // multiplier is the median of those paired ratios rather than a ratio of
 // medians. Pass several sizes to separate fixed cost from per-triple cost.
 //
-//   deno task bench:cli                      # deno-compile vs deno-run
+//   deno task bench:cli                      # compiled binary vs interpreted run
 //   deno task bench:cli --target scriptc=./sparql-native
 //   deno task bench:cli --people 200,800,3200 --runs 9
 //
 // Numbers are machine-specific: report them in PRs/issues with the machine,
 // never commit them (README.md owns committed numbers).
-import { resolve } from "@std/path";
 import { COMPILED_PATH, REPO_ROOT } from "./cli-bench-env.ts";
 import { compileCli, hasGnuTime, parseOptions } from "./cli-bench-build.ts";
 import { measureSize } from "./cli-bench-measure.ts";
@@ -32,19 +31,23 @@ import { printReport } from "./cli-bench-report.ts";
 import { OPERATIONS } from "./cli-bench-ops.ts";
 import type { SizeMeasurement } from "./cli-bench-types.ts";
 import { linearFit } from "./cli-bench-stats.ts";
+import process from "node:process";
+import { runtimeName, scriptCommand } from "../test/run-process.ts";
+import { stat } from "node:fs/promises";
+import { resolve } from "node:path";
 
-const options = parseOptions(Deno.args);
+const options = parseOptions(process.argv.slice(2));
 if (options.targets.length === 0) {
   await compileCli();
   options.targets.push(
     {
-      name: "deno-compile",
+      name: `${runtimeName}-compile`,
       command: [COMPILED_PATH],
       binaryPath: COMPILED_PATH,
     },
     {
-      name: "deno-run",
-      command: [Deno.execPath(), "run", "--allow-read", "cli/deno-main.ts"],
+      name: `${runtimeName}-run`,
+      command: scriptCommand("cli/main.ts"),
     },
   );
 }
@@ -52,7 +55,7 @@ if (options.targets.length === 0) {
 const sizes: Record<string, number | undefined> = {};
 for (const target of options.targets) {
   sizes[target.name] = target.binaryPath
-    ? (await Deno.stat(resolve(REPO_ROOT, target.binaryPath))).size
+    ? (await stat(resolve(REPO_ROOT, target.binaryPath))).size
     : undefined;
 }
 const measureRss = await hasGnuTime();
@@ -84,25 +87,17 @@ if (measurements.length > 1) {
 }
 
 const environment = {
-  os: `${Deno.build.os}-${Deno.build.arch}`,
-  deno: Deno.version.deno,
+  os: `${process.platform}-${process.arch}`,
+  runtime: `${runtimeName} ${process.versions[runtimeName]}`,
   people: options.people,
   triples: options.people.map((people) => people * 5),
   runs: options.runs,
 };
 
 if (options.json) {
-  console.log(JSON.stringify(
-    { environment, sizes, measurements, slopes },
-    null,
-    2,
-  ));
-} else {
-  printReport(
-    options,
-    environment,
-    sizes,
-    measurements,
-    slopes,
+  console.log(
+    JSON.stringify({ environment, sizes, measurements, slopes }, null, 2),
   );
+} else {
+  printReport(options, environment, sizes, measurements, slopes);
 }

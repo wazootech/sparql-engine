@@ -74,20 +74,20 @@ type SparqlValue =
   | { type: "uri"; value: string }
   | { type: "bnode"; value: string }
   | {
-    type: "literal";
-    value: string;
-    "xml:lang"?: string;
-    "its:dir"?: "ltr" | "rtl";
-    datatype?: string;
-  }
+      type: "literal";
+      value: string;
+      "xml:lang"?: string;
+      "its:dir"?: "ltr" | "rtl";
+      datatype?: string;
+    }
   | {
-    type: "triple";
-    value: {
-      subject: SparqlValue;
-      predicate: SparqlValue;
-      object: SparqlValue;
+      type: "triple";
+      value: {
+        subject: SparqlValue;
+        predicate: SparqlValue;
+        object: SparqlValue;
+      };
     };
-  };
 ```
 
 [`rdfTermToSparqlValue()`](https://jsr.io/@wazoo/sparql-engine/doc/~/rdfTermToSparqlValue)

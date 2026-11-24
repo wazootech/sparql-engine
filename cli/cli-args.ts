@@ -13,8 +13,7 @@ export interface CliArguments {
 }
 
 type ParseResult =
-  | { ok: true; cliArguments: CliArguments }
-  | { ok: false; message: string };
+  { ok: true; cliArguments: CliArguments } | { ok: false; message: string };
 
 /** parseArguments turns one argument list into flags or a usage message. */
 export function parseArguments(args: string[]): ParseResult {

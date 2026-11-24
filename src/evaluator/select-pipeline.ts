@@ -77,7 +77,7 @@ export function applySelectPipeline(
   const hasAggregates =
     [...projections.values()].some(expressionContainsAggregate) ||
     (query.order ?? []).some((clause) =>
-      expressionContainsAggregate(clause.expression)
+      expressionContainsAggregate(clause.expression),
     ) ||
     (query.having ?? []).some(expressionContainsAggregate);
 
@@ -85,36 +85,34 @@ export function applySelectPipeline(
   if (hasGrouping || hasAggregates) {
     const ungroupedSolutions: TermBinding[] = bindings;
     const groups = hasGrouping
-      ? groupSolutions(
-        bindings,
-        grouping,
-        (expression, binding) =>
+      ? groupSolutions(bindings, grouping, (expression, binding) =>
           expressionEvaluator.evaluate(expression, binding, context),
-      )
+        )
       : [{ key: {} as TermBinding, solutions: ungroupedSolutions }];
     const grouped: SelectSolution[] = groups.map((group) => ({
       binding: group.key,
       group: group.solutions,
     }));
-    solutions = query.having !== undefined && query.having.length > 0
-      ? grouped.filter((solution) =>
-        query.having!.every((expression) =>
-          havingPasses(expression, solution, expressionEvaluator, context)
-        )
-      )
-      : grouped;
+    solutions =
+      query.having !== undefined && query.having.length > 0
+        ? grouped.filter((solution) =>
+            query.having!.every((expression) =>
+              havingPasses(expression, solution, expressionEvaluator, context),
+            ),
+          )
+        : grouped;
   } else {
     solutions = bindings.map((binding) => ({ binding, group: null }));
   }
 
   const ordered = query.order?.length
     ? orderBindings(
-      solutions,
-      query.order,
-      expressionEvaluator,
-      context,
-      projections,
-    )
+        solutions,
+        query.order,
+        expressionEvaluator,
+        context,
+        projections,
+      )
     : solutions;
 
   const projected: TermBinding[] = ordered.map((solution) =>
@@ -125,7 +123,7 @@ export function applySelectPipeline(
       projections,
       expressionEvaluator,
       context,
-    )
+    ),
   );
 
   let filteredBindings = projected;
@@ -136,7 +134,9 @@ export function applySelectPipeline(
   if (query.distinct || query.reduced) {
     const seen = new Set<string>();
     filteredBindings = filteredBindings.filter((b) => {
-      const key = Object.keys(b).sort().map((k) => `${k}:${termKey(b[k])}`)
+      const key = Object.keys(b)
+        .sort()
+        .map((k) => `${k}:${termKey(b[k])}`)
         .join("\u0000");
       if (seen.has(key)) return false;
       seen.add(key);

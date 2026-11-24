@@ -20,14 +20,14 @@ type Slopes = Record<
 /** printReport writes the human-readable benchmark report to stdout. */
 export function printReport(
   options: Options,
-  environment: { os: string; deno: string; runs: number },
+  environment: { os: string; runtime: string; runs: number },
   sizes: Record<string, number | undefined>,
   measurements: SizeMeasurement[],
   slopes: Slopes,
 ): void {
   const targetNames = options.targets.map((target) => target.name);
   console.log(
-    `sparql CLI bench — ${environment.os}, Deno ${environment.deno}\n` +
+    `sparql CLI bench — ${environment.os}, ${environment.runtime}\n` +
       `targets: ${targetNames[0]} (baseline), ${
         targetNames.slice(1).join(", ") || "none"
       }\n` +
@@ -60,9 +60,9 @@ export function printReport(
       for (const targetName of targetNames) {
         const peakRss = measurement.peakRssMiB[targetName];
         console.log(
-          `| ${workload.name} | ${targetName} | ${
-            formatSummary(measurement.raw[targetName][workload.name])
-          } | ${peakRss === undefined ? "n/a" : `${peakRss.toFixed(1)} MiB`} |`,
+          `| ${workload.name} | ${targetName} | ${formatSummary(
+            measurement.raw[targetName][workload.name],
+          )} | ${peakRss === undefined ? "n/a" : `${peakRss.toFixed(1)} MiB`} |`,
         );
       }
     }
@@ -71,19 +71,15 @@ export function printReport(
         targetNames.join(" | ") +
         ` | ${targetNames[1] ?? "second"} vs baseline |`,
     );
-    console.log(
-      `| --- | ${targetNames.map(() => "---").join(" | ")} | --- |`,
-    );
+    console.log(`| --- | ${targetNames.map(() => "---").join(" | ")} | --- |`);
     for (const operation of OPERATIONS) {
       const cells = targetNames.map((targetName) =>
-        formatSummary(measurement.operations[targetName][operation.name])
+        formatSummary(measurement.operations[targetName][operation.name]),
       );
       const ratio = targetNames[1]
         ? formatRatio(measurement.ratios[targetNames[1]][operation.name])
         : "n/a";
-      console.log(
-        `| ${operation.name} | ${cells.join(" | ")} | ${ratio} |`,
-      );
+      console.log(`| ${operation.name} | ${cells.join(" | ")} | ${ratio} |`);
     }
   }
   if (measurements.length > 1) {
@@ -96,9 +92,9 @@ export function printReport(
       for (const operation of OPERATIONS) {
         const fit = slopes[targetName][operation.name];
         console.log(
-          `| ${targetName} | ${operation.name} | ${
-            fit.fixedMs.toFixed(1)
-          } ms | ${fit.perTripleUs.toFixed(1)} µs |`,
+          `| ${targetName} | ${operation.name} | ${fit.fixedMs.toFixed(
+            1,
+          )} ms | ${fit.perTripleUs.toFixed(1)} µs |`,
         );
       }
     }

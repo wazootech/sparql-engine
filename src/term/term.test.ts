@@ -1,4 +1,5 @@
-import { assertEquals, assertNotEquals } from "@std/assert";
+import assert from "node:assert/strict";
+import { test } from "node:test";
 import type * as rdfjs from "@rdfjs/types";
 import { DataFactory } from "@/term/public.ts";
 import {
@@ -21,7 +22,7 @@ const { namedNode, blankNode, literal, quad } = DataFactory;
 const ex = (suffix: string) => namedNode(`http://example.org/${suffix}`);
 const xsdInteger = namedNode(XSD_INTEGER);
 
-Deno.test("termKey agrees with sameRdfTerm on term identity", () => {
+test("termKey agrees with sameRdfTerm on term identity", () => {
   const terms: rdfjs.Term[] = [
     ex("a"),
     ex("a"),
@@ -55,7 +56,7 @@ Deno.test("termKey agrees with sameRdfTerm on term identity", () => {
   ];
   for (let i = 0; i < terms.length; i++) {
     for (let j = 0; j < terms.length; j++) {
-      assertEquals(
+      assert.deepStrictEqual(
         termKey(terms[i]) === termKey(terms[j]),
         sameRdfTerm(terms[i], terms[j]),
         `termKey/sameRdfTerm disagreement at ${i}/${j}`,
@@ -64,33 +65,39 @@ Deno.test("termKey agrees with sameRdfTerm on term identity", () => {
   }
 });
 
-Deno.test("termKey escapes delimiters so term values can never collide", () => {
+test("termKey escapes delimiters so term values can never collide", () => {
   // Regression: `"a|b"` (plain literal) and `"a"` with language `b` both
   // used to render `literal:a|b||` and collide onto the same key.
   const pipeInValue = literal("a|b");
   const pipeAsLang = literal("a", "b");
-  assertNotEquals(termKey(pipeInValue), termKey(pipeAsLang));
+  assert.notDeepStrictEqual(termKey(pipeInValue), termKey(pipeAsLang));
 
   // Backslash is escaped before pipe so a literal backslash + pipe cannot
   // mimic an escaped pipe.
   const backslashThenPipe = literal("a\\|b");
   const plainBackslash = literal("a\\b");
-  assertNotEquals(termKey(backslashThenPipe), termKey(plainBackslash));
-  assertNotEquals(termKey(backslashThenPipe), termKey(literal("a|b")));
+  assert.notDeepStrictEqual(
+    termKey(backslashThenPipe),
+    termKey(plainBackslash),
+  );
+  assert.notDeepStrictEqual(
+    termKey(backslashThenPipe),
+    termKey(literal("a|b")),
+  );
 
   // Delimiters in non-literal term values and datatype URIs stay distinct.
-  assertNotEquals(
+  assert.notDeepStrictEqual(
     termKey(namedNode("http://x/a|b")),
     termKey(namedNode("http://x/a")),
   );
-  assertNotEquals(termKey(blankNode("a|b")), termKey(blankNode("a")));
-  assertNotEquals(
+  assert.notDeepStrictEqual(termKey(blankNode("a|b")), termKey(blankNode("a")));
+  assert.notDeepStrictEqual(
     termKey(literal("a", namedNode("http://x/|"))),
     termKey(literal("a", namedNode("http://x/"))),
   );
 
   // RDF-star nesting composes safely.
-  assertNotEquals(
+  assert.notDeepStrictEqual(
     termKey(quad(ex("s"), ex("p"), literal("a|b"))),
     termKey(quad(ex("s"), ex("p"), literal("a", "b"))),
   );
@@ -100,13 +107,13 @@ Deno.test("termKey escapes delimiters so term values can never collide", () => {
   //   quad(namedNode("a"), namedNode("x|uri:y"), namedNode("z"))
   //   quad(namedNode("a"), namedNode("x"), namedNode("y|uri:z"))
   // both encoded to `quad:uri:a|uri:x|uri:y|uri:z`.
-  assertNotEquals(
+  assert.notDeepStrictEqual(
     termKey(quad(namedNode("a"), namedNode("x|uri:y"), namedNode("z"))),
     termKey(quad(namedNode("a"), namedNode("x"), namedNode("y|uri:z"))),
   );
 });
 
-Deno.test("canonicalize agrees across the RDF/JS and SparqlValue representations", () => {
+test("canonicalize agrees across the RDF/JS and SparqlValue representations", () => {
   const terms: rdfjs.Term[] = [
     ex("a"),
     blankNode("x"),
@@ -126,7 +133,7 @@ Deno.test("canonicalize agrees across the RDF/JS and SparqlValue representations
   for (const term of terms) {
     const fromTerm = canonicalizeRdfTerm(term);
     const fromValue = canonicalizeSparqlValue(rdfTermToSparqlValue(term));
-    assertEquals(
+    assert.deepStrictEqual(
       fromValue,
       fromTerm,
       `canonical mismatch for ${term.termType}`,
@@ -134,117 +141,123 @@ Deno.test("canonicalize agrees across the RDF/JS and SparqlValue representations
   }
 });
 
-Deno.test("canonicalize projects xsd:string and RDF-star terms structurally", () => {
+test("canonicalize projects xsd:string and RDF-star terms structurally", () => {
   const plain = canonicalizeRdfTerm(literal("plain"));
-  assertEquals(plain.datatype, undefined, "xsd:string is implicit");
-  assertEquals(plain.language, undefined);
+  assert.deepStrictEqual(plain.datatype, undefined, "xsd:string is implicit");
+  assert.deepStrictEqual(plain.language, undefined);
 
   const lang = canonicalizeRdfTerm(literal("hello", "en"));
-  assertEquals(lang.language, "en");
+  assert.deepStrictEqual(lang.language, "en");
 
   const nested = canonicalizeRdfTerm(
     quad(ex("s"), ex("p"), quad(ex("s1"), ex("p1"), ex("o1"))),
   );
-  assertEquals(nested.termType, "Quad");
-  assertEquals(nested.value, "");
-  assertEquals(nested.subject, {
+  assert.deepStrictEqual(nested.termType, "Quad");
+  assert.deepStrictEqual(nested.value, "");
+  assert.deepStrictEqual(nested.subject, {
     termType: "NamedNode",
     value: "http://example.org/s",
   });
-  assertEquals(nested.object?.termType, "Quad");
+  assert.deepStrictEqual(nested.object?.termType, "Quad");
 });
 
-Deno.test("numericValue parses integers with BigInt and other numerics with Number", () => {
-  assertEquals(numericValue(literal("42", xsdInteger)), 42n);
-  assertEquals(
+test("numericValue parses integers with BigInt and other numerics with Number", () => {
+  assert.deepStrictEqual(numericValue(literal("42", xsdInteger)), 42n);
+  assert.deepStrictEqual(
     numericValue(literal("9007199254740993", xsdInteger)),
     9007199254740993n,
   );
-  assertEquals(numericValue(literal("3.5", namedNode(XSD_DECIMAL))), 3.5);
-  assertEquals(numericValue(literal("plain")), null);
-  assertEquals(numericValue(literal("not-a-number", xsdInteger)), null);
-  assertEquals(numericValue(literal("hello", "en")), null);
+  assert.deepStrictEqual(
+    numericValue(literal("3.5", namedNode(XSD_DECIMAL))),
+    3.5,
+  );
+  assert.deepStrictEqual(numericValue(literal("plain")), null);
+  assert.deepStrictEqual(
+    numericValue(literal("not-a-number", xsdInteger)),
+    null,
+  );
+  assert.deepStrictEqual(numericValue(literal("hello", "en")), null);
 });
 
-Deno.test("compareNumericValues orders BigInts exactly and Numbers numerically", () => {
-  assertEquals(compareNumericValues(2n, 10n), -1);
-  assertEquals(compareNumericValues(10n, 2n), 1);
-  assertEquals(compareNumericValues(5n, 5n), 0);
-  assertEquals(compareNumericValues(2, 10), -1);
-  assertEquals(compareNumericValues(10, 2), 1);
-  assertEquals(compareNumericValues(2n, 10), -1);
+test("compareNumericValues orders BigInts exactly and Numbers numerically", () => {
+  assert.deepStrictEqual(compareNumericValues(2n, 10n), -1);
+  assert.deepStrictEqual(compareNumericValues(10n, 2n), 1);
+  assert.deepStrictEqual(compareNumericValues(5n, 5n), 0);
+  assert.deepStrictEqual(compareNumericValues(2, 10), -1);
+  assert.deepStrictEqual(compareNumericValues(10, 2), 1);
+  assert.deepStrictEqual(compareNumericValues(2n, 10), -1);
 });
 
-Deno.test("formatNumber keeps Comunica's plain decimal forms", () => {
-  assertEquals(formatNumber(3, XSD_DECIMAL), "3");
-  assertEquals(formatNumber(3.5, XSD_DECIMAL), "3.5");
-  assertEquals(formatNumber(1e21, XSD_DOUBLE), "1e+21");
-  assertEquals(canonicalDouble(3), "3.0E0");
-  assertEquals(canonicalDouble(1.5), "1.5E0");
-  assertEquals(canonicalDouble(0), "0.0E0");
+test("formatNumber keeps Comunica's plain decimal forms", () => {
+  assert.deepStrictEqual(formatNumber(3, XSD_DECIMAL), "3");
+  assert.deepStrictEqual(formatNumber(3.5, XSD_DECIMAL), "3.5");
+  assert.deepStrictEqual(formatNumber(1e21, XSD_DOUBLE), "1e+21");
+  assert.deepStrictEqual(canonicalDouble(3), "3.0E0");
+  assert.deepStrictEqual(canonicalDouble(1.5), "1.5E0");
+  assert.deepStrictEqual(canonicalDouble(0), "0.0E0");
 });
-Deno.test("literal lowercases BCP47 language tags per the RDF/JS contract", () => {
-  assertEquals(literal("foo", "en-US").language, "en-us");
-  assertEquals(literal("foo", "EN-us").language, "en-us");
-  assertEquals(literal("foo", "en").language, "en");
-  assertEquals(literal("foo", "en-GB").language, "en-gb");
-  assertEquals(literal("plain").language, "");
+test("literal lowercases BCP47 language tags per the RDF/JS contract", () => {
+  assert.deepStrictEqual(literal("foo", "en-US").language, "en-us");
+  assert.deepStrictEqual(literal("foo", "EN-us").language, "en-us");
+  assert.deepStrictEqual(literal("foo", "en").language, "en");
+  assert.deepStrictEqual(literal("foo", "en-GB").language, "en-gb");
+  assert.deepStrictEqual(literal("plain").language, "");
 });
 
-Deno.test("fromTerm preserves the language of lang-tagged literals", () => {
+test("fromTerm preserves the language of lang-tagged literals", () => {
   const original = literal("foo", "en-US");
   const roundTripped = DataFactory.fromTerm(original);
-  assertEquals(roundTripped.value, "foo");
-  assertEquals(roundTripped.language, "en-us");
-  assertEquals(
+  assert.deepStrictEqual(roundTripped.value, "foo");
+  assert.deepStrictEqual(roundTripped.language, "en-us");
+  assert.deepStrictEqual(
     roundTripped.datatype.value,
     "http://www.w3.org/1999/02/22-rdf-syntax-ns#langString",
   );
 });
 
-Deno.test("directional literals carry rdf:dirLangString and survive fromTerm", () => {
+test("directional literals carry rdf:dirLangString and survive fromTerm", () => {
   const RDF_DIR_LANG_STRING =
     "http://www.w3.org/1999/02/22-rdf-syntax-ns#dirLangString";
   const RDF_LANG_STRING =
     "http://www.w3.org/1999/02/22-rdf-syntax-ns#langString";
   const lit = literal("foo", { language: "en", direction: "ltr" });
-  assertEquals(lit.language, "en");
-  assertEquals(lit.direction, "ltr");
-  assertEquals(lit.datatype.value, RDF_DIR_LANG_STRING);
+  assert.deepStrictEqual(lit.language, "en");
+  assert.deepStrictEqual(lit.direction, "ltr");
+  assert.deepStrictEqual(lit.datatype.value, RDF_DIR_LANG_STRING);
   // A directional language without a direction is a plain rdf:langString.
-  assertEquals(
+  assert.deepStrictEqual(
     literal("foo", { language: "en" }).datatype.value,
     RDF_LANG_STRING,
   );
-  assertEquals(
+  assert.deepStrictEqual(
     literal("foo", { language: "en", direction: "" }).datatype.value,
     RDF_LANG_STRING,
   );
   const roundTripped = DataFactory.fromTerm(lit);
-  assertEquals(roundTripped.direction, "ltr");
-  assertEquals(roundTripped.datatype.value, RDF_DIR_LANG_STRING);
+  assert.deepStrictEqual(roundTripped.direction, "ltr");
+  assert.deepStrictEqual(roundTripped.datatype.value, RDF_DIR_LANG_STRING);
 });
 
-Deno.test("term identity and canonicalization distinguish directions", () => {
+test("term identity and canonicalization distinguish directions", () => {
   const RDF_DIR_LANG_STRING =
     "http://www.w3.org/1999/02/22-rdf-syntax-ns#dirLangString";
   const ltr = literal("foo", { language: "en", direction: "ltr" });
   const rtl = literal("foo", { language: "en", direction: "rtl" });
   const plain = literal("foo", "en");
-  assertNotEquals(sameRdfTerm(ltr, rtl), true);
-  assertNotEquals(sameRdfTerm(ltr, plain), true);
-  assertNotEquals(termKey(ltr), termKey(rtl));
-  assertNotEquals(termKey(ltr), termKey(plain));
-  assertNotEquals(
+  assert.notDeepStrictEqual(sameRdfTerm(ltr, rtl), true);
+  assert.notDeepStrictEqual(sameRdfTerm(ltr, plain), true);
+  assert.notDeepStrictEqual(termKey(ltr), termKey(rtl));
+  assert.notDeepStrictEqual(termKey(ltr), termKey(plain));
+  assert.notDeepStrictEqual(
     JSON.stringify(canonicalizeRdfTerm(ltr)),
     JSON.stringify(canonicalizeRdfTerm(rtl)),
   );
   // Same direction + language + datatype canonicalize identically.
-  assertEquals(
+  assert.deepStrictEqual(
     JSON.stringify(canonicalizeRdfTerm(ltr)),
     JSON.stringify(canonicalizeRdfTerm(DataFactory.fromTerm(ltr))),
   );
-  assertEquals(
+  assert.deepStrictEqual(
     JSON.stringify(canonicalizeRdfTerm(ltr)).includes(RDF_DIR_LANG_STRING),
     false,
   );

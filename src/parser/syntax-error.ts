@@ -74,17 +74,18 @@ export class SparqlSyntaxError extends Error {
 
 /** formatMessage renders a human-readable "line L, column C" message. */
 function formatMessage(details: SparqlSyntaxErrorDetails): string {
-  const where =
-    `Syntax error at line ${details.line}, column ${details.column}`;
-  const detail = details.kind === "lexical"
-    ? "unrecognized text"
-    : `unexpected '${details.token ?? details.text}'; expecting ` +
-      (details.expected.length > 0
-        ? details.expected.join(", ")
-        : "end of input");
-  const caret = " ".repeat(
-    Math.max(0, Math.min(details.column - 1, details.excerpt.length)),
-  ) + "^";
+  const where = `Syntax error at line ${details.line}, column ${details.column}`;
+  const detail =
+    details.kind === "lexical"
+      ? "unrecognized text"
+      : `unexpected '${details.token ?? details.text}'; expecting ` +
+        (details.expected.length > 0
+          ? details.expected.join(", ")
+          : "end of input");
+  const caret =
+    " ".repeat(
+      Math.max(0, Math.min(details.column - 1, details.excerpt.length)),
+    ) + "^";
   return `${where}: ${detail}\n\n${details.excerpt}\n${caret}`;
 }
 

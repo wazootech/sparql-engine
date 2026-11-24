@@ -1,6 +1,8 @@
 import { DataFactory } from "@/term/public.ts";
 import { MemoryStore as Store } from "@/store/memory-store.ts";
 import { WazooSparqlEngine } from "@/wazoo-sparql-engine.ts";
+import { appendFileSync } from "node:fs";
+import process from "node:process";
 
 const { namedNode, literal, quad } = DataFactory;
 
@@ -74,16 +76,18 @@ interface BudgetRow {
  * the function is a silent no-op.
  */
 function writeStepSummary(rows: BudgetRow[]): void {
-  const summaryPath = Deno.env.get("GITHUB_STEP_SUMMARY");
+  const summaryPath = process.env["GITHUB_STEP_SUMMARY"];
   if (summaryPath === undefined || summaryPath === "") return;
 
-  const header =
-    `### bench:check — perf budget rows\n\n| Test | Median | Min | Max | Budget | Result |\n| --- | --- | --- | --- | --- | --- |\n`;
-  const table = rows.map((row) =>
-    `| ${row.name} | ${row.medianMs.toFixed(3)} | ${row.minMs.toFixed(3)} | ${
-      row.maxMs.toFixed(3)
-    } | ${row.budgetMs.toFixed(1)} | ${row.exceeded ? "❌ FAIL" : "✅ pass"} |`
-  ).join("\n");
+  const header = `### bench:check — perf budget rows\n\n| Test | Median | Min | Max | Budget | Result |\n| --- | --- | --- | --- | --- | --- |\n`;
+  const table = rows
+    .map(
+      (row) =>
+        `| ${row.name} | ${row.medianMs.toFixed(3)} | ${row.minMs.toFixed(3)} | ${row.maxMs.toFixed(
+          3,
+        )} | ${row.budgetMs.toFixed(1)} | ${row.exceeded ? "❌ FAIL" : "✅ pass"} |`,
+    )
+    .join("\n");
   const payload = JSON.stringify(
     rows.map(({ name, medianMs, minMs, maxMs, budgetMs, exceeded }) => ({
       name,
@@ -97,10 +101,9 @@ function writeStepSummary(rows: BudgetRow[]): void {
   // Append, never truncate: $GITHUB_STEP_SUMMARY is shared per job across
   // steps, and the GitHub docs require appending to preserve what other
   // steps in the job wrote.
-  Deno.writeTextFileSync(
+  appendFileSync(
     summaryPath,
     `${header}${table}\n\n\`\`\`json\n${payload}\n\`\`\`\n`,
-    { append: true },
   );
 }
 
@@ -119,13 +122,15 @@ const tests: BudgetTest[] = [
   },
   {
     name: "EXISTS filter",
-    query: "SELECT ?s WHERE { ?s <http://xmlns.com/foaf/0.1/name> ?n " +
+    query:
+      "SELECT ?s WHERE { ?s <http://xmlns.com/foaf/0.1/name> ?n " +
       "FILTER EXISTS { ?s <http://example.org/p> ?o } }",
     budgetMs: 3.0,
   },
   {
     name: "Nested EXISTS filter",
-    query: "SELECT ?s WHERE { ?s <http://xmlns.com/foaf/0.1/name> ?n " +
+    query:
+      "SELECT ?s WHERE { ?s <http://xmlns.com/foaf/0.1/name> ?n " +
       "FILTER EXISTS { ?s <http://example.org/p1> ?o . " +
       "FILTER EXISTS { ?o <http://example.org/p2> ?x } } }",
     budgetMs: 4.0,
@@ -183,8 +188,8 @@ async function main() {
       for (let i = 0; i < MEASURED_ITERATIONS_PER_ROUND; i++) {
         await engine.execute({ query: test.query });
       }
-      const averageMs = (performance.now() - start) /
-        MEASURED_ITERATIONS_PER_ROUND;
+      const averageMs =
+        (performance.now() - start) / MEASURED_ITERATIONS_PER_ROUND;
       roundAverages[testIndex].push(averageMs);
     }
   }
@@ -196,19 +201,19 @@ async function main() {
     const minMs = Math.min(...averages);
     const maxMs = Math.max(...averages);
     console.log(
-      `- ${test.name}: median ${
-        medianMs.toFixed(3)
-      } ms/iter over ${ROUNDS} rounds of ${MEASURED_ITERATIONS_PER_ROUND} iters (min ${
-        minMs.toFixed(3)
-      }, max ${maxMs.toFixed(3)}; budget: <= ${test.budgetMs} ms/iter)`,
+      `- ${test.name}: median ${medianMs.toFixed(
+        3,
+      )} ms/iter over ${ROUNDS} rounds of ${MEASURED_ITERATIONS_PER_ROUND} iters (min ${minMs.toFixed(
+        3,
+      )}, max ${maxMs.toFixed(3)}; budget: <= ${test.budgetMs} ms/iter)`,
     );
 
     const exceeded = medianMs > test.budgetMs;
     if (exceeded) {
       console.error(
-        `  FAIL: ${test.name} exceeded performance budget (median ${
-          medianMs.toFixed(3)
-        } ms > ${test.budgetMs} ms)`,
+        `  FAIL: ${test.name} exceeded performance budget (median ${medianMs.toFixed(
+          3,
+        )} ms > ${test.budgetMs} ms)`,
       );
       failed = true;
     }
@@ -219,7 +224,7 @@ async function main() {
 
   if (failed) {
     console.error("Performance regression budget checks failed.");
-    Deno.exit(1);
+    process.exit(1);
   } else {
     console.log("All performance budget checks passed.");
   }

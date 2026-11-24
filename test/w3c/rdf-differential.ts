@@ -7,6 +7,8 @@ import {
   quadSetsIsomorphicAsSets,
 } from "./rdf-harness.ts";
 import type { RdfSyntaxCase } from "./rdf-harness.ts";
+import process from "node:process";
+import { readFileSync } from "node:fs";
 
 /**
  * RDF 1.1 differential gate: the wazoo Turtle/TriG/N-Triples/N-Quads grammar
@@ -74,8 +76,7 @@ export const supersetDivergences: ReadonlySet<string> = new Set([
 ]);
 
 type Verdict =
-  | { status: "pass" }
-  | { status: "gap"; detail: string; allowlisted: boolean };
+  { status: "pass" } | { status: "gap"; detail: string; allowlisted: boolean };
 
 interface Row {
   id: string;
@@ -85,7 +86,7 @@ interface Row {
 }
 
 function readFixture(rel: string): string {
-  return Deno.readTextFileSync(`test/w3c/fixtures/${rel}`);
+  return readFileSync(`test/w3c/fixtures/${rel}`, "utf8");
 }
 
 function parseWazoo(testCase: RdfSyntaxCase): rdfjs.Quad[] {
@@ -139,16 +140,17 @@ function evaluate(testCase: RdfSyntaxCase): Verdict {
     }`;
     return allowlisted
       ? {
-        status: "gap",
-        detail: `${detail} — allowlisted: ${SUPERSET_REASON}`,
-        allowlisted,
-      }
+          status: "gap",
+          detail: `${detail} — allowlisted: ${SUPERSET_REASON}`,
+          allowlisted,
+        }
       : { status: "gap", detail, allowlisted: false };
   }
 
   // Positive / eval: wazoo must parse, and agree with n3 when both parse.
   if (!wazooAccepts) {
-    const detail = `wazoo rejected a positive test: ${wazooError}` +
+    const detail =
+      `wazoo rejected a positive test: ${wazooError}` +
       (n3Accepts ? " (n3 accepted it)" : " (n3 also rejected it)");
     return { status: "gap", detail, allowlisted: false };
   }
@@ -189,7 +191,8 @@ function evaluate(testCase: RdfSyntaxCase): Verdict {
       if (!quadSetsIsomorphicAsSets(wazooQuads!, reference)) {
         return {
           status: "gap",
-          detail: `eval mismatch vs reference: wazoo ${wazooQuads!.length} ` +
+          detail:
+            `eval mismatch vs reference: wazoo ${wazooQuads!.length} ` +
             `quads vs reference ${reference.length} quads`,
           allowlisted: false,
         };
@@ -227,11 +230,11 @@ if (import.meta.main) {
 
   const pass = rows.filter((r) => r.verdict.status === "pass").length;
   const gaps = rows.filter((r) => r.verdict.status === "gap");
-  const allowlisted = gaps.filter((r) =>
-    r.verdict.status === "gap" && r.verdict.allowlisted
+  const allowlisted = gaps.filter(
+    (r) => r.verdict.status === "gap" && r.verdict.allowlisted,
   );
-  const realGaps = gaps.filter((r) =>
-    r.verdict.status === "gap" && !r.verdict.allowlisted
+  const realGaps = gaps.filter(
+    (r) => r.verdict.status === "gap" && !r.verdict.allowlisted,
   );
 
   console.log("\n=== RDF 1.1 differential (wazoo vs n3) ===");
@@ -241,9 +244,10 @@ if (import.meta.main) {
   console.log(`allowlisted:${allowlisted.length}`);
 
   for (const r of gaps) {
-    const tag = r.verdict.status === "gap" && r.verdict.allowlisted
-      ? "ALLOWLISTED"
-      : "GAP";
+    const tag =
+      r.verdict.status === "gap" && r.verdict.allowlisted
+        ? "ALLOWLISTED"
+        : "GAP";
     console.log(`\n[${tag}] ${r.id} (${r.format}, ${r.kind})`);
     if (r.verdict.status === "gap") console.log(`  ${r.verdict.detail}`);
   }
@@ -254,7 +258,7 @@ if (import.meta.main) {
         `disagreement(s) with n3. Fix them, or — only for intentional superset ` +
         `acceptances — add the test to supersetDivergences.`,
     );
-    Deno.exit(1);
+    process.exit(1);
   }
   console.log(
     `\nRDF 1.1 differential gate passed: ${pass}/${rows.length} agree with n3 ` +

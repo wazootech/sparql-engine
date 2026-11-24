@@ -18,6 +18,7 @@
 // queries have graph material to chew on, but the bulk sits in the default
 // graph (see generatePeople10k).
 
+import { writeFileSync } from "node:fs";
 const FOAF = "https://xmlns.com/foaf/0.1/";
 const EX = "https://example.org/";
 const XSD = "http://www.w3.org/2001/XMLSchema#";
@@ -105,14 +106,8 @@ const metaQuads: Array<[string, string, string]> = [
 const social = generateSocial(SOCIAL_COUNT);
 const people10k = generatePeople10k(PEOPLE10K_COUNT, metaQuads);
 
-Deno.writeTextFileSync(
-  new URL("./social.ttl", import.meta.url),
-  social,
-);
-Deno.writeTextFileSync(
-  new URL("./people10k.trig", import.meta.url),
-  people10k,
-);
+writeFileSync(new URL("./social.ttl", import.meta.url), social);
+writeFileSync(new URL("./people10k.trig", import.meta.url), people10k);
 
 // Quad counts, reported the way the ticket wants them (counted on the parse
 // side by verify.ts; here we report the structural expectation).

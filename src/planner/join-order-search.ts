@@ -76,7 +76,8 @@ export function estimatedJoinCost(
     }
     const distinct = stats.distinctByVar[term.value];
     if (
-      distinct !== undefined && distinct > 0 &&
+      distinct !== undefined &&
+      distinct > 0 &&
       distinct < mostSelectiveDistinct
     ) {
       mostSelectiveDistinct = distinct;

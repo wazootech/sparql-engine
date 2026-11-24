@@ -125,9 +125,7 @@ export class WazooSparqlEngine implements SparqlEngineInterface {
   private readonly queryCache = new Map<string, SparqlQuery>();
   private static readonly QUERY_CACHE_MAX = 128;
 
-  public constructor(
-    private readonly options: WazooSparqlEngineOptions,
-  ) {
+  public constructor(private readonly options: WazooSparqlEngineOptions) {
     this.parser = new SparqlParser();
     this.evaluator = new SparqlEvaluator(options.store, {
       reorderPatterns: options.reorderPatterns,
