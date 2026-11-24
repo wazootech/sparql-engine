@@ -1,0 +1,10 @@
+# Not formatted by bun fmt: generated bundle, Jekyll/Liquid templates and
+# assets (the formatter rewrites them wholesale), and lockfiles.
+playground/
+docs/_layouts/
+docs/_includes/
+docs/assets/
+dist/
+patches/
+bun.lock
+deno.lock
