@@ -94,6 +94,14 @@ The parity contract is **behavioral equivalence with
   SPARQL 1.1 result semantics treat labels as scoped and opaque. A dedicated
   test locks in this known difference against real Comunica output, so the
   normalization stays verified rather than assumed.
+- **Numeric results compare by value, not spelling.** SPARQL does not fix the
+  lexical form of a computed `xsd:decimal`, `xsd:float` or `xsd:double`, and
+  engines differ: Oxigraph and Comunica <= 5.3 print `3` and `1`, Comunica >=
+  5.4 prints the XSD canonical `3.0` and `1.0E0`, and this engine follows
+  Oxigraph. SELECT bindings are therefore compared with those three datatypes
+  normalized on both sides (`normalizeNumericTerm` in
+  `test/parity/parity-canonical.ts`, unit-tested in `parity-numeric.test.ts`).
+  CONSTRUCT and update results still compare lexical forms exactly.
 - The canonicalization itself is unit-tested:
   `test/parity/canonical-store.test.ts` locks in `canonicalStoreQuads`'
   blank-node substitution — repeated placeholders within one quad (`replaceAll`,

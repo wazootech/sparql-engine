@@ -82,7 +82,7 @@ export const expressionCases: ParityTestCase[] = [
       `SELECT ?a ?b ?c ?d ?e WHERE { ` +
       `BIND(LANGMATCHES("en", "en") AS ?a) ` +
       `BIND(LANGMATCHES("en-US", "en") AS ?b) ` +
-      `BIND(LANGMATCHES("en-US", "*") AS ?c) ` +
+      `BIND(LANGMATCHES("", "*") AS ?c) ` +
       `BIND(LANGMATCHES("en", "en-US") AS ?d) ` +
       `BIND(LANGMATCHES("EN-us", "en") AS ?e) }`,
     quads: [],

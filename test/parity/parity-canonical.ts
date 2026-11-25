@@ -1,5 +1,5 @@
 import type * as rdfjs from "@rdfjs/types";
-import { canonicalizeRdfTerm } from "@/term/mod.ts";
+import { canonicalizeRdfTerm, canonicalizeSparqlValue } from "@/term/mod.ts";
 import type { CanonicalTerm } from "@/term/mod.ts";
 import { SparqlParser as SparqlJsParser } from "@/parser/sparql-parser.ts";
 
@@ -13,6 +13,34 @@ import { SparqlParser as SparqlJsParser } from "@/parser/sparql-parser.ts";
  */
 function normalizeComunicaBlankNodeLabel(label: string): string {
   return label.replace(/^bc_\d+_/, "");
+}
+
+const XSD_DECIMAL_IRI = "http://www.w3.org/2001/XMLSchema#decimal";
+const XSD_FLOAT_IRI = "http://www.w3.org/2001/XMLSchema#float";
+const XSD_DOUBLE_IRI = "http://www.w3.org/2001/XMLSchema#double";
+
+/**
+ * normalizeDecimalLexicalForm drops the trailing ".0" style zeros from an
+ * xsd:decimal lexical form ("3.0" -> "3", "2.50" -> "2.5", "-0.0" -> "0").
+ * SPARQL does not fix the lexical form of computed decimals (results compare
+ * by value) and engines differ: Oxigraph and Comunica <= 5.3 print "3", the
+ * wazoo engine follows them, and Comunica >= 5.4 prints the XSD 1.1
+ * canonical "3.0". SELECT bindings are therefore compared with decimals
+ * normalized on BOTH sides (a decimal that passes straight through from the
+ * data keeps its spelling on the wazoo side), so parity checks the value, not
+ * the spelling. Only SELECT bindings are normalized: CONSTRUCT and update
+ * results still compare lexical forms exactly.
+ */
+export function normalizeDecimalLexicalForm(lexical: string): string {
+  const match = /^([+-]?)(\d*)(?:\.(\d*))?$/.exec(lexical);
+  if (match === null) {
+    return lexical;
+  }
+  const [, sign, whole, fraction = ""] = match;
+  const trimmed = fraction.replace(/0+$/, "");
+  const integer = whole === "" ? "0" : whole.replace(/^0+(?=\d)/, "");
+  const body = trimmed === "" ? integer : `${integer}.${trimmed}`;
+  return body === "0" ? "0" : `${sign === "-" ? "-" : ""}${body}`;
 }
 
 /**
@@ -174,4 +202,39 @@ export function compareOrdered(
     }
   }
   return null;
+}
+
+/**
+ * normalizeNumericTerm applies normalizeDecimalLexicalForm to an xsd:decimal
+ * literal and rewrites an xsd:float or xsd:double literal to the shortest
+ * spelling of its value ("1.0E0" -> "1"); INF, -INF and NaN and every other
+ * term are unchanged. Oxigraph prints "1" for xsd:float(true) as well, and
+ * Comunica >= 5.4 prints the canonical "1.0E0".
+ */
+export function normalizeNumericTerm(term: CanonicalTerm): CanonicalTerm {
+  if (term.termType !== "Literal") {
+    return term;
+  }
+  if (term.datatype === XSD_DECIMAL_IRI) {
+    return { ...term, value: normalizeDecimalLexicalForm(term.value) };
+  }
+  if (term.datatype === XSD_FLOAT_IRI || term.datatype === XSD_DOUBLE_IRI) {
+    const parsed = Number(term.value);
+    return Number.isFinite(parsed) ? { ...term, value: String(parsed) } : term;
+  }
+  return term;
+}
+
+/** canonicalizeComunicaSelectTerm is canonicalizeComunicaTerm plus numerics. */
+export function canonicalizeComunicaSelectTerm(
+  term: rdfjs.Term,
+): CanonicalTerm {
+  return normalizeNumericTerm(canonicalizeComunicaTerm(term));
+}
+
+/** canonicalizeWazooSelectValue canonicalizes a wazoo SELECT value, plus numerics. */
+export function canonicalizeWazooSelectValue(
+  value: Parameters<typeof canonicalizeSparqlValue>[0],
+): CanonicalTerm {
+  return normalizeNumericTerm(canonicalizeSparqlValue(value));
 }

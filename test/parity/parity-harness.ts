@@ -1,5 +1,5 @@
 import type * as rdfjs from "@rdfjs/types";
-import { canonicalizeRdfTerm, canonicalizeSparqlValue } from "@/term/mod.ts";
+import { canonicalizeRdfTerm } from "@/term/mod.ts";
 import type { CanonicalTerm } from "@/term/mod.ts";
 import { QueryEngine } from "@comunica/query-sparql-rdfjs-lite";
 import type { SparqlResponse } from "@/sparql-engine-interface.ts";
@@ -8,7 +8,8 @@ import { WazooSparqlEngine } from "@/wazoo-sparql-engine.ts";
 import {
   canonicalBindingRecord,
   canonicalComunicaQuadString,
-  canonicalizeComunicaTerm,
+  canonicalizeComunicaSelectTerm,
+  canonicalizeWazooSelectValue,
   canonicalQuadString,
   compareMultisets,
   compareOrdered,
@@ -17,7 +18,11 @@ import {
 } from "./parity-canonical.ts";
 import { createQuadStore } from "./parity-fixtures.ts";
 import assert from "node:assert/strict";
-export { canonicalizeComunicaTerm } from "./parity-canonical.ts";
+export {
+  canonicalizeComunicaSelectTerm,
+  canonicalizeComunicaTerm,
+  canonicalizeWazooSelectValue,
+} from "./parity-canonical.ts";
 
 /**
  * ParityQueryKind selects which result channel a parity test case compares.
@@ -110,7 +115,7 @@ async function runComunicaSelect(
   return rawBindings.map((record) => {
     const canonical: Record<string, CanonicalTerm> = {};
     for (const name of Object.keys(record)) {
-      canonical[name] = canonicalizeComunicaTerm(record[name]);
+      canonical[name] = canonicalizeComunicaSelectTerm(record[name]);
     }
     return canonicalBindingRecord(canonical);
   });
@@ -165,7 +170,7 @@ async function compareResult(
       const wazooBindings = wazooResult.data.results.bindings.map((binding) => {
         const canonical: Record<string, CanonicalTerm> = {};
         for (const name of Object.keys(binding)) {
-          canonical[name] = canonicalizeSparqlValue(binding[name]);
+          canonical[name] = canonicalizeWazooSelectValue(binding[name]);
         }
         return canonicalBindingRecord(canonical);
       });
