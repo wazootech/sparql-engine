@@ -1,0 +1,74 @@
+name: code-health
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: File length (enforced; 120 src / 300 test, blank/comment/import lines excluded)
+        run: |
+          cat > "$RUNNER_TEMP/count.awk" <<'AWK'
+          inimp { if ($0 ~ /from[ \t]*["'][^"']+["'];?[ \t]*$/ || $0 ~ /^[ \t]*\}/) inimp = 0; next }
+          /^[ \t]*(import[ \t]|export[ \t]+(type[ \t]+)?(\{|\*))/ {
+          if ($0 !~ /from[ \t]*["'][^"']+["'];?[ \t]*$/ && $0 !~ /^[ \t]*import[ \t]*["']/ && $0 !~ /\}/) inimp = 1
+          next
+          }
+          /^[ \t]*($|\/\/|\/\*|\*)/ { next }
+          { n++ }
+          END { print n + 0 }
+          AWK
+          # Files that were over the limit when it was enforced, each with its line count
+          # as a ceiling (split pending, wazootech/workspace#50). This list only shrinks.
+          cat > "$RUNNER_TEMP/allow" <<'ALLOW'
+          bench/bench.ts 148
+          bench/budget.ts 163
+          bench/engine_bench.ts 1212
+          bench/heldout-fuzz.ts 947
+          bench/latency-chart.ts 313
+          bench/measure-libs.ts 229
+          bench/memory-probe.ts 154
+          bench/parse-profile.ts 174
+          bench/treemap.ts 449
+          src/evaluator/bgp-evaluator.ts 965
+          src/evaluator/expression-evaluator.ts 1770
+          src/evaluator/path-steps-sync.ts 226
+          src/evaluator/path-steps.ts 231
+          src/evaluator/sparql-evaluator.ts 398
+          src/evaluator/update-evaluator.ts 757
+          src/parser/ast.ts 255
+          src/parser/generate-parser.ts 718
+          src/parser/lexer-dispatch.ts 225
+          src/parser/lr-runtime.ts 308
+          src/parser/sparql-context.ts 1826
+          src/parser/turtle-context.ts 692
+          src/serialize/xml-results-test-helpers.ts 167
+          src/store/memory-store.ts 199
+          src/store/memory-stream.ts 169
+          src/wazoo-sparql-engine-test-helpers.ts 136
+          test/w3c/runner.ts 806
+          ALLOW
+          fail=0
+          while read -r f; do
+            n=$(awk -f "$RUNNER_TEMP/count.awk" "$f")
+            case "$f" in *.test.*|*.spec.*|*_test.*|*/tests/*|tests/*|*/test/*|test/*) max=300 ;; *) max=120 ;; esac
+            if [ "$n" -le "$max" ]; then continue; fi
+            cap=$(awk -v f="$f" '$1 == f { print $2 }' "$RUNNER_TEMP/allow")
+            if [ -n "$cap" ] && [ "$n" -le "$cap" ]; then
+              echo "allowlisted: $f ($n lines, ceiling $cap)"
+              continue
+            fi
+            echo "::error file=$f::$n lines of code (limit $max${cap:+, ceiling $cap})"
+            echo "- \`$f\`: $n (limit $max)" >> "$GITHUB_STEP_SUMMARY"
+            fail=1
+          done < <(git ls-files '*.ts' '*.tsx' '*.js' '*.mjs' | grep -vE '(^|/)(node_modules|dist|generated|fixtures|\.next)/|\.d\.ts$|\.gen\.|openapi|snapshot|schema' | grep -vE '^(src/parser/(parser|turtle-generated)\.ts|playground/app\.js)$')
+          exit "$fail"
+      - name: TODO/FIXME without an issue link (warn-only)
+        run: |
+          git grep -nE '\b(TODO|FIXME)\b' -- '*.ts' '*.tsx' '*.js' '*.mjs' ':!*generated*' \
+            | grep -vE '#[0-9]+|/issues/[0-9]+' \
+            | while IFS=: read -r f l _; do echo "::warning file=$f,line=$l::TODO/FIXME without an issue link"; done || true
