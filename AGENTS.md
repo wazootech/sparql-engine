@@ -94,7 +94,8 @@ this repo's specifics:
   never commit credentials.
 - Bun runs on `1.x` in every workflow and CI installs with
   `bun install --frozen-lockfile`, so commit any `bun.lock` change.
-- `code-health.yml` only warns: files over 120 lines of code (300 for tests) and
-  `TODO`/`FIXME` without an issue link. It skips the two generated parsers and
+- `code-health.yml` fails on a file over 120 lines of code (300 for tests);
+  files that were already over it are listed there with a ceiling that only
+  shrinks. A `TODO`/`FIXME` without an issue link only warns. It skips the two generated parsers and
   `playground/app.js`.
 - `.github/CODEOWNERS` routes review to the repo owner.
