@@ -78,7 +78,7 @@ export function escapeBlankNodeLabel(value: string): string {
   for (const ch of value) {
     const first = offset === 0;
     offset += ch.length;
-    const safe =
+    const safe: boolean =
       LABEL_START.test(ch) ||
       (!first && LABEL_TAIL_ONLY.test(ch)) ||
       (!first && !afterDot && offset < value.length && ch === ".");
