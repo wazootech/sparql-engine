@@ -1,6 +1,6 @@
 /**
- * cast-boolean.ts implements the xsd:boolean and xsd:dateTime constructor
- * functions (SPARQL 1.1 §17.5).
+ * cast-boolean.ts implements the xsd:boolean, xsd:dateTime and xsd:date
+ * constructor functions (SPARQL 1.1 §17.5; xsd:date as Comunica adds it).
  */
 
 import type { RdfLiteral, RdfTerm } from "@/parser/rdf-terms.ts";
@@ -12,6 +12,7 @@ import {
   XSD_DATETIME,
 } from "@/term/mod.ts";
 import { typedValue } from "@/term/typed-value.ts";
+import { timezoneOf, XSD_DATE } from "@/term/datetime.ts";
 
 const { literal, namedNode } = DataFactory;
 
@@ -59,7 +60,7 @@ export function castToDateTime(
   const dateTime = (text: string): RdfLiteral =>
     literal(text, namedNode(XSD_DATETIME));
   if (typed !== null && typed.family === "date") {
-    const zone = /(Z|[+-][0-9]{2}:[0-9]{2})$/.exec(term.value)?.[1] ?? "";
+    const zone = timezoneOf(term.value);
     const day = term.value.slice(0, term.value.length - zone.length);
     return dateTime(`${day}T00:00:00${zone}`);
   }
@@ -68,5 +69,30 @@ export function castToDateTime(
     return undefined;
   }
   const candidate = dateTime(text);
+  return typedValue(candidate) === null ? undefined : candidate;
+}
+
+/**
+ * castToDate implements xsd:date(x): a valid date or its string form, and the
+ * date of an xsd:dateTime in the same timezone.
+ */
+export function castToDate(term: RdfTerm | undefined): RdfLiteral | undefined {
+  if (term === undefined || term.termType !== "Literal") {
+    return undefined;
+  }
+  const typed = typedValue(term);
+  if (term.datatype?.value === XSD_DATE) {
+    return typed === null ? undefined : term;
+  }
+  const date = (text: string): RdfLiteral => literal(text, namedNode(XSD_DATE));
+  if (typed !== null && typed.family === "dateTime") {
+    const day = term.value.slice(0, term.value.indexOf("T"));
+    return date(day + timezoneOf(term.value));
+  }
+  const text = stringOperand(term);
+  if (text === null) {
+    return undefined;
+  }
+  const candidate = date(text);
   return typedValue(candidate) === null ? undefined : candidate;
 }
