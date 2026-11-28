@@ -175,3 +175,17 @@ test("serializeJsonResults - round-trips a directional literal end to end", asyn
     "its:dir": "rtl",
   });
 });
+
+test("serializeJsonResults - head links are carried and an empty list is omitted", () => {
+  const link = ["http://example.org/meta"];
+  const select = serializeJsonResults({
+    kind: "select",
+    data: { head: { vars: ["a"], link }, results: { bindings: [] } },
+  });
+  assert.deepStrictEqual(JSON.parse(select).head, { vars: ["a"], link });
+  const ask = serializeJsonResults({
+    kind: "ask",
+    data: { head: { link: [] }, boolean: true },
+  });
+  assert.deepStrictEqual(JSON.parse(ask).head, {});
+});

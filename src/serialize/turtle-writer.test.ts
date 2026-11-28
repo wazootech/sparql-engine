@@ -7,6 +7,7 @@ import { DataFactory } from "@/term/public.ts";
 import { parseTurtleQuads } from "@/parser/turtle-parser.ts";
 import { serializeTurtle } from "@/serialize/turtle-writer.ts";
 import { quadSetsIsomorphicAsSets } from "../../test/w3c/rdf-harness.ts";
+import { Parser as N3Parser } from "n3";
 
 const { namedNode, literal, quad, blankNode, defaultGraph } = DataFactory;
 
@@ -183,4 +184,67 @@ test("turtle-writer: default graph term in a term position is rejected", () => {
     Error,
     "Cannot serialize DefaultGraph",
   );
+});
+
+test("turtle-writer: a prefix is used only for a safe local name in its namespace", () => {
+  const render = (
+    iri: string,
+    prefixes: Record<string, string> = { ex: "http://example.org/" },
+  ) =>
+    serializeTurtle(
+      [quad(namedNode("urn:s"), namedNode("urn:p"), namedNode(iri))],
+      {
+        prefixes,
+      },
+    );
+  assert.ok(render("http://example.org/ab").includes(" ex:ab ."));
+  for (const iri of [
+    "http://example.org/a/b",
+    "http://example.org/-a",
+    "http://example.org/a b",
+    "http://example.org/Inc.",
+    "urn:abcdefghijklmnopqrstuvwxyz",
+  ]) {
+    const statement = render(iri).split("\n")[1]!;
+    assert.ok(!statement.includes("ex:"), iri);
+  }
+  const unnamed = render("http://example.org/ab", {
+    "": "http://example.org/",
+  });
+  assert.ok(unnamed.includes("<http://example.org/ab>"));
+  assert.ok(render("plain", { e: "" }).includes("<plain>"));
+});
+
+test("turtle-writer: names ending in a dot round-trip under a prefix", () => {
+  const quads = [
+    quad(ex("Acme_Inc."), ex("p"), ex("foo.")),
+    quad(ex("s"), ex("p."), literal("v", ex("t."))),
+    quad(ex("a.b"), ex("p"), ex("a-")),
+  ];
+  const text = roundTrip(quads, { prefixes: { ex: "http://example.org/" } });
+  assert.ok(text.includes("ex:a.b ex:p ex:a- ."));
+});
+
+test("turtle-writer: awkward blank node labels stay parseable in every format", () => {
+  const labels = [".b", "-b", "b.", "a×", "̀a", "a　b", "é中😀"];
+  const quads = labels.map((label, index) =>
+    quad(blankNode(label), ex("p"), literal(String(index))),
+  );
+  for (const format of ["turtle", "n-triples", "n-quads"] as const) {
+    roundTrip(quads, { format });
+    const reparsed = new N3Parser().parse(serializeTurtle(quads, { format }));
+    assert.strictEqual(reparsed.length, labels.length, format);
+  }
+});
+
+test("turtle-writer: every format ends with a newline and splits statements by line", () => {
+  const quads = [
+    quad(namedNode("urn:s"), namedNode("urn:p"), literal("a")),
+    quad(namedNode("urn:t"), namedNode("urn:p"), literal("b")),
+  ];
+  const lines = '<urn:s> <urn:p> "a" .\n<urn:t> <urn:p> "b" .\n';
+  for (const format of ["turtle", "n-triples", "n-quads"] as const) {
+    assert.strictEqual(serializeTurtle(quads, { format }), lines);
+  }
+  assert.strictEqual(serializeTurtle(quads), lines);
 });
