@@ -119,3 +119,31 @@ test("simplePredicate accepts terms and rejects property paths", () => {
     "property path",
   );
 });
+
+test("probeQuadIndex narrows by predicate alone and by object alone", () => {
+  const index = buildQuadIndex(quads);
+  assert.deepStrictEqual(probeQuadIndex(index, quads, null, name, null), [
+    quads[0],
+    quads[3],
+  ]);
+  assert.deepStrictEqual(probeQuadIndex(index, quads, null, null, gregory), [
+    quads[2],
+  ]);
+});
+
+test("probeQuadIndex is empty for an unseen predicate or object", () => {
+  const index = buildQuadIndex(quads);
+  const unseen = ex("unseen");
+  assert.deepStrictEqual(probeQuadIndex(index, quads, null, unseen, null), []);
+  assert.deepStrictEqual(probeQuadIndex(index, quads, null, null, unseen), []);
+});
+
+test("probeQuadIndex filters by object when another bucket is chosen", () => {
+  const index = buildQuadIndex(quads);
+  // Both buckets hold one quad and the stable sort keeps the subject bucket,
+  // so only the object filter can reject it.
+  assert.deepStrictEqual(
+    probeQuadIndex(index, quads, sandra, null, literal("Ethan")),
+    [],
+  );
+});
