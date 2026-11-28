@@ -27,6 +27,7 @@ import { expressionCases } from "./parity-cases-expression.ts";
 import { selectCasesA } from "./parity-cases-select-a.ts";
 import { selectCasesB } from "./parity-cases-select-b.ts";
 import { numericCases } from "./parity-cases-numeric.ts";
+import { temporalCases } from "./parity-cases-temporal.ts";
 
 const allCases: ParityTestCase[] = [
   ...selectCasesA,
@@ -40,6 +41,7 @@ const allCases: ParityTestCase[] = [
   ...graphCases,
   ...expressionCases,
   ...numericCases,
+  ...temporalCases,
   ...fromCases,
 ];
 

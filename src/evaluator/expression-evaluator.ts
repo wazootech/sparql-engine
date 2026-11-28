@@ -32,6 +32,7 @@ import {
   XSD_DATETIME,
   XSD_DAYTIME_DURATION,
 } from "@/term/mod.ts";
+import { orderTypedValues, typedValuesEqual } from "@/term/typed-value.ts";
 import { numericText } from "@/evaluator/numeric-text.ts";
 import type { TermBinding } from "@/evaluator/bgp-evaluator.ts";
 import {
@@ -831,10 +832,9 @@ export class ExpressionEvaluator {
       }
       return numberFromNumeric(an) === numberFromNumeric(bn);
     }
-    // xsd:boolean literals compare with RDFterm-equal (same value and
-    // datatype), like sameTerm.
-    if (this.isBoolean(a) && this.isBoolean(b)) {
-      return sameRdfTerm(a, b);
+    const typed = typedValuesEqual(a, b);
+    if (typed !== null) {
+      return typed;
     }
     const aString = this.isStringTyped(a);
     const bString = this.isStringTyped(b);
@@ -854,7 +854,7 @@ export class ExpressionEvaluator {
       }
       return a.value === b.value;
     }
-    return false;
+    return sameRdfTerm(a, b);
   }
 
   /**
@@ -877,7 +877,7 @@ export class ExpressionEvaluator {
     if (this.isStringTyped(a) && this.isStringTyped(b)) {
       return a.value < b.value ? -1 : a.value > b.value ? 1 : 0;
     }
-    return undefined;
+    return orderTypedValues(a, b);
   }
 
   /**
@@ -1013,10 +1013,6 @@ export class ExpressionEvaluator {
 
   private isLangTagged(literalTerm: RdfLiteral): boolean {
     return literalTerm.language !== undefined && literalTerm.language !== "";
-  }
-
-  private isBoolean(literalTerm: RdfLiteral): boolean {
-    return literalTerm.datatype?.value === XSD_BOOLEAN;
   }
 
   private isSimpleLiteral(literalTerm: RdfLiteral): boolean {
