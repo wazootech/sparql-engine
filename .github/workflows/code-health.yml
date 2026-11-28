@@ -44,7 +44,7 @@ jobs:
           src/parser/generate-parser.ts 718
           src/parser/lexer-dispatch.ts 225
           src/parser/lr-runtime.ts 308
-          src/parser/sparql-context.ts 1826
+          src/parser/sparql-context.ts 1633
           src/parser/turtle-context.ts 692
           src/serialize/xml-results-test-helpers.ts 167
           src/store/memory-store.ts 193

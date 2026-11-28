@@ -1,3 +1,4 @@
+import { validateRequest } from "@/parser/sparql-validate.ts";
 import type {
   AggregateExpression,
   AskQuery,
@@ -1495,175 +1496,6 @@ export function orderingFrom(
   return ordering;
 }
 
-// The id of a grouping condition.
-function groupingId(grouping: Grouping): string | undefined {
-  if (grouping.variable) {
-    return grouping.variable.value;
-  }
-  return termValueOf(grouping.expression);
-}
-
-function termValueOf(expression: Expression): string | undefined {
-  return "termType" in expression ? expression.value : undefined;
-}
-
-function isGroupedBy(groups: Grouping[], id: string | undefined): boolean {
-  for (const group of groups) {
-    if (groupingId(group) === id) return true;
-  }
-  return false;
-}
-
-// An operation argument: an expression, or (for EXISTS and IN) a pattern or a
-// list of expressions.
-type OperationArgument = Expression | Expression[] | Pattern;
-
-// Get all "aggregate"s from an expression
-function getAggregatesOfExpression(
-  expression: OperationArgument | undefined,
-): AggregateExpression[] {
-  if (!expression || Array.isArray(expression)) {
-    return [];
-  }
-  if ("type" in expression) {
-    if (expression.type === "aggregate") {
-      return [expression];
-    }
-    if (expression.type === "exists") {
-      // The EXISTS group's pattern list holds no aggregates.
-      return [];
-    }
-    if (expression.type === "membership") {
-      return getAggregatesOfExpression(expression.subject);
-    }
-    if (expression.type === "operation") {
-      const aggregates: AggregateExpression[] = [];
-      for (const arg of expression.args) {
-        for (const nested of getAggregatesOfExpression(arg)) {
-          aggregates.push(nested);
-        }
-      }
-      return aggregates;
-    }
-  }
-  return [];
-}
-
-// Get all variables used in an expression
-function collectVariables(
-  expression: OperationArgument | undefined,
-  variables: Set<Term>,
-): undefined {
-  if (!expression || Array.isArray(expression)) {
-    return;
-  }
-  if ("termType" in expression) {
-    if (expression.termType === "Variable") {
-      variables.add(expression);
-    }
-  } else if (expression.type === "exists") {
-    // The EXISTS group's pattern list is walked with the pattern, not here.
-    return;
-  } else if (expression.type === "membership") {
-    collectVariables(expression.subject, variables);
-  } else if (expression.type === "operation") {
-    for (const arg of expression.args) collectVariables(arg, variables);
-  }
-}
-
-function selectionExpression(
-  item: VariableTerm | Wildcard | VariableExpression,
-): Expression | undefined {
-  return "expression" in item ? item.expression : undefined;
-}
-
-// COUNT(*) holds the wildcard in place of an expression.
-function isWildcardExpression(expression: Expression | Wildcard): boolean {
-  return (
-    "termType" in expression && (expression.termType as string) === "Wildcard"
-  );
-}
-
-// Checks the projection of a grouped (or aggregating) query.
-function checkProjection(
-  variables: Array<VariableTerm | Wildcard | VariableExpression>,
-  groups: Grouping[] | undefined,
-): undefined {
-  let counts = false;
-  for (const item of variables) {
-    for (const aggregation of getAggregatesOfExpression(
-      selectionExpression(item),
-    )) {
-      if (
-        aggregation.aggregation === "count" &&
-        !isWildcardExpression(aggregation.expression)
-      ) {
-        counts = true;
-      }
-    }
-  }
-  if (!counts && !groups) {
-    return;
-  }
-  for (const selectVar of variables) {
-    if ("termType" in selectVar && selectVar.termType === "Variable") {
-      if (!groups || !isGroupedBy(groups, selectVar.value)) {
-        throw Error(
-          "Projection of ungrouped variable (?" + selectVar.value + ")",
-        );
-      }
-    } else {
-      const expression = selectionExpression(selectVar);
-      if (getAggregatesOfExpression(expression).length === 0) {
-        const usedVars = new Set<Term>();
-        collectVariables(expression, usedVars);
-        for (const usedVar of usedVars) {
-          if (!groups || !isGroupedBy(groups, usedVar.value)) {
-            throw Error(
-              "Use of ungrouped variable in projection of operation (?" +
-                usedVar.value +
-                ")",
-            );
-          }
-        }
-      }
-    }
-  }
-}
-
-// Checks that the target of each `AS` is not already bound by a subquery.
-function checkSubqueryAliases(
-  variables: Array<VariableTerm | Wildcard | VariableExpression>,
-  where: Pattern[],
-): undefined {
-  const subqueries: SelectQuery[] = [];
-  for (const pattern of where) {
-    if (pattern.type === "query") subqueries.push(pattern);
-  }
-  if (subqueries.length === 0) {
-    return;
-  }
-  const selectedVarIds: string[] = [];
-  for (const item of variables) {
-    if ("variable" in item && item.variable && item.variable.value) {
-      selectedVarIds.push(item.variable.value);
-    }
-  }
-  const subqueryIds: string[] = [];
-  for (const subquery of subqueries) {
-    for (const item of subquery.variables) {
-      subqueryIds.push(projectionName(item));
-    }
-  }
-  for (const selectedVarId of selectedVarIds) {
-    if (subqueryIds.indexOf(selectedVarId) >= 0) {
-      throw Error(
-        "Target id of 'AS' (?" + selectedVarId + ") already used in subquery",
-      );
-    }
-  }
-}
-
 /** variableSelectQuery builds a query that selects variables and expressions. */
 export function variableSelectQuery(
   select: QueryFragment,
@@ -1671,13 +1503,6 @@ export function variableSelectQuery(
   where: QueryFragment,
   modifiers: QueryFragment,
 ): QueryFragment {
-  const variables = select.variables ?? [];
-  // Check for projection of ungrouped variable
-  if (!sparqlContext.skipValidation) {
-    checkProjection(variables, modifiers.group);
-  }
-  // Check if id of each AS-selected column is not yet bound by subquery
-  checkSubqueryAliases(variables, where.where ?? []);
   return mergeFragments(select, datasetFragment(datasets), where, modifiers);
 }
 
@@ -1957,6 +1782,9 @@ export function valuesForVariables(
   const length = variableTokens.length;
   const names: string[] = [];
   for (const token of variableTokens) names.push(variableOf(token).value);
+  if (new Set<string>(names).size !== names.length) {
+    throw Error("Variable used more than once in VALUES");
+  }
   const rows: ValuePatternRow[] = [];
   for (const values of valueLists) {
     if (values.length !== length) {
@@ -1989,59 +1817,8 @@ export function subSelectGroup(query: SelectQuery): GroupPattern {
   return { type: "group", patterns: [query] };
 }
 
-// Get all bound variable names of a pattern
-function getBoundVarsFromGroupGraphPattern(pattern: Pattern): string[] {
-  const boundVars: string[] = [];
-  if ("triples" in pattern && pattern.triples) {
-    for (const t of pattern.triples) {
-      if (isVariable(t.subject)) boundVars.push(t.subject.value);
-      if ("termType" in t.predicate && isVariable(t.predicate)) {
-        boundVars.push(t.predicate.value);
-      }
-      if (isVariable(t.object)) boundVars.push(t.object.value);
-    }
-    return boundVars;
-  } else if ("patterns" in pattern && pattern.patterns) {
-    for (const nested of pattern.patterns) {
-      for (const name of getBoundVarsFromGroupGraphPattern(nested)) {
-        boundVars.push(name);
-      }
-    }
-    return boundVars;
-  }
-  return boundVars;
-}
-
-function isVariable(term: Term): boolean {
-  return term.termType === "Variable";
-}
-
-/** groupGraphPattern builds `{ patterns }`, checking BIND variable scoping. */
+/** groupGraphPattern builds `{ patterns }`. */
 export function groupGraphPattern(patterns: Pattern[]): GroupPattern {
-  // For every binding
-  for (let index = 0; index < patterns.length; index++) {
-    const binding = patterns[index]!;
-    if (binding.type !== "bind") continue;
-    const bindingIndex = patterns.indexOf(binding);
-    const boundVars = new Set<string>();
-    // Collect all bounded variables before the binding
-    for (let before = 0; before < bindingIndex; before++) {
-      const element = patterns[before]!;
-      if (element.type === "group" || element.type === "bgp") {
-        for (const name of getBoundVarsFromGroupGraphPattern(element)) {
-          boundVars.add(name);
-        }
-      }
-    }
-    // If binding with a non-free variable, throw error
-    if (boundVars.has(binding.variable.value)) {
-      throw Error(
-        "Variable used to bind is already bound (?" +
-          binding.variable.value +
-          ")",
-      );
-    }
-  }
   return { type: "group", patterns };
 }
 
@@ -2419,6 +2196,9 @@ export function finishParse(parsed: ParsedStatement): SparqlResult {
   }
   if (parsed.type === "update") {
     checkInsertDataBlankNodes(parsed);
+  }
+  if (!sparqlContext.skipValidation) {
+    validateRequest(parsed);
   }
   sparqlContext.result = parsed;
   return parsed;
