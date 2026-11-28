@@ -32,6 +32,7 @@ import {
   XSD_DATETIME,
   XSD_DAYTIME_DURATION,
 } from "@/term/mod.ts";
+import { numericText } from "@/evaluator/numeric-text.ts";
 import type { TermBinding } from "@/evaluator/bgp-evaluator.ts";
 import {
   canonicalDouble,
@@ -991,7 +992,7 @@ export class ExpressionEvaluator {
         if (numeric === null) {
           return undefined;
         }
-        return literal(this.numericText(numeric, datatype ?? XSD_DECIMAL));
+        return literal(numericText(numeric, datatype ?? XSD_DECIMAL));
       }
       return undefined;
     }
@@ -1486,13 +1487,6 @@ export class ExpressionEvaluator {
     return literal(String(n), namedNode(XSD_FLOAT));
   }
 
-  /** numericText renders a numeric value's string form, integers exactly. */
-  private numericText(value: number | bigint, datatype: string): string {
-    return typeof value === "bigint"
-      ? value.toString()
-      : formatNumber(value, datatype);
-  }
-
   /**
    * constructorString implements xsd:string(x): the lexical form of any
    * literal, IRI, or blank node re-tagged as xsd:string.
@@ -1519,10 +1513,7 @@ export class ExpressionEvaluator {
       if (numeric === null) {
         return undefined;
       }
-      return literal(
-        this.numericText(numeric, datatype),
-        namedNode(XSD_STRING),
-      );
+      return literal(numericText(numeric, datatype), namedNode(XSD_STRING));
     }
     return literal(term.value, namedNode(XSD_STRING));
   }
