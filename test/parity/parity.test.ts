@@ -26,6 +26,7 @@ import { exampleAlice } from "./parity-vocab.ts";
 import { expressionCases } from "./parity-cases-expression.ts";
 import { selectCasesA } from "./parity-cases-select-a.ts";
 import { selectCasesB } from "./parity-cases-select-b.ts";
+import { emptyValuesCases } from "./parity-cases-empty-values.ts";
 import { aggregateErrorCases } from "./parity-cases-aggregate-errors.ts";
 import { negatedSetCases } from "./parity-cases-negated-sets.ts";
 import { formCases } from "./parity-cases-forms.ts";
@@ -50,6 +51,7 @@ const allCases: ParityTestCase[] = [
   ...specialCases,
   ...typeErrorCases,
   ...fromCases,
+  ...emptyValuesCases,
   ...aggregateErrorCases,
   ...negatedSetCases,
   ...formCases,
