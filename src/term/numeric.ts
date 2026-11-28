@@ -29,13 +29,31 @@ export const XSD_DATETIME: string = `${XSD}dateTime`;
 /** XSD_DAYTIME_DURATION is the xsd:dayTimeDuration datatype IRI. */
 export const XSD_DAYTIME_DURATION: string = `${XSD}dayTimeDuration`;
 
+/** INTEGER_DATATYPES is xsd:integer and every type XML Schema derives from it. */
+const INTEGER_DATATYPES: ReadonlySet<string> = new Set([
+  XSD_INTEGER,
+  `${XSD}nonPositiveInteger`,
+  `${XSD}negativeInteger`,
+  `${XSD}long`,
+  `${XSD}int`,
+  `${XSD}short`,
+  `${XSD}byte`,
+  `${XSD}nonNegativeInteger`,
+  `${XSD}unsignedLong`,
+  `${XSD}unsignedInt`,
+  `${XSD}unsignedShort`,
+  `${XSD}unsignedByte`,
+  `${XSD}positiveInteger`,
+]);
+
 /**
  * NUMERIC_DATATYPES is the set of XSD datatypes with numeric value semantics
- * per SPARQL 1.1: comparisons and arithmetic operate on their values rather
- * than their lexical forms.
+ * per SPARQL 1.1 §17.1, including the types derived from xsd:integer:
+ * comparisons and arithmetic operate on their values rather than their lexical
+ * forms.
  */
 export const NUMERIC_DATATYPES: ReadonlySet<string> = new Set([
-  XSD_INTEGER,
+  ...INTEGER_DATATYPES,
   XSD_DECIMAL,
   XSD_FLOAT,
   XSD_DOUBLE,
@@ -87,16 +105,17 @@ export function numberFromNumeric(value: number | bigint): number {
 
 /**
  * numericValue extracts the numeric value of a literal, or null when it is
- * not numeric or its lexical form is malformed. xsd:integer parses with
- * BigInt for exact arbitrary-precision arithmetic; other numeric datatypes
- * use JS number parsing.
+ * not numeric or its lexical form is malformed. xsd:integer and its derived
+ * types parse with BigInt for exact arbitrary-precision arithmetic (a derived
+ * type's range is not enforced, as in Comunica); other numeric datatypes use JS
+ * number parsing.
  */
 export function numericValue(term: RdfLiteral): number | bigint | null {
   const datatype = term.datatype?.value;
   if (datatype === undefined || !NUMERIC_DATATYPES.has(datatype)) {
     return null;
   }
-  if (datatype === XSD_INTEGER) {
+  if (INTEGER_DATATYPES.has(datatype)) {
     try {
       return BigInt(term.value);
     } catch {
