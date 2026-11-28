@@ -29,18 +29,6 @@ function joinQuadKey(
 }
 
 /**
- * quadKey renders the dedup key for a quad over all four positions.
- */
-function quadKey(quad: RdfQuad): string {
-  return joinQuadKey(
-    termKey(quad.subject),
-    termKey(quad.predicate),
-    termKey(quad.object),
-    termKey(quad.graph),
-  );
-}
-
-/**
  * indexPosition appends a quad to the bucket for the given term key.
  */
 function indexPosition(
@@ -58,21 +46,21 @@ function indexPosition(
 
 /**
  * unindexPosition removes a quad from the bucket for the given term key,
- * dropping the key once its bucket empties. Buckets never hold a quad more
- * than once, and the removal matches structurally (by the quad's dedup key,
- * `targetKey`) because callers pass a freshly constructed quad rather than the
- * stored instance.
+ * dropping the key once its bucket empties. `stored` is the instance the store
+ * indexed, so buckets are searched by reference: rebuilding each candidate's key
+ * would make removing many quads quadratic in far more than reference checks.
  */
 function unindexPosition(
   index: Map<string, RdfQuad[]>,
   key: string,
-  targetKey: string,
+  stored: RdfQuad,
 ): void {
   const bucket = index.get(key);
   if (bucket === undefined) {
     return;
   }
-  const position = bucket.findIndex((item) => quadKey(item) === targetKey);
+  // Recently added quads are the likeliest to be removed.
+  const position = bucket.lastIndexOf(stored);
   if (position >= 0) {
     bucket.splice(position, 1);
     if (bucket.length === 0) {
@@ -166,11 +154,14 @@ export class MemoryStore implements RdfStore<RdfQuad> {
     const objectKey = termKey(quad.object);
     const graphKey = termKey(quad.graph);
     const key = joinQuadKey(subjectKey, predicateKey, objectKey, graphKey);
-    if (this.quads.delete(key)) {
-      unindexPosition(this.bySubject, subjectKey, key);
-      unindexPosition(this.byPredicate, predicateKey, key);
-      unindexPosition(this.byObject, objectKey, key);
-      unindexPosition(this.byGraph, graphKey, key);
+    // The caller may pass an equal quad it built; the buckets hold ours.
+    const stored = this.quads.get(key);
+    if (stored !== undefined) {
+      this.quads.delete(key);
+      unindexPosition(this.bySubject, subjectKey, stored);
+      unindexPosition(this.byPredicate, predicateKey, stored);
+      unindexPosition(this.byObject, objectKey, stored);
+      unindexPosition(this.byGraph, graphKey, stored);
     }
     this._version++;
     return this;
