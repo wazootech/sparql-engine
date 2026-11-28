@@ -1,0 +1,15 @@
+{
+  "_comment": "Report-only mutation run over one evaluator file. Most evaluator behaviour is tested by src/*.test.ts, so the command runs all of src/. See stryker.config.json for why tsconfigFile names a missing file.",
+  "tsconfigFile": "tsconfig.stryker-skip.json",
+  "testRunner": "command",
+  "commandRunner": {
+    "command": "bun test src/ --timeout 120000"
+  },
+  "mutate": ["src/evaluator/aggregate-numeric.ts"],
+  "coverageAnalysis": "off",
+  "concurrency": 2,
+  "reporters": ["clear-text", "html", "json"],
+  "htmlReporter": { "fileName": "reports/mutation/aggregate-numeric.html" },
+  "jsonReporter": { "fileName": "reports/mutation/aggregate-numeric.json" },
+  "thresholds": { "break": null }
+}
