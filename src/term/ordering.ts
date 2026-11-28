@@ -12,6 +12,7 @@ import {
   numericValue,
   XSD_STRING,
 } from "./numeric.ts";
+import { sortTypedValues } from "./typed-value.ts";
 
 /**
  * compareStrings orders two strings by codepoint comparison.
@@ -48,6 +49,11 @@ function compareLiterals(a: RdfLiteral, b: RdfLiteral): number {
   // so ORDER BY ties and MIN/MAX ties keep the first-seen term.
   if (an !== null && bn !== null) {
     return compareNumericValues(an, bn);
+  }
+  // Booleans, dates, times and durations of one family order by value.
+  const typed = sortTypedValues(a, b);
+  if (typed !== null) {
+    return typed;
   }
   if (da !== db) {
     return compareStrings(da, db);
