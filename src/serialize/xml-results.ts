@@ -127,15 +127,41 @@ function pushTriplePart(
   out.push(`${pad}</${role}>`);
 }
 
-/** escapeText XML-escapes text content (&, <, >). */
+/**
+ * UNREPRESENTABLE matches a character no XML 1.0 document may contain, even as a
+ * reference: C0 controls other than tab, line feed and carriage return, lone
+ * surrogates, U+FFFE and U+FFFF.
+ */
+const UNREPRESENTABLE: RegExp =
+  // oxlint-disable-next-line no-control-regex -- these are the characters rejected
+  /[\u0000-\u0008\u000B\u000C\u000E-\u001F\uD800-\uDFFF￾￿]/u;
+
+/**
+ * escapeText XML-escapes text content. A carriage return is written as a
+ * reference, because a parser would otherwise read it as a line feed. It throws
+ * for a character XML cannot carry rather than writing a malformed document.
+ */
 function escapeText(text: string): string {
+  if (UNREPRESENTABLE.test(text)) {
+    throw new Error(
+      "serializeXmlResults: a term contains a character XML 1.0 cannot represent",
+    );
+  }
   return text
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
+    .replace(/>/g, "&gt;")
+    .replace(/\r/g, "&#xD;");
 }
 
-/** escapeAttr XML-escapes an attribute value (&, <, >, ", '). */
+/**
+ * escapeAttr XML-escapes an attribute value. Tabs and line feeds are written as
+ * references so a parser does not turn them into spaces.
+ */
 function escapeAttr(text: string): string {
-  return escapeText(text).replace(/"/g, "&quot;").replace(/'/g, "&apos;");
+  return escapeText(text)
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;")
+    .replace(/\t/g, "&#x9;")
+    .replace(/\n/g, "&#xA;");
 }
