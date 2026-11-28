@@ -1,0 +1,60 @@
+name: Bench
+
+# Informational linux-x64 timings for the two compiled CLI hosts (issue #256).
+# Shared runners are noisy, so no timing ever fails the job: it fails only when a
+# host does not build or the hosts disagree on output. Compare numbers within one
+# run, never across runs or machines; a ⚠ cell had too much spread to trust.
+# Runs weekly, on demand, and on a pull request when the `bench` label is added.
+on:
+  schedule:
+    - cron: "17 9 * * 1"
+  workflow_dispatch:
+  pull_request:
+    types: [labeled]
+
+permissions:
+  contents: read
+
+jobs:
+  cli:
+    if: github.event_name != 'pull_request' || github.event.label.name == 'bench'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: "1.x"
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 22
+      - uses: mlugg/setup-zig@d1434d08867e3ee9daa34448df10607b98908d29 # v2.2.1
+      - run: bun install --frozen-lockfile --ignore-scripts
+      - run: bun run compile
+      # Builds the scriptc binary and requires both hosts to pass the CLI
+      # contract before either is timed.
+      - run: bun run native:gate
+      - name: CLI benchmark
+        shell: bash
+        run: |
+          bun bench/cli-bench.ts --people 200,800,3200,10000 --runs 9 \
+            --target bun-compile=dist/sparql \
+            --target scriptc=dist/sparql-node | tee "$RUNNER_TEMP/cli-bench.md"
+      - name: Parse and index profile
+        shell: bash
+        run: |
+          {
+            echo '## Parse and index profile (under Bun)'
+            echo '```text'
+            bun run bench:profile
+            echo '```'
+          } | tee "$RUNNER_TEMP/parse-profile.md"
+      - name: Write the job summary
+        run: cat "$RUNNER_TEMP/cli-bench.md" "$RUNNER_TEMP/parse-profile.md" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: bench-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/cli-bench.md
+            ${{ runner.temp }}/parse-profile.md
+          retention-days: 90
