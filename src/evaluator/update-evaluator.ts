@@ -34,6 +34,8 @@ import {
 import { quadDedupKey, requireQuadGraph } from "@/term/quad-narrow.ts";
 import { sameRdfTerm, sparqlTermToRdfTerm } from "@/term/mod.ts";
 import { expandReifiedTriples } from "@/evaluator/reified.ts";
+import { isTemplateTriple } from "@/evaluator/query-forms.ts";
+import { templateGraph, templateTriples } from "@/evaluator/update-template.ts";
 import { DataFactory } from "@/term/data-factory.ts";
 import { parseTurtleQuads } from "@/parser/turtle-parser.ts";
 import type { JoinCostEstimator } from "@/planner/join-cost-estimator.ts";
@@ -749,12 +751,7 @@ export class UpdateEvaluator {
         ? this.convertTerm(graphName, null)
         : (withGraph ?? defaultGraph())
       : null;
-    const triples: Triple[] =
-      (pattern as unknown as { triples?: Triple[] }).triples ??
-      (
-        pattern as unknown as { patterns?: { triples?: Triple[] }[] }
-      ).patterns?.flatMap((p) => p.triples ?? []) ??
-      [];
+    const triples: Triple[] = templateTriples(pattern);
     for (const triple of triples) {
       const scan = this.deleteScanPositions(triple);
       // A variable graph scans every graph and filters per solution below.
@@ -851,15 +848,13 @@ export class UpdateEvaluator {
   ): RdfQuad[] {
     const graph =
       pattern.type === "graph"
-        ? this.convertTerm(pattern.name, null)
+        ? templateGraph(pattern.name, binding)
         : (withGraph ?? defaultGraph());
+    if (graph === null) {
+      return [];
+    }
     const quads: RdfQuad[] = [];
-    const rawTriples: Triple[] =
-      (pattern as unknown as { triples?: Triple[] }).triples ??
-      (
-        pattern as unknown as { patterns?: { triples?: Triple[] }[] }
-      ).patterns?.flatMap((p) => p.triples ?? []) ??
-      [];
+    const rawTriples: Triple[] = templateTriples(pattern);
     for (const triple of expandReifiedTriples(rawTriples)) {
       const subject = this.resolveInsertTerm(triple.subject, binding, bnodeMap);
       const predicate = this.resolveInsertTerm(
@@ -871,7 +866,8 @@ export class UpdateEvaluator {
       if (
         subject.kind !== "value" ||
         predicate.kind !== "value" ||
-        object.kind !== "value"
+        object.kind !== "value" ||
+        !isTemplateTriple(subject.term, predicate.term, object.term)
       ) {
         continue;
       }
@@ -945,7 +941,12 @@ export class UpdateEvaluator {
       const s = this.resolveInsertTerm(term.subject, binding, bnodeMap);
       const p = this.resolveInsertTerm(term.predicate, binding, bnodeMap);
       const o = this.resolveInsertTerm(term.object, binding, bnodeMap);
-      if (s.kind !== "value" || p.kind !== "value" || o.kind !== "value") {
+      if (
+        s.kind !== "value" ||
+        p.kind !== "value" ||
+        o.kind !== "value" ||
+        !isTemplateTriple(s.term, p.term, o.term)
+      ) {
         return { kind: "skip" };
       }
       return {
@@ -970,12 +971,7 @@ export class UpdateEvaluator {
     pattern: Pattern,
     bnodeMap: Map<string, RdfBlankNode> | null,
   ): RdfQuad[] {
-    const rawTriples: Triple[] =
-      (pattern as unknown as { triples?: Triple[] }).triples ??
-      (
-        pattern as unknown as { patterns?: { triples?: Triple[] }[] }
-      ).patterns?.flatMap((p) => p.triples ?? []) ??
-      [];
+    const rawTriples: Triple[] = templateTriples(pattern);
     const triples: Triple[] = expandReifiedTriples(rawTriples);
     if (pattern.type === "graph") {
       const graph = this.convertTerm(pattern.name, bnodeMap);
