@@ -1,9 +1,6 @@
 import type {
   RdfBlankNode,
   RdfQuad,
-  RdfQuadObject,
-  RdfQuadPredicate,
-  RdfQuadSubject,
   RdfSource,
   RdfTerm,
 } from "@/parser/rdf-terms.ts";
@@ -27,6 +24,7 @@ import type {
   SparqlValue,
 } from "@/sparql-engine-interface.ts";
 import { aggregateValue } from "@/evaluator/aggregate.ts";
+import { solutionsQuery, templateTriple } from "@/evaluator/query-forms.ts";
 import { expandReifiedTriples } from "@/evaluator/reified.ts";
 import { readBoundTerm } from "@/evaluator/join-bindings.ts";
 import { BgpEvaluator } from "@/evaluator/bgp-evaluator.ts";
@@ -371,13 +369,23 @@ export class SparqlEvaluator {
     query: AskQuery,
     signal?: AbortSignal,
   ): Promise<SparqlAskResults> {
-    const bindings = await (
-      await this.bgpEvaluatorFor(query.from)
-    ).evaluateBgp(query.where || [], query.base, signal);
+    const bindings = await this.formSolutions(query, signal);
     return {
       head: { link: null },
       boolean: bindings.length > 0,
     };
+  }
+
+  /** formSolutions evaluates the solutions of a query form other than SELECT. */
+  private formSolutions(
+    query: AskQuery | ConstructQuery | DescribeQuery,
+    signal?: AbortSignal,
+  ): Promise<TermBinding[]> {
+    return this.evaluateSelectTermBindings(
+      solutionsQuery(query),
+      query.base,
+      signal,
+    );
   }
 
   /**
@@ -415,11 +423,11 @@ export class SparqlEvaluator {
     query: DescribeQuery,
     signal?: AbortSignal,
   ): Promise<SparqlConstructResults> {
-    const bindings = query.where?.length
-      ? await (
-          await this.bgpEvaluatorFor(query.from)
-        ).evaluateBgp(query.where, query.base, signal)
-      : [];
+    // A DESCRIBE with neither WHERE nor VALUES has no solutions to read.
+    const bindings =
+      query.where?.length || query.values?.length
+        ? await this.formSolutions(query, signal)
+        : [];
 
     const resources = new Set<RdfTerm>();
     const collect = (term: RdfTerm | undefined): void => {
@@ -474,9 +482,7 @@ export class SparqlEvaluator {
     if (!query.template) {
       return { quads: [] };
     }
-    const bindings = await (
-      await this.bgpEvaluatorFor(query.from)
-    ).evaluateBgp(query.where || [], query.base, signal);
+    const bindings = await this.formSolutions(query, signal);
 
     // Reified-triple templates (`<< s p o >>`, annotation `{| ... |}`)
     // expand into a reifier blank node joined to its `rdf:reifies` triple
@@ -505,13 +511,8 @@ export class SparqlEvaluator {
         );
         const o = this.resolveConstructTerm(t.object, binding, bnodeMap);
 
-        if (s && p && o) {
-          const quad = DataFactory.quad(
-            s as RdfQuadSubject,
-            p as RdfQuadPredicate,
-            o as RdfQuadObject,
-            DataFactory.defaultGraph(),
-          );
+        const quad = s && p && o ? templateTriple(s, p, o) : null;
+        if (quad !== null) {
           const key = termKey(quad);
           if (!seen.has(key)) {
             seen.add(key);
@@ -551,14 +552,7 @@ export class SparqlEvaluator {
       const s = this.resolveConstructTerm(term.subject, binding, bnodeMap);
       const p = this.resolveConstructTerm(term.predicate, binding, bnodeMap);
       const o = this.resolveConstructTerm(term.object, binding, bnodeMap);
-      if (!s || !p || !o) {
-        return null;
-      }
-      return DataFactory.quad(
-        s as RdfQuadSubject,
-        p as RdfQuadPredicate,
-        o as RdfQuadObject,
-      );
+      return s && p && o ? templateTriple(s, p, o) : null;
     }
     return sparqlTermToRdfTerm(term);
   }
