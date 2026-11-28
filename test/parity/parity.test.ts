@@ -29,6 +29,7 @@ import { selectCasesB } from "./parity-cases-select-b.ts";
 import { numericCases } from "./parity-cases-numeric.ts";
 import { temporalCases } from "./parity-cases-temporal.ts";
 import { specialCases } from "./parity-cases-special.ts";
+import { typeErrorCases } from "./parity-cases-type-errors.ts";
 
 const allCases: ParityTestCase[] = [
   ...selectCasesA,
@@ -44,6 +45,7 @@ const allCases: ParityTestCase[] = [
   ...numericCases,
   ...temporalCases,
   ...specialCases,
+  ...typeErrorCases,
   ...fromCases,
 ];
 

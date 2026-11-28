@@ -402,6 +402,9 @@ export class ExpressionEvaluator {
         }
         if (operation.operator === "=" || operation.operator === "!=") {
           const equal = this.valuesEqual(a, b);
+          if (equal === undefined) {
+            return undefined;
+          }
           return booleanLiteral(operation.operator === "=" ? equal : !equal);
         }
         const comparison = this.orderValues(a, b);
@@ -810,20 +813,24 @@ export class ExpressionEvaluator {
   }
 
   /**
-   * valuesEqual compares two terms with SPARQL `=` semantics: numeric
+   * valuesEqual compares two terms (undefined is a type error) with SPARQL `=` semantics: numeric
    * literals compare by value across numeric datatypes, string literals
    * compare by value (simple literals and xsd:string are interchangeable;
    * lang-tagged literals additionally require the same language), and
    * everything else compares as RDF terms.
    */
-  private valuesEqual(a: RdfTerm, b: RdfTerm): boolean {
+  private valuesEqual(a: RdfTerm, b: RdfTerm): boolean | undefined {
     if (a.termType === "Quad" && b.termType === "Quad") {
       // RDFterm-equal recurses through triple terms on all three positions.
-      return (
-        this.valuesEqual(a.subject, b.subject) &&
-        this.valuesEqual(a.predicate, b.predicate) &&
-        this.valuesEqual(a.object, b.object)
-      );
+      const parts = [
+        this.valuesEqual(a.subject, b.subject),
+        this.valuesEqual(a.predicate, b.predicate),
+        this.valuesEqual(a.object, b.object),
+      ];
+      if (parts.includes(false)) {
+        return false;
+      }
+      return parts.includes(undefined) ? undefined : true;
     }
     if (a.termType === "Quad" || b.termType === "Quad") {
       return false;
@@ -861,7 +868,9 @@ export class ExpressionEvaluator {
       }
       return a.value === b.value;
     }
-    return sameRdfTerm(a, b);
+    // RDFterm-equal: two literals the operator mapping does not cover are equal
+    // when they are the same term, and otherwise a type error.
+    return sameRdfTerm(a, b) ? true : undefined;
   }
 
   /**
@@ -1244,7 +1253,7 @@ export class ExpressionEvaluator {
     ) {
       return undefined;
     }
-    if (lang.termType !== "Literal" || !this.isStringTyped(lang)) {
+    if (lang.termType !== "Literal" || !this.isSimpleLiteral(lang)) {
       return undefined;
     }
     // The langTag must not be empty (SPARQL 1.2 §17.4.3.12); an empty tag
@@ -1377,21 +1386,15 @@ export class ExpressionEvaluator {
   }
 
   /**
-   * integerValue extracts a strict integer value from a term for SUBSTR
-   * positions, or null when the term is not an integer-valued numeric.
+   * integerValue extracts a SUBSTR position, which must be a literal of
+   * xsd:integer or a type derived from it, or null otherwise.
    */
   private integerValue(term: RdfTerm): number | null {
     if (term.termType !== "Literal") {
       return null;
     }
     const numeric = numericValue(term);
-    if (numeric === null) {
-      return null;
-    }
-    if (typeof numeric === "bigint") {
-      return numberFromNumeric(numeric);
-    }
-    return Number.isInteger(numeric) ? numeric : null;
+    return typeof numeric === "bigint" ? numberFromNumeric(numeric) : null;
   }
 
   /**
@@ -1472,6 +1475,29 @@ export class ExpressionEvaluator {
    * stringPredicate implements CONTAINS, STRSTARTS, and STRENDS: two string
    * arguments tested by the given relation, returning an xsd:boolean literal.
    */
+  /**
+   * compatible applies the argument compatibility rules (SPARQL 1.1
+   * §17.4.3.1.1): a language-tagged second argument must carry the first
+   * argument's tag, or the call is a type error.
+   */
+  private compatible(value: RdfLiteral, argument: RdfLiteral): boolean {
+    return (
+      !this.isLangTagged(argument) ||
+      (value.language ?? "").toLowerCase() === argument.language.toLowerCase()
+    );
+  }
+
+  /** simpleTerm is stringTerm restricted to literals without a language tag. */
+  private simpleTerm(
+    expression: Expression,
+    binding: TermBinding,
+    aggregates?: (aggregate: AggregateExpression) => RdfTerm | undefined,
+    context?: ExpressionEvaluationContext,
+  ): RdfLiteral | undefined {
+    const value = this.stringTerm(expression, binding, aggregates, context);
+    return value === undefined || this.isLangTagged(value) ? undefined : value;
+  }
+
   private stringPredicate(
     args: Expression[],
     binding: TermBinding,
@@ -1481,7 +1507,11 @@ export class ExpressionEvaluator {
   ): RdfLiteral | undefined {
     const value = this.stringTerm(args[0], binding, aggregates, context);
     const argument = this.stringTerm(args[1], binding, aggregates, context);
-    if (value === undefined || argument === undefined) {
+    if (
+      value === undefined ||
+      argument === undefined ||
+      !this.compatible(value, argument)
+    ) {
       return undefined;
     }
     return booleanLiteral(test(value.value, argument.value));
@@ -1502,14 +1532,10 @@ export class ExpressionEvaluator {
   ): RdfLiteral | undefined {
     const value = this.stringTerm(args[0], binding, aggregates, context);
     const needle = this.stringTerm(args[1], binding, aggregates, context);
-    if (value === undefined || needle === undefined) {
-      return undefined;
-    }
-    // A language-tagged needle must carry the first argument's tag, or the
-    // call is a type error (SPARQL 1.1 §17.4.3.10/11).
     if (
-      this.isLangTagged(needle) &&
-      (!this.isLangTagged(value) || value.language !== needle.language)
+      value === undefined ||
+      needle === undefined ||
+      !this.compatible(value, needle)
     ) {
       return undefined;
     }
@@ -1557,13 +1583,13 @@ export class ExpressionEvaluator {
     context?: ExpressionEvaluationContext,
   ): RdfLiteral | undefined {
     const value = this.stringTerm(args[0], binding, aggregates, context);
-    const pattern = this.stringTerm(args[1], binding, aggregates, context);
+    const pattern = this.simpleTerm(args[1], binding, aggregates, context);
     if (value === undefined || pattern === undefined) {
       return undefined;
     }
     let flags = "";
     if (args.length > 2) {
-      const flagsTerm = this.stringTerm(args[2], binding, aggregates, context);
+      const flagsTerm = this.simpleTerm(args[2], binding, aggregates, context);
       if (flagsTerm === undefined) {
         return undefined;
       }
@@ -1591,8 +1617,8 @@ export class ExpressionEvaluator {
     context?: ExpressionEvaluationContext,
   ): RdfLiteral | undefined {
     const value = this.stringTerm(args[0], binding, aggregates, context);
-    const pattern = this.stringTerm(args[1], binding, aggregates, context);
-    const replacement = this.stringTerm(args[2], binding, aggregates, context);
+    const pattern = this.simpleTerm(args[1], binding, aggregates, context);
+    const replacement = this.simpleTerm(args[2], binding, aggregates, context);
     if (
       value === undefined ||
       pattern === undefined ||
@@ -1602,7 +1628,7 @@ export class ExpressionEvaluator {
     }
     let flags = "";
     if (args.length > 3) {
-      const flagsTerm = this.stringTerm(args[3], binding, aggregates, context);
+      const flagsTerm = this.simpleTerm(args[3], binding, aggregates, context);
       if (flagsTerm === undefined) {
         return undefined;
       }
@@ -1652,8 +1678,8 @@ export class ExpressionEvaluator {
     aggregates?: (aggregate: AggregateExpression) => RdfTerm | undefined,
     context?: ExpressionEvaluationContext,
   ): RdfLiteral | undefined {
-    const tag = this.stringTerm(args[0], binding, aggregates, context);
-    const range = this.stringTerm(args[1], binding, aggregates, context);
+    const tag = this.simpleTerm(args[0], binding, aggregates, context);
+    const range = this.simpleTerm(args[1], binding, aggregates, context);
     if (tag === undefined || range === undefined) {
       return undefined;
     }
@@ -1737,9 +1763,11 @@ export class ExpressionEvaluator {
         sawError = true;
         continue;
       }
-      if (this.valuesEqual(value, candidate)) {
+      const equal = this.valuesEqual(value, candidate);
+      if (equal === true) {
         return booleanLiteral(true);
       }
+      sawError = sawError || equal === undefined;
     }
     if (sawError) {
       return undefined;
