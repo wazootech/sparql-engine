@@ -35,11 +35,11 @@ jobs:
           bench/parse-profile.ts 174
           bench/treemap.ts 449
           src/evaluator/bgp-evaluator.ts 965
-          src/evaluator/expression-evaluator.ts 1770
-          src/evaluator/path-steps-sync.ts 226
-          src/evaluator/path-steps.ts 231
-          src/evaluator/sparql-evaluator.ts 398
-          src/evaluator/update-evaluator.ts 757
+          src/evaluator/expression-evaluator.ts 1618
+          src/evaluator/path-steps-sync.ts 174
+          src/evaluator/path-steps.ts 175
+          src/evaluator/sparql-evaluator.ts 320
+          src/evaluator/update-evaluator.ts 751
           src/parser/ast.ts 255
           src/parser/generate-parser.ts 718
           src/parser/lexer-dispatch.ts 225
@@ -47,7 +47,7 @@ jobs:
           src/parser/sparql-context.ts 1826
           src/parser/turtle-context.ts 692
           src/serialize/xml-results-test-helpers.ts 167
-          src/store/memory-store.ts 199
+          src/store/memory-store.ts 193
           src/store/memory-stream.ts 169
           src/wazoo-sparql-engine-test-helpers.ts 136
           test/w3c/runner.ts 806
