@@ -1,11 +1,14 @@
 {
-  "_comment": "Report-only mutation run over one evaluator file. Most evaluator behaviour is tested by src/*.test.ts, so the command runs all of src/. See stryker.config.json for why tsconfigFile names a missing file.",
+  "_comment": "Report-only mutation run over SUM and AVG arithmetic. Most evaluator behaviour is tested by src/*.test.ts, so the command runs all of src/. See stryker.config.json for why tsconfigFile names a missing file.",
   "tsconfigFile": "tsconfig.stryker-skip.json",
   "testRunner": "command",
   "commandRunner": {
     "command": "bun test src/ --timeout 120000"
   },
-  "mutate": ["src/evaluator/aggregate-numeric.ts"],
+  "mutate": [
+    "src/evaluator/aggregate-numeric.ts",
+    "src/evaluator/exact-decimal.ts"
+  ],
   "coverageAnalysis": "off",
   "concurrency": 2,
   "reporters": ["clear-text", "html", "json"],

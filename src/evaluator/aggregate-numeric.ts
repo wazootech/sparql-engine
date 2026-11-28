@@ -10,6 +10,13 @@ import {
   XSD_FLOAT,
   XSD_INTEGER,
 } from "@/term/mod.ts";
+import {
+  divideExactDecimal,
+  formatExactDecimal,
+  parseExactDecimal,
+  sumExactDecimals,
+} from "@/evaluator/exact-decimal.ts";
+import type { ExactDecimal } from "@/evaluator/exact-decimal.ts";
 
 const { literal, namedNode } = DataFactory;
 
@@ -45,13 +52,12 @@ export function sumAggregate(defined: RdfTerm[]): RdfTerm | undefined {
     return integerLiteral(total);
   }
   if (datatype === XSD_DECIMAL) {
-    return exactDecimalSum(defined);
+    const exact = exactTotal(defined, nums);
+    if (exact !== null) {
+      return decimalLiteral(formatExactDecimal(exact));
+    }
   }
-  let total = 0;
-  for (const n of nums) {
-    total += numberFromNumeric(n);
-  }
-  return numericLiteral(total, datatype);
+  return numericLiteral(floatTotal(nums), datatype);
 }
 
 export function avgAggregate(defined: RdfTerm[]): RdfTerm | undefined {
@@ -59,7 +65,7 @@ export function avgAggregate(defined: RdfTerm[]): RdfTerm | undefined {
     return integerLiteral(0);
   }
   let datatype = XSD_DECIMAL;
-  let total = 0;
+  const nums: (number | bigint)[] = [];
   for (const value of defined) {
     if (value.termType !== "Literal") {
       return undefined;
@@ -68,84 +74,74 @@ export function avgAggregate(defined: RdfTerm[]): RdfTerm | undefined {
     if (numeric === null) {
       return undefined;
     }
-    total += numberFromNumeric(numeric);
+    nums.push(numeric);
     const dt = value.datatype?.value ?? "";
-    if (dt === XSD_DOUBLE || dt === XSD_FLOAT) {
+    if (dt === XSD_DOUBLE) {
       datatype = XSD_DOUBLE;
+    } else if (dt === XSD_FLOAT && datatype !== XSD_DOUBLE) {
+      datatype = XSD_FLOAT;
     }
   }
-  return numericLiteral(total / defined.length, datatype);
+  if (datatype === XSD_DECIMAL) {
+    const exact = exactTotal(defined, nums);
+    if (exact !== null) {
+      return decimalLiteral(divideExactDecimal(exact, defined.length));
+    }
+  }
+  return numericLiteral(floatTotal(nums) / defined.length, datatype);
 }
 
 export function integerLiteral(value: number | bigint): RdfLiteral {
   return literal(String(value), namedNode(XSD_INTEGER));
 }
 
-function numericLiteral(value: number, datatype: string): RdfLiteral {
-  const text =
-    datatype === XSD_DOUBLE || datatype === XSD_FLOAT
-      ? canonicalDouble(value)
-      : formatNumber(value, datatype);
-  return literal(text, namedNode(datatype));
+/**
+ * exactTotal sums integer and decimal operands without rounding, so float
+ * accumulation noise never leaks into a decimal result (1.0 + 2.2 + 3.5 + 2.2
+ * + 2.2 must be "11.1"). It returns null when a decimal's lexical form is one
+ * the exact parser does not read.
+ */
+function exactTotal(
+  defined: RdfTerm[],
+  nums: (number | bigint)[],
+): ExactDecimal | null {
+  const parts: ExactDecimal[] = [];
+  for (let index = 0; index < nums.length; index++) {
+    const numeric = nums[index];
+    const part =
+      typeof numeric === "bigint"
+        ? { significand: numeric, scale: 0 }
+        : parseExactDecimal((defined[index] as RdfLiteral).value);
+    if (part === null) {
+      return null;
+    }
+    parts.push(part);
+  }
+  return sumExactDecimals(parts);
 }
 
-/**
- * exactDecimalSum sums numeric literals exactly when the aggregate's result
- * datatype is xsd:decimal, so JS float accumulation noise never leaks into
- * the lexical result (1.0 + 2.2 + 3.5 + 2.2 + 2.2 must be "11.1", not
- * "11.100000000000001"). Each term parses to a BigInt significand and a
- * scale; scales align to the maximum and the sum renders with trailing
- * fractional zeros stripped.
- *
- * Prior art: fixed-point arithmetic on (BigInt significand, scale) pairs
- * — summing scaled integers instead of binary floats — avoids the
- * rounding error that Goldberg's analysis shows in naive floating-point
- * accumulation.
- * @see {@link https://doi.org/10.1145/103162.103163 Goldberg, "What Every Computer Scientist Should Know About Floating-Point Arithmetic," ACM Computing Surveys 23(1), 1991, pp. 5–48}
- */
-function exactDecimalSum(defined: RdfTerm[]): RdfLiteral {
-  let maxScale = 0;
-  const parts: { significand: bigint; scale: number }[] = [];
-  for (const value of defined) {
-    const literalValue = value as RdfLiteral;
-    const text = literalValue.value;
-    const dot = text.indexOf(".");
-    const scale = dot === -1 ? 0 : text.length - dot - 1;
-    const digits = dot === -1 ? text : text.slice(0, dot) + text.slice(dot + 1);
-    maxScale = Math.max(maxScale, scale);
-    parts.push({ significand: BigInt(digits), scale });
+function floatTotal(nums: (number | bigint)[]): number {
+  let total = 0;
+  for (const n of nums) {
+    total += numberFromNumeric(n);
   }
-  let total = 0n;
-  for (const part of parts) {
-    total += part.significand * 10n ** BigInt(maxScale - part.scale);
-  }
-  return numericLiteralFromExactDecimal(total, maxScale);
+  return total;
 }
 
-/**
- * numericLiteralFromExactDecimal renders an exact decimal sum (a BigInt
- * significand plus a scale) as an xsd:decimal literal with trailing
- * fractional zeros stripped ("111"/1 -> "11.1", "32"/1 -> "3.2", "3"/1 ->
- * "3").
- */
-function numericLiteralFromExactDecimal(
-  total: bigint,
-  scale: number,
-): RdfLiteral {
-  const negative = total < 0n;
-  const absolute = (negative ? -total : total)
-    .toString()
-    .padStart(scale + 1, "0");
-  let text: string;
-  if (scale === 0) {
-    text = absolute;
-  } else {
-    const intPart = absolute.slice(0, absolute.length - scale);
-    const fracPart = absolute.slice(absolute.length - scale).replace(/0+$/, "");
-    text = fracPart.length === 0 ? intPart : `${intPart}.${fracPart}`;
+/** An infinite decimal has no lexical form, so it is a type error (unbound). */
+function numericLiteral(
+  value: number,
+  datatype: string,
+): RdfLiteral | undefined {
+  if (datatype === XSD_DOUBLE || datatype === XSD_FLOAT) {
+    return literal(canonicalDouble(value), namedNode(datatype));
   }
-  if (negative) {
-    text = "-" + text;
+  if (!Number.isFinite(value)) {
+    return undefined;
   }
+  return literal(formatNumber(value, datatype), namedNode(datatype));
+}
+
+function decimalLiteral(text: string): RdfLiteral {
   return literal(text, namedNode(XSD_DECIMAL));
 }
