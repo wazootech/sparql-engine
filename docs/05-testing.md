@@ -177,6 +177,20 @@ documented in the script header. CI runs a different seed on every run for
 coverage; the default seed reproduces a run locally, and the report is uploaded
 as a CI artifact with the seed recorded in it.
 
+## Mutation testing (pilot)
+
+`bun run mutation` runs [StrykerJS](https://stryker-mutator.io/) on
+`src/quad-store.ts` against `src/quad-store.test.ts` (issue
+[#267](https://github.com/wazootech/sparql-engine/issues/267)). It is
+report-only: no CI job runs it and no score breaks a build. The text report goes
+to stdout and the HTML report to `reports/mutation/mutation.html`.
+
+- It needs Node 22 or newer. Use the package script: a bare `npx stryker` can
+  download the unrelated, deprecated `stryker` package instead.
+- Stryker has no Bun runner, so `stryker.config.json` uses the command runner.
+  That runner reports no coverage, so every mutant runs the whole command: keep
+  the command as narrow as the files in `mutate`.
+
 ## Benchmarking
 
 Each tool's methodology is on the dedicated

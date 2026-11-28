@@ -1,0 +1,13 @@
+{
+  "_comment": "Mutation testing pilot (#267). tsconfigFile names a file that does not exist on purpose: Stryker's tsconfig rewrite imports the typescript package, which this repo does not install, and tsconfig.json has no extends or references to rewrite.",
+  "tsconfigFile": "tsconfig.stryker-skip.json",
+  "testRunner": "command",
+  "commandRunner": {
+    "command": "bun test src/quad-store.test.ts --timeout 120000"
+  },
+  "mutate": ["src/quad-store.ts"],
+  "coverageAnalysis": "off",
+  "concurrency": 2,
+  "reporters": ["clear-text", "html"],
+  "thresholds": { "break": null }
+}
