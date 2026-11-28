@@ -42,6 +42,21 @@ const DERIVED_TYPES = [
 const derivedValues = (type: string) =>
   `VALUES ?x { ${typed("10", type)} ${typed("9", type)} }`;
 
+/** averaged builds a SUM and AVG case over one VALUES list. */
+function aggregated(name: string, values: string[]): ParityTestCase {
+  return {
+    name: `SUM and AVG - ${name}`,
+    kind: "select",
+    query:
+      "SELECT (SUM(?x) AS ?sum) (AVG(?x) AS ?avg) " +
+      `WHERE { VALUES ?x { ${values.join(" ")} } }`,
+    quads: [],
+  };
+}
+
+const decimal = (value: string) => typed(value, "decimal");
+const float = (value: string) => typed(value, "float");
+
 export const numericCases: ParityTestCase[] = [
   bound("derived integers - arithmetic promotes to integer", [
     `${int("5")} + ${typed("2", "byte")}`,
@@ -107,4 +122,12 @@ export const numericCases: ParityTestCase[] = [
       quads: [],
     },
   ]),
+  aggregated("decimals without float noise", ["1.1", "2.2"]),
+  aggregated("a quotient that does not terminate", ["1", "2", "2"]),
+  aggregated("negative decimals", ["-1.5", "-0.25"]),
+  aggregated("exponent form", [decimal("1e5"), decimal("1.0")]),
+  aggregated("floats stay float", [float("1.5"), float("2.5")]),
+  aggregated("float with integer", [float("1.5"), "1"]),
+  aggregated("double with float", [typed("1", "double"), float("1.5")]),
+  aggregated("derived integer with decimal", [int("2"), "0.5"]),
 ];

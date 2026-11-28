@@ -195,7 +195,7 @@ to stdout and the HTML report to `reports/mutation/mutation.html`.
 folder each against that folder's tests, with JSON and HTML reports named after
 the folder: `bun run mutation stryker.serialize.config.json`.
 
-`stryker.aggregate-numeric.config.json` mutates one evaluator file against all
+`stryker.aggregate-numeric.config.json` mutates the SUM and AVG arithmetic against all
 of `bun test src/`, because most evaluator behaviour is tested outside its
 folder. Survivors there may still be covered by the W3C and parity suites under
 `test/`, which the command does not run.
