@@ -31,7 +31,9 @@ jobs:
   # bench suite — otherwise the published latency chart shows a stale query
   # inventory. Timings are machine-specific and never compared; the bench
   # inventory (group/name/baseline) is deterministic, so a fresh run must
-  # match it. Runs only when the suite or snapshot could have changed
+  # match it. The run also verifies that all three engines agree, so it runs
+  # when the suite, the snapshot, the reference versions or the result
+  # comparison could have changed
   # (bench:latency:check; BENCH_INVENTORY=1 runs each bench once, no warmup).
   latency-snapshot:
     runs-on: ubuntu-latest
@@ -46,6 +48,9 @@ jobs:
               - 'bench/engine_bench.ts'
               - 'bench/bench.ts'
               - 'bench/latency-data.json'
+              - 'bun.lock'
+              - 'test/parity/parity-canonical.ts'
+              - 'test/parity/parity-harness.ts'
       - if: steps.bench-changed.outputs.bench == 'true'
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:

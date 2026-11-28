@@ -18,6 +18,7 @@ import {
   getComunicaEngine,
   runComunicaRawSelectBindings,
 } from "../test/parity/parity-harness.ts";
+import { normalizeNumericTerm } from "../test/parity/parity-canonical.ts";
 import {
   canonicalizeRdfTerm,
   canonicalizeSparqlValue,
@@ -475,13 +476,15 @@ type OxigraphBinding = {
 };
 
 /**
- * bindingRecord renders a binding as a deterministic, sorted string.
+ * bindingRecord renders a SELECT binding as a deterministic, sorted string.
+ * Computed decimals, floats and doubles compare by value (see
+ * normalizeNumericTerm): Comunica spells them differently from the others.
  */
 function bindingRecord(record: Record<string, CanonicalTerm>): string {
   return JSON.stringify(
     Object.keys(record)
       .sort()
-      .map((name) => [name, record[name]]),
+      .map((name) => [name, normalizeNumericTerm(record[name]!)]),
   );
 }
 
