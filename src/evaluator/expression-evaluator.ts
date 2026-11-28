@@ -32,6 +32,7 @@ import {
   XSD_DATETIME,
   XSD_DAYTIME_DURATION,
 } from "@/term/mod.ts";
+import { numericText } from "@/evaluator/numeric-text.ts";
 import type { TermBinding } from "@/evaluator/bgp-evaluator.ts";
 import {
   canonicalDouble,
@@ -412,24 +413,19 @@ export class ExpressionEvaluator {
         }
         return undefined;
       }
+      case "UPLUS": {
+        const value = this.evaluateWith(arg(0), binding, aggregates, context);
+        if (value === undefined || value.termType !== "Literal") {
+          return undefined;
+        }
+        return this.unaryPlus(value);
+      }
+      case "UMINUS":
+        return this.unaryMinus(arg(0), binding, aggregates, context);
       case "+":
       case "-":
       case "*":
       case "/": {
-        if (operation.args.length === 1 && operation.operator === "+") {
-          const val = this.evaluateWith(arg(0), binding, aggregates, context);
-          if (
-            val === undefined ||
-            val.termType !== "Literal" ||
-            numericValue(val) === null
-          ) {
-            return undefined;
-          }
-          return val;
-        }
-        if (operation.args.length === 1 && operation.operator === "-") {
-          return this.unaryMinus(arg(0), binding, aggregates, context);
-        }
         const a = this.evaluateWith(arg(0), binding, aggregates, context);
         const b = this.evaluateWith(arg(1), binding, aggregates, context);
         if (a === undefined || b === undefined) {
@@ -902,13 +898,8 @@ export class ExpressionEvaluator {
     }
     const da = a.datatype?.value;
     const db = b.datatype?.value;
-    if (
-      operator !== "/" &&
-      da === XSD_INTEGER &&
-      db === XSD_INTEGER &&
-      typeof an === "bigint" &&
-      typeof bn === "bigint"
-    ) {
+    // Only the integer family parses to a bigint; its results are xsd:integer.
+    if (operator !== "/" && typeof an === "bigint" && typeof bn === "bigint") {
       let result: bigint;
       if (operator === "+") {
         result = an + bn;
@@ -944,6 +935,21 @@ export class ExpressionEvaluator {
       datatype = XSD_FLOAT;
     }
     return literal(formatNumber(result, datatype), namedNode(datatype));
+  }
+
+  /**
+   * unaryPlus returns a numeric operand unchanged, except that a type derived
+   * from xsd:integer is promoted to xsd:integer.
+   */
+  private unaryPlus(value: RdfLiteral): RdfLiteral | undefined {
+    const numeric = numericValue(value);
+    if (numeric === null) {
+      return undefined;
+    }
+    if (typeof numeric === "bigint" && value.datatype?.value !== XSD_INTEGER) {
+      return literal(numeric.toString(), namedNode(XSD_INTEGER));
+    }
+    return value;
   }
 
   private unaryMinus(
@@ -986,9 +992,7 @@ export class ExpressionEvaluator {
         if (numeric === null) {
           return undefined;
         }
-        return literal(
-          formatNumber(numberFromNumeric(numeric), datatype ?? XSD_DECIMAL),
-        );
+        return literal(numericText(numeric, datatype ?? XSD_DECIMAL));
       }
       return undefined;
     }
@@ -1509,10 +1513,7 @@ export class ExpressionEvaluator {
       if (numeric === null) {
         return undefined;
       }
-      return literal(
-        formatNumber(numberFromNumeric(numeric), datatype),
-        namedNode(XSD_STRING),
-      );
+      return literal(numericText(numeric, datatype), namedNode(XSD_STRING));
     }
     return literal(term.value, namedNode(XSD_STRING));
   }
@@ -2038,7 +2039,7 @@ export class ExpressionEvaluator {
     if (numeric === null) {
       return undefined;
     }
-    if (datatype === XSD_INTEGER && typeof numeric === "bigint") {
+    if (typeof numeric === "bigint") {
       let result: bigint = numeric;
       if (operation === "abs") {
         result = result < 0n ? -result : result;
