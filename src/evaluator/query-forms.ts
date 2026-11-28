@@ -2,19 +2,13 @@
  * query-forms.ts holds what ASK, CONSTRUCT and DESCRIBE share with SELECT.
  */
 
-import type { RdfQuad, RdfTerm } from "@/parser/rdf-terms.ts";
+import type { RdfTerm } from "@/parser/rdf-terms.ts";
 import type {
   AskQuery,
   ConstructQuery,
   DescribeQuery,
   SelectQuery,
 } from "@/parser/sparql-parser.ts";
-import { DataFactory } from "@/term/mod.ts";
-import {
-  narrowQuadObject,
-  narrowQuadPredicate,
-  narrowQuadSubject,
-} from "@/term/quad-narrow.ts";
 
 /**
  * solutionsQuery is the SELECT * whose solutions an ASK, CONSTRUCT or DESCRIBE
@@ -41,20 +35,19 @@ export function solutionsQuery(
 }
 
 /**
- * templateTriple builds a triple from instantiated template terms, or null when
- * a term may not stand in its position: CONSTRUCT leaves such a triple out
- * (SPARQL 1.1 §16.2).
+ * isTemplateTriple reports whether instantiated template terms may stand in
+ * their positions: CONSTRUCT leaves any other triple out (SPARQL 1.1 §16.2).
  */
-export function templateTriple(
+export function isTemplateTriple(
   subject: RdfTerm,
   predicate: RdfTerm,
   object: RdfTerm,
-): RdfQuad | null {
-  const s = narrowQuadSubject(subject);
-  const p = narrowQuadPredicate(predicate);
-  const o = narrowQuadObject(object);
-  if (s === undefined || p === undefined || o === undefined) {
-    return null;
-  }
-  return DataFactory.quad(s, p, o, DataFactory.defaultGraph());
+): boolean {
+  const subjectFits =
+    subject.termType === "NamedNode" ||
+    subject.termType === "BlankNode" ||
+    subject.termType === "Quad";
+  const objectFits =
+    object.termType !== "Variable" && object.termType !== "DefaultGraph";
+  return subjectFits && predicate.termType === "NamedNode" && objectFits;
 }
