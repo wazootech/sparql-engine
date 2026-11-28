@@ -177,7 +177,7 @@ V8's sliced strings make free and a copy-per-slice runtime does not. At 16,000
 triples that cost 11.5 s natively. Matching at an offset with sticky regexes
 (`src/parser/lr-runtime.ts`) brought it to 0.48 s and made the cost linear.
 
-The native graph is fully static. `scriptc coverage` reports 6,041/6,041
+The native graph is fully static. `scriptc coverage` reports 6,204/6,204
 statements static (100%), 0 functions signature-blocked, 0 blocker groups, and 0
 likely-hot untyped reads, and `bun run native:coverage` exits non-zero if a
 blocker or an SC6101 group reappears, so the gate cannot regress quietly.
