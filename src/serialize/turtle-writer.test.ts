@@ -226,7 +226,7 @@ test("turtle-writer: names ending in a dot round-trip under a prefix", () => {
 });
 
 test("turtle-writer: awkward blank node labels stay parseable in every format", () => {
-  const labels = [".b", "-b", "b.", "a×", "̀a", "a　b", "é中😀"];
+  const labels = [".b", "-b", "b.", "a×", "̀a", "a　b", "é中😀", "a..b"];
   const quads = labels.map((label, index) =>
     quad(blankNode(label), ex("p"), literal(String(index))),
   );

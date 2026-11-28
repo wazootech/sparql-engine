@@ -42,3 +42,8 @@ test("escapeBlankNodeLabel encodes characters outside the grammar", () => {
   assert.strictEqual(escapeBlankNodeLabel("̀a"), "_x300_a");
   assert.strictEqual(escapeBlankNodeLabel("‿a"), "_x203F_a");
 });
+
+test("escapeBlankNodeLabel never writes two dots in a row", () => {
+  assert.strictEqual(escapeBlankNodeLabel("a..b"), "a._x2E_b");
+  assert.strictEqual(escapeBlankNodeLabel("a...b"), "a._x2E_.b");
+});
