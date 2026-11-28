@@ -48,7 +48,12 @@ function compareLiterals(a: RdfLiteral, b: RdfLiteral): number {
   // regardless of datatype — matching Comunica's equality-first comparator,
   // so ORDER BY ties and MIN/MAX ties keep the first-seen term.
   if (an !== null && bn !== null) {
-    return compareNumericValues(an, bn);
+    // NaN has no value order; ORDER BY still needs one, so it sorts last among
+    // numbers.
+    const order = compareNumericValues(an, bn);
+    return Number.isNaN(order)
+      ? Number(Number.isNaN(an)) - Number(Number.isNaN(bn))
+      : order;
   }
   // Booleans, dates, times and durations of one family order by value.
   const typed = sortTypedValues(a, b);

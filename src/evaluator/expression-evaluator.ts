@@ -32,6 +32,13 @@ import {
   XSD_DATETIME,
   XSD_DAYTIME_DURATION,
 } from "@/term/mod.ts";
+import { castToBoolean, castToDateTime } from "@/evaluator/cast-boolean.ts";
+import {
+  castToDecimal,
+  castToDouble,
+  castToFloat,
+  castToInteger,
+} from "@/evaluator/casts.ts";
 import { orderTypedValues, typedValuesEqual } from "@/term/typed-value.ts";
 import { numericText } from "@/evaluator/numeric-text.ts";
 import type { TermBinding } from "@/evaluator/bgp-evaluator.ts";
@@ -40,7 +47,6 @@ import {
   compareNumericValues,
   formatNumber,
   numberFromNumeric,
-  numberFromText,
   NUMERIC_DATATYPES,
   numericValue,
   sameRdfTerm,
@@ -618,7 +624,8 @@ export class ExpressionEvaluator {
         if (
           val === undefined ||
           val.termType !== "Literal" ||
-          val.datatype?.value !== XSD_DATETIME
+          val.datatype?.value !== XSD_DATETIME ||
+          parseDateTime(val.value) === null
         ) {
           return undefined;
         }
@@ -910,6 +917,14 @@ export class ExpressionEvaluator {
       }
       return literal(result.toString(), namedNode(XSD_INTEGER));
     }
+    let datatype = XSD_DECIMAL;
+    if (da === XSD_DOUBLE || db === XSD_DOUBLE) {
+      datatype = XSD_DOUBLE;
+    } else if (da === XSD_FLOAT || db === XSD_FLOAT) {
+      datatype = XSD_FLOAT;
+    }
+    // Only xsd:float and xsd:double have values for infinity and NaN.
+    const floating = datatype !== XSD_DECIMAL;
     const av = numberFromNumeric(an);
     const bv = numberFromNumeric(bn);
     let result: number;
@@ -920,19 +935,10 @@ export class ExpressionEvaluator {
     } else if (operator === "*") {
       result = av * bv;
     } else {
-      if (bv === 0) {
-        return undefined;
-      }
       result = av / bv;
     }
-    if (!Number.isFinite(result)) {
+    if (!floating && !Number.isFinite(result)) {
       return undefined;
-    }
-    let datatype = XSD_DECIMAL;
-    if (da === XSD_DOUBLE || db === XSD_DOUBLE) {
-      datatype = XSD_DOUBLE;
-    } else if (da === XSD_FLOAT || db === XSD_FLOAT) {
-      datatype = XSD_FLOAT;
     }
     return literal(formatNumber(result, datatype), namedNode(datatype));
   }
@@ -974,32 +980,14 @@ export class ExpressionEvaluator {
   }
 
   /**
-   * str implements STR(): strings and lang-tagged literals strip to a plain
-   * literal of the lexical form, IRIs and blank nodes become their value, and
-   * numeric literals become their canonical lexical form.
+   * str implements STR(): a literal's lexical form (SPARQL 1.1 §17.4.2.5), and
+   * the value of an IRI or blank node, as a plain literal.
    */
   private str(value: RdfTerm | undefined): RdfLiteral | undefined {
-    if (value === undefined) {
+    if (value === undefined || value.termType === "Quad") {
       return undefined;
     }
-    if (value.termType === "Literal") {
-      const datatype = value.datatype?.value;
-      if (this.isStringTyped(value)) {
-        return literal(value.value);
-      }
-      if (NUMERIC_DATATYPES.has(datatype ?? "")) {
-        const numeric = numericValue(value);
-        if (numeric === null) {
-          return undefined;
-        }
-        return literal(numericText(numeric, datatype ?? XSD_DECIMAL));
-      }
-      return undefined;
-    }
-    if (value.termType === "NamedNode" || value.termType === "BlankNode") {
-      return literal(value.value);
-    }
-    return undefined;
+    return literal(value.value);
   }
 
   private isStringTyped(literalTerm: RdfLiteral): boolean {
@@ -1308,19 +1296,19 @@ export class ExpressionEvaluator {
     );
     switch (fnIri) {
       case XSD_INTEGER:
-        return this.constructorInteger(value);
+        return castToInteger(value);
       case XSD_DECIMAL:
-        return this.constructorDecimal(value);
+        return castToDecimal(value);
       case XSD_DOUBLE:
-        return this.constructorDouble(value);
+        return castToDouble(value);
       case XSD_FLOAT:
-        return this.constructorFloat(value);
+        return castToFloat(value);
       case XSD_STRING:
         return this.constructorString(value);
       case XSD_BOOLEAN:
-        return this.constructorBoolean(value);
+        return castToBoolean(value);
       case XSD_DATETIME:
-        return this.constructorDateTime(value);
+        return castToDateTime(value);
       default: {
         const localName = fnIri.includes("#")
           ? fnIri.split("#").pop()!
@@ -1358,132 +1346,6 @@ export class ExpressionEvaluator {
   }
 
   /**
-   * constructorInteger implements xsd:integer(x): strict xsd:integer
-   * lexical forms, integer-valued numerics, and booleans (1/0) cast; other
-   * inputs are type errors.
-   */
-  private constructorInteger(
-    term: RdfTerm | undefined,
-  ): RdfLiteral | undefined {
-    if (term === undefined || term.termType !== "Literal") {
-      return undefined;
-    }
-    const datatype = term.datatype?.value;
-    if (datatype === XSD_BOOLEAN) {
-      return literal(
-        term.value === "true" || term.value === "1" ? "1" : "0",
-        namedNode(XSD_INTEGER),
-      );
-    }
-    const numeric = numericValue(term);
-    if (numeric !== null) {
-      if (typeof numeric === "bigint") {
-        return literal(numeric.toString(), namedNode(XSD_INTEGER));
-      }
-      // XPath casting truncates non-integer numerics toward zero:
-      // xsd:integer(1.25) -> 1, xsd:integer(-2.5) -> -2.
-      return literal(
-        String(Number.isInteger(numeric) ? numeric : Math.trunc(numeric)),
-        namedNode(XSD_INTEGER),
-      );
-    }
-    if (this.isStringTyped(term) && /^-?\d+$/.test(term.value)) {
-      return literal(term.value, namedNode(XSD_INTEGER));
-    }
-    return undefined;
-  }
-
-  /**
-   * constructorDecimal implements xsd:decimal(x): numeric values and
-   * decimal lexical forms cast to their canonical decimal lexical form.
-   */
-  private constructorDecimal(
-    term: RdfTerm | undefined,
-  ): RdfLiteral | undefined {
-    if (term === undefined || term.termType !== "Literal") {
-      return undefined;
-    }
-    if (term.datatype?.value === XSD_BOOLEAN) {
-      return literal(
-        term.value === "true" || term.value === "1" ? "1" : "0",
-        namedNode(XSD_DECIMAL),
-      );
-    }
-    const numeric = numericValue(term);
-    if (numeric !== null) {
-      return literal(
-        formatNumber(numberFromNumeric(numeric), XSD_DECIMAL),
-        namedNode(XSD_DECIMAL),
-      );
-    }
-    if (this.isStringTyped(term) && /^[+-]?\d+(\.\d+)?$/.test(term.value)) {
-      return literal(
-        formatNumber(numberFromText(term.value), XSD_DECIMAL),
-        namedNode(XSD_DECIMAL),
-      );
-    }
-    return undefined;
-  }
-
-  /**
-   * constructorDouble implements xsd:double(x), producing the canonical
-   * XPath double lexical form ("5.0E0", "1.0E3", "INF").
-   */
-  private constructorDouble(term: RdfTerm | undefined): RdfLiteral | undefined {
-    if (term === undefined || term.termType !== "Literal") {
-      return undefined;
-    }
-    if (term.datatype?.value === XSD_BOOLEAN) {
-      return literal(
-        term.value === "true" ? "1.0E0" : "0.0E0",
-        namedNode(XSD_DOUBLE),
-      );
-    }
-    const numeric = numericValue(term);
-    let n: number;
-    if (numeric !== null) {
-      n = numberFromNumeric(numeric);
-    } else if (this.isStringTyped(term)) {
-      n = numberFromText(term.value);
-      if (Number.isNaN(n)) {
-        return undefined;
-      }
-    } else {
-      return undefined;
-    }
-    return literal(canonicalDouble(n), namedNode(XSD_DOUBLE));
-  }
-
-  /**
-   * constructorFloat implements xsd:float(x): the numeric value in its
-   * Number string form tagged as xsd:float.
-   */
-  private constructorFloat(term: RdfTerm | undefined): RdfLiteral | undefined {
-    if (term === undefined || term.termType !== "Literal") {
-      return undefined;
-    }
-    if (term.datatype?.value === XSD_BOOLEAN) {
-      return literal(
-        term.value === "true" || term.value === "1" ? "1" : "0",
-        namedNode(XSD_FLOAT),
-      );
-    }
-    const numeric = numericValue(term);
-    let n: number;
-    if (numeric !== null) {
-      n = numberFromNumeric(numeric);
-    } else if (this.isStringTyped(term)) {
-      n = numberFromText(term.value);
-      if (Number.isNaN(n)) {
-        return undefined;
-      }
-    } else {
-      return undefined;
-    }
-    return literal(String(n), namedNode(XSD_FLOAT));
-  }
-
-  /**
    * constructorString implements xsd:string(x): the lexical form of any
    * literal, IRI, or blank node re-tagged as xsd:string.
    */
@@ -1512,62 +1374,6 @@ export class ExpressionEvaluator {
       return literal(numericText(numeric, datatype), namedNode(XSD_STRING));
     }
     return literal(term.value, namedNode(XSD_STRING));
-  }
-
-  /**
-   * constructorBoolean implements xsd:boolean(x): boolean passthrough,
-   * numeric zero as false (anything else true), and the strings true/1 and
-   * false/0; other inputs are type errors.
-   */
-  private constructorBoolean(
-    term: RdfTerm | undefined,
-  ): RdfLiteral | undefined {
-    if (term === undefined || term.termType !== "Literal") {
-      return undefined;
-    }
-    if (term.datatype?.value === XSD_BOOLEAN) {
-      return literal(
-        term.value === "true" || term.value === "1" ? "true" : "false",
-        namedNode(XSD_BOOLEAN),
-      );
-    }
-    const numeric = numericValue(term);
-    if (numeric !== null) {
-      const value = numberFromNumeric(numeric);
-      return literal(value === 0 ? "false" : "true", namedNode(XSD_BOOLEAN));
-    }
-    if (this.isStringTyped(term) && !this.isLangTagged(term)) {
-      const text = term.value;
-      if (text === "true" || text === "1") {
-        return literal("true", namedNode(XSD_BOOLEAN));
-      }
-      if (text === "false" || text === "0") {
-        return literal("false", namedNode(XSD_BOOLEAN));
-      }
-    }
-    return undefined;
-  }
-
-  /**
-   * constructorDateTime implements xsd:dateTime(x): dateTime passthrough or
-   * valid ISO dateTime string cast.
-   */
-  private constructorDateTime(
-    term: RdfTerm | undefined,
-  ): RdfLiteral | undefined {
-    if (term === undefined || term.termType !== "Literal") {
-      return undefined;
-    }
-    if (term.datatype?.value === XSD_DATETIME) {
-      return term;
-    }
-    if (this.isStringTyped(term)) {
-      const parts = parseDateTime(term.value);
-      if (parts !== null) {
-        return literal(term.value, namedNode(XSD_DATETIME));
-      }
-    }
-    return undefined;
   }
 
   /**
@@ -1614,12 +1420,13 @@ export class ExpressionEvaluator {
     if (term === undefined) {
       return "error";
     }
+    // Only literals have an effective boolean value (SPARQL 1.1 §17.2.2).
     if (term.termType !== "Literal") {
-      return true;
+      return "error";
     }
     const datatype = term.datatype?.value;
     if (datatype === XSD_BOOLEAN) {
-      return term.value === "true";
+      return term.value === "true" || term.value === "1";
     }
     if (this.isLangTagged(term)) {
       return "error";
@@ -1628,8 +1435,13 @@ export class ExpressionEvaluator {
       return term.value !== "";
     }
     if (NUMERIC_DATATYPES.has(datatype)) {
-      const numeric = numberFromText(term.value);
-      return !Number.isNaN(numeric) && numeric !== 0;
+      // An invalid lexical form, zero and NaN are all false.
+      const numeric = numericValue(term);
+      if (numeric === null) {
+        return false;
+      }
+      const value = numberFromNumeric(numeric);
+      return value !== 0 && !Number.isNaN(value);
     }
     return "error";
   }
@@ -2177,7 +1989,7 @@ export class ExpressionEvaluator {
     context?: ExpressionEvaluationContext,
   ): RdfLiteral | undefined {
     const value = this.stringTerm(expression, binding, aggregates, context);
-    if (value === undefined) {
+    if (value === undefined || this.isLangTagged(value)) {
       return undefined;
     }
     let digest: string;

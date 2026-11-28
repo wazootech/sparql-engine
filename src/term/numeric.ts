@@ -95,6 +95,26 @@ export function numberFromText(text: string): number {
 }
 
 /**
+ * doubleFromText parses an xsd:float or xsd:double lexical form: the XML Schema
+ * spellings INF, +INF, -INF and NaN, or anything numberFromText reads. It
+ * returns null for any other text, so NaN stays a value.
+ */
+export function doubleFromText(text: string): number | null {
+  const trimmed = text.trim();
+  if (trimmed === "NaN") {
+    return NaN;
+  }
+  if (trimmed === "INF" || trimmed === "+INF") {
+    return Infinity;
+  }
+  if (trimmed === "-INF") {
+    return -Infinity;
+  }
+  const parsed = numberFromText(trimmed);
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
+/**
  * numberFromNumeric converts a numeric value to a JS number. A bigint goes
  * through its exact decimal form, so the result keeps `Number(bigint)`
  * rounding without the dynamic `Number()` constructor.
@@ -122,13 +142,17 @@ export function numericValue(term: RdfLiteral): number | bigint | null {
       return null;
     }
   }
+  if (datatype === XSD_FLOAT || datatype === XSD_DOUBLE) {
+    return doubleFromText(term.value);
+  }
   const numeric = numberFromText(term.value);
   return Number.isNaN(numeric) ? null : numeric;
 }
 
 /**
  * compareNumericValues orders two numeric values, comparing BigInt pairs
- * exactly and everything else as Numbers.
+ * exactly and everything else as Numbers. It returns NaN when either value is
+ * NaN, so every ordering operator answers false, as XPath requires.
  */
 export function compareNumericValues(
   a: number | bigint,
@@ -139,34 +163,8 @@ export function compareNumericValues(
   }
   const an = numberFromNumeric(a);
   const bn = numberFromNumeric(b);
+  if (Number.isNaN(an) || Number.isNaN(bn)) {
+    return NaN;
+  }
   return an < bn ? -1 : an > bn ? 1 : 0;
-}
-
-/**
- * formatNumber renders a numeric value's Number string form. No datatype
- * padding is applied: like Comunica, decimal results use plain JS string
- * forms (6/3 -> "2", not "2.0"). Double and float results keep the Number
- * string form; canonicalDouble (used by the XSD constructors and the
- * aggregates) produces the canonical XPath exponent form instead.
- */
-export function formatNumber(value: number, _datatype: string): string {
-  return String(value);
-}
-
-/**
- * canonicalDouble renders a number in the canonical XPath double lexical
- * form: a mantissa with at least one decimal digit and an exponent with no
- * leading plus ("3.0E0", "1.5E0", "1.0E21", "INF", "-INF").
- */
-export function canonicalDouble(n: number): string {
-  if (n === 0) {
-    return "0.0E0";
-  }
-  if (!Number.isFinite(n)) {
-    return n > 0 ? "INF" : "-INF";
-  }
-  const [mantissa, exponent] = n.toExponential().split("e");
-  const mantissaFixed = mantissa.includes(".") ? mantissa : `${mantissa}.0`;
-  const exponentText = exponent.startsWith("+") ? exponent.slice(1) : exponent;
-  return `${mantissaFixed}E${exponentText}`;
 }

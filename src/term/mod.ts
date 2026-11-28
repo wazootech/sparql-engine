@@ -11,9 +11,7 @@ export {
   canonicalizeSparqlValue,
 } from "@/term/canonical.ts";
 export {
-  canonicalDouble,
   compareNumericValues,
-  formatNumber,
   numberFromNumeric,
   numberFromText,
   NUMERIC_DATATYPES,
@@ -28,6 +26,7 @@ export {
   XSD_INTEGER,
   XSD_STRING,
 } from "@/term/numeric.ts";
+export { canonicalDouble, formatNumber } from "@/term/numeric-format.ts";
 export { parseDateTime, timezoneDurationLexical } from "@/term/datetime.ts";
 export type { DateTimeParts } from "@/term/datetime.ts";
 export {
