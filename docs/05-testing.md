@@ -191,6 +191,10 @@ to stdout and the HTML report to `reports/mutation/mutation.html`.
   That runner reports no coverage, so every mutant runs the whole command: keep
   the command as narrow as the files in `mutate`.
 
+`stryker.serialize.config.json` and `stryker.planner.config.json` mutate one
+folder each against that folder's tests, with JSON and HTML reports named after
+the folder: `bun run mutation stryker.serialize.config.json`.
+
 ## Benchmarking
 
 Each tool's methodology is on the dedicated

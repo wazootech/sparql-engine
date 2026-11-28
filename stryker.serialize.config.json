@@ -1,0 +1,20 @@
+{
+  "_comment": "Report-only mutation run over src/serialize/ against that folder's own tests. See stryker.config.json for why tsconfigFile names a missing file.",
+  "tsconfigFile": "tsconfig.stryker-skip.json",
+  "testRunner": "command",
+  "commandRunner": {
+    "command": "bun test src/serialize/ --timeout 120000"
+  },
+  "mutate": [
+    "src/serialize/**/*.ts",
+    "!src/serialize/**/*.test.ts",
+    "!src/serialize/**/*test-helpers.ts",
+    "!src/serialize/**/*.native.ts"
+  ],
+  "coverageAnalysis": "off",
+  "concurrency": 2,
+  "reporters": ["clear-text", "html", "json"],
+  "htmlReporter": { "fileName": "reports/mutation/serialize.html" },
+  "jsonReporter": { "fileName": "reports/mutation/serialize.json" },
+  "thresholds": { "break": null }
+}
