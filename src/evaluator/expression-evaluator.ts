@@ -40,6 +40,7 @@ import {
   castToInteger,
 } from "@/evaluator/casts.ts";
 import { orderTypedValues, typedValuesEqual } from "@/term/typed-value.ts";
+import { booleanOperand } from "@/evaluator/cast-operand.ts";
 import { numericText } from "@/evaluator/numeric-text.ts";
 import type { TermBinding } from "@/evaluator/bgp-evaluator.ts";
 import {
@@ -1370,10 +1371,10 @@ export class ExpressionEvaluator {
     }
     const datatype = term.datatype?.value;
     if (datatype === XSD_BOOLEAN) {
-      return literal(
-        term.value === "true" || term.value === "1" ? "true" : "false",
-        namedNode(XSD_STRING),
-      );
+      const flag = booleanOperand(term);
+      return flag === null
+        ? undefined
+        : literal(flag === 1 ? "true" : "false", namedNode(XSD_STRING));
     }
     if (datatype !== undefined && NUMERIC_DATATYPES.has(datatype)) {
       const numeric = numericValue(term);

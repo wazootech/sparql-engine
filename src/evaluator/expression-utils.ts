@@ -1,4 +1,5 @@
 import type { Expression, Pattern } from "@/parser/sparql-parser.ts";
+import type { TermBinding } from "@/evaluator/join.ts";
 
 /**
  * expressionContainsExists reports whether an expression tree contains an
@@ -83,6 +84,39 @@ export function expressionContainsAggregate(
   }
   if (expression.type === "functionCall") {
     return expression.args.some(expressionContainsAggregate);
+  }
+  return false;
+}
+
+/**
+ * expressionUsesUnboundVariable reports whether any variable the expression
+ * reads is unbound in the solution. EXISTS patterns are not read.
+ */
+export function expressionUsesUnboundVariable(
+  expression: Expression,
+  binding: TermBinding,
+): boolean {
+  if ("termType" in expression) {
+    return (
+      expression.termType === "Variable" &&
+      binding[expression.value] === undefined
+    );
+  }
+  if (!("type" in expression)) {
+    return false;
+  }
+  let args: Expression[] = [];
+  if (expression.type === "operation") {
+    args = expression.args as Expression[];
+  } else if (expression.type === "functionCall") {
+    args = expression.args as Expression[];
+  } else if (expression.type === "membership") {
+    args = [expression.subject, ...expression.candidates];
+  }
+  for (const arg of args) {
+    if (expressionUsesUnboundVariable(arg, binding)) {
+      return true;
+    }
   }
   return false;
 }
