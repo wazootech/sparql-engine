@@ -265,3 +265,46 @@ test("MemoryStore - positional indexes stay exact across mutations", () => {
   assert.deepStrictEqual(store.countQuads(s1), 1);
   assert.deepStrictEqual(store.countQuads(s2, p, o1), 1);
 });
+
+test("MemoryStore - removing an equal quad empties every index in order", () => {
+  const store = new MemoryStore();
+  const subjects = ["a", "b", "c", "d"].map((id) => ex(id));
+  for (const subject of subjects) {
+    store.addQuad(quad(subject, name, literal(subject.value)));
+  }
+  // Fresh instances, equal to the stored ones, removed from the middle.
+  for (const subject of [subjects[1]!, subjects[3]!]) {
+    store.removeQuad(quad(subject, name, literal(subject.value)));
+  }
+  const remaining = [subjects[0]!.value, subjects[2]!.value];
+  for (const matches of [
+    store.getQuads(null, name),
+    store.getQuads(null, null, null, defaultGraph()),
+    store.getQuads(),
+  ]) {
+    assert.deepStrictEqual(
+      matches.map((item) => item.subject.value),
+      remaining,
+    );
+  }
+  assert.deepStrictEqual(store.getQuads(subjects[1]), []);
+  assert.deepStrictEqual(
+    store.getQuads(null, null, literal(subjects[3]!.value)),
+    [],
+  );
+  assert.strictEqual(store.size, 2);
+});
+
+test("MemoryStore - removing many quads does not rebuild keys per candidate", () => {
+  const items = Array.from({ length: 20_000 }, (_, index) =>
+    quad(ex(`s${index}`), name, literal(String(index))),
+  );
+  const store = new MemoryStore(items);
+  const started = performance.now();
+  for (const item of items.slice(0, 5_000)) {
+    store.removeQuad(item);
+  }
+  // Rebuilding keys took minutes here; reference search takes milliseconds.
+  assert.ok(performance.now() - started < 5_000);
+  assert.strictEqual(store.size, 15_000);
+});
