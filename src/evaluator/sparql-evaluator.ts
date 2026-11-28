@@ -8,11 +8,9 @@ import type {
   RdfTerm,
 } from "@/parser/rdf-terms.ts";
 import type {
-  AggregateExpression,
   AskQuery,
   ConstructQuery,
   DescribeQuery,
-  Expression,
   Pattern,
   SelectQuery,
   SparqlQuery,
@@ -26,7 +24,7 @@ import type {
   SparqlSelectResults,
   SparqlValue,
 } from "@/sparql-engine-interface.ts";
-import { aggregateValue } from "@/evaluator/aggregate.ts";
+import { isTemplateTriple, solutionsQuery } from "@/evaluator/query-forms.ts";
 import { expandReifiedTriples } from "@/evaluator/reified.ts";
 import { readBoundTerm } from "@/evaluator/join-bindings.ts";
 import { BgpEvaluator } from "@/evaluator/bgp-evaluator.ts";
@@ -79,16 +77,6 @@ export interface SparqlEvaluatorOptions {
    */
   estimator?: JoinCostEstimator;
 }
-
-/**
- * SelectSolution is one SELECT output row: the binding to project plus,
- * when the query has GROUP BY, the group's raw solutions that aggregates
- * resolve over (null when ungrouped).
- */
-type SelectSolution = {
-  binding: TermBinding;
-  group: TermBinding[] | null;
-};
 
 /**
  * SparqlEvaluator processes parsed SPARQL AST queries against an RDFJS store.
@@ -268,116 +256,27 @@ export class SparqlEvaluator {
     };
   }
 
-  /**
-   * havingPasses applies one HAVING expression to a grouped solution: the
-   * expression is evaluated with aggregate resolution over the group and
-   * its EBV must be true (false and errors both drop the group).
-   */
-  private havingPasses(
-    expression: Expression,
-    solution: SelectSolution,
-    context?: ExpressionEvaluationContext,
-  ): boolean {
-    if (solution.group === null) {
-      return false;
-    }
-    return this.expressionEvaluator.filterPassesWithAggregates(
-      expression,
-      solution.binding,
-      this.aggregateResolver(solution, context),
-      context,
-    );
-  }
-
-  /**
-   * aggregateResolver returns the aggregate resolver for a grouped solution:
-   * each aggregate expression evaluates over the group's raw solutions.
-   */
-  private aggregateResolver(
-    solution: SelectSolution,
-    context?: ExpressionEvaluationContext,
-  ): (aggregate: AggregateExpression) => RdfTerm | undefined {
-    const group = solution.group;
-    if (group === null) {
-      return () => undefined;
-    }
-    return (aggregate) =>
-      aggregateValue(aggregate, group, (expression, binding) =>
-        this.expressionEvaluator.evaluate(expression, binding, context),
-      );
-  }
-
-  /**
-   * projectSolution renders one solution (raw or grouped) to the wire
-   * format. Projected variables resolve from the solution's binding (group
-   * key variables are bound by grouping); projection expressions evaluate
-   * with the solution's aggregate resolver when it is grouped.
-   */
-  private projectSolutionToTermBinding(
-    solution: SelectSolution,
-    wildcard: boolean,
-    vars: string[],
-    projections: Map<string, Expression>,
-    context?: ExpressionEvaluationContext,
-  ): TermBinding {
-    const binding = solution.binding;
-    const result: TermBinding = {};
-    if (wildcard) {
-      for (const varName of Object.keys(binding)) {
-        result[varName] = binding[varName];
-      }
-      return result;
-    }
-    // BNODE(str) scopes its blank nodes to a single solution mapping, so each
-    // solution's projection carries a fresh bnode cache (SPARQL 1.1 §17.4.1.5).
-    const solutionContext: ExpressionEvaluationContext = {
-      ...(context ?? {}),
-      bnodeMap: new Map<string, RdfBlankNode>(),
-    };
-    const resolver =
-      solution.group === null
-        ? undefined
-        : this.aggregateResolver(solution, solutionContext);
-    for (const varName of vars) {
-      const bound = binding[varName];
-      if (bound) {
-        result[varName] = bound;
-      }
-      const projection = projections.get(varName);
-      if (projection !== undefined && !(varName in result)) {
-        const mergedBinding = { ...binding, ...result };
-        const value =
-          resolver === undefined
-            ? this.expressionEvaluator.evaluate(
-                projection,
-                mergedBinding,
-                solutionContext,
-              )
-            : this.expressionEvaluator.evaluateWithAggregates(
-                projection,
-                mergedBinding,
-                resolver,
-                solutionContext,
-              );
-        if (value !== undefined) {
-          result[varName] = value;
-        }
-      }
-    }
-    return result;
-  }
-
   private async evaluateAsk(
     query: AskQuery,
     signal?: AbortSignal,
   ): Promise<SparqlAskResults> {
-    const bindings = await (
-      await this.bgpEvaluatorFor(query.from)
-    ).evaluateBgp(query.where || [], query.base, signal);
+    const bindings = await this.formSolutions(query, signal);
     return {
       head: { link: null },
       boolean: bindings.length > 0,
     };
+  }
+
+  /** formSolutions evaluates the solutions of a query form other than SELECT. */
+  private formSolutions(
+    query: AskQuery | ConstructQuery | DescribeQuery,
+    signal?: AbortSignal,
+  ): Promise<TermBinding[]> {
+    return this.evaluateSelectTermBindings(
+      solutionsQuery(query),
+      query.base,
+      signal,
+    );
   }
 
   /**
@@ -415,11 +314,11 @@ export class SparqlEvaluator {
     query: DescribeQuery,
     signal?: AbortSignal,
   ): Promise<SparqlConstructResults> {
-    const bindings = query.where?.length
-      ? await (
-          await this.bgpEvaluatorFor(query.from)
-        ).evaluateBgp(query.where, query.base, signal)
-      : [];
+    // A DESCRIBE with neither WHERE nor VALUES has no solutions to read.
+    const bindings =
+      query.where?.length || query.values?.length
+        ? await this.formSolutions(query, signal)
+        : [];
 
     const resources = new Set<RdfTerm>();
     const collect = (term: RdfTerm | undefined): void => {
@@ -474,9 +373,7 @@ export class SparqlEvaluator {
     if (!query.template) {
       return { quads: [] };
     }
-    const bindings = await (
-      await this.bgpEvaluatorFor(query.from)
-    ).evaluateBgp(query.where || [], query.base, signal);
+    const bindings = await this.formSolutions(query, signal);
 
     // Reified-triple templates (`<< s p o >>`, annotation `{| ... |}`)
     // expand into a reifier blank node joined to its `rdf:reifies` triple
@@ -505,7 +402,7 @@ export class SparqlEvaluator {
         );
         const o = this.resolveConstructTerm(t.object, binding, bnodeMap);
 
-        if (s && p && o) {
+        if (s && p && o && isTemplateTriple(s, p, o)) {
           const quad = DataFactory.quad(
             s as RdfQuadSubject,
             p as RdfQuadPredicate,
@@ -551,7 +448,7 @@ export class SparqlEvaluator {
       const s = this.resolveConstructTerm(term.subject, binding, bnodeMap);
       const p = this.resolveConstructTerm(term.predicate, binding, bnodeMap);
       const o = this.resolveConstructTerm(term.object, binding, bnodeMap);
-      if (!s || !p || !o) {
+      if (!s || !p || !o || !isTemplateTriple(s, p, o)) {
         return null;
       }
       return DataFactory.quad(
