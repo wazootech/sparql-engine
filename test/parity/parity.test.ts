@@ -27,6 +27,7 @@ import { expressionCases } from "./parity-cases-expression.ts";
 import { selectCasesA } from "./parity-cases-select-a.ts";
 import { selectCasesB } from "./parity-cases-select-b.ts";
 import { aggregateErrorCases } from "./parity-cases-aggregate-errors.ts";
+import { negatedSetCases } from "./parity-cases-negated-sets.ts";
 import { formCases } from "./parity-cases-forms.ts";
 import { numericCases } from "./parity-cases-numeric.ts";
 import { temporalCases } from "./parity-cases-temporal.ts";
@@ -50,6 +51,7 @@ const allCases: ParityTestCase[] = [
   ...typeErrorCases,
   ...fromCases,
   ...aggregateErrorCases,
+  ...negatedSetCases,
   ...formCases,
 ];
 

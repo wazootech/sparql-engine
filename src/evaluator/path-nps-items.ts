@@ -1,4 +1,5 @@
 import type { PathElement, PropertyPath } from "@/parser/ast.ts";
+import type { RdfQuad, RdfTerm } from "@/parser/rdf-terms.ts";
 
 /** NpsExclusions lists IRIs excluded from a negated property set, by direction. */
 export type NpsExclusions = {
@@ -52,4 +53,22 @@ export function collectNpsExclusions(items: PathElement[]): NpsExclusions {
   const state = { hasInverse: false };
   walkNpsItems(items, direct, inverse, state);
   return { direct, inverse, hasInverse: state.hasInverse };
+}
+
+/**
+ * npsEnds lists the far end of every edge a negated property set keeps in one
+ * direction: parallel edges give their end once each, as in Comunica.
+ */
+export function npsEnds(
+  quads: RdfQuad[],
+  excluded: Set<string>,
+  end: "subject" | "object",
+): RdfTerm[] {
+  const ends: RdfTerm[] = [];
+  for (const quad of quads) {
+    if (!excluded.has(quad.predicate.value)) {
+      ends.push(end === "subject" ? quad.subject : quad.object);
+    }
+  }
+  return ends;
 }
