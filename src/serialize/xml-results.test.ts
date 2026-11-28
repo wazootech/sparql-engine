@@ -10,6 +10,32 @@ import {
 } from "@/serialize/xml-results-test-helpers.ts";
 import { canonicalizeSparqlValue } from "@/term/mod.ts";
 import { serializeXmlResults } from "@/serialize/xml-results.ts";
+import { thrown } from "../../test/thrown.ts";
+
+/** withValue serializes one literal bound to one variable. */
+function withValue(value: string, name = "v"): string {
+  return serializeXmlResults({
+    kind: "select",
+    data: {
+      head: { vars: [name] },
+      results: { bindings: [{ [name]: { type: "literal", value } }] },
+    },
+  });
+}
+
+test("serializeXmlResults - line breaks and tabs survive a parser", () => {
+  const document = withValue("a\rb\r\nc\td");
+  assert.ok(document.includes("<literal>a&#xD;b&#xD;\nc\td</literal>"));
+  assert.ok(withValue("x", "a\tb\nc").includes('name="a&#x9;b&#xA;c"'));
+});
+
+test("serializeXmlResults - rejects characters XML cannot carry", () => {
+  for (const code of [0, 1, 0x0b, 0x1f, 0xd800, 0xdfff, 0xfffe, 0xffff]) {
+    const value = `a${String.fromCharCode(code)}b`;
+    thrown(() => withValue(value), Error, "cannot represent");
+  }
+  assert.ok(withValue("astral 😀 \u007f").includes("😀"));
+});
 
 test("serializeXmlResults - SELECT round-trips every SparqlValue variant", () => {
   const root = parseXml(serializeXmlResults(selectResponse));
