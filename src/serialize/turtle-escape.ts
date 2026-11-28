@@ -68,18 +68,21 @@ const LABEL_TAIL_ONLY: RegExp = /^[\u0300-\u036F\u203F\u2040-]$/u;
  * escapeBlankNodeLabel escapes a blank node label for the BLANK_NODE_LABEL
  * grammar, hex-encoding a character the grammar does not allow at that position
  * the same way the reference implementations do (`_xHH_`). A label may not start
- * with "-" or ".", nor end with ".".
+ * with "-" or ".", nor end with ".". A dot right after a dot is encoded too:
+ * the grammar allows it, but n3 does not read it.
  */
 export function escapeBlankNodeLabel(value: string): string {
   let out = "";
   let offset = 0;
+  let afterDot = false;
   for (const ch of value) {
     const first = offset === 0;
     offset += ch.length;
-    const safe =
+    const safe: boolean =
       LABEL_START.test(ch) ||
       (!first && LABEL_TAIL_ONLY.test(ch)) ||
-      (!first && offset < value.length && ch === ".");
+      (!first && !afterDot && offset < value.length && ch === ".");
+    afterDot = safe && ch === ".";
     const code = ch.codePointAt(0)!;
     out += safe ? ch : `_x${code.toString(16).toUpperCase().padStart(2, "0")}_`;
   }
