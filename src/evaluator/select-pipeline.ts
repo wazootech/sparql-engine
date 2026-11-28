@@ -44,7 +44,8 @@ export function applySelectPipeline(
 ): TermBinding[] {
   let bindings = rawBindings;
 
-  if (query.values !== undefined && query.values.length > 0) {
+  // An empty VALUES block has no rows, so nothing joins with it.
+  if (query.values !== undefined) {
     const rows: TermBinding[] = query.values.map((row) => {
       const binding: TermBinding = {};
       for (const name of Object.keys(row)) {
