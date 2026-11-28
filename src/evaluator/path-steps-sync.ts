@@ -1,5 +1,6 @@
 import type { RdfQuad, RdfTerm } from "@/parser/rdf-terms.ts";
 import type { PathElement } from "@/evaluator/path-types.ts";
+import { collectNpsExclusions, npsEnds } from "@/evaluator/path-nps-items.ts";
 import { matchQuadsSync } from "@/evaluator/path-sync.ts";
 import { sameRdfTerm, termKey } from "@/term/mod.ts";
 
@@ -168,92 +169,32 @@ export function pathStepsSync(
       return results;
     }
     case "!": {
-      // Negated property set: direct excluded predicates apply to matching
-      // edges in the primary direction, and inverse excluded predicates apply
-      // to matching edges in the opposite direction.
-      const directExcluded = new Set<string>();
-      const inverseExcluded = new Set<string>();
-      let hasInverse = false;
-
-      const collectNpsItems = (items: PathElement[]) => {
-        for (const item of items) {
-          // The members are read off one structural view instead of `in`
-          // narrowing: scriptc rejects `in` on the parser's union (SC1090,
-          // issue #221). A path element has `type: "path"`; a term has
-          // `termType`, and both arms read members that exist on their arm.
-          const pObj = item as {
-            termType?: string;
-            value?: string;
-            type?: string;
-            pathType?: string;
-            items?: PathElement[];
-          };
-          if (pObj.termType !== undefined) {
-            directExcluded.add(pObj.value ?? "");
-          } else if (pObj.type === "path") {
-            if (pObj.pathType === "|") {
-              collectNpsItems(pObj.items ?? []);
-            } else if (pObj.pathType === "^") {
-              const invItem = pObj.items?.[0] as { value?: string } | undefined;
-              if (invItem?.value) {
-                inverseExcluded.add(invItem.value);
-                hasInverse = true;
-              }
-            }
-          }
-        }
-      };
-      collectNpsItems(path.items);
-
+      // A negated property set is the union of its forward and inverse halves,
+      // so one end reached by both appears twice (SPARQL 1.1 §18.2.2.1).
+      const exclusions = collectNpsExclusions(path.items);
+      const forward = direction === "forward";
       const results: RdfTerm[] = [];
-      const seen = new Set<string>();
-
-      if (direction === "forward") {
-        if (directExcluded.size > 0) {
-          for (const q of matchQuadsSync(candidates, term, null, null)) {
-            if (!directExcluded.has(q.predicate.value)) {
-              const key = termKey(q.object);
-              if (!seen.has(key)) {
-                seen.add(key);
-                results.push(q.object);
-              }
-            }
-          }
-        }
-        if (hasInverse) {
-          for (const q of matchQuadsSync(candidates, null, null, term)) {
-            if (!inverseExcluded.has(q.predicate.value)) {
-              const key = termKey(q.subject);
-              if (!seen.has(key)) {
-                seen.add(key);
-                results.push(q.subject);
-              }
-            }
-          }
-        }
-      } else {
-        if (directExcluded.size > 0) {
-          for (const q of matchQuadsSync(candidates, null, null, term)) {
-            if (!directExcluded.has(q.predicate.value)) {
-              const key = termKey(q.subject);
-              if (!seen.has(key)) {
-                seen.add(key);
-                results.push(q.subject);
-              }
-            }
-          }
-        }
-        if (hasInverse) {
-          for (const q of matchQuadsSync(candidates, term, null, null)) {
-            if (!inverseExcluded.has(q.predicate.value)) {
-              const key = termKey(q.object);
-              if (!seen.has(key)) {
-                seen.add(key);
-                results.push(q.object);
-              }
-            }
-          }
-        }
+      if (exclusions.direct.size > 0) {
+        const quads = matchQuadsSync(
+          candidates,
+          forward ? term : null,
+          null,
+          forward ? null : term,
+        );
+        results.push(
+          ...npsEnds(quads, exclusions.direct, forward ? "object" : "subject"),
+        );
+      }
+      if (exclusions.hasInverse) {
+        const quads = matchQuadsSync(
+          candidates,
+          forward ? null : term,
+          null,
+          forward ? term : null,
+        );
+        results.push(
+          ...npsEnds(quads, exclusions.inverse, forward ? "subject" : "object"),
+        );
       }
       return results;
     }
