@@ -41,9 +41,9 @@ function iriTerm(value: string, prefixes: Record<string, string>): string {
       value.startsWith(namespace)
     ) {
       const local = value.slice(namespace.length);
-      // Only use the compact form when the local name is a plain PN_LOCAL,
-      // so the output always re-parses to the same IRI.
-      if (/^[A-Za-z0-9_][A-Za-z0-9_.-]*$/.test(local)) {
+      // Only use the compact form when the local name is a plain PN_LOCAL
+      // (which may not end with "."), so the output re-parses to the same IRI.
+      if (/^[A-Za-z0-9_](?:[A-Za-z0-9_.-]*[A-Za-z0-9_-])?$/.test(local)) {
         return `${prefix}:${local}`;
       }
     }

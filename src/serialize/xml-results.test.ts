@@ -85,3 +85,31 @@ test("serializeXmlResults - ASK round-trips the boolean", () => {
     assert.deepStrictEqual(booleanNode?.text, String(boolean));
   }
 });
+
+test("serializeXmlResults - head links appear only when present", () => {
+  const link = ["http://example.org/meta"];
+  const element = `<link href="${link[0]}"/>`;
+  const select = serializeXmlResults({
+    kind: "select",
+    data: { head: { vars: ["a"], link }, results: { bindings: [] } },
+  });
+  assert.ok(select.includes(element));
+  const linked = serializeXmlResults({
+    kind: "ask",
+    data: { head: { link }, boolean: true },
+  });
+  assert.ok(linked.includes(element));
+  const unlinked = serializeXmlResults({
+    kind: "ask",
+    data: { head: {}, boolean: true },
+  });
+  assert.ok(!unlinked.includes("<link"));
+});
+
+test("serializeXmlResults - quotes are escaped in attributes", () => {
+  const document = serializeXmlResults({
+    kind: "select",
+    data: { head: { vars: [`a"'`] }, results: { bindings: [] } },
+  });
+  assert.ok(document.includes('name="a&quot;&apos;"'));
+});
