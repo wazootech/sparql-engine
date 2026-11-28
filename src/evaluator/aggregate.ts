@@ -1,4 +1,5 @@
 import { groupingKeyVariableName } from "@/evaluator/grouping-key.ts";
+import { expressionUsesUnboundVariable } from "@/evaluator/expression-utils.ts";
 import type { RdfTerm } from "@/parser/rdf-terms.ts";
 import type {
   AggregateExpression,
@@ -86,6 +87,10 @@ export function groupSolutions(
  * forms of defined values with the separator (default a single space) and is
  * "" when nothing is defined. DISTINCT pre-deduplicates argument values (or
  * whole solutions for DISTINCT *).
+ *
+ * A solution that leaves a variable of the argument unbound is skipped, but
+ * any other failure makes SUM, AVG, MIN, MAX and GROUP_CONCAT unbound, as in
+ * Comunica. COUNT and SAMPLE ignore the failure (SPARQL 1.1 §18.5.1).
  */
 export function aggregateValue(
   aggregate: AggregateExpression,
@@ -100,6 +105,7 @@ export function aggregateValue(
     throw new Error(`Unsupported aggregate over *: ${aggregate.aggregation}`);
   }
   const values: (RdfTerm | undefined)[] = [];
+  let failed = false;
   const distinctSeen = new Set<string>();
   for (const solution of solutions) {
     let value: RdfTerm | undefined;
@@ -110,7 +116,12 @@ export function aggregateValue(
     } else {
       // The wildcard check is a runtime test (sparqljs emits {} for it);
       // TS still sees the union, so narrow with a cast.
-      value = evaluate(aggregate.expression as Expression, solution);
+      const expression = aggregate.expression as Expression;
+      value = evaluate(expression, solution);
+      failed =
+        failed ||
+        (value === undefined &&
+          !expressionUsesUnboundVariable(expression, solution));
       key = value === undefined ? "\u0001" : termKey(value);
     }
     if (aggregate.distinct) {
@@ -122,6 +133,11 @@ export function aggregateValue(
     values.push(value);
   }
   const defined = values.filter((v) => v !== undefined) as RdfTerm[];
+
+  const strict = !["count", "sample"].includes(aggregate.aggregation);
+  if (failed && strict) {
+    return undefined;
+  }
 
   switch (aggregate.aggregation) {
     case "count":
