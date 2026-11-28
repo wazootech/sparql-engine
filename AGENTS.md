@@ -68,9 +68,10 @@ stays Node-compatible:
   the manifest check, `parser:check`, `bun test --timeout 120000` (cold comunica
   parity suites need it), the publish-graph check, the bench budget and the
   W3C/RDF/EXISTS gates. Regenerate parsers with `bun run parser:generate`.
-- The comunica/traqula `overrides` in `package.json` pin the engine's reference
-  output (comunica 5.4 canonicalizes `xsd:decimal` differently); do not bump
-  them without a separate parity review.
+- Comunica is the parity reference and is resolved from `bun.lock`. Do not bump
+  it without a separate parity review: SELECT parity and the benchmarks compare
+  computed numerics by value (`normalizeNumericTerm`), CONSTRUCT and update
+  results compare them by spelling.
 - Publishing goes through the `jsr` CLI (`bun run publish:dry`, `bunx jsr publish`),
   which bundles its own Deno-based publisher: no Deno install is needed. Its
   slow-type check is stricter than Deno 2.9's, so exported constants need

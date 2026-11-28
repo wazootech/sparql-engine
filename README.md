@@ -132,9 +132,9 @@ engine and through every built host and requires identical exit code, stdout,
 and stderr. Each target test skips when its artifact is absent, so
 `bun run ci` stays green on a checkout with no compiler installed.
 
-The trade is startup and artifact size. Reading and indexing pay a constant
-per-triple factor; evaluation has near-zero fixed cost and a slightly steeper
-per-triple slope:
+The trade is startup and artifact size against throughput: the native binary
+starts faster and is far smaller, but it reads, indexes and evaluates more
+slowly per triple:
 
 ```sh
 bun run bench:cli --people 200,800,3200 --runs 9 \
@@ -145,34 +145,30 @@ bun run bench:cli --people 200,800,3200 --runs 9 \
 `bench:cli` runs every target once per round in a rotated order and separates
 the stages by subtracting inside the round, so machine drift cannot land on one
 target. At 16,000 triples, over 9 rounds (median, interquartile range), measured
-with `deno compile` before the Bun cutover (rerun the command above for
-`bun build --compile` numbers):
+with Bun 1.4.5 on Windows 11 (Intel Core Ultra 7 256V):
 
-| Isolated operation     | `deno compile`     | `scriptc`          | Ratio         |
-| ---------------------- | ------------------ | ------------------ | ------------- |
-| cold start, no data    | 61.0 ms (59-62)    | 27.6 ms (27-30)    | 2.2x faster   |
-| read + parse + index   | 132.9 ms (128-141) | 441.1 ms (411-454) | 3.2x slower   |
-| friend-of-friend query | 49.3 ms (46-53)    | 59.6 ms (57-71)    | 1.2x slower   |
-| binary on disk         | 79.9 MiB           | 6.2 MiB            | 12.9x smaller |
+| Isolated operation     | `bun build --compile` | `scriptc`          | Ratio         |
+| ---------------------- | --------------------- | ------------------ | ------------- |
+| cold start, no data    | 63.2 ms (63-64)       | 23.2 ms (22-24)    | 2.7x faster   |
+| read + parse + index   | 76.7 ms (77-81)       | 235.0 ms (230-241) | 3.1x slower   |
+| friend-of-friend query | 40.2 ms (38-43)       | 60.4 ms (51-71)    | 1.4x slower   |
+| binary on disk         | 110.9 MiB             | 6.2 MiB            | 17.8x smaller |
 
-The evaluation row is a difference of two process times, so it is the noisiest:
-across three runs of that command the native median at 16,000 triples landed
-between 60 and 75 ms against 46-50 ms for `deno compile`. The size-scaling fit
-below is the stable comparison.
+The evaluation row is a difference of two process times, so it is the noisiest;
+the size-scaling fit below is the more stable comparison.
 
-Across sizes the fixed and per-triple costs separate cleanly:
+Across 1,000, 4,000 and 16,000 triples the fixed and per-triple costs separate:
 
-| Operation              | `deno compile`          | `scriptc`                |
-| ---------------------- | ----------------------- | ------------------------ |
-| read + parse + index   | 13.1 ms + 7.5 µs/triple | 16.9 ms + 26.5 µs/triple |
-| friend-of-friend query | 10.6 ms + 2.5 µs/triple | -2.2 ms + 3.8 µs/triple  |
+| Operation              | `bun build --compile`   | `scriptc`               |
+| ---------------------- | ----------------------- | ----------------------- |
+| read + parse + index   | 10.8 ms + 4.1 µs/triple | 9.3 ms + 14.1 µs/triple |
+| friend-of-friend query | 7.4 ms + 2.0 µs/triple  | -2.1 ms + 3.9 µs/triple |
 
 The native evaluation fit puts the fixed term below the measurement floor, which
 is why it lands slightly negative; the per-triple slope is the meaningful part.
 
-The per-triple gap is the store's string-keyed indexes, which build eight keys
-per quad (`src/term/identity.ts`, `src/store/memory-store.ts`); that is
-application-level rather than codegen.
+Where the native load gap comes from has not been measured stage by stage
+(tracked in [#251](https://github.com/wazootech/sparql-engine/issues/251)).
 
 An earlier revision of this section quoted load and join as 5-43% slower. That
 was measured at 1,000 triples, where the fixed costs dominate, and it hid a
@@ -181,12 +177,12 @@ V8's sliced strings make free and a copy-per-slice runtime does not. At 16,000
 triples that cost 11.5 s natively. Matching at an offset with sticky regexes
 (`src/parser/lr-runtime.ts`) brought it to 0.48 s and made the cost linear.
 
-The native graph is fully static. `scriptc coverage` reports 5,784/5,784
+The native graph is fully static. `scriptc coverage` reports 6,041/6,041
 statements static (100%), 0 functions signature-blocked, 0 blocker groups, and 0
 likely-hot untyped reads, and `bun run native:coverage` exits non-zero if a
 blocker or an SC6101 group reappears, so the gate cannot regress quietly.
 
-47 statements across 70 functions stay in scriptc's report-only dynamic tier:
+48 statements stay in scriptc's report-only dynamic tier:
 code that operates on values typed only at runtime, which scriptc still lowers
 to native code with checked values. The compiler's labels name the shapes —
 `dyn.class` for `instanceof` and casts on interface-typed values (arbitrary
@@ -434,7 +430,7 @@ that they produce identical final store contents after mutating fresh stores (a
 move update, which a broken engine that ignores updates cannot pass). The timed
 update is a self-restoring delete+insert rewrite, so iterations never drift the
 benchmark stores. The reorder-chain group demonstrates the dynamic join
-ordering: a three-pattern chain written in worst-case order runs ~80x faster
+ordering: a three-pattern chain written in worst-case order runs ~60x faster
 with reordering enabled, because the planner scans each pattern once and joins
 in order of estimated cost, preferring patterns whose variables are already
 bound. Timings use [mitata](https://github.com/evanwashere/mitata) through the
@@ -447,50 +443,56 @@ bun run bench
 
 ### Results
 
-A snapshot measured on a Windows desktop with Deno 2.9.5, before the Bun cutover (wazoo engine as the
-per-group baseline). Each cell is the per-iteration average; every query is
-cross-verified to return identical results on all three engines before timing.
-Timings are machine-specific — run `bun run bench` for your own numbers.
+A snapshot measured with Bun 1.4.5 on Windows 11 (Intel Core Ultra 7 256V),
+with the wazoo engine as the per-group baseline. Each cell is the per-iteration
+average; every query is cross-verified to return identical results on all three
+engines before timing (computed decimals, floats and doubles compare by value).
+Timings are machine-specific and move between runs, often by 15-30% on the
+sub-millisecond rows, so treat close pairs as ties. Run `bun run bench` for your
+own numbers.
 
 Core joins, 400-person graph (~2,200 quads):
 
-| query                        | wazoo    | comunica | oxigraph |
-| ---------------------------- | -------- | -------- | -------- |
-| full scan                    | 1.1 ms   | 6.0 ms   | 8.8 ms   |
-| join (knows × name)          | 0.91 ms  | 3.4 ms   | 1.6 ms   |
-| asymmetric join              | 1.7 ms   | 23.0 ms  | 11.5 ms  |
-| reorder chain, written order | 105.5 ms | 107.8 ms | 2.2 ms   |
-| reorder chain, planner on    | 1.5 ms   | —        | —        |
-| dp-join, DP plan             | 62.2 ms  | 190.4 ms | 1120 ms  |
-| dp-join, greedy plan         | 125.2 ms | —        | —        |
+| query                        | wazoo   | comunica | oxigraph |
+| ---------------------------- | ------- | -------- | -------- |
+| full scan                    | 0.41 ms | 3.0 ms   | 5.5 ms   |
+| join (knows × name)          | 1.1 ms  | 3.3 ms   | 1.2 ms   |
+| asymmetric join              | 1.1 ms  | 14.9 ms  | 5.9 ms   |
+| reorder chain, written order | 82.6 ms | 2.6 ms   | 1.2 ms   |
+| reorder chain, planner on    | 1.3 ms  | —        | —        |
+| dp-join, DP plan             | 20.3 ms | 106.2 ms | 2.5 s    |
+| dp-join, greedy plan         | 19.9 ms | —        | —        |
 
 EXISTS surface, 400-person graph:
 
 | query               | wazoo   | comunica | oxigraph |
 | ------------------- | ------- | -------- | -------- |
-| `FILTER EXISTS`     | 0.70 ms | 21.5 ms  | 0.77 ms  |
-| `FILTER NOT EXISTS` | 0.64 ms | 23.4 ms  | 0.85 ms  |
-| nested `EXISTS`     | 0.87 ms | 88.8 ms  | 0.93 ms  |
-| nested `NOT EXISTS` | 0.86 ms | 127.7 ms | 0.93 ms  |
+| `FILTER EXISTS`     | 0.27 ms | 7.6 ms   | 0.41 ms  |
+| `FILTER NOT EXISTS` | 0.32 ms | 8.8 ms   | 0.42 ms  |
+| nested `EXISTS`     | 0.42 ms | 19.7 ms  | 0.55 ms  |
+| nested `NOT EXISTS` | 0.45 ms | 19.7 ms  | 0.54 ms  |
 
 EXISTS surface, 10,000-person graph (~55,000 quads):
 
 | query               | wazoo   | comunica | oxigraph |
 | ------------------- | ------- | -------- | -------- |
-| `FILTER EXISTS`     | 20.1 ms | 499.0 ms | 22.2 ms  |
-| `FILTER NOT EXISTS` | 19.3 ms | 484.7 ms | 21.4 ms  |
-| nested `EXISTS`     | 25.9 ms | 3.1 s    | 26.4 ms  |
-| nested `NOT EXISTS` | 26.8 ms | 2.2 s    | 31.5 ms  |
+| `FILTER EXISTS`     | 10.5 ms | 197 ms   | 13.2 ms  |
+| `FILTER NOT EXISTS` | 9.8 ms  | 194 ms   | 13.6 ms  |
+| nested `EXISTS`     | 16.9 ms | 407 ms   | 15.7 ms  |
+| nested `NOT EXISTS` | 16.1 ms | 393 ms   | 16.5 ms  |
 
-Scaling the data 25x (400 → 10,000 people) grows wazoo's EXISTS cost ~35x while
-nesting stays within ~1.2x of the simple case at both scales: the snapshot is
-drained and indexed once per query, and each probe touches only its candidate
+Scaling the data 25x (400 → 10,000 people) grows wazoo's EXISTS cost ~36-40x,
+while nesting stays within ~1.6x of the simple case at both scales: the snapshot
+is drained and indexed once per query, and each probe touches only its candidate
 bucket, so nesting stays cheap relative to the dataset. Across the exists
-surface wazoo is ~15-65x faster than comunica and roughly at parity with
+surface wazoo is ~19-48x faster than comunica, and at parity with or ahead of
+oxigraph (a compiled Rust/WASM engine with native indexes).
 
-oxigraph (a compiled Rust/WASM engine with native indexes, which remains ahead
-on the reorder-chain row); on the core scan/join rows wazoo is the fastest of
-the three.
+On the core rows wazoo is fastest on the full scan and the asymmetric join, and
+the plain join is within run-to-run noise of oxigraph. The reorder chain is the
+exception: in written order wazoo is far behind both references, and with its
+planner on it is level with oxigraph. The two dp-join plans measure the same in
+this snapshot.
 
 Join surface, 10,000-person graph (~55,000 quads) — UNION joins 10k x 20k
 bindings on the shared subject (~200M candidate pairs); OPTIONAL and MINUS join
@@ -499,14 +501,13 @@ per left binding instead of scanning it:
 
 | query               | wazoo   | comunica | oxigraph |
 | ------------------- | ------- | -------- | -------- |
-| UNION (10k x 20k)   | 37.9 ms | 87.1 ms  | 98.2 ms  |
-| OPTIONAL (10k x 5k) | 15.4 ms | 444.4 ms | 46.0 ms  |
-| MINUS (10k x 5k)    | 13.3 ms | 31.7 ms  | 17.1 ms  |
+| UNION (10k x 20k)   | 21.1 ms | 58.9 ms  | 48.9 ms  |
+| OPTIONAL (10k x 5k) | 9.1 ms  | 253 ms   | 27.7 ms  |
+| MINUS (10k x 5k)    | 7.5 ms  | 26.3 ms  | 11.3 ms  |
 
 On this surface wazoo leads all three engines, and the fan-out join scaling is
-sub-quadratic: the nested-loop before-state for the same UNION was ~7 s/iter
-versus ~38 ms with the hash join (~185x), with OPTIONAL and MINUS showing the
-same shape (~60-80x).
+sub-quadratic. When the hash join landed (measured under Deno), the same UNION
+went from ~7 s per iteration with a nested loop to ~38 ms.
 
 The same snapshot as a chart — one row per query class, three bars per row
 (wazoo green, Comunica orange, Oxigraph blue), bar length proportional to avg
@@ -535,48 +536,47 @@ treemap (length/area ∝ size) summarize both:
   <figcaption><b>Fig 1 — Library size on disk.</b> One bar per engine; bar
   length is proportional to total installed size (values in binary MiB, share
   of the combined total in parentheses). Wazoo (green) is the whole JSR
-  artifact at 0.67 MiB — a sliver against comunica’s 28.3 MiB closure (orange);
+  artifact at 1.24 MiB against comunica’s 38.25 MiB closure (orange);
   oxigraph (blue) sits between.</figcaption>
 </figure>
 
-| engine   | on disk      | contents                                                                                                                     |
-| -------- | ------------ | ---------------------------------------------------------------------------------------------------------------------------- |
-| wazoo    | **0.67 MiB** | 41 files (the whole JSR artifact: `src/` + `README.md` + `LICENSE`; build-time grammars excluded); zero runtime dependencies |
-| oxigraph | 7.9 MiB      | WASM runtime (7.8 MiB) + JS glue/types                                                                                       |
-| comunica | 28.3 MiB     | 368 npm packages in the transitive dependency closure                                                                        |
+| engine   | on disk      | contents                                                                                                                      |
+| -------- | ------------ | ----------------------------------------------------------------------------------------------------------------------------- |
+| wazoo    | **1.24 MiB** | 115 files (the whole JSR artifact: `src/` + `README.md` + `LICENSE`; build-time grammars excluded); zero runtime dependencies |
+| oxigraph | 8.39 MiB     | WASM runtime (8.25 MiB) + JS glue/types                                                                                       |
+| comunica | 38.25 MiB    | 367 npm packages in the transitive dependency closure                                                                         |
 
-Regenerated by `bun run bench:size`. The wazoo artifact is **~0.67 MiB on disk
-(~0.15 MiB gzipped)** — the JSR `publish.exclude` drops the build-time grammar
-sources (`*.jison`, `generate-parser.ts`, ~87 KiB). The durable SQLite store
-moved to `@worlds/sqlite` (2026-08-17), so the root import graph is
-server-optional. The chart and the `bench:size` JSON both mirror that file set
-exactly.
+Regenerated by `bun run bench:size`. The wazoo artifact is **~1.24 MiB on disk
+(~0.23 MiB gzipped)**; the generated SPARQL parser is about 0.51 MiB of it. The
+JSR `publish.exclude` drops tests and the build-time grammar sources
+(`*.jison`, `generate-parser.ts`). The durable SQLite store moved to
+`@worlds/sqlite` (2026-08-17), so the root import graph is server-optional. The
+chart and the `bench:size` JSON both mirror that file set.
 
-**Peak heap during execution** on the 10k-person graph (55k quads), measured in
-an isolated subprocess per engine (peak `process.memoryUsage().heapUsed`
-over 5 runs; all three share the same ~62 MiB runtime baseline, so the
-comparison is symmetric):
+**Peak resident memory during execution** on the 10k-person graph (55k quads),
+measured in an isolated subprocess per engine (peak
+`process.memoryUsage().rss` over 5 runs). Every figure includes the shared
+~51 MiB Bun runtime and dataset baseline. Resident memory is compared because
+Bun reports a `heapUsed` for oxigraph's WASM memory that is larger than the
+whole process:
 
 <figure>
-  <img src="docs/assets/treemap-memory.svg" alt="Treemap of peak heap per engine and workload">
-  <figcaption><b>Fig 4 — Peak heap during execution</b> (10k-person graph).
-  One panel per workload (full scan, nested EXISTS); within each, the three
-  engines’ tiles are scaled by their peak `heapUsed` (values in MiB). Wazoo
-  (green) is the smallest tile in both panels.</figcaption>
+  <img src="docs/assets/treemap-memory.svg" alt="Treemap of peak resident memory per engine and workload">
+  <figcaption><b>Fig 4 — Peak resident memory during execution</b> (10k-person
+  graph). One panel per workload (full scan, nested EXISTS); within each, the
+  three engines’ tiles are scaled by their peak RSS (values in MiB).</figcaption>
 </figure>
 
-| workload             | wazoo       | comunica | oxigraph |
-| -------------------- | ----------- | -------- | -------- |
-| full scan (55k rows) | **150 MiB** | 214 MiB  | 255 MiB  |
-| nested EXISTS        | **80 MiB**  | 273 MiB  | 109 MiB  |
+| workload             | wazoo       | comunica | oxigraph    |
+| -------------------- | ----------- | -------- | ----------- |
+| full scan (55k rows) | **197 MiB** | 337 MiB  | 289 MiB     |
+| nested EXISTS        | 193 MiB     | 239 MiB  | **187 MiB** |
 
-Wazoo is the smallest on disk by 12-42x (0.67 vs 7.9 vs 28.3 MiB) and holds its
-speed advantage with the lowest peak heap on both workloads — including a peak
-roughly a third of comunica's on the nested-EXISTS surface the timings above
-highlight. Oxigraph's WASM runtime is compact on disk, but its result
-materialization peaks higher than wazoo on both workloads.
+Wazoo is the smallest on disk by 7-31x (1.24 vs 8.39 vs 38.25 MiB). It uses the
+least memory on the full scan, and on nested EXISTS it is within a few percent
+of oxigraph and below comunica.
 
-These are machine-specific snapshots (Deno 2.9.5, Windows, before the Bun cutover), not guarantees.
+These are machine-specific snapshots (Bun 1.4.5, Windows 11), not guarantees.
 Regenerate them with `bun run bench:size` (library sizes, from the installed
 packages) and `bun run bench:memory` (peak memory, spawned per engine), which
 write the SVGs into `docs/assets/`.
