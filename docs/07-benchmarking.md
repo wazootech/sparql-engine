@@ -84,6 +84,14 @@ join scaling), the EXISTS snapshot is drained and indexed once per query (flat
 cost as data grows), and the dynamic join planner removes the worst-case-ordered
 chain penalty.
 
+## Linux CLI timings in CI
+
+`.github/workflows/bench.yml` compares the `bun build --compile` and scriptc
+hosts on linux-x64, weekly, on demand, and on a pull request labeled `bench`.
+The tables land in the job summary and in a `bench-<sha>` artifact. It is
+informational: it fails only when a host does not build or the hosts disagree on
+output. Compare numbers within one run, and ignore cells marked `⚠`.
+
 ## `bun run bench:check` — regression budget
 
 `bench/budget.ts` is the CI perf gate. It runs four queries — a 2-pattern BGP
