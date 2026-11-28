@@ -176,7 +176,7 @@ bun run bench        # wazoo vs Comunica vs Oxigraph, verification-first
 bun run bench:check  # regression budget gate (bench/budget.ts)
 bun run bench:size   # on-disk library footprint → docs/assets/chart-library-size.svg
 bun run bench:size:closures # per-entrypoint import closure → docs/assets/chart-closures.svg
-bun run bench:memory # peak heap per engine → docs/assets/treemap-memory.svg
+bun run bench:memory # peak memory per engine → docs/assets/treemap-memory.svg
 bun run bench:latency # committed latency snapshot → docs/assets/chart-latency.svg
 ```
 

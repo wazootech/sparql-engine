@@ -7,7 +7,7 @@ layout: default
 
 The engine ships nine benchmark surfaces — one latency comparison, one CI
 regression gate, one concurrency stress probe, three footprint measurers
-(on-disk size, per-entrypoint closure, and peak heap), a latency-chart renderer,
+(on-disk size, per-entrypoint closure, and peak memory), a latency-chart renderer,
 a latency-snapshot freshness gate, and a durable-store benchmark. This page
 documents the methodology behind each — how a measurement is made trustworthy,
 what a gate measures, and how to run it. Run instructions live in
@@ -16,7 +16,7 @@ what a gate measures, and how to run it. Run instructions live in
 **The measured numbers live in the root `README.md`** (Size & memory footprint,
 Latency), regenerated from `bench/*-data.json` and rendered into the committed
 `docs/assets/*.svg` charts. The wiki deliberately does not duplicate them:
-latency, size, and peak-heap values are machine-specific snapshots (runtime
+latency, size, and peak-memory values are machine-specific snapshots (runtime
 version, hardware, run-to-run noise) that go stale without telling a reader
 anything structural. Run `bun run bench`, `bun run bench:size`, or
 `bun run bench:memory` for your own numbers.
@@ -28,7 +28,7 @@ anything structural. Run `bun run bench`, `bun run bench:size`, or
 | `bench/concurrency-probe.ts` | (manual)                      | EXISTS snapshot isolation under concurrency                                          | no   |
 | `bench/measure-libs.ts`      | `bun run bench:size`          | On-disk footprint of each engine                                                     | no   |
 | `bench/measure-closures.ts`  | `bun run bench:size:closures` | Per-entrypoint import closure (what each subpath loads)                              | no   |
-| `bench/collect-memory.ts`    | `bun run bench:memory`        | Peak heap during execution                                                           | no   |
+| `bench/collect-memory.ts`    | `bun run bench:memory`        | Peak memory during execution                                                         | no   |
 | `bench/latency-chart.ts`     | `bun run bench:latency`       | Renders the `--json` latency snapshot into `docs/assets/chart-latency.svg`           | no   |
 | `bench/latency-check.ts`     | `bun run bench:latency:check` | Fails when the committed snapshot's bench inventory is stale vs a fresh run          | CI   |
 
@@ -148,7 +148,7 @@ in `src/wazoo-sparql-engine.test.ts`.
 - `bench:memory` — `bench/collect-memory.ts` spawns `bench/memory-probe.ts` per
   engine × workload in an **isolated Bun subprocess** (so only the target
   engine is loaded), executing each workload 5× and reporting peak
-  `process.memoryUsage()` (`heapUsed` + `rss` + `external`) on a 10,000-person
+  `process.memoryUsage()` (`rss`, with `heapUsed` and `external` recorded) on a 10,000-person
   graph (~55,000 quads) → `bench/memory-data.json`.
 - `bench/treemap.ts` renders the JSON snapshots into
   `docs/assets/chart-library-size.svg` (bar chart),
@@ -186,11 +186,10 @@ The committed charts:
 </figure>
 
 <figure>
-  <img src="assets/treemap-memory.svg" alt="Treemap of peak heap per engine and workload">
-  <figcaption><b>Fig — Peak heap during execution</b> (10k-person graph).
+  <img src="assets/treemap-memory.svg" alt="Treemap of peak resident memory per engine and workload">
+  <figcaption><b>Fig — Peak resident memory during execution</b> (10k-person graph).
   One panel per workload (full scan, nested EXISTS); within each, the three
-  engines' tiles are scaled by their peak `heapUsed`. Wazoo (green) is the
-  smallest tile in both panels.</figcaption>
+  engines' tiles are scaled by their peak resident memory (RSS).</figcaption>
 </figure>
 
 ## Regenerating and committing results

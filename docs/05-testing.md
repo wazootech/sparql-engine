@@ -214,9 +214,9 @@ worst-case-ordered chain fast, at parity with Oxigraph.
 
 ### `bun run bench:check` — regression budget
 
-`bench/budget.ts` runs two queries (a 2-pattern BGP join and a reorder chain)
-50× against a 100-subject store and fails if average latency exceeds
-`maxAllowedMs: 50` from `bench/baseline.json`. This is the CI perf gate.
+`bench/budget.ts` is the CI perf gate: it times a few queries against a small
+store and fails when a row's median exceeds its budget (see
+[07 — Benchmarking & Performance](07-benchmarking.md)).
 
 ### `bench/concurrency-probe.ts` — EXISTS concurrency stress
 
@@ -259,9 +259,9 @@ to ship and run (root `README.md` → _Size & memory footprint_):
   `bench/closures-data.json`.
 - `bench:memory` — `bench/collect-memory.ts` spawns `bench/memory-probe.ts` per
   engine in an **isolated Bun subprocess** (so only the target engine is
-  loaded), reporting peak `process.memoryUsage().heapUsed` over 5 runs on a
+  loaded), reporting peak `process.memoryUsage().rss` over 5 runs on a
   10k-person graph (~55k quads), across a full-scan and a nested-EXISTS workload
-  → `bench/memory-data.json`. Wazoo is lowest on both workloads.
+  → `bench/memory-data.json`.
 - `bench/treemap.ts` renders the JSON snapshots into `docs/assets/chart-*.svg`
   (bar charts) and `docs/assets/treemap-memory.svg` (treemap):
 
@@ -274,11 +274,11 @@ to ship and run (root `README.md` → _Size & memory footprint_):
 </figure>
 
 <figure>
-  <img src="assets/treemap-memory.svg" alt="Treemap of peak heap per engine and workload">
-  <figcaption><b>Fig — Peak heap during execution</b> (10k-person graph).
+  <img src="assets/treemap-memory.svg" alt="Treemap of peak resident memory per engine and workload">
+  <figcaption><b>Fig — Peak resident memory during execution</b> (10k-person graph).
   One panel per workload (full scan, nested EXISTS); within each, the three
-  engines’ tiles are scaled by their peak `heapUsed` (values in MiB). Wazoo
-  (green) is the smallest tile in both panels.</figcaption>
+  engines’ tiles are scaled by their peak resident memory (values in
+  MiB).</figcaption>
 </figure>
 
 These are machine-specific snapshots, not guarantees — regenerate with the three

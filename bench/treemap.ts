@@ -257,7 +257,7 @@ function sizeChart(): void {
   );
   parts.push(
     `<text x="12" y="34" font-size="9" fill="#868e96">` +
-      `Engine package footprint, excluding the shared Deno runtime — bar length ∝ ` +
+      `Engine package footprint, excluding the shared JavaScript runtime — bar length ∝ ` +
       `total installed size (binary MiB)</text>`,
   );
   entries.forEach((entry, i) => {
@@ -291,7 +291,7 @@ function memoryTree(): Placed[] {
   ) as {
     engines: Record<
       string,
-      { scan: { peakHeap: number }; exists: { peakHeap: number } }
+      { scan: { peakRss: number }; exists: { peakRss: number } }
     >;
   };
   const names = ["wazoo", "comunica", "oxigraph"];
@@ -306,7 +306,7 @@ function memoryTree(): Placed[] {
     const wl = workloads[wi];
     const items = names.map((name) => ({
       name,
-      bytes: data.engines[name][wl].peakHeap,
+      bytes: data.engines[name][wl].peakRss,
       color: ENGINE_COLORS[name] ?? "#1971c2",
     }));
     const outer: Rect = { x: 12 + wi * panelW, y: 44, w: panelW - 6, h: 244 };
@@ -321,7 +321,7 @@ function memoryTree(): Placed[] {
       name: l.name,
       rect: l.rect,
       color: items.find((i) => i.name === l.name)!.color,
-      valueText: fmtBytes(data.engines[l.name][wl].peakHeap),
+      valueText: fmtBytes(data.engines[l.name][wl].peakRss),
     }));
     roots.push({
       name: labels[wl],
@@ -498,8 +498,8 @@ function closuresChart(): boolean {
 sizeChart();
 
 const memSvg = treemapSvg(
-  "Peak heap during execution (10k-person graph)",
-  "Isolated Deno subprocess per engine; peak process.memoryUsage().heapUsed over 5 runs; ~62 MiB runtime baseline excluded from comparison by symmetry",
+  "Peak resident memory during execution (10k-person graph)",
+  "Isolated Bun subprocess per engine; peak process.memoryUsage().rss over 5 runs; every tile includes the shared ~51 MiB runtime and dataset baseline",
   memoryTree(),
   720,
   300,

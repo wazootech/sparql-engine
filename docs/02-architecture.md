@@ -220,7 +220,7 @@ small BGPs, greedy fallback), not a static rewrite:
    only (it never materializes bindings), so it changes only which order the
    joins run in, and it is globally optimal under the estimated model where
    greedy is only stepwise-optimal — greedy can pick a locally cheap join that
-   doubles the cross product later (the `dp-join` bench row shows ~2×). Larger
+   doubles the cross product later. Larger
    BGPs, and any injected custom `JoinCostEstimator` (whose costs the DP cannot
    assume), keep the greedy loop.
 5. The chosen order executes through the normal eager join loop

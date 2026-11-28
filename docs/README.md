@@ -71,11 +71,10 @@ reference engines. The numbers they plot live in the root `README.md`
 </figure>
 
 <figure>
-  <img src="assets/treemap-memory.svg" alt="Treemap of peak heap per engine and workload">
-  <figcaption><b>Fig 2 — Peak heap during execution</b> (10k-person graph).
+  <img src="assets/treemap-memory.svg" alt="Treemap of peak resident memory per engine and workload">
+  <figcaption><b>Fig 2 — Peak resident memory during execution</b> (10k-person graph).
   One panel per workload (full scan, nested EXISTS); within each, the three
-  engines’ tiles are scaled by their peak `heapUsed`. Wazoo (green) is the
-  smallest tile in both panels.</figcaption>
+  engines’ tiles are scaled by their peak resident memory (RSS).</figcaption>
 </figure>
 
 **Latency** — average per-query-class latency, lower is better; the committed
