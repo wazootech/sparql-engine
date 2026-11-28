@@ -42,7 +42,40 @@ function sorted(name: string, values: string[]): ParityTestCase[] {
   ];
 }
 
+/** bound builds a case that evaluates one expression per projected variable. */
+function bound(name: string, expressions: string[]): ParityTestCase {
+  const binds = expressions
+    .map((expression, index) => `BIND(${expression} AS ?v${index})`)
+    .join(" ");
+  const variables = expressions.map((_, index) => `?v${index}`).join(" ");
+  return {
+    name,
+    kind: "select",
+    query: `SELECT ${variables} WHERE { ${binds} }`,
+    quads: [],
+  };
+}
+
+const ZONED = typed("2020-05-06+02:00", "date");
+const PLAIN = typed("2020-05-06", "date");
+
 export const temporalCases: ParityTestCase[] = [
+  bound(
+    "date components - functions over xsd:date",
+    ["YEAR", "MONTH", "DAY", "HOURS", "TZ", "TIMEZONE"].flatMap((name) => [
+      `${name}(${ZONED})`,
+      `${name}(${PLAIN})`,
+      `${name}(${typed("2020-02-30", "date")})`,
+    ]),
+  ),
+  bound("date components - the xsd:date constructor", [
+    `<${xsd}date>(${instant("2020-05-06T10:00:00+02:00")})`,
+    `<${xsd}date>(${instant("2020-05-06T10:00:00")})`,
+    `<${xsd}date>("2020-05-06")`,
+    `<${xsd}date>(${ZONED})`,
+    `<${xsd}date>("2020-02-30")`,
+    `<${xsd}date>(1)`,
+  ]),
   compared("dateTime across timezones", [
     [instant("2020-01-01T01:00:00+01:00"), instant("2020-01-01T00:00:00Z")],
     [instant("2019-12-31T16:00:00-08:00"), instant("2020-01-01T00:00:01Z")],

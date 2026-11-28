@@ -5,7 +5,8 @@
  * timezone offsets.
  */
 
-import { numberFromText } from "@/term/numeric.ts";
+import { numberFromText, XSD, XSD_DATETIME } from "@/term/numeric.ts";
+import { dateValue } from "@/term/temporal.ts";
 
 /**
  * DateTimeParts is the parsed component view of an xsd:dateTime literal.
@@ -117,4 +118,32 @@ export function timezoneDurationLexical(offsetMinutes: number): string {
     result += "0S";
   }
   return result;
+}
+
+/** XSD_DATE is the xsd:date datatype IRI. */
+export const XSD_DATE: string = `${XSD}date`;
+
+/**
+ * parseCalendar parses the components of an xsd:dateTime or xsd:date lexical
+ * form, a date reading as its first instant, or null for any other datatype or
+ * an impossible date.
+ */
+export function parseCalendar(
+  lexical: string,
+  datatype: string,
+): DateTimeParts | null {
+  if (datatype === XSD_DATETIME) {
+    return parseDateTime(lexical);
+  }
+  if (datatype !== XSD_DATE || dateValue(lexical) === null) {
+    return null;
+  }
+  const zone = timezoneOf(lexical);
+  const day = lexical.slice(0, lexical.length - zone.length);
+  return parseDateTime(`${day}T00:00:00${zone}`);
+}
+
+/** timezoneOf returns the timezone a date or dateTime form ends with, or "". */
+export function timezoneOf(lexical: string): string {
+  return /(Z|[+-][0-9]{2}:[0-9]{2})$/.exec(lexical)?.[1] ?? "";
 }

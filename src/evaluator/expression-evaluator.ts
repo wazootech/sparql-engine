@@ -32,7 +32,12 @@ import {
   XSD_DATETIME,
   XSD_DAYTIME_DURATION,
 } from "@/term/mod.ts";
-import { castToBoolean, castToDateTime } from "@/evaluator/cast-boolean.ts";
+import {
+  castToBoolean,
+  castToDate,
+  castToDateTime,
+} from "@/evaluator/cast-boolean.ts";
+import { parseCalendar, XSD_DATE } from "@/term/datetime.ts";
 import {
   castToDecimal,
   castToDouble,
@@ -628,8 +633,7 @@ export class ExpressionEvaluator {
         if (
           val === undefined ||
           val.termType !== "Literal" ||
-          val.datatype?.value !== XSD_DATETIME ||
-          parseDateTime(val.value) === null
+          parseCalendar(val.value, val.datatype?.value ?? "") === null
         ) {
           return undefined;
         }
@@ -1319,6 +1323,8 @@ export class ExpressionEvaluator {
         return castToBoolean(value);
       case XSD_DATETIME:
         return castToDateTime(value);
+      case XSD_DATE:
+        return castToDate(value);
       default: {
         const localName = fnIri.includes("#")
           ? fnIri.split("#").pop()!
@@ -1915,14 +1921,16 @@ export class ExpressionEvaluator {
     context?: ExpressionEvaluationContext,
   ): RdfLiteral | undefined {
     const value = this.evaluateWith(expression, binding, aggregates, context);
-    if (
-      value === undefined ||
-      value.termType !== "Literal" ||
-      value.datatype?.value !== XSD_DATETIME
-    ) {
+    if (value === undefined || value.termType !== "Literal") {
       return undefined;
     }
-    const parts = parseDateTime(value.value);
+    const datatype = value.datatype?.value ?? "";
+    // Only a dateTime has a time of day.
+    const timed = component === "hours" || component === "minutes";
+    const parts =
+      timed && datatype !== XSD_DATETIME
+        ? null
+        : parseCalendar(value.value, datatype);
     if (parts === null) {
       return undefined;
     }
@@ -1989,14 +1997,10 @@ export class ExpressionEvaluator {
     context?: ExpressionEvaluationContext,
   ): RdfLiteral | undefined {
     const value = this.evaluateWith(expression, binding, aggregates, context);
-    if (
-      value === undefined ||
-      value.termType !== "Literal" ||
-      value.datatype?.value !== XSD_DATETIME
-    ) {
+    if (value === undefined || value.termType !== "Literal") {
       return undefined;
     }
-    const parts = parseDateTime(value.value);
+    const parts = parseCalendar(value.value, value.datatype?.value ?? "");
     if (parts === null || !parts.hasTimezone) {
       return undefined;
     }
