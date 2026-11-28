@@ -34,6 +34,7 @@
     "lint": "oxlint --deny-warnings",
     "native:coverage": "bun cli/native-coverage.ts",
     "native:build": "bun cli/native-build.ts",
+    "mutation": "stryker run",
     "native:gate": "bun cli/native-gate.ts",
     "parser:generate": "bun src/parser/generate-parser.ts",
     "parser:check": "bun src/parser/generate-parser.ts --check",
@@ -59,6 +60,7 @@
     "oxigraph": "^0.5.9"
   },
   "devDependencies": {
+    "@stryker-mutator/core": "10.1.1",
     "@types/node": "^22.10.0",
     "@wazoo/sparql-engine-published": "npm:@jsr/wazoo__sparql-engine@0.4.1",
     "jsr": "0.14.3",

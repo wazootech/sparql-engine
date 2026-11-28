@@ -14,3 +14,6 @@ scriptc-build.log
 # jsr publish regenerates a Deno lockfile on every run; it is never committed.
 deno.lock
 .scriptc/
+# StrykerJS sandboxes and reports.
+.stryker-tmp/
+reports/
